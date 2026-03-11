@@ -8,8 +8,6 @@ import de.gbanking.gui.fx.panel.account.AccountDetailPanel;
 import de.gbanking.gui.fx.panel.account.AccountListPanel;
 import de.gbanking.gui.fx.panel.transaction.TransactionDetailPanel;
 import de.gbanking.gui.fx.panel.transaction.TransactionListPanel;
-import javafx.geometry.Insets;
-import javafx.scene.control.Label;
 import javafx.scene.control.SplitPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Priority;
@@ -21,8 +19,6 @@ public class AccountsTransactionsOverviewPanel extends TransactionsOverviewBaseP
 
 	private AccountListPanel accountListPanel;
 	private AccountDetailPanel accountDetailPanel;
-	private BorderPane rightPane;
-	private SplitPane mainSplit;
 	private VBox rightContentBox;
 
 	@Override
@@ -30,50 +26,34 @@ public class AccountsTransactionsOverviewPanel extends TransactionsOverviewBaseP
 		setPageContext(PageContext.ACCOUNTS_TRANSACTIONS);
 		log.info("Creating AccountsTransactionsOverviewPanel");
 
-		Label title = new Label(getText("UI_PANEL_ACCOUNTS_TRANSACTIONS"));
-		title.setStyle("-fx-font-size:16px; -fx-font-weight:bold;");
-
-		mainSplit = new SplitPane();
-
 		accountListPanel = new AccountListPanel(this);
 
-		rightPane = new BorderPane();
-		rightContentBox = new VBox(8);
-		rightContentBox.setFillWidth(true);
-		rightContentBox.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-
 		accountDetailPanel = new AccountDetailPanel(false);
-		accountDetailPanel.setPrefHeight(260);
-		accountDetailPanel.setMinHeight(220);
+		accountDetailPanel.setPrefHeight(300);
+		accountDetailPanel.setMinHeight(260);
+		accountDetailPanel.setMaxWidth(Double.MAX_VALUE);
 
 		transactionDetailPanel = new TransactionDetailPanel();
-		transactionDetailPanel.setPrefHeight(360);
-		transactionDetailPanel.setMinHeight(280);
+		transactionDetailPanel.setPrefHeight(420);
+		transactionDetailPanel.setMinHeight(340);
+		transactionDetailPanel.setMaxWidth(Double.MAX_VALUE);
 
 		transactionListPanel = new TransactionListPanel(this);
-		VBox.setVgrow(transactionListPanel, Priority.ALWAYS);
 		transactionListPanel.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
-		rightContentBox.getChildren().addAll(accountDetailPanel, transactionListPanel);
+		rightContentBox = new VBox(8, accountDetailPanel, transactionListPanel);
+		rightContentBox.setFillWidth(true);
+		rightContentBox.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+		VBox.setVgrow(transactionListPanel, Priority.ALWAYS);
 
-		rightPane.setCenter(rightContentBox);
+		BorderPane rightPane = new BorderPane(rightContentBox);
 		rightPane.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
-		mainSplit.getItems().addAll(accountListPanel, rightPane);
+		SplitPane mainSplit = new SplitPane(accountListPanel, rightPane);
 		mainSplit.setDividerPositions(0.22);
 		mainSplit.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
-		VBox root = new VBox(8, title, mainSplit);
-		root.setPadding(new Insets(5));
-		root.setFillWidth(true);
-		root.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-		VBox.setVgrow(mainSplit, Priority.ALWAYS);
-
-		getChildren().clear();
-		getChildren().add(root);
-		VBox.setVgrow(root, Priority.ALWAYS);
-
-		setDisable(!show);
+		setOverviewContent("UI_PANEL_ACCOUNTS_TRANSACTIONS", mainSplit, show);
 	}
 
 	public AccountListPanel getAccountListPanel() {

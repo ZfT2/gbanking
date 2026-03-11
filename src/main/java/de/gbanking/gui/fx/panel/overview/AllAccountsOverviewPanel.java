@@ -6,11 +6,7 @@ import org.apache.logging.log4j.Logger;
 import de.gbanking.gui.fx.enu.PageContext;
 import de.gbanking.gui.fx.panel.account.AccountDetailPanel;
 import de.gbanking.gui.fx.panel.account.AccountListPanel;
-import javafx.geometry.Insets;
-import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
 
 public class AllAccountsOverviewPanel extends OverviewBasePanel {
 
@@ -22,30 +18,23 @@ public class AllAccountsOverviewPanel extends OverviewBasePanel {
 	@Override
 	public void createOverallPanel(boolean show) {
 		setPageContext(PageContext.ALL_ACCOUNTS);
-
 		log.info("Initializing AllAccountsOverviewPanel");
 
 		accountDetailPanel = new AccountDetailPanel(true);
-		accountDetailPanel.setPrefHeight(320);
-		accountDetailPanel.setMinHeight(280);
+		accountDetailPanel.setPrefHeight(380);
+		accountDetailPanel.setMinHeight(320);
+		accountDetailPanel.setMaxWidth(Double.MAX_VALUE);
 
 		accountListPanel = new AccountListPanel(this);
+		accountListPanel.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
 		BorderPane content = new BorderPane();
 		content.setTop(accountDetailPanel);
 		content.setCenter(accountListPanel);
+		content.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+		BorderPane.setMargin(accountListPanel, new javafx.geometry.Insets(8, 0, 0, 0));
 
-		Label title = new Label(getText("UI_PANEL_ALL_ACCOUNTS"));
-		title.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
-
-		VBox root = new VBox(8, title, content);
-		root.setPadding(new Insets(5));
-		VBox.setVgrow(content, Priority.ALWAYS);
-
-		getChildren().clear();
-		getChildren().add(root);
-
-		setDisable(!show);
+		setOverviewContent("UI_PANEL_ALL_ACCOUNTS", content, show);
 	}
 
 	public AccountDetailPanel getAccountDetailPanel() {

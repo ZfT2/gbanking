@@ -10,13 +10,9 @@ import de.gbanking.gui.fx.panel.account.AccountListPanel;
 import de.gbanking.gui.fx.panel.moneytransfer.MoneyTransferDetailListTabPanel;
 import de.gbanking.gui.fx.panel.moneytransfer.MoneyTransferInputBasePanel;
 import de.gbanking.gui.fx.panel.moneytransfer.MoneyTransferListPanel;
-import javafx.geometry.Insets;
-import javafx.scene.control.Label;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
 
 public class MoneyTransferOverviewPanel extends OverviewBasePanel {
 
@@ -32,17 +28,6 @@ public class MoneyTransferOverviewPanel extends OverviewBasePanel {
 	public void createOverallPanel(boolean show) {
 		setPageContext(PageContext.ACCOUNTS_MONEYTRANSFERS);
 
-		VBox root = new VBox(8);
-		root.setPadding(new Insets(5));
-		root.setFillWidth(true);
-		root.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-
-		Label title = new Label(getText("UI_PANEL_MONEYTRANSFERS"));
-		title.setStyle("-fx-font-size:16px; -fx-font-weight:bold;");
-
-		SplitPane splitPane = new SplitPane();
-		splitPane.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-
 		accountListPanel = new AccountListPanel(this);
 		accountListPanel.setMinWidth(280);
 		accountListPanel.setPrefWidth(335);
@@ -53,20 +38,14 @@ public class MoneyTransferOverviewPanel extends OverviewBasePanel {
 
 		tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> switchTab(newTab));
 
-		splitPane.getItems().addAll(accountListPanel, tabPane);
+		SplitPane splitPane = new SplitPane(accountListPanel, tabPane);
 		splitPane.setDividerPositions(0.22);
+		splitPane.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
-		root.getChildren().addAll(title, splitPane);
-		VBox.setVgrow(splitPane, Priority.ALWAYS);
-
-		getChildren().clear();
-		getChildren().add(root);
-		VBox.setVgrow(root, Priority.ALWAYS);
+		setOverviewContent("UI_PANEL_MONEYTRANSFERS", splitPane, show);
 
 		tabPane.getSelectionModel().select(0);
 		switchTab(tabPane.getTabs().get(0));
-
-		setDisable(!show);
 	}
 
 	private Tab createTab(OrderType type) {

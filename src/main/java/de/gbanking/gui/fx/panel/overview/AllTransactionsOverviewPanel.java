@@ -6,11 +6,7 @@ import org.apache.logging.log4j.Logger;
 import de.gbanking.gui.fx.enu.PageContext;
 import de.gbanking.gui.fx.panel.transaction.TransactionDetailPanel;
 import de.gbanking.gui.fx.panel.transaction.TransactionListPanel;
-import javafx.geometry.Insets;
-import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
 
 public class AllTransactionsOverviewPanel extends TransactionsOverviewBasePanel {
 
@@ -19,29 +15,22 @@ public class AllTransactionsOverviewPanel extends TransactionsOverviewBasePanel 
 	@Override
 	public void createOverallPanel(boolean show) {
 		setPageContext(PageContext.ALL_TRANSACTIONS);
-
 		log.info("Initializing AllTransactionsOverviewPanel");
 
 		transactionDetailPanel = new TransactionDetailPanel();
-		transactionDetailPanel.setPrefHeight(420);
-		transactionDetailPanel.setMinHeight(320);
+		transactionDetailPanel.setPrefHeight(500);
+		transactionDetailPanel.setMinHeight(380);
+		transactionDetailPanel.setMaxWidth(Double.MAX_VALUE);
 
 		transactionListPanel = new TransactionListPanel(this);
+		transactionListPanel.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
 		BorderPane content = new BorderPane();
 		content.setTop(transactionDetailPanel);
 		content.setCenter(transactionListPanel);
+		content.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+		BorderPane.setMargin(transactionListPanel, new javafx.geometry.Insets(8, 0, 0, 0));
 
-		Label title = new Label(getText("UI_PANEL_ALL_TRANSACTIONS"));
-		title.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
-
-		VBox root = new VBox(8, title, content);
-		root.setPadding(new Insets(5));
-		VBox.setVgrow(content, Priority.ALWAYS);
-
-		getChildren().clear();
-		getChildren().add(root);
-
-		setDisable(!show);
+		setOverviewContent("UI_PANEL_ALL_TRANSACTIONS", content, show);
 	}
 }

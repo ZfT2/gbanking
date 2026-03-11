@@ -1,17 +1,14 @@
 package de.gbanking.gui.fx.panel.overview;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.gui.fx.enu.PageContext;
 import de.gbanking.gui.fx.panel.account.AccountListPanel;
 import de.gbanking.gui.fx.panel.category.CategoryInputPanel;
 import de.gbanking.gui.fx.panel.category.CategoryListPanel;
-import javafx.geometry.Insets;
-import javafx.scene.control.Label;
 import javafx.scene.control.SplitPane;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class CategoryOverviewPanel extends OverviewBasePanel {
 
@@ -31,32 +28,25 @@ public class CategoryOverviewPanel extends OverviewBasePanel {
 	public void createOverallPanel(boolean show) {
 		setPageContext(PageContext.CATEGORIES);
 
-		Label title = new Label(getText("UI_PANEL_CATEGORIES"));
-		title.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
-
 		accountListPanel = new AccountListPanel(this);
 		accountListPanel.setMinWidth(280);
 		accountListPanel.setPrefWidth(335);
 
-		SplitPane rightSplit = new SplitPane();
 		categoryInputPanel.setMinWidth(360);
+		categoryInputPanel.setMaxWidth(Double.MAX_VALUE);
+
 		categoryListPanel.setMinWidth(420);
+		categoryListPanel.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
-		rightSplit.getItems().addAll(categoryInputPanel, categoryListPanel);
+		SplitPane rightSplit = new SplitPane(categoryInputPanel, categoryListPanel);
 		rightSplit.setDividerPositions(0.40);
+		rightSplit.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
-		SplitPane mainSplit = new SplitPane();
-		mainSplit.getItems().addAll(accountListPanel, rightSplit);
+		SplitPane mainSplit = new SplitPane(accountListPanel, rightSplit);
 		mainSplit.setDividerPositions(0.20);
+		mainSplit.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
-		VBox root = new VBox(8, title, mainSplit);
-		root.setPadding(new Insets(5));
-		VBox.setVgrow(mainSplit, Priority.ALWAYS);
-
-		getChildren().clear();
-		getChildren().add(root);
-
-		setDisable(!show);
+		setOverviewContent("UI_PANEL_CATEGORIES", mainSplit, show);
 		log.info("CategoryOverviewPanel initialized");
 	}
 

@@ -36,12 +36,15 @@ public class MoneyTransferDetailListTabPanel extends BorderPane {
 
 		moneyTransferInputPanel.setPrefWidth(620);
 		moneyTransferInputPanel.setMinWidth(520);
+		moneyTransferInputPanel.setMaxWidth(Double.MAX_VALUE);
 
 		moneyTransferListPanel = new MoneyTransferListPanel(orderType, this);
+		moneyTransferListPanel.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
 		HBox topRow = new HBox(10, moneyTransferInputPanel, recipientListPanel);
 		topRow.setPadding(new Insets(5));
-		topRow.setPrefHeight(280);
+		topRow.setFillHeight(true);
+
 		HBox.setHgrow(moneyTransferInputPanel, Priority.ALWAYS);
 		HBox.setHgrow(recipientListPanel, Priority.SOMETIMES);
 
