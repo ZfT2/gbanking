@@ -172,7 +172,8 @@ class SqlStatementsDDL {
 			  source TEXT NOT NULL,
 			  note TEXT,
 			  updatedAt TEXT NOT NULL,
-			  CHECK (source IN ("ONLINE", "MANUELL", "IMPORT", "IMPORT_INITIAL")));
+			  CHECK (source IN ("ONLINE", "MANUELL", "IMPORT", "IMPORT_INITIAL")),
+			  CHECK(COALESCE(name, iban, bic, accountnumber, blz, bank) IS NOT NULL));
 			""";
 
 	static final String SQL_SETUP_CREATE_CATEGORY = """

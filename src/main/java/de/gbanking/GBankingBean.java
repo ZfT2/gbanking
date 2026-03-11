@@ -182,9 +182,9 @@ public class GBankingBean extends BaseBean implements Serializable {
 
 					HBCIJob<?> umsatzJob = null;
 					if (lastBookingDate != null) {
-						umsatzJob = createAndAddHbciJob(handle, "KUmsAll", Map.of("my", konto, "startdate", lastBookingDate.getTime()));
+						umsatzJob = createAndAddHbciJob(handle, "KUmsAllCamt", Map.of("my", konto, "startdate", lastBookingDate.getTime()));
 					} else {
-						umsatzJob = createAndAddHbciJob(handle, "KUmsAll", Map.of("my", konto));
+						umsatzJob = createAndAddHbciJob(handle, "KUmsAllCamt", Map.of("my", konto));
 					}
 
 					HBCIExecStatus status = handle.execute();
