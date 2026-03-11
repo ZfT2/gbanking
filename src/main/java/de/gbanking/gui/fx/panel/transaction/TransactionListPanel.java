@@ -2,6 +2,7 @@ package de.gbanking.gui.fx.panel.transaction;
 
 import java.util.List;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -82,7 +83,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	}
 
 	private void handleBookingSelection(Booking booking) {
-		log.info(messages.getFormattedMessage("LOG_INFO_BOOKING_SELECTED", booking.getId()));
+		log.log(Level.INFO, () -> getText("LOG_INFO_BOOKING_SELECTED", booking.getId()));
 
 		Recipient recipient = dbController.getByIdFull(Recipient.class, booking.getRecipientId());
 		booking.setRecipient(recipient);
