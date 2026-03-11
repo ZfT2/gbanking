@@ -10,6 +10,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.gbanking.GBankingBean;
+import de.gbanking.SystemInfo;
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.MoneyTransfer;
 import de.gbanking.gui.fx.enu.FileType;
@@ -58,6 +59,7 @@ public class GBankingGui extends Application {
 
 	private BorderPane root;
 	private Label statusLabel;
+	private Label versionLabel;
 
 	private AccountsTransactionsOverviewPanel overviewPanel;
 	private MoneyTransferOverviewPanel moneyTransferPanel;
@@ -66,8 +68,6 @@ public class GBankingGui extends Application {
 	private RecipientOverviewPanel recipientOverviewPanel;
 	private AllAccountsOverviewPanel allAccountsOverviewPanel;
 	private AllTransactionsOverviewPanel allTransactionsOverviewPanel;
-
-	private OverviewBasePanel activeOverviewPanel;
 
 	private Stage primaryStage;
 
@@ -87,6 +87,13 @@ public class GBankingGui extends Application {
 		BorderPane bottom = new BorderPane();
 		bottom.setPadding(new Insets(4));
 		bottom.setLeft(statusLabel);
+
+		var javaVersion = SystemInfo.javaVersion();
+		var javafxVersion = SystemInfo.javafxVersion();
+
+		versionLabel = new Label("JavaFX " + javafxVersion + ", running on Java " + javaVersion + ".");
+		bottom.setRight(versionLabel);
+
 		root.setBottom(bottom);
 
 		createAndShowStartGui();
@@ -130,7 +137,6 @@ public class GBankingGui extends Application {
 	private void createAndShowStartGui() {
 		overviewPanel = new AccountsTransactionsOverviewPanel();
 		overviewPanel.createOverallPanel(true);
-		activeOverviewPanel = overviewPanel;
 		root.setCenter(overviewPanel);
 	}
 
@@ -233,11 +239,8 @@ public class GBankingGui extends Application {
 			overviewPanelMap.put(actionCommand, panelToActivate);
 		}
 
-		if (panelToActivate != null) {
-			panelToActivate.setDisable(false);
-			activeOverviewPanel = panelToActivate;
-			root.setCenter(panelToActivate);
-		}
+		panelToActivate.setDisable(false);
+		root.setCenter(panelToActivate);
 	}
 
 	private OverviewBasePanel createOverviewPanel(String actionCommand) {
