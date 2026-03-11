@@ -33,13 +33,12 @@ public abstract class AbstractFilterableTablePanel<T> extends BaseBorderPanePane
 		sorted.comparatorProperty().bind(tableView.comparatorProperty());
 		tableView.setItems(sorted);
 
-		filterText.textProperty().addListener((obs, oldVal, newVal) ->
-				filteredData.setPredicate(item -> matchesFilter(item, normalize(newVal))));
+		filterText.textProperty().addListener((obs, oldVal, newVal) -> filteredData.setPredicate(item -> matchesFilter(item, normalize(newVal))));
 
-				filterText.setMaxWidth(Double.MAX_VALUE);
-				HBox filterBox = new HBox(10, new Label(getText("UI_LABEL_SEARCH")), filterText);
-				filterBox.setAlignment(Pos.CENTER_LEFT);
-				HBox.setHgrow(filterText, Priority.ALWAYS);
+		filterText.setMaxWidth(Double.MAX_VALUE);
+		HBox filterBox = new HBox(10, new Label(getText("UI_LABEL_SEARCH")), filterText);
+		filterBox.setAlignment(Pos.CENTER_LEFT);
+		HBox.setHgrow(filterText, Priority.ALWAYS);
 
 		titleLabel.setMaxWidth(Double.MAX_VALUE);
 		tableView.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
