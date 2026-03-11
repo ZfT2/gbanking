@@ -1,0 +1,70 @@
+package de.gbanking.gui.fx.util;
+
+import javafx.geometry.Insets;
+import javafx.scene.Node;
+import javafx.scene.control.Control;
+import javafx.scene.control.Label;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+
+public final class FormGridHelper {
+
+	private FormGridHelper() {
+	}
+
+	public static GridPane createDefaultGrid() {
+		GridPane grid = new GridPane();
+		grid.setHgap(10);
+		grid.setVgap(8);
+		grid.setPadding(new Insets(6));
+		return grid;
+	}
+
+	public static void addFieldAbove(GridPane grid, String labelText, Node field, int col, int rowGroup) {
+		int row = rowGroup * 2;
+
+		Label label = new Label(labelText == null ? "" : labelText);
+
+		if (field == null) {
+			throw new IllegalArgumentException("field must not be null for labelText=" + labelText);
+		}
+
+		VBox box = new VBox(2);
+		box.getChildren().add(label);
+		box.getChildren().add(field);
+
+		if (field instanceof Region region) {
+			region.setMaxWidth(Double.MAX_VALUE);
+		}
+		if (field instanceof Control control) {
+			VBox.setVgrow(control, Priority.NEVER);
+		}
+
+		grid.add(box, col, row, 1, 2);
+	}
+
+	public static void addFieldAbove(GridPane grid, String labelText, Node field, int col, int rowGroup, int colspan) {
+		int row = rowGroup * 2;
+
+		Label label = new Label(labelText == null ? "" : labelText);
+
+		if (field == null) {
+			throw new IllegalArgumentException("field must not be null for labelText=" + labelText);
+		}
+
+		VBox box = new VBox(2);
+		box.getChildren().add(label);
+		box.getChildren().add(field);
+
+		if (field instanceof Region region) {
+			region.setMaxWidth(Double.MAX_VALUE);
+		}
+		if (field instanceof Control control) {
+			VBox.setVgrow(control, Priority.NEVER);
+		}
+
+		grid.add(box, col, row, colspan, 2);
+	}
+}

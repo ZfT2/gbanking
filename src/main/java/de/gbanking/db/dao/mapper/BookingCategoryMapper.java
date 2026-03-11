@@ -1,0 +1,35 @@
+package de.gbanking.db.dao.mapper;
+
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+import de.gbanking.db.dao.BookingCategory;
+import de.gbanking.db.dao.enu.CategoryRuleMode;
+import de.gbanking.util.TypeConverter;
+
+public class BookingCategoryMapper extends AbstractDaoMapper<BookingCategory, Void> {
+
+	@Override
+	public void setParamsFull(BookingCategory bookingCategory, PreparedStatement ps) throws SQLException {
+		int index = 1;
+		ps.setInt(index++, bookingCategory.getmTableId());
+		ps.setInt(index++, bookingCategory.getnTableId());
+		ps.setDate(index++, TypeConverter.toSqlDateNow());
+		if (bookingCategory.getId() > 0)
+			ps.setInt(index, bookingCategory.getId());
+	}
+
+	@Override
+	public BookingCategory toDao(ResultSet rs) throws SQLException {
+		BookingCategory bookingCategory = new BookingCategory();
+		bookingCategory.setId(rs.getInt("id"));
+		bookingCategory.setmTableId(rs.getInt("booking_id"));
+		bookingCategory.setnTableId(rs.getInt("category_id"));
+		bookingCategory.setCategoryRuleMode((CategoryRuleMode) CategoryRuleMode.forInt(rs.getInt("categoryRuleMode")));
+		bookingCategory.setUpdatedAt(TypeConverter.toCalendarFromSqlDate(rs.getDate("updatedAt")));
+
+		return bookingCategory;
+	}
+
+}

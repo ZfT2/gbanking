@@ -1,0 +1,35 @@
+.table-row-cell:striped-white {
+    -fx-background-color: white;
+}
+
+.table-row-cell:striped-light {
+    -fx-background-color: rgb(240, 245, 250);
+}
+
+.table-row-cell:selected {
+    -fx-background-color: -fx-selection-bar;
+}
+
+.table-row-cell:selected .text {
+    -fx-fill: -fx-selection-bar-text;
+}
+
+.table-cell.amount-positive {
+    -fx-text-fill: rgb(0, 100, 0);
+    -fx-font-weight: bold;
+}
+
+.table-cell.amount-negative {
+    -fx-text-fill: red;
+    -fx-font-weight: bold;
+}
+
+.table-cell.amount-neutral {
+    -fx-text-fill: -fx-text-inner-color;
+    -fx-font-weight: bold;
+}
+
+.overview-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+}

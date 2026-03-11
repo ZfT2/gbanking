@@ -1,0 +1,23 @@
+Nr.;BLZ;BIC;Institut;Ort;RZ;Organisation;HBCI-Zugang DNS;HBCI- Zugang     IP-Adresse;HBCI-Version;DDV;RDH-1;RDH-2;RDH-3;RDH-4;RDH-5;RDH-6;RDH-7;RDH-8;RDH-9;RDH-10;RAH-7;RAH-9;RAH-10;PIN/TAN-Zugang URL;Version;Datum letzte Änderung
+2;10010010;PBNKDEFFXXX;Postbank;Berlin;eigenes Rechenzentrum;BdB;;;;;;;;;;;;;;;;;;https://hbci.postbank.de/banking/hbci.do;FinTS V3.0;04.02.2022
+3;10020200;BHFBDEFF100;BHF-Bank AG;Berlin;Bank-Verlag GmbH;BdB;hbciserver.bankverlag.de;nicht unterstützt;3.0;;ja;;ja;;ja;;;;;;;;;https://www.bv-activebanking.de/hbciTunnel/hbciTransfer.jsp;FinTS V3.0;
+4;10020890;HYVEDEMM488;UniCredit Bank - HypoVereinsbank AG;Berlin;eigenes Rechenzentrum;BdB;hbci.hypovereinsbank.de;;3.0;;;;;;;;;;;;;ja;ja;https://hbci-01.hypovereinsbank.de/bank/hbci;FinTS V3.0;14.10.2024
+5;10020890;HYVEDEMM488;UniCredit Bank - HypoVereinsbank AG;Kleinmachnow;eigenes Rechenzentrum;BdB;hbci.hypovereinsbank.de;;3.0;;;;;;;;;;;;;ja;ja;https://hbci-01.hypovereinsbank.de/bank/hbci;FinTS V3.0;14.10.2024
+6;10020890;HYVEDEMM488;UniCredit Bank - HypoVereinsbank AG;Oranienburg;eigenes Rechenzentrum;BdB;hbci.hypovereinsbank.de;;3.0;;;;;;;;;;;;;ja;ja;https://hbci-01.hypovereinsbank.de/bank/hbci;FinTS V3.0;14.10.2024
+7;10020890;HYVEDEMM488;UniCredit Bank - HypoVereinsbank AG;Brandenburg an der Havel;eigenes Rechenzentrum;BdB;hbci.hypovereinsbank.de;;3.0;;;;;;;;;;;;;ja;ja;https://hbci-01.hypovereinsbank.de/bank/hbci;FinTS V3.0;14.10.2024
+8;10020890;HYVEDEMM488;UniCredit Bank - HypoVereinsbank AG;Königs Wusterhausen;eigenes Rechenzentrum;BdB;hbci.hypovereinsbank.de;;3.0;;;;;;;;;;;;;ja;ja;https://hbci-01.hypovereinsbank.de/bank/hbci;FinTS V3.0;14.10.2024
+9;10020890;HYVEDEMM488;UniCredit Bank - HypoVereinsbank AG;Fürstenwalde /Spree;eigenes Rechenzentrum;BdB;hbci.hypovereinsbank.de;;3.0;;;;;;;;;;;;;ja;ja;https://hbci-01.hypovereinsbank.de/bank/hbci;FinTS V3.0;14.10.2024
+10;10030500;LOEBDEBBXXX;Bankhaus Löbbecke (M.M.Warburg);Hamburg;B+S Banksysteme AG;BdB;www.warburg-bank.de;188.21.13.34;3.0;;;ja;ja;;ja;;;ja;ja;ja;;;;https://www.warburg-bank.de/fints;FinTS V3.0;15.02.2019
+11;10030600;GENODEF1OGK;Bankhaus Kruber;Berlin;Atruvia AG;BVR;fints2.atruvia.de;;3.0;;;;;;;;ja;;ja;ja;;;;https://fints2.atruvia.de/cgi-bin/hbciservlet;FinTS V3.0;06.09.2023
+19;10070124;DEUTDEDB101;Deutsche Bank Privat und Geschäftskd Berlin II;Berlin;eigenes Rechenzentrum;BdB;;193.150.167.8;3.0;;;;;;;;;;ja;ja;;;;https://fints.deutsche-bank.de/;FinTS V3.0;19.09.2015
+20;10077777;NORSDE51XXX;norisbank GmbH;Berlin;eigenes Rechenzentrum;BdB;;;;;;;;;;;;;;;;;;https://fints.norisbank.de/;FinTS V3.0;10.06.2013
+21;10090000;BEVODEBBXXX;Berliner Volksbank;Berlin;Atruvia AG;BVR;fints2.atruvia.de;;3.0;;;;;;;;ja;;ja;ja;;;;https://fints2.atruvia.de/cgi-bin/hbciservlet;FinTS V3.0;06.09.2023
+22;10120100;WELADED1WBB;Weberbank;Berlin;Finanz Informatik GmbH & Co. KG;DSGV;;;;;;;;;;;;;;;;;;https://banking-bb6.s-fints-pt-bb.de/fints30;FinTS V3.0;09.02.2022
+23;10130600;ISBKDEFXBER;Isbank AG;Frankfurt am Main;Bank-Verlag;BdB;;;;;;;;;;;;;;;;;;https://www.bv-activebanking.de/hbciTunnel/hbciTransfer.jsp;FinTS V3.0;01.10.2018
+24;10130800;BIWBDE33XXX;biw Bank für Investments und Wertpapiere;Willich;XCOM AG;BdB;hbcisepa.biw-bank.de;62.192.203.46;3.0;;ja;ja;;;ja;;;;;;;;;https://konto.biw-bank.de/hbci/;FinTS V3.0;23.06.2014
+25;12030000;BYLADEM1001;Deutsche Kreditbank Berlin (DKB) AG;Berlin ;eigenes Rechenzentrum;VÖB;;;;;;;;;;;;;;;;;;https://fints.dkb.de/fints;FinTS V3.0;30.10.2024
+26;12030000;BYLADEM1001;SKG BANK AG;Saarbrücken;eigenes Rechenzentrum;VÖB;;;;;;;;;;;;;;;;;;https://fints.dkb.de/fints;FinTS V3.0;30.10.2024
+27;12030900;MEFIDEMM100;Merck Finck & Co.;Berlin;Bank-Verlag GmbH;BdB;hbciserver.bankverlag.de;nicht unterstützt;3.0;;ja;;ja;;ja;;;;;;;;;https://www.bv-activebanking.de/hbciTunnel/hbciTransfer.jsp;FinTS V3.0;08.10.2010
+28;12040000;COBADEBB120;Commerzbank;Berlin;eigenes Rechenzentrum;BdB;hbci.commerzbank.de;;3.0;;ja;ja;ja;;ja;;;ja;ja;ja;;ja;ja;https://fints.commerzbank.de/fints;FinTS V3.0;27.02.2024
+29;12070000;DEUTDEBB160;Deutsche Bank Ld Brandenburg;Potsdam;eigenes Rechenzentrum;BdB;;193.150.167.7;3.0;;;;;;;;;;ja;ja;;;;https://fints.deutsche-bank.de/;FinTS V3.0;19.09.2015
+30;12070000;DEUTDEBB160;Deutsche Bank;Bad Freienwalde (Oder);eigenes Rechenzentrum;BdB;;193.150.167.7;3.0;;;;;;;;;;ja;ja;;;;https://fints.deutsche-bank.de/;FinTS V3.0;19.09.2015
