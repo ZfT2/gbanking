@@ -118,6 +118,8 @@ public class GBankingGui extends Application {
 
 		bean = new GBankingBean();
 		bean.setup();
+		
+		log.info("GBanking started.");
 	}
 
 	private void restoreOptions() {

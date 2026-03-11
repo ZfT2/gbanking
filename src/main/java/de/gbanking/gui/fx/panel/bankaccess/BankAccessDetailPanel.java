@@ -2,14 +2,14 @@ package de.gbanking.gui.fx.panel.bankaccess;
 
 import de.gbanking.db.dao.BankAccess;
 import de.gbanking.gui.fx.enu.ButtonContext;
-import de.gbanking.gui.fx.panel.BasePanelHolder;
+import de.gbanking.gui.fx.panel.AbstractReadonlyDetailPanel;
 import de.gbanking.gui.fx.panel.overview.BankAccessOverviewPanel;
 import de.gbanking.util.TypeConverter;
-import javafx.geometry.Insets;
-import javafx.scene.control.*;
-import javafx.scene.layout.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
 
-public class BankAccessDetailPanel extends BasePanelHolder {
+public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 
 	private final TextField blzText = new TextField();
 	private final TextField bankNameText = new TextField();
@@ -32,40 +32,29 @@ public class BankAccessDetailPanel extends BasePanelHolder {
 	private final BankAccessOverviewPanel parentPanel;
 
 	public BankAccessDetailPanel(BankAccessOverviewPanel parentPanel) {
+		super("UI_PANEL_BANK_ACCESS_DETAILS");
 		this.parentPanel = parentPanel;
 		createInnerBankAccessDetailPanel();
 	}
 
 	private void createInnerBankAccessDetailPanel() {
-		GridPane grid = new GridPane();
-		grid.setHgap(12);
-		grid.setVgap(8);
-		grid.setPadding(new Insets(8));
-
-		addFieldSide(grid, "BLZ", blzText, 0, 0);
-		addFieldSide(grid, "Bank", bankNameText, 1, 0);
-
-		addFieldSide(grid, "FinTS-URL", urlText, 0, 1);
-		addFieldSide(grid, "FinTS-Port", portText, 1, 1);
-
-		addFieldSide(grid, "Benutzer", userNameText, 0, 2);
-		addFieldSide(grid, "Customer-ID", customerIdText, 1, 2);
-
-		addFieldSide(grid, "System-ID", systemIdText, 0, 3);
-		addFieldSide(grid, "ausgew. TAN Verfahren", tanProcedureText, 1, 3);
-
-		addFieldSide(grid, "HBCI-Version", hbciVersionText, 0, 4);
-		addFieldSide(grid, "HBCI-Verschlüsselung", hbciFilterTypeText, 1, 4);
-
-		addFieldSide(grid, "BPD-Version", bpdVersionText, 0, 5);
-		addFieldSide(grid, "UPD-Version", updVersionText, 1, 5);
-
-		addFieldSide(grid, "aktiviert", activeText, 0, 6);
-		addFieldSide(grid, "Stand", updatedAtText, 1, 6);
+		addFieldAbove("UI_LABEL_BLZ", blzText, 0, 0);
+		addFieldAbove("UI_LABEL_BANK", bankNameText, 1, 0);
+		addFieldAbove("UI_LABEL_FINTS_URL", urlText, 0, 1);
+		addFieldAbove("UI_LABEL_FINTS_PORT", portText, 1, 1);
+		addFieldAbove("UI_LABEL_USER", userNameText, 0, 2);
+		addFieldAbove("UI_LABEL_CUSTOMER_ID", customerIdText, 1, 2);
+		addFieldAbove("UI_LABEL_SYSTEM_ID", systemIdText, 0, 3);
+		addFieldAbove("UI_LABEL_TAN_PROCEDURE_SELECTED", tanProcedureText, 1, 3);
+		addFieldAbove("UI_LABEL_HBCI_VERSION", hbciVersionText, 0, 4);
+		addFieldAbove("UI_LABEL_HBCI_ENCRYPTION", hbciFilterTypeText, 1, 4);
+		addFieldAbove("UI_LABEL_BPD_VERSION", bpdVersionText, 0, 5);
+		addFieldAbove("UI_LABEL_UPD_VERSION", updVersionText, 1, 5);
+		addFieldAbove("UI_LABEL_ACTIVE", activeText, 0, 6);
+		addFieldAbove("UI_LABEL_UPDATED_AT", updatedAtText, 1, 6);
 
 		Button buttonBankAccessNew = new Button(getText("BANKACCESS_BUTTON_NEW"));
 		buttonBankAccessNew.setOnAction(e -> newBankAccessDialog(ButtonContext.BUTTON_NEW));
-
 		buttonBankAccessEdit.setOnAction(e -> newBankAccessDialog(ButtonContext.BUTTON_EDIT));
 		buttonBankAccessDelete.setOnAction(e -> newBankAccessDialog(ButtonContext.BUTTON_DELETE));
 
@@ -73,25 +62,10 @@ public class BankAccessDetailPanel extends BasePanelHolder {
 		buttonBankAccessDelete.setDisable(true);
 
 		HBox buttons = new HBox(10, buttonBankAccessNew, buttonBankAccessEdit, buttonBankAccessDelete);
+		addContentNode(buttons);
 
-		TitledPane pane = new TitledPane("Bankzugang Details", new VBox(8, grid, buttons));
-		pane.setCollapsible(false);
-
-		setReadOnly();
-		getChildren().add(pane);
-	}
-
-	private void addFieldSide(GridPane grid, String labelText, TextField field, int colGroup, int row) {
-		int col = colGroup * 2;
-		grid.add(new Label(labelText), col, row);
-		grid.add(field, col + 1, row);
-	}
-
-	private void setReadOnly() {
-		for (TextField field : new TextField[] { blzText, bankNameText, urlText, portText, userNameText, customerIdText, systemIdText, tanProcedureText,
-				hbciVersionText, bpdVersionText, updVersionText, hbciFilterTypeText, activeText, updatedAtText }) {
-			field.setEditable(false);
-		}
+		makeReadOnly(blzText, bankNameText, urlText, portText, userNameText, customerIdText, systemIdText, tanProcedureText, hbciVersionText, bpdVersionText,
+				updVersionText, hbciFilterTypeText, activeText, updatedAtText);
 	}
 
 	public void updatePanelFieldValues(BankAccess selectedAccess) {

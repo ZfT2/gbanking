@@ -1,22 +1,25 @@
 package de.gbanking.gui.fx.panel.recipient;
 
+import java.util.List;
+
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import de.gbanking.db.dao.Recipient;
 import de.gbanking.db.dao.enu.Source;
-import de.gbanking.gui.fx.panel.BasePanelHolder;
+import de.gbanking.gui.fx.panel.AbstractTitledFormPanel;
 import de.gbanking.gui.fx.panel.overview.RecipientOverviewPanel;
-import de.gbanking.gui.fx.util.FormGridHelper;
 import de.gbanking.util.TypeConverter;
-import javafx.geometry.Insets;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
-import javafx.scene.control.TitledPane;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
 
-public class RecipientDetailPanel extends BasePanelHolder {
+public class RecipientDetailPanel extends AbstractTitledFormPanel {
+
+	private static final Logger log = LogManager.getLogger(RecipientDetailPanel.class);
 
 	private final TextField nameText = new TextField();
 	private final TextField ibanText = new TextField();
@@ -35,6 +38,7 @@ public class RecipientDetailPanel extends BasePanelHolder {
 	private Recipient selectedRecipient;
 
 	public RecipientDetailPanel(RecipientOverviewPanel parentPanel) {
+		super("UI_PANEL_RECIPIENT_DETAILS");
 		this.parentPanel = parentPanel;
 		createInnerRecipientDetailPanel();
 	}
@@ -52,28 +56,17 @@ public class RecipientDetailPanel extends BasePanelHolder {
 		noteText.setPrefRowCount(3);
 		noteText.setWrapText(true);
 
-		GridPane grid = FormGridHelper.createDefaultGrid();
-		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_NAME"), nameText, 0, 0);
-		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_BANK"), bankText, 1, 0);
-
-		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_IBAN"), ibanText, 0, 1);
-		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_BIC"), bicText, 1, 1);
-
-		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_ACCOUNT_NUMBER"), accountNumberText, 0, 2);
-		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_BLZ"), blzText, 1, 2);
-
-		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_NOTE"), noteText, 0, 3);
-		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_UPDATED_AT"), updatedAtText, 1, 3);
+		addFieldAbove("UI_LABEL_NAME", nameText, 0, 0);
+		addFieldAbove("UI_LABEL_BANK", bankText, 1, 0);
+		addFieldAbove("UI_LABEL_IBAN", ibanText, 0, 1);
+		addFieldAbove("UI_LABEL_BIC", bicText, 1, 1);
+		addFieldAbove("UI_LABEL_ACCOUNT_NUMBER", accountNumberText, 0, 2);
+		addFieldAbove("UI_LABEL_BLZ", blzText, 1, 2);
+		addFieldAbove("UI_LABEL_NOTE", noteText, 0, 3);
+		addFieldAbove("UI_LABEL_UPDATED_AT", updatedAtText, 1, 3);
 
 		HBox buttonBar = new HBox(10, buttonRecipientNew, buttonRecipientSave, buttonRecipientDelete);
-		VBox content = new VBox(8, grid, buttonBar);
-		content.setPadding(new Insets(6));
-
-		TitledPane titledPane = new TitledPane(getText("UI_PANEL_RECIPIENT_DETAILS"), content);
-		titledPane.setCollapsible(false);
-
-		getChildren().clear();
-		getChildren().add(titledPane);
+		addContentNode(buttonBar);
 	}
 
 	private void saveRecipient() {
@@ -114,14 +107,10 @@ public class RecipientDetailPanel extends BasePanelHolder {
 	}
 
 	private void resetTextFields() {
-		nameText.clear();
-		ibanText.clear();
-		bicText.clear();
-		accountNumberText.clear();
-		blzText.clear();
-		bankText.clear();
+		for (TextField field : List.of(nameText, ibanText, bicText, accountNumberText, blzText, bankText, updatedAtText)) {
+			field.clear();
+		}
 		noteText.clear();
-		updatedAtText.clear();
 		enableInputFields(true);
 		selectedRecipient = null;
 	}
@@ -137,6 +126,8 @@ public class RecipientDetailPanel extends BasePanelHolder {
 	}
 
 	public void updatePanelFieldValues(Recipient selectedRecipient) {
+		log.log(Level.INFO, () -> getText("LOG_INFO_RECIPIENT_SELECTED", selectedRecipient.getId()));
+
 		nameText.setText(selectedRecipient.getName());
 		ibanText.setText(selectedRecipient.getIban());
 		bicText.setText(selectedRecipient.getBic());

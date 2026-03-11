@@ -1,24 +1,25 @@
 package de.gbanking.gui.fx.panel.category;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.Category;
 import de.gbanking.db.dao.enu.Source;
-import de.gbanking.gui.fx.panel.BasePanelHolder;
+import de.gbanking.gui.fx.panel.AbstractTitledFormPanel;
 import de.gbanking.gui.fx.panel.overview.CategoryOverviewPanel;
-import de.gbanking.gui.fx.util.FormGridHelper;
 import javafx.collections.FXCollections;
-import javafx.geometry.Insets;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
-import javafx.scene.control.TitledPane;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
 
-public class CategoryInputPanel extends BasePanelHolder {
+public class CategoryInputPanel extends AbstractTitledFormPanel {
+
+	private static final Logger log = LogManager.getLogger(CategoryInputPanel.class);
 
 	private final CategoryOverviewPanel parentPanel;
 
@@ -31,14 +32,14 @@ public class CategoryInputPanel extends BasePanelHolder {
 	private final TextField filterRecipient = new TextField();
 	private final TextField filterPurpose = new TextField();
 	private final TextField updatedAtText = new TextField();
-
 	private final CheckBox filterRecipientRegexCheckbox = new CheckBox();
 	private final CheckBox filterPurposeRegexCheckbox = new CheckBox();
-
 	private final Button buttonSubmit = new Button();
+
 	private Category selectedCategory;
 
 	public CategoryInputPanel(CategoryOverviewPanel parent) {
+		super("UI_PANEL_CATEGORIES");
 		this.parentPanel = parent;
 		createCategoryInputPanel();
 	}
@@ -57,47 +58,31 @@ public class CategoryInputPanel extends BasePanelHolder {
 		buttonDelete.setOnAction(e -> deleteCategory());
 		buttonCancel.setOnAction(e -> resetTextFields());
 
-		GridPane grid = FormGridHelper.createDefaultGrid();
-
-		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_CATEGORY_NAME"), categoryName, 0, 0);
-		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_SUBCATEGORY"), subCategoryName, 1, 0);
-
-		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_DATE_FROM"), filterDateFrom, 0, 1);
-		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_DATE_TO"), filterDateTo, 1, 1);
-
-		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_AMOUNT_FROM"), filterAmountFrom, 0, 2);
-		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_AMOUNT_TO"), filterAmountTo, 1, 2);
-		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_REGEX"), filterRecipientRegexCheckbox, 2, 2);
-
-		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_RECIPIENT"), filterRecipient, 1, 3);
-		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_REGEX"), filterPurposeRegexCheckbox, 2, 3);
-
-		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_PURPOSE"), filterPurpose, 1, 4);
-		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_UPDATED_AT"), updatedAtText, 2, 4);
+		addFieldAbove("UI_LABEL_CATEGORY_NAME", categoryName, 0, 0);
+		addFieldAbove("UI_LABEL_SUBCATEGORY", subCategoryName, 1, 0);
+		addFieldAbove("UI_LABEL_DATE_FROM", filterDateFrom, 0, 1);
+		addFieldAbove("UI_LABEL_DATE_TO", filterDateTo, 1, 1);
+		addFieldAbove("UI_LABEL_AMOUNT_FROM", filterAmountFrom, 0, 2);
+		addFieldAbove("UI_LABEL_AMOUNT_TO", filterAmountTo, 1, 2);
+		addFieldAbove("UI_LABEL_REGEX", filterRecipientRegexCheckbox, 2, 2);
+		addFieldAbove("UI_LABEL_RECIPIENT", filterRecipient, 1, 3);
+		addFieldAbove("UI_LABEL_REGEX", filterPurposeRegexCheckbox, 2, 3);
+		addFieldAbove("UI_LABEL_PURPOSE", filterPurpose, 1, 4);
+		addFieldAbove("UI_LABEL_UPDATED_AT", updatedAtText, 2, 4);
 
 		HBox buttonBar = new HBox(10, buttonNew, buttonSubmit, buttonDelete, buttonCancel);
-
-		VBox content = new VBox(8, grid, buttonBar);
-		content.setPadding(new Insets(6));
-
-		TitledPane titledPane = new TitledPane(getText("UI_PANEL_CATEGORIES"), content);
-		titledPane.setCollapsible(false);
-
-		getChildren().clear();
-		getChildren().add(titledPane);
+		addContentNode(buttonBar);
 	}
 
 	private void saveCategory() {
 		if (categoryName.getText().isBlank() && (filterDateFrom.getText().isBlank() || filterDateTo.getText().isBlank() || filterAmountFrom.getText().isBlank()
 				|| filterAmountTo.getText().isBlank() || filterRecipient.getText().isBlank() || filterPurpose.getText().isBlank())) {
-
 			new Alert(Alert.AlertType.WARNING, getText("ALERT_CATEGORY_REQUIRED_FIELD_MISSING")).showAndWait();
 			return;
 		}
 
 		Category category = new Category(categoryName.getText());
 		category.setSource(Source.MANUELL);
-
 		bean.saveCategoryToDB(category);
 		parentPanel.getCategoryListPanel().refresh();
 	}
@@ -126,6 +111,8 @@ public class CategoryInputPanel extends BasePanelHolder {
 	}
 
 	void updatePanelFieldValues(Category selectedCategory) {
+		log.log(Level.INFO, () -> getText("LOG_INFO_CATEGORY_SELECTED", selectedCategory.getId()));
+
 		this.selectedCategory = selectedCategory;
 		categoryName.setText(selectedCategory.getName());
 		updatedAtText.setText(selectedCategory.getUpdatedAt() != null ? selectedCategory.getUpdatedAt().getTime().toString() : "");

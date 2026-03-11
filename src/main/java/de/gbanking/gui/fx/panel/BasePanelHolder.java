@@ -3,7 +3,6 @@ package de.gbanking.gui.fx.panel;
 import de.gbanking.GBankingBean;
 import de.gbanking.db.DBController;
 import de.gbanking.messages.Messages;
-
 import javafx.scene.layout.VBox;
 
 public abstract class BasePanelHolder extends VBox {
@@ -29,5 +28,9 @@ public abstract class BasePanelHolder extends VBox {
 
 	protected String getText(String key, int value) {
 		return messages.getFormattedMessage(key, value);
+	}
+
+	protected String getText(String key, Object... values) {
+		return messages.getFormattedMessage(key, values);
 	}
 }
