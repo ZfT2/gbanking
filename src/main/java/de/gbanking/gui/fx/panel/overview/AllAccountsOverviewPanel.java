@@ -7,6 +7,7 @@ import de.gbanking.gui.fx.enu.PageContext;
 import de.gbanking.gui.fx.panel.account.AccountDetailPanel;
 import de.gbanking.gui.fx.panel.account.AccountListPanel;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Region;
 
 public class AllAccountsOverviewPanel extends OverviewBasePanel {
 
@@ -21,8 +22,8 @@ public class AllAccountsOverviewPanel extends OverviewBasePanel {
 		log.info("Initializing AllAccountsOverviewPanel");
 
 		accountDetailPanel = new AccountDetailPanel(true);
-		accountDetailPanel.setPrefHeight(380);
-		accountDetailPanel.setMinHeight(320);
+		accountDetailPanel.setMinHeight(Region.USE_PREF_SIZE);
+		accountDetailPanel.setPrefHeight(Region.USE_COMPUTED_SIZE);
 		accountDetailPanel.setMaxWidth(Double.MAX_VALUE);
 
 		accountListPanel = new AccountListPanel(this);

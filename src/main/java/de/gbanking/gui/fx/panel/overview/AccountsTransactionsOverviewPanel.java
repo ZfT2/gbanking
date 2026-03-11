@@ -11,6 +11,7 @@ import de.gbanking.gui.fx.panel.transaction.TransactionListPanel;
 import javafx.scene.control.SplitPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
 public class AccountsTransactionsOverviewPanel extends TransactionsOverviewBasePanel {
@@ -29,13 +30,13 @@ public class AccountsTransactionsOverviewPanel extends TransactionsOverviewBaseP
 		accountListPanel = new AccountListPanel(this);
 
 		accountDetailPanel = new AccountDetailPanel(false);
-		accountDetailPanel.setPrefHeight(300);
-		accountDetailPanel.setMinHeight(260);
+		accountDetailPanel.setMinHeight(Region.USE_PREF_SIZE);
+		accountDetailPanel.setPrefHeight(Region.USE_COMPUTED_SIZE);
 		accountDetailPanel.setMaxWidth(Double.MAX_VALUE);
 
 		transactionDetailPanel = new TransactionDetailPanel();
-		transactionDetailPanel.setPrefHeight(420);
-		transactionDetailPanel.setMinHeight(340);
+		transactionDetailPanel.setMinHeight(Region.USE_PREF_SIZE);
+		transactionDetailPanel.setPrefHeight(Region.USE_COMPUTED_SIZE);
 		transactionDetailPanel.setMaxWidth(Double.MAX_VALUE);
 
 		transactionListPanel = new TransactionListPanel(this);

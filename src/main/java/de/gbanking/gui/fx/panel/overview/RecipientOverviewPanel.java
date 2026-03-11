@@ -8,6 +8,7 @@ import de.gbanking.gui.fx.enu.PageContext;
 import de.gbanking.gui.fx.panel.recipient.RecipientDetailPanel;
 import de.gbanking.gui.fx.panel.recipient.RecipientListPanel;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Region;
 
 public class RecipientOverviewPanel extends OverviewBasePanel {
 
@@ -26,8 +27,8 @@ public class RecipientOverviewPanel extends OverviewBasePanel {
 	public void createOverallPanel(boolean show) {
 		setPageContext(PageContext.RECIPIENTS);
 
-		recipientDetailPanel.setPrefHeight(300);
-		recipientDetailPanel.setMinHeight(250);
+		recipientDetailPanel.setMinHeight(Region.USE_PREF_SIZE);
+		recipientDetailPanel.setPrefHeight(Region.USE_COMPUTED_SIZE);
 		recipientDetailPanel.setMaxWidth(Double.MAX_VALUE);
 
 		recipientListPanel.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);

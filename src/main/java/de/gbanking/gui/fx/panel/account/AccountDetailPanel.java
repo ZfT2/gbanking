@@ -1,25 +1,25 @@
 package de.gbanking.gui.fx.panel.account;
 
+import java.text.SimpleDateFormat;
+
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.enu.AccountState;
+import de.gbanking.gui.fx.panel.BasePanelHolder;
+import de.gbanking.gui.fx.util.FormGridHelper;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.Control;
-import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
-import java.text.SimpleDateFormat;
-
-public class AccountDetailPanel extends TitledPane {
+public class AccountDetailPanel extends BasePanelHolder {
 
 	private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yy");
-
 	private final boolean fullDetails;
 
 	private final TextField accountNameText = new TextField();
@@ -42,85 +42,65 @@ public class AccountDetailPanel extends TitledPane {
 
 	public AccountDetailPanel(boolean fullDetails) {
 		this.fullDetails = fullDetails;
-
-		setText("Konto Details");
-		setCollapsible(false);
-		setContent(createForm());
+		createPanel();
 	}
 
-	private GridPane createForm() {
-		GridPane grid = new GridPane();
-		grid.setPadding(new Insets(10));
-		grid.setHgap(12);
-		grid.setVgap(8);
-
+	private void createPanel() {
+		GridPane grid = FormGridHelper.createDefaultGrid();
+		grid.setPadding(new Insets(8));
 		grid.getColumnConstraints().addAll(createGrowColumn(), createGrowColumn(), createGrowColumn());
 
-		// row group 0
-		addFieldAbove(grid, "Konto", accountNameText, 0, 0);
-		addFieldAbove(grid, "IBAN", accountIbanText, 1, 0);
+		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_ACCOUNT"), accountNameText, 0, 0);
+		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_IBAN"), accountIbanText, 1, 0);
 
-		// row group 1
-		addFieldAbove(grid, "Bank", bankNameText, 0, 1);
-		addFieldAbove(grid, "Konto-Typ", accountTypText, 1, 1);
+		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_BANK"), bankNameText, 0, 1);
+		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_ACCOUNT_TYPE"), accountTypText, 1, 1);
 
-		// row group 2
-		addFieldAbove(grid, "Kontonummer", numberText, 0, 2);
-		addFieldAbove(grid, "Unterkonto-Nr.", subnumberText, 1, 2);
+		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_ACCOUNT_NUMBER"), numberText, 0, 2);
+		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_SUBNUMBER"), subnumberText, 1, 2);
 
-		// row group 3
-		addFieldAbove(grid, "Bankzugang", bankAccessText, 0, 3);
-		addFieldAbove(grid, "Währung", currencyText, 1, 3);
+		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_BANK_ACCESS"), bankAccessText, 0, 3);
+		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_CURRENCY"), currencyText, 1, 3);
 
-		// row group 4
-		addFieldAbove(grid, "BIC", bicText, 0, 4);
-		addFieldAbove(grid, "Bankleitzahl", blzText, 1, 4);
+		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_BIC"), bicText, 0, 4);
+		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_BLZ"), blzText, 1, 4);
 
-		// row group 5
-		addFieldAbove(grid, "Inhaber", ownerNameText, 0, 5);
-		addFieldAbove(grid, "Inhaber 2", ownerName2Text, 1, 5);
+		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_OWNER"), ownerNameText, 0, 5);
+		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_OWNER_2"), ownerName2Text, 1, 5);
 
-		// row group 6
-		addFieldAbove(grid, "SEPA Konto", isSEPAAccount, 0, 6);
-		addFieldAbove(grid, "Stand", updatedAtText, 1, 6);
+		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_SEPA_ACCOUNT"), isSEPAAccount, 0, 6);
+		FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_UPDATED_AT"), updatedAtText, 1, 6);
 
 		if (fullDetails) {
 			isOfflineAccount = new CheckBox();
 			accountStateCombo = new ComboBox<>(FXCollections.observableArrayList(AccountState.values()));
 
-			// wie in Swing: dritte Spalte, nur oben belegt
-			addFieldAbove(grid, "Offline-Konto?", isOfflineAccount, 2, 0);
-			addFieldAbove(grid, "Konto-Status", accountStateCombo, 2, 1);
+			FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_OFFLINE_ACCOUNT"), isOfflineAccount, 2, 0);
+			FormGridHelper.addFieldAbove(grid, getText("UI_LABEL_ACCOUNT_STATE"), accountStateCombo, 2, 1);
+			accountStateCombo.setMaxWidth(Double.MAX_VALUE);
 		}
 
 		setReadOnly();
 
-		return grid;
+		VBox content = new VBox(grid);
+		content.setPadding(new Insets(6, 8, 8, 8));
+		content.setFillWidth(true);
+		content.setMaxWidth(Double.MAX_VALUE);
+
+		TitledPane titledPane = new TitledPane(getText("UI_PANEL_ACCOUNT_DETAILS"), content);
+		titledPane.setCollapsible(false);
+		titledPane.setMaxWidth(Double.MAX_VALUE);
+
+		getChildren().setAll(titledPane);
+		setFillWidth(true);
+		setMaxWidth(Double.MAX_VALUE);
 	}
 
-	private javafx.scene.layout.ColumnConstraints createGrowColumn() {
-		javafx.scene.layout.ColumnConstraints cc = new javafx.scene.layout.ColumnConstraints();
+	private ColumnConstraints createGrowColumn() {
+		ColumnConstraints cc = new ColumnConstraints();
 		cc.setHgrow(Priority.ALWAYS);
 		cc.setFillWidth(true);
 		return cc;
-	}
-
-	private void addFieldAbove(GridPane grid, String labelText, Control field, int col, int rowGroup) {
-		int labelRow = rowGroup * 2;
-		int fieldRow = labelRow + 1;
-
-		Label label = new Label(labelText);
-		VBox box = new VBox(2, label, field);
-		VBox.setVgrow(field, Priority.NEVER);
-
-		if (field instanceof TextField textField) {
-			textField.setMaxWidth(Double.MAX_VALUE);
-		}
-		if (field instanceof ComboBox<?> comboBox) {
-			comboBox.setMaxWidth(Double.MAX_VALUE);
-		}
-
-		grid.add(box, col, labelRow, 1, 2);
 	}
 
 	private void setReadOnly() {
@@ -151,7 +131,7 @@ public class AccountDetailPanel extends TitledPane {
 	public void updatePanelFieldValues(BankAccount bankAccount) {
 		accountIbanText.setText(bankAccount.getIban());
 		accountNameText.setText(bankAccount.getAccountName());
-		accountTypText.setText(bankAccount.getAccountType() != null ? bankAccount.getAccountType().toString() : null);
+		accountTypText.setText(bankAccount.getAccountType() != null ? bankAccount.getAccountType().toString() : "");
 		bankNameText.setText(bankAccount.getBankName());
 		bankAccessText.setText(String.valueOf(bankAccount.getBankAccessId()));
 		currencyText.setText(bankAccount.getCurrency());
@@ -161,7 +141,6 @@ public class AccountDetailPanel extends TitledPane {
 		subnumberText.setText(bankAccount.getSubnumber());
 		ownerNameText.setText(bankAccount.getOwnerName());
 		ownerName2Text.setText(bankAccount.getOwnerName2());
-
 		isSEPAAccount.setSelected(bankAccount.isSEPAAccount());
 
 		if (fullDetails) {
