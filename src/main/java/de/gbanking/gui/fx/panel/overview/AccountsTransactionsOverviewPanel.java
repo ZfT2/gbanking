@@ -21,7 +21,6 @@ public class AccountsTransactionsOverviewPanel extends TransactionsOverviewBaseP
 
 	private AccountListPanel accountListPanel;
 	private AccountDetailPanel accountDetailPanel;
-
 	private BorderPane rightPane;
 	private SplitPane mainSplit;
 	private VBox rightContentBox;
@@ -29,17 +28,19 @@ public class AccountsTransactionsOverviewPanel extends TransactionsOverviewBaseP
 	@Override
 	public void createOverallPanel(boolean show) {
 		setPageContext(PageContext.ACCOUNTS_TRANSACTIONS);
-
 		log.info("Creating AccountsTransactionsOverviewPanel");
 
 		Label title = new Label(getText("UI_PANEL_ACCOUNTS_TRANSACTIONS"));
 		title.setStyle("-fx-font-size:16px; -fx-font-weight:bold;");
 
 		mainSplit = new SplitPane();
+
 		accountListPanel = new AccountListPanel(this);
 
 		rightPane = new BorderPane();
 		rightContentBox = new VBox(8);
+		rightContentBox.setFillWidth(true);
+		rightContentBox.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
 		accountDetailPanel = new AccountDetailPanel(false);
 		accountDetailPanel.setPrefHeight(260);
@@ -51,19 +52,26 @@ public class AccountsTransactionsOverviewPanel extends TransactionsOverviewBaseP
 
 		transactionListPanel = new TransactionListPanel(this);
 		VBox.setVgrow(transactionListPanel, Priority.ALWAYS);
+		transactionListPanel.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
 		rightContentBox.getChildren().addAll(accountDetailPanel, transactionListPanel);
+
 		rightPane.setCenter(rightContentBox);
+		rightPane.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
 		mainSplit.getItems().addAll(accountListPanel, rightPane);
 		mainSplit.setDividerPositions(0.22);
+		mainSplit.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
 		VBox root = new VBox(8, title, mainSplit);
 		root.setPadding(new Insets(5));
+		root.setFillWidth(true);
+		root.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 		VBox.setVgrow(mainSplit, Priority.ALWAYS);
 
 		getChildren().clear();
 		getChildren().add(root);
+		VBox.setVgrow(root, Priority.ALWAYS);
 
 		setDisable(!show);
 	}

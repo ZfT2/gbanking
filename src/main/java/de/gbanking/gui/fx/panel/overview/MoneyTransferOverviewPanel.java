@@ -1,5 +1,8 @@
 package de.gbanking.gui.fx.panel.overview;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.enu.OrderType;
 import de.gbanking.gui.fx.enu.PageContext;
@@ -14,8 +17,6 @@ import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 public class MoneyTransferOverviewPanel extends OverviewBasePanel {
 
@@ -33,17 +34,21 @@ public class MoneyTransferOverviewPanel extends OverviewBasePanel {
 
 		VBox root = new VBox(8);
 		root.setPadding(new Insets(5));
+		root.setFillWidth(true);
+		root.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
 		Label title = new Label(getText("UI_PANEL_MONEYTRANSFERS"));
 		title.setStyle("-fx-font-size:16px; -fx-font-weight:bold;");
 
 		SplitPane splitPane = new SplitPane();
+		splitPane.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
 		accountListPanel = new AccountListPanel(this);
 		accountListPanel.setMinWidth(280);
 		accountListPanel.setPrefWidth(335);
 
 		tabPane = new TabPane();
+		tabPane.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 		tabPane.getTabs().addAll(createTab(OrderType.TRANSFER), createTab(OrderType.SCHEDULED_TRANSFER), createTab(OrderType.STANDING_ORDER));
 
 		tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> switchTab(newTab));
@@ -56,6 +61,7 @@ public class MoneyTransferOverviewPanel extends OverviewBasePanel {
 
 		getChildren().clear();
 		getChildren().add(root);
+		VBox.setVgrow(root, Priority.ALWAYS);
 
 		tabPane.getSelectionModel().select(0);
 		switchTab(tabPane.getTabs().get(0));
@@ -79,7 +85,6 @@ public class MoneyTransferOverviewPanel extends OverviewBasePanel {
 	private void setActivePanels(MoneyTransferDetailListTabPanel selectedTab) {
 		this.moneyTransferInputPanel = selectedTab.getMoneyTransferInputPanel();
 		this.moneyTransferListPanel = selectedTab.getMoneyTransferListPanel();
-
 		selectedTab.getMoneyTransferListPanel()
 				.updatePanelBorder(selectedTab.getOrderType().getPlural() + " " + (selectedAccount != null ? selectedAccount.getAccountName() : ""));
 	}
