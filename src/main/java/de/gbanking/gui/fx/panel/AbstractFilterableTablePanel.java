@@ -36,7 +36,10 @@ public abstract class AbstractFilterableTablePanel<T> extends BaseBorderPanePane
 		filterText.textProperty().addListener((obs, oldVal, newVal) ->
 				filteredData.setPredicate(item -> matchesFilter(item, normalize(newVal))));
 
-		HBox filterBox = createFilterBox();
+				filterText.setMaxWidth(Double.MAX_VALUE);
+				HBox filterBox = new HBox(10, new Label(getText("UI_LABEL_SEARCH")), filterText);
+				filterBox.setAlignment(Pos.CENTER_LEFT);
+				HBox.setHgrow(filterText, Priority.ALWAYS);
 
 		titleLabel.setMaxWidth(Double.MAX_VALUE);
 		tableView.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
@@ -48,15 +51,6 @@ public abstract class AbstractFilterableTablePanel<T> extends BaseBorderPanePane
 
 		BorderPane.setMargin(titleLabel, new Insets(0, 0, 6, 0));
 		BorderPane.setMargin(filterBox, new Insets(6, 0, 0, 0));
-	}
-
-	private HBox createFilterBox() {
-		filterText.setMaxWidth(Double.MAX_VALUE);
-
-		HBox filterBox = new HBox(10, new Label(getText("UI_LABEL_SEARCH")), filterText);
-		filterBox.setAlignment(Pos.CENTER_LEFT);
-		HBox.setHgrow(filterText, Priority.ALWAYS);
-		return filterBox;
 	}
 
 	protected void setPanelTitle(String title) {
