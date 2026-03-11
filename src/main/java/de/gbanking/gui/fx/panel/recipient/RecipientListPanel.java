@@ -1,5 +1,7 @@
 package de.gbanking.gui.fx.panel.recipient;
 
+import java.util.List;
+
 import de.gbanking.db.dao.Recipient;
 import de.gbanking.gui.fx.enu.PageContext;
 import de.gbanking.gui.fx.panel.AbstractFilterableTablePanel;
@@ -10,61 +12,47 @@ import de.gbanking.gui.fx.util.DateFormatUtils;
 import de.gbanking.gui.fx.util.FxTableUtils;
 import de.gbanking.gui.fx.util.TableColumnFactory;
 import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.scene.control.TableColumn;
-
-import java.util.List;
 
 public class RecipientListPanel extends AbstractFilterableTablePanel<Recipient> {
 
 	private final Object parentPanel;
 	private final PageContext pageContext;
-	private final ObservableList<Recipient> masterData;
 
 	public RecipientListPanel(Object parentPanel) {
-		this(FXCollections.observableArrayList(), parentPanel);
-	}
-
-	private RecipientListPanel(ObservableList<Recipient> data, Object parentPanel) {
-		super(data);
-		this.masterData = data;
+		super(FXCollections.observableArrayList());
 		this.parentPanel = parentPanel;
 		this.pageContext = parentPanel instanceof MoneyTransferDetailListTabPanel ? PageContext.ACCOUNTS_MONEYTRANSFERS : PageContext.RECIPIENTS;
-
 		createInnerRecipientListPanel();
 	}
 
 	private void createInnerRecipientListPanel() {
-		setPanelTitle(getText("UI_PANEL_RECIPIENTS_BOOK"));
+		setPanelTitleByKey("UI_PANEL_RECIPIENTS_BOOK");
+		setColumns(createColumns());
+		onSelection(this::handleSelection);
+		reload();
+	}
 
+	private List<TableColumn<Recipient, ?>> createColumns() {
 		TableColumn<Recipient, Boolean> selectedCol = FxTableUtils.createSelectionColumn(getText("UI_TABLE_SELECTED"), Recipient::isSelected,
 				Recipient::setSelected);
-
 		TableColumn<Recipient, String> nameCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_NAME"), Recipient::getName, 160, 200);
-
 		TableColumn<Recipient, String> ibanCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_IBAN"), Recipient::getIban, 220, 240);
 
 		if (pageContext == PageContext.ACCOUNTS_MONEYTRANSFERS) {
 			TableColumn<Recipient, String> bankCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_BANK"), Recipient::getBank, 150, 180);
-			tableView.getColumns().setAll(List.of(selectedCol, nameCol, ibanCol, bankCol));
-		} else {
-			TableColumn<Recipient, String> accountNoCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_ACCOUNT_NUMBER"),
-					Recipient::getAccountNumber, 120);
-			TableColumn<Recipient, String> bicCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_BIC"), Recipient::getBic, 110);
-			TableColumn<Recipient, String> blzCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_BLZ"), Recipient::getBlz, 90);
-			TableColumn<Recipient, String> bankCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_BANK"), Recipient::getBank, 150, 180);
-			TableColumn<Recipient, String> updatedCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_UPDATED_AT"),
-					recipient -> DateFormatUtils.formatShort(recipient.getUpdatedAt()), 90);
-			tableView.getColumns().setAll(List.of(selectedCol, nameCol, ibanCol, accountNoCol, bicCol, blzCol, bankCol, updatedCol));
+			return List.of(selectedCol, nameCol, ibanCol, bankCol);
 		}
 
-		tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, selectedRecipient) -> {
-			if (selectedRecipient != null) {
-				handleSelection(selectedRecipient);
-			}
-		});
+		TableColumn<Recipient, String> accountNoCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_ACCOUNT_NUMBER"), Recipient::getAccountNumber,
+				120);
+		TableColumn<Recipient, String> bicCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_BIC"), Recipient::getBic, 110);
+		TableColumn<Recipient, String> blzCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_BLZ"), Recipient::getBlz, 90);
+		TableColumn<Recipient, String> bankCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_BANK"), Recipient::getBank, 150, 180);
+		TableColumn<Recipient, String> updatedCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_UPDATED_AT"),
+				recipient -> DateFormatUtils.formatShort(recipient.getUpdatedAt()), 90);
 
-		reload();
+		return List.of(selectedCol, nameCol, ibanCol, accountNoCol, bicCol, blzCol, bankCol, updatedCol);
 	}
 
 	private void handleSelection(Recipient selectedRecipient) {
@@ -72,10 +60,11 @@ public class RecipientListPanel extends AbstractFilterableTablePanel<Recipient> 
 			MoneyTransferDetailListTabPanel parent = (MoneyTransferDetailListTabPanel) parentPanel;
 			MoneyTransferInputBasePanel moneyTransferInputPanel = parent.getMoneyTransferInputPanel();
 			moneyTransferInputPanel.updatePanelFieldValues(selectedRecipient);
-		} else {
-			RecipientOverviewPanel parent = (RecipientOverviewPanel) parentPanel;
-			parent.getRecipientDetailPanel().updatePanelFieldValues(selectedRecipient);
+			return;
 		}
+
+		RecipientOverviewPanel parent = (RecipientOverviewPanel) parentPanel;
+		parent.getRecipientDetailPanel().updatePanelFieldValues(selectedRecipient);
 	}
 
 	@Override
@@ -89,7 +78,7 @@ public class RecipientListPanel extends AbstractFilterableTablePanel<Recipient> 
 	}
 
 	public void reload() {
-		masterData.setAll(dbController.getAllFull(Recipient.class));
+		replaceItems(dbController.getAllFull(Recipient.class));
 	}
 
 	public void refresh() {

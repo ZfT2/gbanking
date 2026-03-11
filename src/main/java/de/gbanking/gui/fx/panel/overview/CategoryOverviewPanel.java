@@ -14,6 +14,9 @@ public class CategoryOverviewPanel extends OverviewBasePanel {
 
 	private static final Logger log = LogManager.getLogger(CategoryOverviewPanel.class);
 
+	private static final double ACCOUNT_DIVIDER = 0.20;
+	private static final double RIGHT_DIVIDER = 0.40;
+
 	private AccountListPanel accountListPanel;
 	private CategoryInputPanel categoryInputPanel;
 	private CategoryListPanel categoryListPanel;
@@ -29,22 +32,13 @@ public class CategoryOverviewPanel extends OverviewBasePanel {
 		setPageContext(PageContext.CATEGORIES);
 
 		accountListPanel = new AccountListPanel(this);
-		accountListPanel.setMinWidth(280);
-		accountListPanel.setPrefWidth(335);
-
 		categoryInputPanel.setMinWidth(360);
 		categoryInputPanel.setMaxWidth(Double.MAX_VALUE);
-
 		categoryListPanel.setMinWidth(420);
 		categoryListPanel.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
-		SplitPane rightSplit = new SplitPane(categoryInputPanel, categoryListPanel);
-		rightSplit.setDividerPositions(0.40);
-		rightSplit.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-
-		SplitPane mainSplit = new SplitPane(accountListPanel, rightSplit);
-		mainSplit.setDividerPositions(0.20);
-		mainSplit.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+		SplitPane rightSplit = createSplitPane(RIGHT_DIVIDER, categoryInputPanel, categoryListPanel);
+		SplitPane mainSplit = createSplitPane(ACCOUNT_DIVIDER, accountListPanel, rightSplit);
 
 		setOverviewContent("UI_PANEL_CATEGORIES", mainSplit, show);
 		log.info("CategoryOverviewPanel initialized");

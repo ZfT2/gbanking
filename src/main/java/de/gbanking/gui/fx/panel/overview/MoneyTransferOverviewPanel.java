@@ -17,6 +17,7 @@ import javafx.scene.control.TabPane;
 public class MoneyTransferOverviewPanel extends OverviewBasePanel {
 
 	private static final Logger log = LogManager.getLogger(MoneyTransferOverviewPanel.class);
+	private static final double ACCOUNT_DIVIDER = 0.22;
 
 	private AccountListPanel accountListPanel;
 	private MoneyTransferInputBasePanel moneyTransferInputPanel;
@@ -29,42 +30,34 @@ public class MoneyTransferOverviewPanel extends OverviewBasePanel {
 		setPageContext(PageContext.ACCOUNTS_MONEYTRANSFERS);
 
 		accountListPanel = new AccountListPanel(this);
-		accountListPanel.setMinWidth(280);
-		accountListPanel.setPrefWidth(335);
 
 		tabPane = new TabPane();
 		tabPane.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-		tabPane.getTabs().addAll(createTab(OrderType.TRANSFER), createTab(OrderType.SCHEDULED_TRANSFER), createTab(OrderType.STANDING_ORDER));
-
+		tabPane.getTabs().setAll(createTab(OrderType.TRANSFER), createTab(OrderType.SCHEDULED_TRANSFER), createTab(OrderType.STANDING_ORDER));
 		tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> switchTab(newTab));
 
-		SplitPane splitPane = new SplitPane(accountListPanel, tabPane);
-		splitPane.setDividerPositions(0.22);
-		splitPane.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-
+		SplitPane splitPane = createSplitPane(ACCOUNT_DIVIDER, accountListPanel, tabPane);
 		setOverviewContent("UI_PANEL_MONEYTRANSFERS", splitPane, show);
 
-		tabPane.getSelectionModel().select(0);
-		switchTab(tabPane.getTabs().get(0));
+		tabPane.getSelectionModel().selectFirst();
+		switchTab(tabPane.getTabs().getFirst());
 	}
 
 	private Tab createTab(OrderType type) {
-		MoneyTransferDetailListTabPanel panel = new MoneyTransferDetailListTabPanel(type, this);
-		Tab tab = new Tab(type.getPlural(), panel);
+		Tab tab = new Tab(type.getPlural(), new MoneyTransferDetailListTabPanel(type, this));
 		tab.setClosable(false);
 		return tab;
 	}
 
 	private void switchTab(Tab tab) {
 		log.info("selected Tab: {}", tab.getText());
-		MoneyTransferDetailListTabPanel selectedTab = (MoneyTransferDetailListTabPanel) tab.getContent();
-		setActivePanels(selectedTab);
+		setActivePanels((MoneyTransferDetailListTabPanel) tab.getContent());
 	}
 
 	private void setActivePanels(MoneyTransferDetailListTabPanel selectedTab) {
-		this.moneyTransferInputPanel = selectedTab.getMoneyTransferInputPanel();
-		this.moneyTransferListPanel = selectedTab.getMoneyTransferListPanel();
-		selectedTab.getMoneyTransferListPanel()
+		moneyTransferInputPanel = selectedTab.getMoneyTransferInputPanel();
+		moneyTransferListPanel = selectedTab.getMoneyTransferListPanel();
+		moneyTransferListPanel
 				.updatePanelBorder(selectedTab.getOrderType().getPlural() + " " + (selectedAccount != null ? selectedAccount.getAccountName() : ""));
 	}
 

@@ -30,28 +30,26 @@ public class AccountListPanel extends BaseBorderPanePanel {
 
 	private static final Logger log = LogManager.getLogger(AccountListPanel.class);
 
-	private static final double MIN_WIDTH = 280;
-	private static final double PREF_WIDTH = 335;
-	private static final double MAX_WIDTH = 400;
+	private static final double ACCOUNT_LIST_MIN_WIDTH = 280;
+	private static final double ACCOUNT_LIST_PREF_WIDTH = 335;
+	private static final double ACCOUNT_LIST_MAX_WIDTH = 400;
 
 	private final OverviewBasePanel parentPanel;
 	private final GBankingTableView<BankAccount> accountTable = new GBankingTableView<>();
-	private AccountTableModel modelAccount;
+	private final AccountTableModel modelAccount;
 
 	public AccountListPanel(OverviewBasePanel parentPanel) {
 		this.parentPanel = parentPanel;
+		this.modelAccount = new AccountTableModel(dbController.getAll(BankAccount.class));
 		createInnerAccountListPanel();
 	}
 
 	private void createInnerAccountListPanel() {
 		applyWidthProfile();
-
-		modelAccount = new AccountTableModel(dbController.getAll(BankAccount.class));
 		configureColumns();
 
 		accountTable.setItems(modelAccount.getAccounts());
 		accountTable.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-
 		accountTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, selectedAccount) -> {
 			if (selectedAccount != null) {
 				handleSelection(selectedAccount);
@@ -68,32 +66,29 @@ public class AccountListPanel extends BaseBorderPanePanel {
 			setMinWidth(0);
 			setPrefWidth(USE_COMPUTED_SIZE);
 			setMaxWidth(Double.MAX_VALUE);
-		} else {
-			setMinWidth(MIN_WIDTH);
-			setPrefWidth(PREF_WIDTH);
-			setMaxWidth(MAX_WIDTH);
+			return;
 		}
+
+		setMinWidth(ACCOUNT_LIST_MIN_WIDTH);
+		setPrefWidth(ACCOUNT_LIST_PREF_WIDTH);
+		setMaxWidth(ACCOUNT_LIST_MAX_WIDTH);
 	}
 
 	private void configureColumns() {
-		if (parentPanel.getPageContext() == PageContext.ALL_ACCOUNTS) {
-			configureAllAccountsColumns();
-		} else {
-			configureCompactColumns();
-		}
+		accountTable.getColumns().setAll(parentPanel.getPageContext() == PageContext.ALL_ACCOUNTS ? createAllAccountsColumns() : createCompactColumns());
 	}
 
-	private void configureCompactColumns() {
+	private List<TableColumn<BankAccount, ?>> createCompactColumns() {
 		TableColumn<BankAccount, Boolean> selectedCol = FxTableUtils.createSelectionColumn(getText("UI_TABLE_SELECTED"), BankAccount::isSelected,
 				BankAccount::setSelected);
 		TableColumn<BankAccount, String> nameCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_ACCOUNT_NAME"), BankAccount::getAccountName, 180, 220);
 		TableColumn<BankAccount, String> updatedCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_UPDATED_AT"),
 				account -> DateFormatUtils.formatShort(account.getUpdatedAt()), 90);
 
-		accountTable.getColumns().setAll(List.of(selectedCol, nameCol, updatedCol));
+		return List.of(selectedCol, nameCol, updatedCol);
 	}
 
-	private void configureAllAccountsColumns() {
+	private List<TableColumn<BankAccount, ?>> createAllAccountsColumns() {
 		TableColumn<BankAccount, Boolean> selectedCol = FxTableUtils.createSelectionColumn(getText("UI_TABLE_SELECTED"), BankAccount::isSelected,
 				BankAccount::setSelected);
 		TableColumn<BankAccount, String> nameCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_ACCOUNT_NAME"), BankAccount::getAccountName, 180, 220);
@@ -105,7 +100,7 @@ public class AccountListPanel extends BaseBorderPanePanel {
 				account -> account.getBalance() != null ? account.getBalance().toString() : "", 110);
 		TableColumn<BankAccount, String> updatedCol = TableColumnFactory.createUpdatedAtColumn(getText("UI_TABLE_UPDATED_AT"), BankAccount::getUpdatedAt, 90);
 
-		accountTable.getColumns().setAll(List.of(selectedCol, nameCol, ibanCol, bankCol, typeCol, balanceCol, updatedCol));
+		return List.of(selectedCol, nameCol, ibanCol, bankCol, typeCol, balanceCol, updatedCol);
 	}
 
 	private void handleSelection(BankAccount selectedAccount) {
@@ -114,7 +109,7 @@ public class AccountListPanel extends BaseBorderPanePanel {
 		if (context == PageContext.ACCOUNTS_TRANSACTIONS) {
 			handleAccountsTransactionsSelection(selectedAccount);
 		} else if (context == PageContext.ALL_ACCOUNTS) {
-			handleAllAccountsSelection(selectedAccount);
+			((AllAccountsOverviewPanel) parentPanel).getAccountDetailPanel().updatePanelFieldValues(selectedAccount);
 		} else if (context == PageContext.ACCOUNTS_MONEYTRANSFERS) {
 			handleMoneyTransfersSelection(selectedAccount);
 		} else if (context == PageContext.CATEGORIES) {
@@ -123,20 +118,15 @@ public class AccountListPanel extends BaseBorderPanePanel {
 	}
 
 	private void handleAccountsTransactionsSelection(BankAccount selectedAccount) {
-		int accountId = selectedAccount.getId();
-		log.info(messages.getFormattedMessage("LOG_INFO_ACCOUNT_SELECTED", accountId));
+		log.info(messages.getFormattedMessage("LOG_INFO_ACCOUNT_SELECTED", selectedAccount.getId()));
 
-		List<Booking> bookingList = dbController.getAllByParent(Booking.class, accountId);
+		List<Booking> bookingList = dbController.getAllByParent(Booking.class, selectedAccount.getId());
 		AccountsTransactionsOverviewPanel parent = (AccountsTransactionsOverviewPanel) parentPanel;
 		TransactionListPanel transactionListPanel = parent.getTransactionListPanel();
 
 		transactionListPanel.updatePanelBorder(getText("UI_PANEL_TRANSACTIONS") + " - " + selectedAccount.getAccountName());
 		transactionListPanel.updateModelBooking(bookingList);
 		parent.getAccountDetailPanel().updatePanelFieldValues(selectedAccount);
-	}
-
-	private void handleAllAccountsSelection(BankAccount selectedAccount) {
-		((AllAccountsOverviewPanel) parentPanel).getAccountDetailPanel().updatePanelFieldValues(selectedAccount);
 	}
 
 	private void handleMoneyTransfersSelection(BankAccount selectedAccount) {

@@ -4,8 +4,6 @@ import de.gbanking.db.dao.BankAccess;
 import de.gbanking.gui.fx.enu.PageContext;
 import de.gbanking.gui.fx.panel.bankaccess.BankAccessDetailPanel;
 import de.gbanking.gui.fx.panel.bankaccess.BankAccessListPanel;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.Region;
 
 public class BankAccessOverviewPanel extends OverviewBasePanel {
 
@@ -21,20 +19,9 @@ public class BankAccessOverviewPanel extends OverviewBasePanel {
 	@Override
 	public void createOverallPanel(boolean show) {
 		setPageContext(PageContext.BANKACCESS);
+		prepareDetailPanel(bankAccessDetailPanel);
 
-		bankAccessDetailPanel.setMinHeight(Region.USE_PREF_SIZE);
-		bankAccessDetailPanel.setPrefHeight(Region.USE_COMPUTED_SIZE);
-		bankAccessDetailPanel.setMaxWidth(Double.MAX_VALUE);
-
-		bankAccessListPanel.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-
-		BorderPane content = new BorderPane();
-		content.setTop(bankAccessDetailPanel);
-		content.setCenter(bankAccessListPanel);
-		content.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-		BorderPane.setMargin(bankAccessListPanel, new javafx.geometry.Insets(8, 0, 0, 0));
-
-		setOverviewContent("UI_PANEL_BANK_ACCESS", content, show);
+		setOverviewContent("UI_PANEL_BANK_ACCESS", createTopCenterLayout(bankAccessDetailPanel, bankAccessListPanel), show);
 	}
 
 	public BankAccessDetailPanel getBankAccessDetailPanel() {

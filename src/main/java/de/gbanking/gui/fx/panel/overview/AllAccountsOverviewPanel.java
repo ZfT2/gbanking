@@ -6,8 +6,6 @@ import org.apache.logging.log4j.Logger;
 import de.gbanking.gui.fx.enu.PageContext;
 import de.gbanking.gui.fx.panel.account.AccountDetailPanel;
 import de.gbanking.gui.fx.panel.account.AccountListPanel;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.Region;
 
 public class AllAccountsOverviewPanel extends OverviewBasePanel {
 
@@ -22,20 +20,11 @@ public class AllAccountsOverviewPanel extends OverviewBasePanel {
 		log.info("Initializing AllAccountsOverviewPanel");
 
 		accountDetailPanel = new AccountDetailPanel(true);
-		accountDetailPanel.setMinHeight(Region.USE_PREF_SIZE);
-		accountDetailPanel.setPrefHeight(Region.USE_COMPUTED_SIZE);
-		accountDetailPanel.setMaxWidth(Double.MAX_VALUE);
+		prepareDetailPanel(accountDetailPanel);
 
 		accountListPanel = new AccountListPanel(this);
-		accountListPanel.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
-		BorderPane content = new BorderPane();
-		content.setTop(accountDetailPanel);
-		content.setCenter(accountListPanel);
-		content.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-		BorderPane.setMargin(accountListPanel, new javafx.geometry.Insets(8, 0, 0, 0));
-
-		setOverviewContent("UI_PANEL_ALL_ACCOUNTS", content, show);
+		setOverviewContent("UI_PANEL_ALL_ACCOUNTS", createTopCenterLayout(accountDetailPanel, accountListPanel), show);
 	}
 
 	public AccountDetailPanel getAccountDetailPanel() {

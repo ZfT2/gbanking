@@ -7,8 +7,6 @@ import de.gbanking.db.dao.Recipient;
 import de.gbanking.gui.fx.enu.PageContext;
 import de.gbanking.gui.fx.panel.recipient.RecipientDetailPanel;
 import de.gbanking.gui.fx.panel.recipient.RecipientListPanel;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.Region;
 
 public class RecipientOverviewPanel extends OverviewBasePanel {
 
@@ -26,20 +24,10 @@ public class RecipientOverviewPanel extends OverviewBasePanel {
 	@Override
 	public void createOverallPanel(boolean show) {
 		setPageContext(PageContext.RECIPIENTS);
+		prepareDetailPanel(recipientDetailPanel);
 
-		recipientDetailPanel.setMinHeight(Region.USE_PREF_SIZE);
-		recipientDetailPanel.setPrefHeight(Region.USE_COMPUTED_SIZE);
-		recipientDetailPanel.setMaxWidth(Double.MAX_VALUE);
+		setOverviewContent("UI_PANEL_RECIPIENTS", createTopCenterLayout(recipientDetailPanel, recipientListPanel), show);
 
-		recipientListPanel.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-
-		BorderPane content = new BorderPane();
-		content.setTop(recipientDetailPanel);
-		content.setCenter(recipientListPanel);
-		content.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-		BorderPane.setMargin(recipientListPanel, new javafx.geometry.Insets(8, 0, 0, 0));
-
-		setOverviewContent("UI_PANEL_RECIPIENTS", content, show);
 		log.info("RecipientOverviewPanel initialized");
 	}
 
