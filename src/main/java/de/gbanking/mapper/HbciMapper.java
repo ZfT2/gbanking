@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
-import javax.swing.JTextField;
-
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.kapott.hbci.GV_Result.GVRKUms.UmsLine;
 import org.kapott.hbci.structures.Konto;
 
@@ -18,6 +18,8 @@ import de.gbanking.db.dao.enu.Source;
 import de.gbanking.util.TypeConverter;
 
 public class HbciMapper {
+
+	private static final Logger log = LogManager.getLogger(HbciMapper.class);
 
 	private HbciMapper() {
 	}
@@ -101,8 +103,7 @@ public class HbciMapper {
 			return null;
 		
 		Recipient recipient = new Recipient();
-		System.out.println("Konto other Str: " + other.toString());
-		System.out.printf("Konto other: %15s %24s %8s %12s %24s %n", other.name, other.iban, other.bic, other.number, other.blz );
+		log.debug("Konto other: %15s %24s %8s %12s %24s %n", other.name, other.iban, other.bic, other.number, other.blz);
 		
 		recipient.setName(other.name);
 		recipient.setIban(other.iban);
