@@ -243,6 +243,7 @@ public class GBankingGui extends Application {
 
 		panelToActivate.setDisable(false);
 		root.setCenter(panelToActivate);
+		panelToActivate.refreshOnShow();
 	}
 
 	private OverviewBasePanel createOverviewPanel(String actionCommand) {

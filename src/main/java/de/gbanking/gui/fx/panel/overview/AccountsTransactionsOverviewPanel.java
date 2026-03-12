@@ -72,6 +72,7 @@ public class AccountsTransactionsOverviewPanel extends TransactionsOverviewBaseP
 		transactionDetailPanel.setDisable(false);
 	}
 
+	@Override
 	public void refreshOnShow() {
 		if (accountListPanel != null) {
 			accountListPanel.reload();

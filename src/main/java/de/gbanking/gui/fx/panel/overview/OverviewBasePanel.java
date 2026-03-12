@@ -77,4 +77,8 @@ public abstract class OverviewBasePanel extends BasePanelHolder {
 	}
 
 	public abstract void createOverallPanel(boolean show);
+
+	public void refreshOnShow() {
+		// default: nothing
+	}
 }
