@@ -54,7 +54,9 @@ public class GBankingProperties extends Properties {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-			baseDir = basePathProperties.getProperty("basePath");
+			String userProfile = System.getenv("USERPROFILE");
+			baseDir = userProfile + basePathProperties.getProperty("basePath");
+			log.debug("basePath: {}", baseDir);
 		}
 		
 		if (baseDir == null) {

@@ -330,7 +330,7 @@ public class DbExecutor extends DbConnectionHandler {
 				log.info("{} for {}, count: {}", mode, entity.getClass().getName(), affectedRows);
 			}
 		} catch (SQLException e) {
-			log.error(messages.getMessage(mode == SQLMode.UPDATE ? SqlErrors.ERROR_DB_UPDATE : SqlErrors.ERROR_DB_INSERT), e);
+			log.error(messages.getFormattedMessage(mode == SQLMode.UPDATE ? SqlErrors.ERROR_DB_UPDATE : SqlErrors.ERROR_DB_INSERT, entity.getId()), e);
 		}
 		return entity;
 	}
