@@ -2,6 +2,7 @@ package de.gbanking.gui.fx.panel.account;
 
 import java.util.List;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -49,6 +50,7 @@ public class AccountListPanel extends BaseBorderPanePanel {
 		configureColumns();
 
 		accountTable.setItems(modelAccount.getAccounts());
+		accountTable.setEditable(true);
 		accountTable.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 		accountTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, selectedAccount) -> {
 			if (selectedAccount != null) {
@@ -118,7 +120,7 @@ public class AccountListPanel extends BaseBorderPanePanel {
 	}
 
 	private void handleAccountsTransactionsSelection(BankAccount selectedAccount) {
-		log.info(messages.getFormattedMessage("LOG_INFO_ACCOUNT_SELECTED", selectedAccount.getId()));
+		log.log(Level.INFO, () -> getText("LOG_INFO_ACCOUNT_SELECTED", selectedAccount.getId()));
 
 		List<Booking> bookingList = dbController.getAllByParent(Booking.class, selectedAccount.getId());
 		AccountsTransactionsOverviewPanel parent = (AccountsTransactionsOverviewPanel) parentPanel;
