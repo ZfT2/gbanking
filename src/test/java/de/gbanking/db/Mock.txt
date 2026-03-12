@@ -1,0 +1,114 @@
+	private Konto[] getAccountsMock() {
+		
+		Konto[] konten = new Konto[2];
+		
+		Konto konto01 = new Konto();
+		konto01.acctype = "1";
+		konto01.bic = "BYLADEM02";
+		konto01.blz = "12030000";
+		konto01.country = "DE";
+		konto01.curr = "EUR";
+		konto01.customerid = "GB";
+		konto01.iban = "DE1234567890";
+		Limit limit01 = new Limit();
+		Value value01 = new Value();
+		value01.setValue(BigDecimal.valueOf(1000.00));
+		limit01.value = value01;
+		konto01.limit = limit01;
+		konto01.name = "Tagesgeld Bank12";
+		konto01.name2 = "TG"; 
+		konto01.number = "1234567890";
+		konto01.subnumber = "7890";
+		konto01.type = "TG";
+		konto01.allowedGVs = Arrays.asList(new String[] {"001", "002", "003", "004"});
+		
+		konten[0] = konto01;
+		
+		Konto konto02 = new Konto();
+		konto02.acctype = "2";
+		konto02.bic = "BYLADEM02";
+		konto02.blz = "12030000";
+		konto02.country = "DE";
+		konto02.curr = "EUR";
+		konto02.customerid = "GB";
+		konto02.iban = "DE1234567891";
+		Limit limit02 = new Limit();
+		Value value02 = new Value();
+		value02.setValue(BigDecimal.valueOf(1000.00));
+		limit02.value = value02;
+		konto02.limit = limit02;
+		konto02.name = "Festgeld Bank12";
+		konto02.name2 = "FG"; 
+		konto02.number = "1234567891";
+		konto02.subnumber = "7891";
+		konto02.type = "FG";
+		konto02.allowedGVs = Arrays.asList(new String[] {"001", "002"});
+		
+		konten[1] = konto02;
+		
+		return konten;
+	}
+	
+	public boolean addNewBankAccessMock(BankAccess bankAccess) {
+
+		log.info("addNewBankAccessMock called.");
+
+		List<BankAccount> bankAccountList = new ArrayList<>();
+		try {
+			
+			bankAccess.setBankName("Bank12");
+			bankAccess.setHbciURL("https://Bank12.de/hbci");
+			bankAccess.setBpdVersion("0.1");
+			bankAccess.setUpdVersion("0.2");
+			bankAccess.setUserId("boener02");
+			bankAccess.setUpdatedAt(Calendar.getInstance());
+
+			Konto[] konten = getAccountsMock();
+			if (konten == null || konten.length == 0) {
+				log.error("Keine Konten ermittelbar");
+			} else {
+				log.info("Anzahl Konten: {}", konten.length);
+				log.info(messages.getFormattedMessage("LOG_INFO_ACCOUNT_COUNT", konten.length));
+			}
+			
+			for (Konto konto : konten) {
+
+				log.info(
+						"Konto: acctype {}, bic {}, blz {}, country {}, creditorid {}, curr {}, customerid {}, iban {}, limit {}, name {}, name2 {}, number {}, subnumber {}, type {}, isSEPAAccount? {}",
+						konto.acctype, konto.bic, konto.blz, konto.country, konto.creditorid, konto.curr,
+						konto.customerid, konto.iban, konto.limit, konto.name, konto.name2, konto.number,
+						konto.subnumber, konto.type, konto.isSEPAAccount());
+
+				log.info("Konto: GVs:");
+				List<?> allowedGVs = konto.allowedGVs;
+				for (Object gv : allowedGVs) {
+					log.info("GV: {}", gv);
+				}
+				bankAccountList.add(HbciMapper.mapKontoToBankAccount("Bank12", konto));
+			}
+
+			Properties upd = new Properties();
+			upd.put("updK01", "VU01");
+			upd.put("updK02", "VU02");
+			
+			Properties bpd = new Properties();
+			bpd.put("bpdK01", "VB01");
+			bpd.put("bpdK02", "VB02");
+			
+			bankAccess.setUpd(upd);
+			bankAccess.setBpd(bpd);
+			bankAccess.setAccounts(bankAccountList);
+			
+			HBCIExecStatus status  = new HBCIExecStatus();
+			
+			if (!status.isOK())
+				log.error("HBCI Error, Status: {}", status);
+			
+			return true;
+
+
+		} finally {
+			;
+		}
+		
+	}
