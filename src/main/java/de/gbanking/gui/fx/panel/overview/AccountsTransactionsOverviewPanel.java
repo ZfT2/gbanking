@@ -71,4 +71,17 @@ public class AccountsTransactionsOverviewPanel extends TransactionsOverviewBaseP
 		}
 		transactionDetailPanel.setDisable(false);
 	}
+
+	public void refreshOnShow() {
+		if (accountListPanel != null) {
+			accountListPanel.reload();
+		}
+		if (transactionListPanel != null) {
+			transactionListPanel.updateModelBooking(java.util.List.of());
+			transactionListPanel.updatePanelBorder(getText("UI_PANEL_TRANSACTIONS"));
+		}
+		if (rightContentBox != null && accountDetailPanel != null) {
+			rightContentBox.getChildren().set(0, accountDetailPanel);
+		}
+	}
 }
