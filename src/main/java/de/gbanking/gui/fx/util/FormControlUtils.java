@@ -1,11 +1,11 @@
 package de.gbanking.gui.fx.util;
 
+import java.util.List;
+
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Control;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputControl;
-
-import java.util.List;
 
 public final class FormControlUtils {
 

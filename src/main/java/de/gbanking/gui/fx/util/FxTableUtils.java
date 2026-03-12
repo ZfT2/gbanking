@@ -7,6 +7,7 @@ import java.util.Locale;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Pos;
 import javafx.scene.control.ContentDisplay;
@@ -90,6 +91,7 @@ public final class FxTableUtils {
 				label.setWrapText(true);
 				label.setMaxWidth(Double.MAX_VALUE);
 				label.setPrefHeight(Region.USE_COMPUTED_SIZE);
+				label.maxWidthProperty().bind(column.widthProperty().subtract(16));
 				setGraphic(label);
 				setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
 				setAlignment(Pos.CENTER_LEFT);
@@ -106,7 +108,6 @@ public final class FxTableUtils {
 				}
 
 				label.setText(item);
-				label.maxWidthProperty().bind(getTableColumn().widthProperty().subtract(16));
 				setGraphic(label);
 			}
 		};
@@ -125,13 +126,7 @@ public final class FxTableUtils {
 
 		TableColumn<S, Boolean> column = new TableColumn<>(title);
 
-		column.setCellValueFactory(cellData -> {
-			S rowItem = cellData.getValue();
-			SimpleBooleanProperty property = new SimpleBooleanProperty(Boolean.TRUE.equals(getter.apply(rowItem)));
-			property.addListener((obs, oldValue, newValue) -> setter.accept(rowItem, Boolean.TRUE.equals(newValue)));
-			return property;
-		});
-
+		column.setCellValueFactory(cellData -> createSelectionProperty(cellData.getValue(), getter, setter));
 		column.setCellFactory(col -> {
 			CheckBoxTableCell<S, Boolean> cell = new CheckBoxTableCell<>();
 			cell.setAlignment(Pos.CENTER);
@@ -142,9 +137,7 @@ public final class FxTableUtils {
 				}
 
 				S rowItem = col.getTableView().getItems().get(index);
-				SimpleBooleanProperty property = new SimpleBooleanProperty(Boolean.TRUE.equals(getter.apply(rowItem)));
-				property.addListener((obs, oldValue, newValue) -> setter.accept(rowItem, Boolean.TRUE.equals(newValue)));
-				return property;
+				return createSelectionProperty(rowItem, getter, setter);
 			});
 			return cell;
 		});
@@ -152,5 +145,12 @@ public final class FxTableUtils {
 		column.setEditable(true);
 		setFixedWidth(column, 25);
 		return column;
+	}
+
+	private static <S> BooleanProperty createSelectionProperty(S rowItem, Function<S, Boolean> getter, BiConsumer<S, Boolean> setter) {
+
+		SimpleBooleanProperty property = new SimpleBooleanProperty(Boolean.TRUE.equals(getter.apply(rowItem)));
+		property.addListener((obs, oldValue, newValue) -> setter.accept(rowItem, Boolean.TRUE.equals(newValue)));
+		return property;
 	}
 }

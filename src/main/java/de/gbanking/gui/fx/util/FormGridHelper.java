@@ -24,36 +24,20 @@ public final class FormGridHelper {
 
 	public static void addFieldAbove(GridPane grid, String labelText, Node field, int col, int rowGroup) {
 		int row = rowGroup * 2;
-
-		Label label = new Label(labelText == null ? "" : labelText);
-
-		if (field == null) {
-			throw new IllegalArgumentException("field must not be null for labelText=" + labelText);
-		}
-
-		VBox box = new VBox(2);
-		box.getChildren().add(label);
-		box.getChildren().add(field);
-
-		if (field instanceof Region region) {
-			region.setMaxWidth(Double.MAX_VALUE);
-		}
-		if (field instanceof Control control) {
-			VBox.setVgrow(control, Priority.NEVER);
-		}
-
-		grid.add(box, col, row, 1, 2);
+		grid.add(createFieldBox(labelText, field), col, row, 1, 2);
 	}
 
 	public static void addFieldAbove(GridPane grid, String labelText, Node field, int col, int rowGroup, int colspan) {
 		int row = rowGroup * 2;
+		grid.add(createFieldBox(labelText, field), col, row, colspan, 2);
+	}
 
-		Label label = new Label(labelText == null ? "" : labelText);
-
+	private static VBox createFieldBox(String labelText, Node field) {
 		if (field == null) {
 			throw new IllegalArgumentException("field must not be null for labelText=" + labelText);
 		}
 
+		Label label = new Label(labelText == null ? "" : labelText);
 		VBox box = new VBox(2);
 		box.getChildren().add(label);
 		box.getChildren().add(field);
@@ -65,6 +49,6 @@ public final class FormGridHelper {
 			VBox.setVgrow(control, Priority.NEVER);
 		}
 
-		grid.add(box, col, row, colspan, 2);
+		return box;
 	}
 }
