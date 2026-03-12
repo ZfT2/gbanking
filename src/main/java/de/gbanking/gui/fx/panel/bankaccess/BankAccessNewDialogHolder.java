@@ -1,18 +1,29 @@
 package de.gbanking.gui.fx.panel.bankaccess;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import de.gbanking.db.dao.BankAccess;
+import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.enu.TanProcedure;
 import de.gbanking.gui.fx.enu.ButtonContext;
 import de.gbanking.gui.fx.panel.BasePanelHolder;
 import de.gbanking.gui.fx.panel.overview.BankAccessOverviewPanel;
+import de.gbanking.gui.fx.util.FxTableUtils;
+import de.gbanking.gui.fx.util.TableColumnFactory;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
+import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -75,13 +86,13 @@ public class BankAccessNewDialogHolder extends BasePanelHolder {
 			bankAccess.setTanProcedure(TanProcedure.APP_TAN);
 
 			if (bean.addNewBankAccess(bankAccess)) {
-				dialog.setScene(new Scene(createStep2(dialog, bankAccess), 800, 600));
+				dialog.setScene(new Scene(createStep2(dialog, bankAccess), 900, 600));
 			}
 		});
 
 		cancelButton.setOnAction(e -> dialog.close());
 
-		VBox root = new VBox(10, new Label("Bankzugang Daten"), grid, new javafx.scene.layout.HBox(10, okButton, cancelButton));
+		VBox root = new VBox(10, new Label("Bankzugang Daten"), grid, new HBox(10, okButton, cancelButton));
 		root.setPadding(new Insets(10));
 		return root;
 	}
@@ -89,17 +100,32 @@ public class BankAccessNewDialogHolder extends BasePanelHolder {
 	private VBox createStep2(Stage dialog, BankAccess bankAccess) {
 		Label accountsLabel = new Label("Konten:");
 
-		TableView<Object> accountTable = new TableView<>();
-		// Hier könntest du später eine echte JavaFX-Kontenliste mit Checkbox-Spalte
-		// einbauen.
-		// Für die reine Migration lasse ich die Tabelle als Platzhalter-View, bis du
-		// die
-		// dazugehörige Dialog-Checkbox-Logik exakt brauchst.
+		ObservableList<BankAccount> accountItems = FXCollections.observableArrayList(getAccounts(bankAccess));
+		accountItems.forEach(account -> account.setSelected(true));
+
+		TableView<BankAccount> accountTable = new TableView<>(accountItems);
+		accountTable.setEditable(true);
+		accountTable.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+		accountTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+
+		TableColumn<BankAccount, Boolean> selectedCol = FxTableUtils.createSelectionColumn(getText("UI_TABLE_SELECTED"), BankAccount::isSelected,
+				BankAccount::setSelected);
+		TableColumn<BankAccount, String> nameCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_ACCOUNT_NAME"), BankAccount::getAccountName, 180, 220);
+		TableColumn<BankAccount, String> ibanCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_IBAN"), BankAccount::getIban, 220, 260);
+		TableColumn<BankAccount, String> bankCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_BANK"), BankAccount::getBankName, 140, 180);
+		TableColumn<BankAccount, String> currencyCol = TableColumnFactory.createFixedTextColumn(getText("UI_LABEL_CURRENCY"),
+				account -> account.getCurrency() != null ? account.getCurrency() : "", 80);
+
+		accountTable.getColumns().setAll(selectedCol, nameCol, ibanCol, bankCol, currencyCol);
 
 		Button okButton = new Button("OK");
 		Button cancelButton = new Button("Abbrechen");
 
 		okButton.setOnAction(e -> {
+			List<BankAccount> selectedAccounts = accountItems.stream().filter(BankAccount::isSelected).toList();
+
+			bankAccess.setAccounts(new ArrayList<>(selectedAccounts));
+
 			if (bean.saveBankAccessAccountsToDB(bankAccess)) {
 				overviewPanel.getBankAccessListPanel().refreshModelBankAccess();
 				dialog.close();
@@ -110,9 +136,17 @@ public class BankAccessNewDialogHolder extends BasePanelHolder {
 
 		cancelButton.setOnAction(e -> dialog.close());
 
-		VBox root = new VBox(10, new Label("Bankzugang Konten"), accountsLabel, accountTable, new javafx.scene.layout.HBox(10, okButton, cancelButton));
+		VBox root = new VBox(10, new Label("Bankzugang Konten"), accountsLabel, accountTable, new HBox(10, okButton, cancelButton));
 		root.setPadding(new Insets(10));
+		VBox.setVgrow(accountTable, Priority.ALWAYS);
 		return root;
+	}
+
+	private List<BankAccount> getAccounts(BankAccess bankAccess) {
+		if (bankAccess.getAccounts() == null) {
+			return List.of();
+		}
+		return bankAccess.getAccounts();
 	}
 
 	private VBox createDeletePanel(Stage dialog) {
@@ -149,7 +183,7 @@ public class BankAccessNewDialogHolder extends BasePanelHolder {
 		grid.add(new Label("Benutzer"), 0, 1);
 		grid.add(userValue, 1, 1);
 
-		VBox root = new VBox(10, new Label("Bankzugang Daten"), grid, question, new javafx.scene.layout.HBox(10, okButton, cancelButton));
+		VBox root = new VBox(10, new Label("Bankzugang Daten"), grid, question, new HBox(10, okButton, cancelButton));
 		root.setPadding(new Insets(10));
 		return root;
 	}
