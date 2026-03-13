@@ -162,8 +162,8 @@ class FileImportBeanTest {
 		List<BankAccount> dbAccountList = dbController.getAllFull(BankAccount.class);
 		assertEquals(2, dbAccountList.size());
 
-		BankAccount bankAccount01 = dbAccountList.getFirst();
-		BankAccount bankAccount02 = dbAccountList.getLast();
+		BankAccount bankAccount01 = dbAccountList.get(0);
+		BankAccount bankAccount02 = dbAccountList.get(1);
 
 		assertEquals(4, bankAccount01.getBookings().size());
 
@@ -205,7 +205,7 @@ class FileImportBeanTest {
 		fileImportBean.writeBookingsToDB(Arrays.asList(xmlBankAccount02));
 
 		dbAccountList = dbController.getAllFull(BankAccount.class);
-		bankAccount02 = dbAccountList.getLast();
+		bankAccount02 = dbAccountList.get(1);
 
 		assertEquals(4, bankAccount02.getBookings().size());
 

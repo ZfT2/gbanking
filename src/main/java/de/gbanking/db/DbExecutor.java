@@ -225,7 +225,7 @@ public class DbExecutor extends DbConnectionHandler {
 			if (dao != null)
 				ps.setInt(1, dao.getId());
 			ResultSet rs = ps.executeQuery();
-			resultMap = HashMap.newHashMap(rs.getFetchSize());
+			resultMap = new HashMap<>(rs.getFetchSize()); // newHashMap(rs.getFetchSize());
 			while (rs.next()) {
 				resultMap.put(rs.getObject(keyName, keyType), rs.getObject(valueName, valueType));
 			}

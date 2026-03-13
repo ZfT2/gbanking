@@ -40,7 +40,7 @@ public class MoneyTransferOverviewPanel extends OverviewBasePanel {
 		setOverviewContent("UI_PANEL_MONEYTRANSFERS", splitPane, show);
 
 		tabPane.getSelectionModel().selectFirst();
-		switchTab(tabPane.getTabs().getFirst());
+		switchTab(tabPane.getTabs().get(0));
 	}
 
 	private Tab createTab(OrderType type) {

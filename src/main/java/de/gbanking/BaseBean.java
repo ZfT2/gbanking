@@ -25,4 +25,8 @@ public class BaseBean {
 		return messages.getFormattedMessage(key, value1);
 	}
 	
+	protected String getText(String key, String... values) {
+		return messages.getFormattedMessage(key, values);
+	}
+
 }

@@ -16,6 +16,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.kapott.hbci.GV.HBCIJob;
@@ -289,19 +290,46 @@ public class GBankingBean extends BaseBean implements Serializable {
 	}
 	
 	
+//	HBCIJob<?> createAndAddHbciJob(HBCIHandler handle, String jobDescription, Map<String, Object> params) {
+//		HBCIJob<?> job = handle.newJob(jobDescription);
+//		for (Entry<String, Object> param : params.entrySet()) {
+//			switch (param.getValue()) {
+//				case String s -> job.setParam(param.getKey(), s);
+//				case Date d -> job.setParam(param.getKey(), d);
+//				case Integer i -> job.setParam(param.getKey(), i);
+//				case Konto k -> job.setParam(param.getKey(), k);
+//				default -> log.error("Unknown HBCI Job Param Type: {}", param.getValue().getClass());
+//			}
+//
+//			job.addToQueue();
+//		}
+//		return job;
+//	}
+
 	HBCIJob<?> createAndAddHbciJob(HBCIHandler handle, String jobDescription, Map<String, Object> params) {
 		HBCIJob<?> job = handle.newJob(jobDescription);
-		for (Entry<String, Object> param : params.entrySet()) {
-			switch (param.getValue()) {
-				case String s -> job.setParam(param.getKey(), s);
-				case Date d -> job.setParam(param.getKey(), d);
-				case Integer i -> job.setParam(param.getKey(), i);
-				case Konto k -> job.setParam(param.getKey(), k);
-				default -> log.error("Unknown HBCI Job Param Type: {}", param.getValue().getClass());
-			}
 
-			job.addToQueue();
+		for (Entry<String, Object> param : params.entrySet()) {
+			Object value = param.getValue();
+
+			if (value instanceof String s) {
+				job.setParam(param.getKey(), s);
+			} else if (value instanceof Date d) {
+				job.setParam(param.getKey(), d);
+			} else if (value instanceof Integer i) {
+				job.setParam(param.getKey(), i);
+			} else if (value instanceof Konto k) {
+				job.setParam(param.getKey(), k);
+			} else {
+				if (value == null)
+					log.log(Level.ERROR, () -> getText("hbci.job.param.null", param.getKey()));
+				else {
+					log.log(Level.ERROR, () -> getText("hbci.job.param.unknown.type", param.getKey(), value.getClass().getName()));
+				}
+			}
 		}
+		job.addToQueue();
+
 		return job;
 	}
 

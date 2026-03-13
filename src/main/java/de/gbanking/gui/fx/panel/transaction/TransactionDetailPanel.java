@@ -194,7 +194,8 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 		VBox box = new VBox(2, new Label(getText(labelKey)), field);
 		grid.add(box, col, row, 1, 2);
 
-		if (field instanceof Region region) {
+		if (field instanceof Region) {
+			Region region = field;
 			region.setMaxWidth(Double.MAX_VALUE);
 		}
 	}

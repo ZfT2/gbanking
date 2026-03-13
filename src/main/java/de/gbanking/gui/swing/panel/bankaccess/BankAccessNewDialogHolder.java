@@ -69,11 +69,11 @@ public class BankAccessNewDialogHolder extends BasePanelHolder {
 	public JDialog createNewBankAccessDialog() {
 		modelDialog = new JDialog(parentFrame, buttonContext.getHeadline(), Dialog.ModalityType.DOCUMENT_MODAL);
 		modelDialog.setBounds(132, 132, 400, 200);
-		
-		switch(buttonContext) {
-		case  ButtonContext.BUTTON_NEW, BUTTON_EDIT:	
-		createSPaneltep1();
-		break;
+
+		switch (buttonContext) {
+		case BUTTON_NEW, BUTTON_EDIT:
+			createSPaneltep1();
+			break;
 		case BUTTON_DELETE:
 			createPanelDelete();
 			break;
