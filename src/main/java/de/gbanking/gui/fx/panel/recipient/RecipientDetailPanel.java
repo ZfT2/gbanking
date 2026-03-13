@@ -10,6 +10,8 @@ import de.gbanking.db.dao.Recipient;
 import de.gbanking.db.dao.enu.Source;
 import de.gbanking.gui.fx.panel.AbstractTitledFormPanel;
 import de.gbanking.gui.fx.panel.overview.RecipientOverviewPanel;
+import de.gbanking.gui.fx.util.FormStyleUtils;
+import de.gbanking.gui.fx.util.FormStyleUtils.FieldWidth;
 import de.gbanking.util.TypeConverter;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -21,14 +23,14 @@ public class RecipientDetailPanel extends AbstractTitledFormPanel {
 
 	private static final Logger log = LogManager.getLogger(RecipientDetailPanel.class);
 
-	private final TextField nameText = new TextField();
-	private final TextField ibanText = new TextField();
-	private final TextField bicText = new TextField();
-	private final TextField accountNumberText = new TextField();
-	private final TextField blzText = new TextField();
-	private final TextField bankText = new TextField();
-	private final TextArea noteText = new TextArea();
-	private final TextField updatedAtText = new TextField();
+	private final TextField nameText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.M);
+	private final TextField ibanText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.L);
+	private final TextField bicText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
+	private final TextField accountNumberText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
+	private final TextField blzText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
+	private final TextField bankText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.M);
+	private final TextArea noteText = FormStyleUtils.prepareLargeTextArea(new TextArea(), 3);
+	private final TextField updatedAtText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.M);
 
 	private final Button buttonRecipientNew = new Button();
 	private final Button buttonRecipientSave = new Button();
@@ -65,7 +67,7 @@ public class RecipientDetailPanel extends AbstractTitledFormPanel {
 		addFieldAbove("UI_LABEL_NOTE", noteText, 0, 3);
 		addFieldAbove("UI_LABEL_UPDATED_AT", updatedAtText, 1, 3);
 
-		HBox buttonBar = new HBox(10, buttonRecipientNew, buttonRecipientSave, buttonRecipientDelete);
+		HBox buttonBar = FormStyleUtils.createButtonBar(buttonRecipientNew, buttonRecipientSave, buttonRecipientDelete);
 		addContentNode(buttonBar);
 	}
 
@@ -116,13 +118,11 @@ public class RecipientDetailPanel extends AbstractTitledFormPanel {
 	}
 
 	private void enableInputFields(boolean enable) {
-		nameText.setDisable(!enable);
-		ibanText.setDisable(!enable);
-		bicText.setDisable(!enable);
-		accountNumberText.setDisable(!enable);
-		blzText.setDisable(!enable);
-		bankText.setDisable(!enable);
-		noteText.setDisable(!enable);
+		FormStyleUtils.setEditable(enable, nameText, ibanText, bicText, accountNumberText, blzText, bankText, noteText);
+
+		updatedAtText.setEditable(false);
+		updatedAtText.setDisable(true);
+		FormStyleUtils.setReadOnlyStyle(true, updatedAtText);
 	}
 
 	public void updatePanelFieldValues(Recipient selectedRecipient) {

@@ -227,6 +227,7 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 		enableFields(true);
 		bookingSourceCombo.setValue(Source.MANUELL);
 		clearFields();
+		enableFields(true);
 	}
 
 	private void performEdit() {

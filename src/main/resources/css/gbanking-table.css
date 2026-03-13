@@ -76,3 +76,90 @@
 .gbanking-readonly-control {
     -fx-opacity: 1.0;
 }
+
+/* ============================= */
+/* Form Layout */
+/* ============================= */
+
+.gbanking-form-panel {
+    -fx-background-color: linear-gradient(to bottom, #fffdf6, #fff9ea);
+    -fx-background-radius: 6;
+    -fx-padding: 10 12 10 12;
+}
+
+.gbanking-form-grid {
+    -fx-hgap: 12;
+    -fx-vgap: 8;
+}
+
+.gbanking-form-label {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #444;
+}
+
+.gbanking-form-field-box {
+    -fx-spacing: 2;
+}
+
+/* ============================= */
+/* Buttons */
+/* ============================= */
+
+.gbanking-button-bar {
+    -fx-padding: 10 0 0 0;
+}
+
+.gbanking-form-button {
+    -fx-background-color: linear-gradient(to bottom, #f4e6a2, #ead57a);
+    -fx-background-radius: 4;
+    -fx-border-color: #d0bb63;
+    -fx-border-radius: 4;
+    -fx-font-weight: bold;
+}
+
+.gbanking-form-button:hover {
+    -fx-background-color: linear-gradient(to bottom, #f7ebba, #efdc8f);
+}
+
+.gbanking-form-button:pressed {
+    -fx-background-color: linear-gradient(to bottom, #e3d07a, #d7c268);
+}
+
+/* ============================= */
+/* Readonly fields */
+/* ============================= */
+
+.gbanking-readonly-control {
+    -fx-background-color: #f8f8f8;
+    -fx-opacity: 1.0;
+}
+
+.table-view {
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+    -fx-border-color: #d9d9d9;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: linear-gradient(to bottom, #f7f7f7, #ececec);
+}
+
+.table-view .column-header {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent #dcdcdc transparent transparent;
+}
+
+.table-view .column-header .label {
+    -fx-font-weight: bold;
+}
+
+.table-cell {
+    -fx-padding: 6 8 6 8;
+}
+
+.table-row-cell {
+    -fx-cell-size: 30px;
+}

@@ -83,7 +83,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	}
 
 	private void handleBookingSelection(Booking booking) {
-		log.log(Level.INFO, () -> getText("LOG_INFO_BOOKING_SELECTED", booking.getId()));
+		log.log(Level.INFO, () -> getText("LOG_BOOKING_SELECTED", booking.getId()));
 
 		Recipient recipient = dbController.getByIdFull(Recipient.class, booking.getRecipientId());
 		booking.setRecipient(recipient);

@@ -239,7 +239,7 @@ public class TransactionListPanel extends BasePanelHolder {
 				}
 				int bookingId = (int) bookingListTable.getModel().getValueAt(row, column);
 
-				log.info(messages.getFormattedMessage("LOG_INFO_BOOKING_SELECTED", bookingId));
+				log.info(messages.getFormattedMessage("LOG_BOOKING_SELECTED", bookingId));
 
 				Booking booking = model.getSelectedBooking(row);
 				//Recipient recipient = dbController.getRecipientById(booking.getRecipientId());
