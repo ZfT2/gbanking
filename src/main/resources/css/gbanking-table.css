@@ -172,3 +172,19 @@
 .table-cell.amount {
     -fx-font-family: "Consolas", "Courier New", monospace;
 }
+
+.gbanking-form-inline-field {
+    -fx-alignment: center-left;
+    -fx-spacing: 8;
+}
+
+.gbanking-form-inline-field .label {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #444;
+}
+
+.gbanking-form-grid {
+    -fx-hgap: 18;
+    -fx-vgap: 6;
+}

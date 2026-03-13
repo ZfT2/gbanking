@@ -1,4 +1,3 @@
-// src/main/java/de/gbanking/gui/fx/panel/AbstractTitledFormPanel.java
 package de.gbanking.gui.fx.panel;
 
 import de.gbanking.gui.fx.util.FormGridHelper;
@@ -41,6 +40,14 @@ public abstract class AbstractTitledFormPanel extends BasePanelHolder {
 
 	protected final void addFieldAbove(String key, Node field, int col, int rowGroup, int colspan) {
 		FormGridHelper.addFieldAbove(formGrid, getText(key), field, col, rowGroup, colspan);
+	}
+
+	protected final void addFieldInline(String key, Node field, int col, int row) {
+		FormGridHelper.addFieldInline(formGrid, getText(key), field, col, row);
+	}
+
+	protected final void addFieldInline(String key, Node field, int col, int row, int colspan) {
+		FormGridHelper.addFieldInline(formGrid, getText(key), field, col, row, colspan);
 	}
 
 	protected final void addContentNode(Node node) {

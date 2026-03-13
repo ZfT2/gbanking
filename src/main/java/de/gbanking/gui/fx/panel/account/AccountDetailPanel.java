@@ -22,7 +22,7 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 	private final TextField accountNameText = FormFields.textM();
 	private final TextField accountIbanText = FormFields.textL();
 	private final TextField bankNameText = FormFields.textM();
-	private final TextField accountTypText = FormFields.textM();
+	private final TextField accountTypText = FormFields.textS();
 	private final TextField bankAccessText = FormFields.textS();
 	private final TextField currencyText = FormFields.textXs();
 	private final TextField bicText = FormFields.textS();
@@ -32,7 +32,7 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 	private final TextField ownerNameText = FormFields.textM();
 	private final TextField ownerName2Text = FormFields.textM();
 	private final CheckBox isSEPAAccount = FormFields.checkBox();
-	private final TextField updatedAtText = FormFields.textM();
+	private final TextField updatedAtText = FormFields.textS();
 
 	private CheckBox isOfflineAccount;
 	private ComboBox<AccountState> accountStateCombo;
@@ -46,7 +46,7 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 
 	private void configureGrid() {
 		formGrid.getColumnConstraints().clear();
-		formGrid.getColumnConstraints().addAll(createGrowColumn(), createGrowColumn(), createGrowColumn());
+		formGrid.getColumnConstraints().addAll(createGrowColumn(), createGrowColumn());
 	}
 
 	private ColumnConstraints createGrowColumn() {
@@ -57,33 +57,33 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 	}
 
 	private void createPanel() {
-		addFieldAbove("UI_LABEL_ACCOUNT", accountNameText, 0, 0);
-		addFieldAbove("UI_LABEL_IBAN", accountIbanText, 1, 0);
+		addFieldInline("UI_LABEL_ACCOUNT", accountNameText, 0, 0);
+		addFieldInline("UI_LABEL_IBAN", accountIbanText, 1, 0);
 
-		addFieldAbove("UI_LABEL_BANK", bankNameText, 0, 1);
-		addFieldAbove("UI_LABEL_ACCOUNT_TYPE", accountTypText, 1, 1);
+		addFieldInline("UI_LABEL_BANK", bankNameText, 0, 1);
+		addFieldInline("UI_LABEL_ACCOUNT_TYPE", accountTypText, 1, 1);
 
-		addFieldAbove("UI_LABEL_ACCOUNT_NUMBER", numberText, 0, 2);
-		addFieldAbove("UI_LABEL_SUBNUMBER", subnumberText, 1, 2);
+		addFieldInline("UI_LABEL_ACCOUNT_NUMBER", numberText, 0, 2);
+		addFieldInline("UI_LABEL_SUBNUMBER", subnumberText, 1, 2);
 
-		addFieldAbove("UI_LABEL_BANK_ACCESS", bankAccessText, 0, 3);
-		addFieldAbove("UI_LABEL_CURRENCY", currencyText, 1, 3);
+		addFieldInline("UI_LABEL_BANK_ACCESS", bankAccessText, 0, 3);
+		addFieldInline("UI_LABEL_CURRENCY", currencyText, 1, 3);
 
-		addFieldAbove("UI_LABEL_BIC", bicText, 0, 4);
-		addFieldAbove("UI_LABEL_BLZ", blzText, 1, 4);
+		addFieldInline("UI_LABEL_BIC", bicText, 0, 4);
+		addFieldInline("UI_LABEL_BLZ", blzText, 1, 4);
 
-		addFieldAbove("UI_LABEL_OWNER", ownerNameText, 0, 5);
-		addFieldAbove("UI_LABEL_OWNER_2", ownerName2Text, 1, 5);
+		addFieldInline("UI_LABEL_OWNER", ownerNameText, 0, 5);
+		addFieldInline("UI_LABEL_OWNER_2", ownerName2Text, 1, 5);
 
-		addFieldAbove("UI_LABEL_SEPA_ACCOUNT", isSEPAAccount, 0, 6);
-		addFieldAbove("UI_LABEL_UPDATED_AT", updatedAtText, 1, 6);
+		addFieldInline("UI_LABEL_SEPA_ACCOUNT", isSEPAAccount, 0, 6);
+		addFieldInline("UI_LABEL_UPDATED_AT", updatedAtText, 1, 6);
 
 		if (fullDetails) {
 			isOfflineAccount = FormFields.checkBox();
 			accountStateCombo = FormFields.comboM(FXCollections.observableArrayList(AccountState.values()));
 
-			addFieldAbove("UI_LABEL_OFFLINE_ACCOUNT", isOfflineAccount, 2, 0);
-			addFieldAbove("UI_LABEL_ACCOUNT_STATE", accountStateCombo, 2, 1);
+			addFieldInline("UI_LABEL_OFFLINE_ACCOUNT", isOfflineAccount, 0, 7);
+			addFieldInline("UI_LABEL_ACCOUNT_STATE", accountStateCombo, 1, 7);
 		}
 
 		makeReadOnly(accountNameText, accountIbanText, bankNameText, accountTypText, bankAccessText, currencyText, bicText, blzText, numberText, subnumberText,
