@@ -156,7 +156,7 @@ public class RecipientListPanel extends BasePanelHolder {
 				}
 				int recipientId = (int) tableRecipients.getModel().getValueAt(row, column);
 
-				log.info(messages.getFormattedMessage("LOG_INFO_RECIPIENT_SELECTED", recipientId));
+				log.info(messages.getFormattedMessage("LOG_RECIPIENT_SELECTED", recipientId));
 
 				final Recipient selectedRecipient = recipientTableModel.getSelectedRecipient(row);
 

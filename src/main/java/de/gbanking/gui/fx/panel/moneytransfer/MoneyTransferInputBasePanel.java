@@ -8,6 +8,8 @@ import de.gbanking.db.dao.MoneyTransfer;
 import de.gbanking.db.dao.Recipient;
 import de.gbanking.gui.fx.panel.AbstractTitledFormPanel;
 import de.gbanking.gui.fx.util.FormControlUtils;
+import de.gbanking.gui.fx.util.FormStyleUtils;
+import de.gbanking.gui.fx.util.FormStyleUtils.FieldWidth;
 import de.gbanking.gui.swing.model.dto.MoneyTransferForm;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -18,13 +20,13 @@ import javafx.scene.layout.HBox;
 
 public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPanel {
 
-	protected final TextField tfRecipientName = new TextField();
-	protected final TextField tfIBAN = new TextField();
-	protected final TextField tfBIC = new TextField();
-	protected final TextField tfBank = new TextField();
-	protected final TextField tfAmount = new TextField();
-	protected final TextArea tfPurpose = new TextArea();
-	protected final TextField tfAccountSender = new TextField();
+	protected final TextField tfRecipientName = FormStyleUtils.applyWidth(new TextField(), FieldWidth.L);
+	protected final TextField tfIBAN = FormStyleUtils.applyWidth(new TextField(), FieldWidth.L);
+	protected final TextField tfBIC = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
+	protected final TextField tfBank = FormStyleUtils.applyWidth(new TextField(), FieldWidth.M);
+	protected final TextField tfAmount = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
+	protected final TextArea tfPurpose = FormStyleUtils.prepareLargeTextArea(new TextArea(), 3);
+	protected final TextField tfAccountSender = FormStyleUtils.applyWidth(new TextField(), FieldWidth.M);
 
 	protected final Button buttonSubmit = new Button();
 
@@ -41,6 +43,7 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 	private void createBasePanel() {
 		FormControlUtils.prepareWrapping(tfPurpose, 3);
 		tfAccountSender.setEditable(false);
+		FormStyleUtils.setReadOnlyStyle(true, tfAccountSender);
 
 		addFieldAbove("UI_LABEL_TRANSFER_RECIPIENT", tfRecipientName, 0, 0, 3);
 		addFieldAbove("UI_LABEL_TRANSFER_IBAN", tfIBAN, 0, 1, 3);
@@ -61,7 +64,7 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 		Button buttonCancel = new Button(getText("UI_BUTTON_CANCEL"));
 		buttonCancel.setOnAction(e -> resetTextFields());
 
-		HBox buttonBar = new HBox(10, buttonNew, buttonSubmit, buttonDelete, buttonCancel);
+		HBox buttonBar = FormStyleUtils.createButtonBar(buttonNew, buttonSubmit, buttonDelete, buttonCancel);
 		addContentNode(buttonBar);
 	}
 

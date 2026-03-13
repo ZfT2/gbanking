@@ -33,3 +33,46 @@
     -fx-font-size: 16px;
     -fx-font-weight: bold;
 }
+
+.gbanking-form-panel {
+    -fx-background-color: linear-gradient(to bottom, #fffdf6, #fff9ea);
+    -fx-background-radius: 6;
+}
+
+.gbanking-form-titled-pane > .title {
+    -fx-background-color: linear-gradient(to bottom, #f8efc8, #f2e2a0);
+    -fx-font-weight: bold;
+}
+
+.gbanking-form-grid {
+    -fx-background-color: transparent;
+}
+
+.gbanking-form-label {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+.gbanking-button-bar {
+    -fx-padding: 4 0 0 0;
+}
+
+.gbanking-form-button {
+    -fx-background-color: linear-gradient(to bottom, #f4e6a2, #ead57a);
+    -fx-background-radius: 4;
+    -fx-border-color: #d0bb63;
+    -fx-border-radius: 4;
+    -fx-font-weight: bold;
+}
+
+.gbanking-form-button:hover {
+    -fx-background-color: linear-gradient(to bottom, #f7ebba, #efdc8f);
+}
+
+.gbanking-form-button:disabled {
+    -fx-opacity: 0.75;
+}
+
+.gbanking-readonly-control {
+    -fx-opacity: 1.0;
+}

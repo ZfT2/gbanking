@@ -9,6 +9,8 @@ import de.gbanking.db.dao.Recipient;
 import de.gbanking.db.dao.enu.BookingType;
 import de.gbanking.db.dao.enu.Source;
 import de.gbanking.gui.fx.panel.BaseBorderPanePanel;
+import de.gbanking.gui.fx.util.FormStyleUtils;
+import de.gbanking.gui.fx.util.FormStyleUtils.FieldWidth;
 import de.gbanking.util.TypeConverter;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
@@ -35,15 +37,15 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 
 	private EditContext context = EditContext.READONLY;
 
-	private final TextField dateBookingText = new TextField();
-	private final TextField dateValueText = new TextField();
-	private final TextArea purposeText = new TextArea();
-	private final TextField amountText = new TextField();
-	private final TextField currencyText = new TextField();
-	private final ComboBox<BookingType> bookingTypeCombo = new ComboBox<>();
-	private final ComboBox<Source> bookingSourceCombo = new ComboBox<>();
-	private final ComboBox<BankAccount> crossAccountCombo = new ComboBox<>();
-	private final TextField categoryText = new TextField();
+	private final TextField dateBookingText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
+	private final TextField dateValueText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
+	private final TextArea purposeText = FormStyleUtils.prepareLargeTextArea(new TextArea(), 3);
+	private final TextField amountText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
+	private final TextField currencyText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.XS);
+	private final ComboBox<BookingType> bookingTypeCombo = FormStyleUtils.applyWidth(new ComboBox<>(), FieldWidth.M);
+	private final ComboBox<Source> bookingSourceCombo = FormStyleUtils.applyWidth(new ComboBox<>(), FieldWidth.M);
+	private final ComboBox<BankAccount> crossAccountCombo = FormStyleUtils.applyWidth(new ComboBox<>(), FieldWidth.M);
+	private final TextField categoryText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.M);
 
 	private final TextField sepaCustomerRefText = new TextField();
 	private final TextField sepaCreditorIdText = new TextField();
@@ -144,7 +146,7 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 
 		addFieldAbove(grid, "UI_LABEL_SEPA_CUSTOMER_REF", sepaCustomerRefText, 0, 0);
 		addFieldAbove(grid, "UI_LABEL_SEPA_CREDITOR_ID", sepaCreditorIdText, 1, 0);
-		addFieldAbove(grid, "UI_LABEL_SEPA_ENDTOEND", sepaEndToEndText, 2, 0);
+		addFieldAbove(grid, "UI_LABEL_SEPA_END_TO_END", sepaEndToEndText, 2, 0);
 		addFieldAbove(grid, "UI_LABEL_SEPA_MANDATE", sepaMandateText, 3, 0);
 
 		addFieldAbove(grid, "UI_LABEL_SEPA_PERSON_ID", sepaPersonIdText, 0, 1);
@@ -162,9 +164,9 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 		grid.setPadding(new Insets(6));
 
 		addFieldAbove(grid, "UI_LABEL_NAME", recipientNameText, 0, 0);
-		addFieldAbove(grid, "UI_LABEL_IBAN_ACCOUNTNO", recipientIbanText, 0, 1);
+		addFieldAbove(grid, "UI_LABEL_IBAN_OR_ACCOUNT_NUMBER", recipientIbanText, 0, 1);
 		addFieldAbove(grid, "UI_LABEL_ACCOUNT_NUMBER_EMPTY", recipientAccountNumberText, 1, 1);
-		addFieldAbove(grid, "UI_LABEL_BIC_BLZ", recipientBicText, 0, 2);
+		addFieldAbove(grid, "UI_LABEL_BIC_OR_BLZ", recipientBicText, 0, 2);
 		addFieldAbove(grid, "UI_LABEL_BLZ_EMPTY", recipientBlzText, 1, 2);
 		addFieldAbove(grid, "UI_LABEL_BANK", recipientBankText, 0, 3);
 
@@ -180,6 +182,7 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 	private Node createButtonsPane() {
 		VBox buttons = new VBox(8, newButton, editButton, saveButton);
 		buttons.setPadding(new Insets(6));
+		FormStyleUtils.styleButtons(newButton, editButton, saveButton);
 		return buttons;
 	}
 
@@ -207,32 +210,15 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 	}
 
 	private void enableFields(boolean enable) {
-		dateBookingText.setDisable(!enable);
-		dateValueText.setDisable(!enable);
-		purposeText.setDisable(!enable);
-		amountText.setDisable(!enable);
-		currencyText.setDisable(!enable);
-		bookingTypeCombo.setDisable(!enable);
-		bookingSourceCombo.setDisable(!enable);
-		crossAccountCombo.setDisable(!enable);
-		categoryText.setDisable(!enable);
+		boolean editable = enable && FormStyleUtils.isUserEditable(displayedBooking != null ? displayedBooking.getSource() : null);
 
-		sepaCustomerRefText.setDisable(!enable);
-		sepaCreditorIdText.setDisable(!enable);
-		sepaEndToEndText.setDisable(!enable);
-		sepaMandateText.setDisable(!enable);
-		sepaPersonIdText.setDisable(!enable);
-		sepaPurposeText.setDisable(!enable);
-		sepaTypText.setDisable(!enable);
-
-		recipientNameText.setDisable(!enable);
-		recipientIbanText.setDisable(!enable);
-		recipientAccountNumberText.setDisable(!enable);
-		recipientBicText.setDisable(!enable);
-		recipientBlzText.setDisable(!enable);
-		recipientBankText.setDisable(!enable);
+		FormStyleUtils.setEditable(editable, dateBookingText, dateValueText, purposeText, amountText, currencyText, bookingTypeCombo, bookingSourceCombo,
+				crossAccountCombo, categoryText, sepaCustomerRefText, sepaCreditorIdText, sepaEndToEndText, sepaMandateText, sepaPersonIdText, sepaPurposeText,
+				sepaTypText, recipientNameText, recipientIbanText, recipientAccountNumberText, recipientBicText, recipientBlzText, recipientBankText);
 
 		updatedAtText.setEditable(false);
+		updatedAtText.setDisable(true);
+		FormStyleUtils.setReadOnlyStyle(true, updatedAtText);
 	}
 
 	private void performNew() {
@@ -244,6 +230,9 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 	}
 
 	private void performEdit() {
+		if (displayedBooking != null && !FormStyleUtils.isUserEditable(displayedBooking.getSource())) {
+			return;
+		}
 		if (context == EditContext.EDIT || context == EditContext.NEW) {
 			context = EditContext.READONLY;
 			editButton.setText(getText("UI_BUTTON_EDIT"));
@@ -340,6 +329,10 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 		sepaTypText.setText(booking.getSepaTyp() != null ? booking.getSepaTyp().toString() : null);
 
 		updatedAtText.setText(TypeConverter.toDateStringLong(booking.getUpdatedAt()));
+
+		boolean editable = FormStyleUtils.isUserEditable(booking.getSource());
+		editButton.setDisable(!editable);
+		enableFields(false);
 	}
 
 	private void clearFields() {

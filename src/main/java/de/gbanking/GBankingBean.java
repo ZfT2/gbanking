@@ -114,7 +114,7 @@ public class GBankingBean extends BaseBean implements Serializable {
 			 Arrays.fill(bankAccess.getPin(),'0');
 
 			if (!status.isOK())
-				log.error(messages.getFormattedMessage("LOG_ERROR_HBCI_STATE", status.getErrorString())); 
+				log.log(Level.ERROR, () -> messages.getFormattedMessage("ERROR_HBCI_STATE", status.getErrorString()));
 			
 			return status.isOK();
 			
@@ -322,9 +322,9 @@ public class GBankingBean extends BaseBean implements Serializable {
 				job.setParam(param.getKey(), k);
 			} else {
 				if (value == null)
-					log.log(Level.ERROR, () -> getText("hbci.job.param.null", param.getKey()));
+					log.log(Level.ERROR, () -> getText("HBCI_PARAM_NULL", param.getKey()));
 				else {
-					log.log(Level.ERROR, () -> getText("hbci.job.param.unknown.type", param.getKey(), value.getClass().getName()));
+					log.log(Level.ERROR, () -> getText("HBCI_PARAM_UNKNOWN_TYPE", param.getKey(), value.getClass().getName()));
 				}
 			}
 		}
@@ -398,7 +398,7 @@ public class GBankingBean extends BaseBean implements Serializable {
 
 		} catch (Exception ex) {
 			ex.printStackTrace();
-			throw new GBankingException(getText("EXCEPTION_MONEYTRANSFER"), ex);
+			throw new GBankingException(getText("EXCEPTION_MONEYTRANSFER_SENDING_ACCOUNT_NOT_FOUND"), ex);
 		}
 		return result;
 	}
@@ -554,7 +554,7 @@ public class GBankingBean extends BaseBean implements Serializable {
 				return konto;
 			}
 		}
-		throw new GBankingException(getText("EXCEPTION_SENDING_ACCOUNT_NOT_FOUND", bankAccount.getIban()));
+		throw new GBankingException(getText("EXCEPTION_MONEYTRANSFER_SENDING_ACCOUNT_NOT_FOUND", bankAccount.getIban()));
 	}
 
 	public void postRetriveActions(List<BankAccount> accountsList) {

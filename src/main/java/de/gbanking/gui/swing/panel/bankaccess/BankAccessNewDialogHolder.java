@@ -247,7 +247,7 @@ public class BankAccessNewDialogHolder extends BasePanelHolder {
 		JLabel blzText = new JLabel(currentBankAccess.getBlz()); 
 		JLabel userNameText = new JLabel(currentBankAccess.getUserId());
 		
-		JLabel question = new JLabel(getText("BANKACCESS_QUESTION_DELETE"));
+		JLabel question = new JLabel(getText("UI_QUESTION_BANK_ACCESS_DELETE"));
 		
 		GridBagConstraints gbc = new GridBagConstraints();
 		gbc.insets = new Insets(2, 2, 2, 2);
@@ -283,14 +283,14 @@ public class BankAccessNewDialogHolder extends BasePanelHolder {
 					if (bean.deleteBankAccessFromDB(currentBankAccess)) {
 						log.info("Deletion of BankAccess successful.");
 						currentBankAccess = null;
-						question.setText(getText("BANKACCESS_SUCCESS_DELETE"));
+						question.setText(getText("UI_INFO_BANK_ACCESS_DELETE_SUCCESS"));
 						panel1.remove(cancelButton);
 //					dialogContainer.remove(panel1);
 //					modelDialog.setSize(750, 600);
 //					dialogContainer.add(createStep2PanelDelete(bankAccess));
 					} else {
 						log.info("Deletion of BankAccess failed!");
-						question.setText(getText("BANKACCESS_ERROR_DELETE"));
+						question.setText(getText("ERROR_BANK_ACCESS_DELETE"));
 					}
 					dialogContainer.repaint();
 				}

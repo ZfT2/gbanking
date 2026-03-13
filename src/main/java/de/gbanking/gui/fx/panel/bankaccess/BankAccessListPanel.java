@@ -2,6 +2,7 @@ package de.gbanking.gui.fx.panel.bankaccess;
 
 import java.util.List;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -50,7 +51,7 @@ public class BankAccessListPanel extends AbstractFilterableTablePanel<BankAccess
 	}
 
 	private void handleSelection(BankAccess selectedAccess) {
-		log.info(messages.getFormattedMessage("LOG_INFO_ACCESS_SELECTED", selectedAccess.getId()));
+		log.log(Level.INFO, () -> messages.getFormattedMessage("LOG_BANK_ACCESS_SELECTED", selectedAccess.getId()));
 		List<BankAccount> bankAccessAccountList = dbController.getAllByParent(BankAccount.class, selectedAccess.getId());
 		selectedAccess.setAccounts(bankAccessAccountList);
 		parentPanel.getBankAccessDetailPanel().updatePanelFieldValues(selectedAccess);

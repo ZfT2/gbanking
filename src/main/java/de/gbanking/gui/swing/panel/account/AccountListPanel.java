@@ -102,7 +102,7 @@ public class AccountListPanel extends BasePanelHolder {
 				int row = accountListTable.getSelectedRow();
 				int accountId = accountListTable.getSelectedRowId();
 
-				log.info(messages.getFormattedMessage("LOG_INFO_ACCOUNT_SELECTED", accountId));
+				log.info(messages.getFormattedMessage("LOG_ACCOUNT_SELECTED", accountId));
 
 				if (parentPanel.getPageContext() == PageContext.ACCOUNTS_TRANSACTIONS) {
 					List<Booking> bookingList = dbController.getAllByParent(Booking.class, accountId);

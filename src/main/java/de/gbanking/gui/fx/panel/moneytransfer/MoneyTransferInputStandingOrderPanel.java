@@ -16,7 +16,7 @@ public class MoneyTransferInputStandingOrderPanel extends MoneyTransferInputBase
 		super(parent);
 		dayCombo.getItems().add(getText("UI_LABEL_LAST_DAY_OF_MONTH"));
 		initializeSpecificFields();
-		buttonSubmit.setText(getText("UI_BUTTON_SAVE_STANDING_ORDER"));
+		buttonSubmit.setText(getText("UI_BUTTON_STANDING_ORDER_SAVE"));
 	}
 
 	@Override

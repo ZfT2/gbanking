@@ -9,7 +9,7 @@ public class MoneyTransferInputScheduledPanel extends MoneyTransferInputBasePane
 	public MoneyTransferInputScheduledPanel(MoneyTransferDetailListTabPanel parent) {
 		super(parent);
 		initializeSpecificFields();
-		buttonSubmit.setText(getText("UI_BUTTON_SAVE_SCHEDULED_TRANSFER"));
+		buttonSubmit.setText(getText("UI_BUTTON_SCHEDULED_MONEYTRANSFER_SAVE"));
 	}
 
 	@Override

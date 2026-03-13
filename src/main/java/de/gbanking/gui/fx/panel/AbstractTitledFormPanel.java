@@ -1,6 +1,8 @@
+// src/main/java/de/gbanking/gui/fx/panel/AbstractTitledFormPanel.java
 package de.gbanking.gui.fx.panel;
 
 import de.gbanking.gui.fx.util.FormGridHelper;
+import de.gbanking.gui.fx.util.FormStyleUtils;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.TitledPane;
@@ -11,7 +13,6 @@ import javafx.scene.layout.VBox;
 public abstract class AbstractTitledFormPanel extends BasePanelHolder {
 
 	protected final GridPane formGrid = FormGridHelper.createDefaultGrid();
-
 	private final VBox contentBox = new VBox(8);
 	private final TitledPane titledPane = new TitledPane();
 
@@ -25,6 +26,9 @@ public abstract class AbstractTitledFormPanel extends BasePanelHolder {
 		titledPane.setCollapsible(false);
 		titledPane.setContent(contentBox);
 		titledPane.setMaxWidth(Double.MAX_VALUE);
+
+		FormStyleUtils.styleFormPanel(contentBox);
+		FormStyleUtils.styleTitledPane(titledPane);
 
 		getChildren().setAll(titledPane);
 		setFillWidth(true);

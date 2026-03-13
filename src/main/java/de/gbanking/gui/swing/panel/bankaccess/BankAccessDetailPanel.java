@@ -174,16 +174,16 @@ public class BankAccessDetailPanel extends BasePanelHolder {
 		gbcDetails.gridy = 7;
 		gbcDetails.gridx = 0;
 
-		JButton buttonBankAccessNew = new JButton(getText("BANKACCESS_BUTTON_NEW"));
+		JButton buttonBankAccessNew = new JButton(getText("UI_BUTTON_BANK_ACCESS_NEW"));
 		buttonBankAccessNew.addActionListener(e -> newBankAccessDialog(ButtonContext.BUTTON_NEW));
 		add(buttonBankAccessNew, gbcDetails);
 		gbcDetails.gridx = 1;
-		buttonBankAccessEdit = new JButton(getText("BANKACCESS_BUTTON_EDIT"));
+		buttonBankAccessEdit = new JButton(getText("UI_BUTTON_BANK_ACCESS_EDIT"));
 		buttonBankAccessEdit.addActionListener(e -> newBankAccessDialog(ButtonContext.BUTTON_EDIT));
 		buttonBankAccessEdit.setEnabled(false);
 		add(buttonBankAccessEdit, gbcDetails);
 		gbcDetails.gridx = 2;
-		buttonBankAccessDelete = new JButton(getText("BANKACCESS_BUTTON_DELETE"));
+		buttonBankAccessDelete = new JButton(getText("UI_BUTTON_BANK_ACCESS_DELETE"));
 		buttonBankAccessDelete.addActionListener(e -> newBankAccessDialog(ButtonContext.BUTTON_DELETE));
 		buttonBankAccessDelete.setEnabled(false);
 		add(buttonBankAccessDelete, gbcDetails);

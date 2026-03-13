@@ -152,7 +152,7 @@ public class BankAccessNewDialogHolder extends BasePanelHolder {
 	private VBox createDeletePanel(Stage dialog) {
 		Label blzValue = new Label(currentBankAccess != null ? currentBankAccess.getBlz() : "");
 		Label userValue = new Label(currentBankAccess != null ? currentBankAccess.getUserId() : "");
-		Label question = new Label(getText("BANKACCESS_QUESTION_DELETE"));
+		Label question = new Label(getText("UI_QUESTION_BANK_ACCESS_DELETE"));
 
 		Button okButton = new Button("OK");
 		Button cancelButton = new Button("Abbrechen");
@@ -166,10 +166,10 @@ public class BankAccessNewDialogHolder extends BasePanelHolder {
 			if (bean.deleteBankAccessFromDB(currentBankAccess)) {
 				currentBankAccess = null;
 				overviewPanel.getBankAccessListPanel().refreshModelBankAccess();
-				question.setText(getText("BANKACCESS_SUCCESS_DELETE"));
+				question.setText(getText("UI_INFO_BANK_ACCESS_DELETE_SUCCESS"));
 				cancelButton.setDisable(true);
 			} else {
-				question.setText(getText("BANKACCESS_ERROR_DELETE"));
+				question.setText(getText("ERROR_BANK_ACCESS_DELETE"));
 			}
 		});
 

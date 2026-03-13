@@ -81,7 +81,7 @@ public class BankAccessListPanel extends BasePanelHolder {
 				int row = accessListTable.getSelectedRow();
 				int accessId = (int) accessListTable.getModel().getValueAt(row, column);
 
-				log.info(messages.getFormattedMessage("LOG_INFO_ACCESS_SELECTED", accessId));
+				log.info(messages.getFormattedMessage("LOG_BANK_ACCESS_SELECTED", accessId));
 				BankAccess selectedAccess = model.getSelectedBankAccess(row);
 
 				List<BankAccount> bankAccessAccountList = dbController.getAllByParent(BankAccount.class, selectedAccess.getId());

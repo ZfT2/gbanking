@@ -147,7 +147,7 @@ public class CategoryListPanel extends BasePanelHolder {
 				}
 				int recipientId = (int) tableCategories.getModel().getValueAt(row, column);
 
-				log.info(messages.getFormattedMessage("LOG_INFO_RECIPIENT_SELECTED", recipientId));
+				log.info(messages.getFormattedMessage("LOG_RECIPIENT_SELECTED", recipientId));
 
 				final Category selectedCategory = categoryTableModel.getSelectedCategory(row);
 

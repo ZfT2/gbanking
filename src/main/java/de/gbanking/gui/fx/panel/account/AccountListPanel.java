@@ -120,7 +120,7 @@ public class AccountListPanel extends BaseBorderPanePanel {
 	}
 
 	private void handleAccountsTransactionsSelection(BankAccount selectedAccount) {
-		log.log(Level.INFO, () -> getText("LOG_INFO_ACCOUNT_SELECTED", selectedAccount.getId()));
+		log.log(Level.INFO, () -> getText("LOG_ACCOUNT_SELECTED", selectedAccount.getId()));
 
 		List<Booking> bookingList = dbController.getAllByParent(Booking.class, selectedAccount.getId());
 		AccountsTransactionsOverviewPanel parent = (AccountsTransactionsOverviewPanel) parentPanel;

@@ -11,7 +11,7 @@ public class MoneyTransferInputPanel extends MoneyTransferInputBasePanel {
 	public MoneyTransferInputPanel(MoneyTransferDetailListTabPanel parent) {
 		super(parent);
 		initializeSpecificFields();
-		buttonSubmit.setText(getText("UI_BUTTON_SAVE_TRANSFER"));
+		buttonSubmit.setText(getText("UI_BUTTON_MONEYTRANSFER_SAVE"));
 	}
 
 	@Override

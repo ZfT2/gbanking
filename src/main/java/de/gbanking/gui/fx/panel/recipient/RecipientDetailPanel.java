@@ -126,7 +126,7 @@ public class RecipientDetailPanel extends AbstractTitledFormPanel {
 	}
 
 	public void updatePanelFieldValues(Recipient selectedRecipient) {
-		log.log(Level.INFO, () -> getText("LOG_INFO_RECIPIENT_SELECTED", selectedRecipient.getId()));
+		log.log(Level.INFO, () -> getText("LOG_RECIPIENT_SELECTED", selectedRecipient.getId()));
 
 		nameText.setText(selectedRecipient.getName());
 		ibanText.setText(selectedRecipient.getIban());

@@ -1,34 +1,37 @@
+// src/main/java/de/gbanking/gui/fx/panel/bankaccess/BankAccessDetailPanel.java
 package de.gbanking.gui.fx.panel.bankaccess;
 
 import de.gbanking.db.dao.BankAccess;
 import de.gbanking.gui.fx.enu.ButtonContext;
 import de.gbanking.gui.fx.panel.AbstractReadonlyDetailPanel;
 import de.gbanking.gui.fx.panel.overview.BankAccessOverviewPanel;
+import de.gbanking.gui.fx.util.FormStyleUtils;
+import de.gbanking.gui.fx.util.FormStyleUtils.FieldWidth;
 import de.gbanking.util.TypeConverter;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 
 public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 
-	private final TextField blzText = new TextField();
-	private final TextField bankNameText = new TextField();
-	private final TextField urlText = new TextField();
-	private final TextField portText = new TextField();
-	private final TextField userNameText = new TextField();
-	private final TextField customerIdText = new TextField();
-	private final TextField systemIdText = new TextField();
-	private final TextField tanProcedureText = new TextField();
-	private final TextField hbciVersionText = new TextField();
-	private final TextField bpdVersionText = new TextField();
-	private final TextField updVersionText = new TextField();
-	private final TextField hbciFilterTypeText = new TextField();
-	private final TextField activeText = new TextField();
-	private final TextField updatedAtText = new TextField();
+	private final TextField blzText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
+	private final TextField bankNameText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.M);
+	private final TextField urlText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.L);
+	private final TextField portText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.XS);
+	private final TextField userNameText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.M);
+	private final TextField customerIdText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.M);
+	private final TextField systemIdText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.M);
+	private final TextField tanProcedureText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.M);
+	private final TextField hbciVersionText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
+	private final TextField bpdVersionText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
+	private final TextField updVersionText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
+	private final TextField hbciFilterTypeText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.M);
+	private final CheckBox activeBox = new CheckBox();
+	private final TextField updatedAtText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.M);
 
-	private final Button buttonBankAccessEdit = new Button(getText("BANKACCESS_BUTTON_EDIT"));
-	private final Button buttonBankAccessDelete = new Button(getText("BANKACCESS_BUTTON_DELETE"));
-
+	private final Button buttonBankAccessEdit = new Button(getText("UI_BUTTON_BANK_ACCESS_EDIT"));
+	private final Button buttonBankAccessDelete = new Button(getText("UI_BUTTON_BANK_ACCESS_DELETE"));
 	private final BankAccessOverviewPanel parentPanel;
 
 	public BankAccessDetailPanel(BankAccessOverviewPanel parentPanel) {
@@ -50,22 +53,22 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 		addFieldAbove("UI_LABEL_HBCI_ENCRYPTION", hbciFilterTypeText, 1, 4);
 		addFieldAbove("UI_LABEL_BPD_VERSION", bpdVersionText, 0, 5);
 		addFieldAbove("UI_LABEL_UPD_VERSION", updVersionText, 1, 5);
-		addFieldAbove("UI_LABEL_ACTIVE", activeText, 0, 6);
+		addFieldAbove("UI_LABEL_ACTIVE", activeBox, 0, 6);
 		addFieldAbove("UI_LABEL_UPDATED_AT", updatedAtText, 1, 6);
 
-		Button buttonBankAccessNew = new Button(getText("BANKACCESS_BUTTON_NEW"));
+		Button buttonBankAccessNew = new Button(getText("UI_BUTTON_BANK_ACCESS_NEW"));
 		buttonBankAccessNew.setOnAction(e -> newBankAccessDialog(ButtonContext.BUTTON_NEW));
 		buttonBankAccessEdit.setOnAction(e -> newBankAccessDialog(ButtonContext.BUTTON_EDIT));
 		buttonBankAccessDelete.setOnAction(e -> newBankAccessDialog(ButtonContext.BUTTON_DELETE));
-
 		buttonBankAccessEdit.setDisable(true);
 		buttonBankAccessDelete.setDisable(true);
 
-		HBox buttons = new HBox(10, buttonBankAccessNew, buttonBankAccessEdit, buttonBankAccessDelete);
+		HBox buttons = FormStyleUtils.createButtonBar(buttonBankAccessNew, buttonBankAccessEdit, buttonBankAccessDelete);
 		addContentNode(buttons);
 
 		makeReadOnly(blzText, bankNameText, urlText, portText, userNameText, customerIdText, systemIdText, tanProcedureText, hbciVersionText, bpdVersionText,
-				updVersionText, hbciFilterTypeText, activeText, updatedAtText);
+				updVersionText, hbciFilterTypeText, updatedAtText);
+		disable(activeBox);
 	}
 
 	public void updatePanelFieldValues(BankAccess selectedAccess) {
@@ -81,7 +84,7 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 		bpdVersionText.setText(selectedAccess.getBpdVersion());
 		updVersionText.setText(selectedAccess.getUpdVersion());
 		hbciFilterTypeText.setText(selectedAccess.getFilterType() != null ? selectedAccess.getFilterType().toString() : "");
-		activeText.setText(String.valueOf(selectedAccess.isActive()));
+		activeBox.setSelected(selectedAccess.isActive());
 		updatedAtText.setText(TypeConverter.toDateStringLong(selectedAccess.getUpdatedAt()));
 
 		parentPanel.setCurrentBankAccess(selectedAccess);
