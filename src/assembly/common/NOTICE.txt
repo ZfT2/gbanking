@@ -1,7 +1,76 @@
 GBanking
+
 Copyright (C) 2025–2026
+The GBanking Project
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 3.
 
 See LICENSE for details.
+
+This product includes software developed by third parties.
+
+The following open source libraries are used by GBanking:
+
+------------------------------------------------------------
+HBCI4Java / hbci4j
+------------------------------------------------------------
+
+Project:
+https://github.com/hbci4j/hbci4java
+
+License:
+GNU Lesser General Public License (LGPL)
+
+This library provides the implementation of the HBCI / FinTS
+banking protocol used by the application.
+
+
+------------------------------------------------------------
+Log4j2
+------------------------------------------------------------
+
+Project:
+https://logging.apache.org/log4j/2.x/
+
+License:
+Apache License 2.0
+
+Used for logging functionality within the application.
+
+
+------------------------------------------------------------
+SQLite JDBC
+------------------------------------------------------------
+
+Project:
+https://github.com/xerial/sqlite-jdbc
+
+License:
+Apache License 2.0
+
+Provides the embedded SQLite database driver used by the application.
+
+
+------------------------------------------------------------
+Apache Commons CSV
+------------------------------------------------------------
+
+Project:
+https://commons.apache.org/proper/commons-csv/
+
+License:
+Apache License 2.0
+
+Used for reading and writing CSV data.
+
+
+------------------------------------------------------------
+Additional Notes
+------------------------------------------------------------
+
+Each third-party library is distributed under its own license.
+See the corresponding project websites for the full license texts.
+
+The original licenses of these libraries remain unchanged and
+apply to the respective components.
