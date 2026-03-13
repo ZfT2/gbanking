@@ -53,7 +53,6 @@ public final class FormFields {
 		comboBox.setItems(items);
 		return comboBox;
 	}
-
 	public static <T> ComboBox<T> comboXs() {
 		return combo(FieldWidth.XS);
 	}
@@ -68,5 +67,21 @@ public final class FormFields {
 
 	public static <T> ComboBox<T> comboL() {
 		return combo(FieldWidth.L);
+	}
+
+	public static <T> ComboBox<T> comboXs(ObservableList<T> items) {
+		return combo(FieldWidth.XS, items);
+	}
+
+	public static <T> ComboBox<T> comboS(ObservableList<T> items) {
+		return combo(FieldWidth.S, items);
+	}
+
+	public static <T> ComboBox<T> comboM(ObservableList<T> items) {
+		return combo(FieldWidth.M, items);
+	}
+
+	public static <T> ComboBox<T> comboL(ObservableList<T> items) {
+		return combo(FieldWidth.L, items);
 	}
 }

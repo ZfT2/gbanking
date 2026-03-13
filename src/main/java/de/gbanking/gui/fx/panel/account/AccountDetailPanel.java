@@ -5,6 +5,8 @@ import java.text.SimpleDateFormat;
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.enu.AccountState;
 import de.gbanking.gui.fx.panel.AbstractReadonlyDetailPanel;
+import de.gbanking.gui.fx.util.FormFields;
+import de.gbanking.gui.fx.util.FormStyleUtils;
 import javafx.collections.FXCollections;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
@@ -17,20 +19,20 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 	private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yy");
 	private final boolean fullDetails;
 
-	private final TextField accountNameText = new TextField();
-	private final TextField accountIbanText = new TextField();
-	private final TextField bankNameText = new TextField();
-	private final TextField accountTypText = new TextField();
-	private final TextField bankAccessText = new TextField();
-	private final TextField currencyText = new TextField();
-	private final TextField bicText = new TextField();
-	private final TextField blzText = new TextField();
-	private final TextField numberText = new TextField();
-	private final TextField subnumberText = new TextField();
-	private final TextField ownerNameText = new TextField();
-	private final TextField ownerName2Text = new TextField();
-	private final CheckBox isSEPAAccount = new CheckBox();
-	private final TextField updatedAtText = new TextField();
+	private final TextField accountNameText = FormFields.textM();
+	private final TextField accountIbanText = FormFields.textL();
+	private final TextField bankNameText = FormFields.textM();
+	private final TextField accountTypText = FormFields.textM();
+	private final TextField bankAccessText = FormFields.textS();
+	private final TextField currencyText = FormFields.textXs();
+	private final TextField bicText = FormFields.textS();
+	private final TextField blzText = FormFields.textS();
+	private final TextField numberText = FormFields.textS();
+	private final TextField subnumberText = FormFields.textS();
+	private final TextField ownerNameText = FormFields.textM();
+	private final TextField ownerName2Text = FormFields.textM();
+	private final CheckBox isSEPAAccount = FormFields.checkBox();
+	private final TextField updatedAtText = FormFields.textM();
 
 	private CheckBox isOfflineAccount;
 	private ComboBox<AccountState> accountStateCombo;
@@ -77,14 +79,17 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 		addFieldAbove("UI_LABEL_UPDATED_AT", updatedAtText, 1, 6);
 
 		if (fullDetails) {
-			isOfflineAccount = new CheckBox();
-			accountStateCombo = new ComboBox<>(FXCollections.observableArrayList(AccountState.values()));
+			isOfflineAccount = FormFields.checkBox();
+			accountStateCombo = FormFields.comboM(FXCollections.observableArrayList(AccountState.values()));
+
 			addFieldAbove("UI_LABEL_OFFLINE_ACCOUNT", isOfflineAccount, 2, 0);
 			addFieldAbove("UI_LABEL_ACCOUNT_STATE", accountStateCombo, 2, 1);
 		}
 
 		makeReadOnly(accountNameText, accountIbanText, bankNameText, accountTypText, bankAccessText, currencyText, bicText, blzText, numberText, subnumberText,
 				ownerNameText, ownerName2Text, updatedAtText);
+		FormStyleUtils.setReadOnlyStyle(true, accountNameText, accountIbanText, bankNameText, accountTypText, bankAccessText, currencyText, bicText, blzText,
+				numberText, subnumberText, ownerNameText, ownerName2Text, updatedAtText);
 
 		disable(isSEPAAccount);
 
@@ -93,6 +98,7 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 		}
 		if (accountStateCombo != null) {
 			disable(accountStateCombo);
+			FormStyleUtils.setReadOnlyStyle(true, accountStateCombo);
 		}
 	}
 

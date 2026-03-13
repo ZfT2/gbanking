@@ -10,10 +10,9 @@ import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.Booking;
 import de.gbanking.db.dao.MoneyTransfer;
 import de.gbanking.db.dao.enu.OrderType;
-import de.gbanking.gui.fx.components.GBankingTableView;
 import de.gbanking.gui.fx.enu.PageContext;
 import de.gbanking.gui.fx.model.AccountTableModel;
-import de.gbanking.gui.fx.panel.BaseBorderPanePanel;
+import de.gbanking.gui.fx.panel.AbstractFilterableTablePanel;
 import de.gbanking.gui.fx.panel.overview.AccountsTransactionsOverviewPanel;
 import de.gbanking.gui.fx.panel.overview.AllAccountsOverviewPanel;
 import de.gbanking.gui.fx.panel.overview.CategoryOverviewPanel;
@@ -24,10 +23,9 @@ import de.gbanking.gui.fx.util.DateFormatUtils;
 import de.gbanking.gui.fx.util.FxTableUtils;
 import de.gbanking.gui.fx.util.TableColumnFactory;
 import javafx.collections.ObservableList;
-import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 
-public class AccountListPanel extends BaseBorderPanePanel {
+public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> {
 
 	private static final Logger log = LogManager.getLogger(AccountListPanel.class);
 
@@ -36,31 +34,25 @@ public class AccountListPanel extends BaseBorderPanePanel {
 	private static final double ACCOUNT_LIST_MAX_WIDTH = 400;
 
 	private final OverviewBasePanel parentPanel;
-	private final GBankingTableView<BankAccount> accountTable = new GBankingTableView<>();
 	private final AccountTableModel modelAccount;
 
 	public AccountListPanel(OverviewBasePanel parentPanel) {
+		this(parentPanel, createModel());
+	}
+
+	private AccountListPanel(OverviewBasePanel parentPanel, AccountTableModel modelAccount) {
+		super(modelAccount.getAccounts());
 		this.parentPanel = parentPanel;
-		this.modelAccount = new AccountTableModel(dbController.getAll(BankAccount.class));
+		this.modelAccount = modelAccount;
 		createInnerAccountListPanel();
 	}
 
 	private void createInnerAccountListPanel() {
 		applyWidthProfile();
 		configureColumns();
-
-		accountTable.setItems(modelAccount.getAccounts());
-		accountTable.setEditable(true);
-		accountTable.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-		accountTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, selectedAccount) -> {
-			if (selectedAccount != null) {
-				handleSelection(selectedAccount);
-			}
-		});
-
-		setTop(new Label(getText("UI_PANEL_ACCOUNT")));
-		setCenter(accountTable);
-		setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+		tableView.setEditable(true);
+		setPanelTitleByKey("UI_PANEL_ACCOUNT");
+		onSelection(this::handleSelection);
 	}
 
 	private void applyWidthProfile() {
@@ -77,7 +69,7 @@ public class AccountListPanel extends BaseBorderPanePanel {
 	}
 
 	private void configureColumns() {
-		accountTable.getColumns().setAll(parentPanel.getPageContext() == PageContext.ALL_ACCOUNTS ? createAllAccountsColumns() : createCompactColumns());
+		setColumns(parentPanel.getPageContext() == PageContext.ALL_ACCOUNTS ? createAllAccountsColumns() : createCompactColumns());
 	}
 
 	private List<TableColumn<BankAccount, ?>> createCompactColumns() {
@@ -103,6 +95,20 @@ public class AccountListPanel extends BaseBorderPanePanel {
 		TableColumn<BankAccount, String> updatedCol = TableColumnFactory.createUpdatedAtColumn(getText("UI_TABLE_UPDATED_AT"), BankAccount::getUpdatedAt, 90);
 
 		return List.of(selectedCol, nameCol, ibanCol, bankCol, typeCol, balanceCol, updatedCol);
+	}
+
+	@Override
+	protected boolean matchesFilter(BankAccount account, String filter) {
+		if (filter == null || filter.isBlank()) {
+			return true;
+		}
+
+		return contains(account.getAccountName(), filter) || contains(account.getIban(), filter) || contains(account.getBankName(), filter)
+				|| contains(account.getBic(), filter) || contains(account.getBlz(), filter) || contains(account.getNumber(), filter)
+				|| contains(account.getSubnumber(), filter) || contains(account.getCurrency(), filter) || contains(account.getOwnerName(), filter)
+				|| contains(account.getOwnerName2(), filter) || contains(account.getAccountType() != null ? account.getAccountType().toString() : null, filter)
+				|| contains(account.getAccountState() != null ? account.getAccountState().toString() : null, filter)
+				|| contains(account.getBalance() != null ? account.getBalance().toString() : null, filter);
 	}
 
 	private void handleSelection(BankAccount selectedAccount) {
@@ -152,9 +158,14 @@ public class AccountListPanel extends BaseBorderPanePanel {
 		return modelAccount;
 	}
 
+	private static AccountTableModel createModel() {
+		return new AccountTableModel(dbController.getAll(BankAccount.class));
+	}
+
 	public void reload() {
 		ObservableList<BankAccount> accounts = modelAccount.getAccounts();
 		accounts.setAll(dbController.getAll(BankAccount.class));
+		replaceItems(accounts);
 	}
 
 	public void refreshModelAccount() {
