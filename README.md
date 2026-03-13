@@ -45,7 +45,7 @@ Der aktuelle Entwicklungsstand umfasst unter anderem:
 
 Für den Betrieb wird benötigt:
 
-- **Java 21**
+- **Java 17 oder höher**
 - `java` muss im `PATH` verfügbar sein
 
 Die Anwendung liefert **keine eigene JRE** mit.
@@ -88,7 +88,7 @@ Jedes Release enthält plattformspezifische Archive:
 
 ## Projekt selbst bauen
 
-Voraussetzung: Maven und Java 21.
+Voraussetzung: Maven und Java 17 oder höher.
 
 ### Windows Distribution
 
@@ -195,7 +195,7 @@ Current development includes:
 
 To run the application you need:
 
-- **Java 21**
+- **Java 17 or newer**
 - `java` available in the system `PATH`
 
 The application **does not bundle its own JRE**.
@@ -238,7 +238,7 @@ Each release contains platform specific archives:
 
 ## Building from source
 
-Requirements: Maven and Java 21.
+Requirements: Maven and Java 17 or newer.
 
 ### Windows distribution
 

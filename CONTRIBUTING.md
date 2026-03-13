@@ -53,7 +53,7 @@ When reporting a bug please include:
 
 To build the project locally you need:
 
-- **Java 21**
+- **Java 17 or newer**
 - **Maven**
 - Git
 
