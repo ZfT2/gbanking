@@ -99,7 +99,7 @@ public class HbciMapper {
 	
 	public static Recipient mapUmsLineKontoToRecipient(Konto other) {
 
-		if(other == null)
+		if (other == null || (other.iban == null && other.number == null))
 			return null;
 		
 		Recipient recipient = new Recipient();
