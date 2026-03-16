@@ -10,8 +10,20 @@
     -fx-background-color: -fx-selection-bar;
 }
 
-.table-row-cell:selected .text {
-    -fx-fill: -fx-selection-bar-text;
+.table-row-cell:selected .table-cell {
+    -fx-text-fill: -fx-selection-bar-text;
+}
+
+.table-row-cell:selected .table-cell.amount-positive {
+    -fx-text-fill: rgb(0, 100, 0);
+}
+
+.table-row-cell:selected .table-cell.amount-negative {
+    -fx-text-fill: red;
+}
+
+.table-row-cell:selected .table-cell.amount-neutral {
+    -fx-text-fill: -fx-text-inner-color;
 }
 
 .table-cell.amount-positive {
