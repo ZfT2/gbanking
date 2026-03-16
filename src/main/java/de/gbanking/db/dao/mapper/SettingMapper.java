@@ -29,18 +29,16 @@ public class SettingMapper extends AbstractDaoMapper<Setting, Void> {
 	}
 
 	@Override
-	public Setting toDao(ResultSet rs) throws SQLException {
-		Setting setting = new Setting();
-		setting.setId(rs.getInt("id"));
+	public void mapDao(Setting setting, ResultSet rs) throws SQLException {
+		if (setting == null)
+			setting = new Setting();
+		super.mapDao(setting, rs);
 		setting.setAttribute(rs.getString("attribute"));
 		setting.setValue(rs.getString("value"));
 		setting.setDataType((DataType) DataType.forInt(rs.getInt("dataType")));
 		setting.setEditable(rs.getBoolean("editable"));
 		setting.setVisible(rs.getBoolean("visible"));
 		setting.setComment(rs.getString("comment"));
-		setting.setUpdatedAt(TypeConverter.toCalendarFromSqlDate(rs.getDate("updatedAt")));
-
-		return setting;
 	}
 
 }

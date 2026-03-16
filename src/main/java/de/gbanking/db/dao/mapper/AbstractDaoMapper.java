@@ -11,11 +11,13 @@ import java.util.Set;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import de.gbanking.db.SqlFields;
 import de.gbanking.db.StatementsConfig.ResultType;
 import de.gbanking.db.dao.Dao;
 import de.gbanking.exception.GBankingException;
+import de.gbanking.util.TypeConverter;
 
-public abstract class AbstractDaoMapper<T, V> {
+public abstract class AbstractDaoMapper<T extends Dao, V> {
 
 	private static Logger log = LogManager.getLogger(AbstractDaoMapper.class);
 
@@ -65,15 +67,23 @@ public abstract class AbstractDaoMapper<T, V> {
 	}
 
 	public void setParamsDelete(T dao, PreparedStatement ps) throws SQLException {
-		ps.setInt(1, ((Dao) dao).getId());
+		ps.setInt(1, dao.getId());
 	}
 
-	public abstract T toDao(ResultSet rs) throws SQLException;
+	void mapDao(T dao, ResultSet rs) throws SQLException {
+		if (dao == null)
+			return;
+		// throw new GBankingException("mapDao(T dao, ResultSet rs): must be called from
+		// Subclass");
+		dao.setId(rs.getInt("id"));
+		dao.setUpdatedAt((TypeConverter.toCalendarFromSqlDate(rs.getDate(SqlFields.DAO_UPDATEDAT))));
+	}
 
-	public T toDao(ResultSet rs, ResultType resultType) throws SQLException {
+	void mapDao(T dao, ResultType resultType, ResultSet rs) throws SQLException {
+		// mapDao(dao, rs);
 		throw new GBankingException("toDao(ResultSet rs, ResultType resultType): not implemented for type " + this.getClass().getName());
 	}
-	
+
 	protected int setBooleanNullable(int index, Boolean value, PreparedStatement ps) throws SQLException {
 		if (value == null)
 			ps.setNull(index++, Types.BOOLEAN);
@@ -89,7 +99,7 @@ public abstract class AbstractDaoMapper<T, V> {
 			ps.setDouble(index++, value);
 		return index;
 	}
-	
+
 	protected int setDateNullable(int index, Date value, PreparedStatement ps) throws SQLException {
 		if (value == null)
 			ps.setNull(index++, Types.DATE);
@@ -97,26 +107,35 @@ public abstract class AbstractDaoMapper<T, V> {
 			ps.setDate(index++, value);
 		return index;
 	}
-	
+
 	protected Boolean getBooleanNullable(final String field, ResultSet rs) throws SQLException {
 		Boolean value = (rs.getBoolean(field));
-		if (rs.wasNull()) 
+		if (rs.wasNull())
 			value = null;
 		return value;
 	}
 
 	protected Double getDoubleNullable(final String field, ResultSet rs) throws SQLException {
 		Double value = (rs.getDouble(field));
-		if (rs.wasNull()) 
+		if (rs.wasNull())
 			value = null;
 		return value;
 	}
-	
+
 	protected Date getDateNullable(final String field, ResultSet rs) throws SQLException {
 		Date value = (rs.getDate(field));
-		if (rs.wasNull()) 
+		if (rs.wasNull())
 			value = null;
 		return value;
+	}
+
+	T initResultDao(Class<T> type, ResultSet rs) throws SQLException {
+		try {
+			return type.newInstance();
+		} catch (InstantiationException | IllegalAccessException e) {
+			e.printStackTrace();
+		}
+		return null;
 	}
 
 }

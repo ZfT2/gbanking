@@ -32,8 +32,8 @@ public class DefaultMapper extends AbstractDaoMapper<Dao, Void> {
 	}
 
 	@Override
-	public Dao toDao(ResultSet rs) throws SQLException {
-		throw new GBankingException("toDao(ResultSet rs): not implemented for type " + this.getClass().getName());
+	public void mapDao(Dao dao, ResultSet rs) throws SQLException {
+		throw new GBankingException("mapDao(Dao dao, ResultSet rs): not implemented for type " + this.getClass().getName());
 	}
 
 }

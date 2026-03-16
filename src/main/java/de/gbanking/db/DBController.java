@@ -98,7 +98,7 @@ public class DBController extends DbExecutor {
 				return null;
 			}
 			while (rs.next()) {
-				crossBooking = StatementsResultMapper.toDao(Booking.class, rs, ResultType.FULL);
+				crossBooking = (Booking) StatementsResultMapper.toDao(Booking.class, rs, ResultType.FULL);
 			}
 			rs.close();
 		} catch (SQLException e) {
@@ -181,7 +181,7 @@ public class DBController extends DbExecutor {
 
 			ResultSet rs = ps.executeQuery();
 			while (rs.next()) {
-				bankAccess = StatementsResultMapper.toDao(BankAccess.class, rs, ResultType.WITHOUT_RELATIONS);
+				bankAccess = (BankAccess) StatementsResultMapper.toDao(BankAccess.class, rs, ResultType.WITHOUT_RELATIONS);
 				break;
 			}
 			rs.close();

@@ -7,10 +7,12 @@ import de.gbanking.db.dao.Bpd;
 import de.gbanking.db.dao.ParameterDataBankAccess;
 
 public class BpdMapper extends ParameterDataBankAccessMapper {
-	
+
 	@Override
-	public ParameterDataBankAccess toDao(ResultSet rs) throws SQLException {
-		return toDao(rs, new Bpd());
+	public void mapDao(ParameterDataBankAccess pdba, ResultSet rs) throws SQLException {
+		if (pdba == null)
+			pdba = new Bpd();
+		pdba = toDao(rs, pdba);
 	}
 
 //	@Override

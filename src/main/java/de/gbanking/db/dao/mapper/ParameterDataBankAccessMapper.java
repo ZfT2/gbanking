@@ -25,7 +25,7 @@ public class ParameterDataBankAccessMapper extends AbstractDaoMapper<ParameterDa
 		ps.setInt(1, parameterDataBankAccess.getBankAccessId());
 		ps.setInt(2, parameterDataBankAccess.getParameterDataId());
 		ps.setString(3, parameterDataBankAccess.getPdValue());
-		ps.setString(4, TypeConverter.toTimestampStringNow());
+		ps.setDate(4, TypeConverter.toSqlDateNow());
 	}
 
 	@Override
@@ -37,17 +37,17 @@ public class ParameterDataBankAccessMapper extends AbstractDaoMapper<ParameterDa
 			ps.addBatch();
 		}
 	}
-	
+
 	@Override
 	public void setParamsFull(List<ParameterDataBankAccess> entitySet, PreparedStatement ps) throws SQLException {
 		int i = 1;
 		for (int x = 0; x < entitySet.size(); x++) {
 			ps.setString(i++, entitySet.get(x).getPdKey());
 			ps.setString(i++, entitySet.get(x).getPdType().name());
-			ps.setString(i++, TypeConverter.toTimestampStringNow());
+			ps.setDate(i++, TypeConverter.toSqlDateNow());
 		}
 	}
-	
+
 	@Override
 	public void setParamsFull(List<ParameterData> entitySet, Dao mTable, PreparedStatement ps) throws SQLException {
 
@@ -66,10 +66,10 @@ public class ParameterDataBankAccessMapper extends AbstractDaoMapper<ParameterDa
 			ps.setLong(i++, bankAccess.getId());
 			ps.setLong(i++, pd.getId());
 			ps.setString(i++, (typ == ParameterDataType.BPD ? bankAccess.getBpd() : bankAccess.getUpd()).getProperty(pd.getPdKey()));
-			ps.setString(i++, TypeConverter.toTimestampStringNow());
+			ps.setDate(i++, TypeConverter.toSqlDateNow());
 		}
 	}
-	
+
 	@Override
 	public void setParamsDelete(ParameterDataBankAccess parameterDataBankAccess, PreparedStatement ps) throws SQLException {
 		ps.setString(1, parameterDataBankAccess.getPdType().name());
@@ -80,7 +80,7 @@ public class ParameterDataBankAccessMapper extends AbstractDaoMapper<ParameterDa
 	}
 
 	@Override
-	public ParameterDataBankAccess toDao(ResultSet rs) throws SQLException {
+	public void mapDao(ParameterDataBankAccess pdBankAccess, ResultSet rs) throws SQLException {
 		throw new GBankingException("ParameterDataBankAccess need to be specific type!");
 	}
 

@@ -82,7 +82,7 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 	void setParamsForUpdateSource(Booking booking, PreparedStatement ps) throws SQLException {
 
 		ps.setString(1, booking.getSource().name());
-		ps.setString(2, TypeConverter.toTimestampStringNow());
+		ps.setDate(2, TypeConverter.toSqlDateNow());
 		if (booking.getAccountId() > 0)
 			ps.setInt(3, booking.getAccountId());
 		ps.setInt(4, booking.getId());
@@ -99,16 +99,16 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 		}
 	}
 
-	@Override
-	public Booking toDao(ResultSet rs) throws SQLException {
-		//return toDao(rs, ResultType.FULL);
-		return null;
-	}
+//	@Override
+//	public void mapDao(Booking booking, ResultSet rs) throws SQLException {
+//		booking = null;
+//	}
 
 	@Override
-	public Booking toDao(ResultSet rs, ResultType resultType) throws SQLException {
-		Booking booking = new Booking();
-		booking.setId(rs.getInt("id"));
+	public void mapDao(Booking booking, ResultType resultType, ResultSet rs) throws SQLException {
+		if (booking == null)
+			booking = new Booking();
+		// super.mapDao(booking, rs);
 		booking.setAccountId(rs.getInt(SqlFields.ACCOUNT_ACCOUNTID));
 		booking.setBookingType(rs.getString(SqlFields.BOOKING_BOOKINGTYPE) != null ? BookingType.valueOf(rs.getString(SqlFields.BOOKING_BOOKINGTYPE)) : null);
 		booking.setSource(Source.valueOf(rs.getString("bookingSource")));
@@ -117,7 +117,7 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 		booking.setPurpose(rs.getString(SqlFields.BOOKING_PURPOSE));
 		booking.setAmount(rs.getBigDecimal(SqlFields.BOOKING_AMOUNT).setScale(2, RoundingMode.HALF_UP));
 		booking.setCurrency(rs.getString("currency"));
-		
+
 		if (resultType == ResultType.FULL) {
 			booking.setBalance(rs.getBigDecimal(SqlFields.BALANCE).setScale(2, RoundingMode.HALF_UP));
 			booking.setAccountName(rs.getString("accountName"));
@@ -133,7 +133,6 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 		booking.setSepaTyp(rs.getString("sepaTyp") != null ? SepaTyp.valueOf(rs.getString("sepaTyp")) : null);
 
 		booking.setCrossAccountId(rs.getInt("crossAccount_id"));
-		booking.setUpdatedAt((TypeConverter.toCalendarFromSqlDate(rs.getDate(SqlFields.DAO_UPDATEDAT))));
 
 		booking.setRecipientId(rs.getInt("recipient_id"));
 		booking.setCategoryId(rs.getInt("category_id"));
@@ -159,7 +158,6 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 				booking.setCategory(category);
 			}
 		}
-		return booking;
 	}
 
 }

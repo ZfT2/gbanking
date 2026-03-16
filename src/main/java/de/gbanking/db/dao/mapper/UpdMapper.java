@@ -9,8 +9,10 @@ import de.gbanking.db.dao.Upd;
 public class UpdMapper extends ParameterDataBankAccessMapper {
 
 	@Override
-	public ParameterDataBankAccess toDao(ResultSet rs) throws SQLException {
-		return toDao(rs, new Upd());
+	public void mapDao(ParameterDataBankAccess pdba, ResultSet rs) throws SQLException {
+		if (pdba == null)
+			pdba = new Upd();
+		pdba = toDao(rs, pdba);
 	}
 
 }

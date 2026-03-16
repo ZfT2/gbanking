@@ -48,9 +48,10 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 	}
 
 	@Override
-	public Institute toDao(ResultSet rs) throws SQLException {
-		Institute institute = new Institute();
-		institute.setId(rs.getInt("id"));
+	public void mapDao(Institute institute, ResultSet rs) throws SQLException {
+		if (institute == null)
+			institute = new Institute();
+		super.mapDao(institute, rs);
 		institute.setImportNumber(rs.getInt("importNumber"));
 		institute.setBlz(rs.getString("blz"));
 		institute.setBic(rs.getString("bic"));
@@ -60,7 +61,6 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 		institute.setOrganisation(rs.getString("organisation"));
 		institute.setHbciDns(rs.getString("hbciDns"));
 		institute.setHbciIp(rs.getString("hbciIp"));
-		//institute.setHbciVersion(rs.getDouble("hbciVersion"));
 		institute.setHbciVersion(getDoubleNullable("hbciVersion", rs));
 		institute.setDdv(rs.getString("ddv"));
 		
@@ -79,9 +79,6 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 		institute.setVersion(rs.getString("version"));
 		institute.setLastChanged(TypeConverter.toCalendarFromSqlDate(rs.getDate("lastChanged")));
 		institute.setStateType(InstituteStatus.forInt(rs.getInt("stateType")));
-		institute.setUpdatedAt(TypeConverter.toCalendarFromSqlDate(rs.getDate("updatedAt")));
-
-		return institute;
 	}
 
 }

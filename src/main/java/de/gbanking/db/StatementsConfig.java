@@ -351,7 +351,7 @@ public class StatementsConfig {
 */
 	
 	@SuppressWarnings("unchecked")
-	public static <T, V> AbstractDaoMapper<T, V> getMapperForDaoType(Class<?> type) {
+	public static <T extends Dao, V> AbstractDaoMapper<T, V> getMapperForDaoType(Class<?> type) {
 		AbstractDaoMapper<T, V> mapper = (AbstractDaoMapper<T, V>) (daoMapperMap.get(type) == null ?  daoMapperMap.get(Dao.class) : daoMapperMap.get(type));
 		if (mapper == null) {
 			throw new GBankingException("No Mapper found for dao type: " + type.getName());

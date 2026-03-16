@@ -27,15 +27,16 @@ public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> 
 		if (moneytransfer.getHistoryorderId() != null) {
 			ps.setInt(9, moneytransfer.getHistoryorderId());
 		}
-		ps.setString(10, TypeConverter.toTimestampStringNow());
+		ps.setDate(10, TypeConverter.toSqlDateNow());
 		if (moneytransfer.getId() > 0)
 			ps.setInt(11, moneytransfer.getId());
 	}
 
 	@Override
-	public MoneyTransfer toDao(ResultSet rs) throws SQLException {
-		MoneyTransfer moneytransfer = new MoneyTransfer();
-		moneytransfer.setId(rs.getInt("id"));
+	public void mapDao(MoneyTransfer moneytransfer, ResultSet rs) throws SQLException {
+		if (moneytransfer == null)
+			moneytransfer = new MoneyTransfer();
+		super.mapDao(moneytransfer, rs);
 		moneytransfer.setAccountId(rs.getInt(SqlFields.ACCOUNT_ACCOUNTID));
 		moneytransfer.setOrderType(OrderType.valueOf(rs.getString("moneytransferType")));
 		moneytransfer.setRecipientId(rs.getInt("recipient_id"));
@@ -43,10 +44,8 @@ public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> 
 		moneytransfer.setAmount(rs.getBigDecimal(SqlFields.BOOKING_AMOUNT));
 		moneytransfer.setExecutionDate(TypeConverter.toCalendarFromTimestampStr(rs.getString("executionDate")));
 		moneytransfer.setMoneytransferStatus(MoneyTransferStatus.valueOf(rs.getString("moneytransferStatus")));
-		moneytransfer.setStandingorderMode(
-				rs.getString("standingorderMode") != null ? StandingorderMode.valueOf(rs.getString("standingorderMode")) : null);
+		moneytransfer.setStandingorderMode(rs.getString("standingorderMode") != null ? StandingorderMode.valueOf(rs.getString("standingorderMode")) : null);
 		moneytransfer.setHistoryorderId(rs.getInt("historyorder_id"));
-		moneytransfer.setUpdatedAt((TypeConverter.toCalendarFromTimestampStr(rs.getString(SqlFields.DAO_UPDATEDAT))));
 
 		Recipient recipient = new Recipient();
 		recipient.setId(rs.getInt("r_id"));
@@ -55,7 +54,6 @@ public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> 
 		recipient.setBic(rs.getString("bic"));
 		recipient.setBank(rs.getString("bank"));
 		moneytransfer.setRecipient(recipient);
-		return moneytransfer;
 	}
 
 }

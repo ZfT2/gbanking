@@ -4,7 +4,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import de.gbanking.db.SqlFields;
 import de.gbanking.db.dao.Category;
 import de.gbanking.util.TypeConverter;
 
@@ -29,9 +28,17 @@ public class CategoryMapper extends AbstractDaoMapper<Category, Void> {
 	}
 
 	@Override
-	public Category toDao(ResultSet rs) throws SQLException {
-		Category category = new Category(rs.getString("name"));
-		category.setId(rs.getInt("id"));
+	Category initResultDao(Class<Category> type, ResultSet rs) throws SQLException {
+		return new Category(rs.getString("name"));
+	}
+
+	@Override
+	void mapDao(Category category, ResultSet rs) throws SQLException {
+
+		if (category == null)
+			category = new Category(rs.getString("name"));
+		super.mapDao(category, rs);
+
 		if (rs.getInt("parent_id") > 0) {
 			category.setParentId(rs.getInt("parent_id"));
 		}
@@ -41,8 +48,6 @@ public class CategoryMapper extends AbstractDaoMapper<Category, Void> {
 		if (rs.getString("fullName") != null) {
 			category.setFullName(rs.getString("fullName"));
 		}
-		category.setUpdatedAt((TypeConverter.toCalendarFromSqlDate(rs.getDate(SqlFields.DAO_UPDATEDAT))));
-		return category;
 	}
 
 }

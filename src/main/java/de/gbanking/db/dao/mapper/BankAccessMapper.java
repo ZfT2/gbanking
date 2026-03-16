@@ -29,7 +29,7 @@ public class BankAccessMapper extends AbstractDaoMapper<BankAccess, Void> {
 		ps.setString(13, bankAccess.getUpdVersion());
 		ps.setString(14, bankAccess.getFilterType().name());
 		ps.setBoolean(15, bankAccess.isActive());
-		ps.setString(16, TypeConverter.toTimestampString(bankAccess.getUpdatedAt()));
+		ps.setDate(16, TypeConverter.toSqlDateNow());
 		if (bankAccess.getId() > 0) {
 			ps.setInt(17, bankAccess.getId());
 		}
@@ -41,9 +41,10 @@ public class BankAccessMapper extends AbstractDaoMapper<BankAccess, Void> {
 	}
 
 	@Override
-	public BankAccess toDao(ResultSet rs) throws SQLException {
-		BankAccess access = new BankAccess();
-		access.setId(rs.getInt("id"));
+	public void mapDao(BankAccess access, ResultSet rs) throws SQLException {
+		if (access == null)
+			access = new BankAccess();
+		super.mapDao(access, rs);
 		access.setBankName(rs.getString(SqlFields.BANKNAME));
 		access.setCountry(rs.getString("country"));
 		access.setBlz(rs.getString("blz"));
@@ -59,8 +60,6 @@ public class BankAccessMapper extends AbstractDaoMapper<BankAccess, Void> {
 		access.setUpdVersion(rs.getString("updVersion"));
 		access.setFilterType(HbciEncodingFilterType.valueOf(rs.getString("hbciFilterType")));
 		access.setActive(rs.getBoolean("active"));
-		access.setUpdatedAt(TypeConverter.toCalendarFromTimestampStr(rs.getString(SqlFields.DAO_UPDATEDAT)));
-		return access;
 	}
 
 }

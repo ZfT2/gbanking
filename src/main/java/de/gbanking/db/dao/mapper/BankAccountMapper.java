@@ -51,7 +51,7 @@ public class BankAccountMapper extends AbstractDaoMapper<BankAccount, Void> {
 
 		if (bankAccount.getBalance() != null)
 			ps.setDouble(22, bankAccount.getBalance().doubleValue());
-		ps.setString(23, TypeConverter.toTimestampStringNow());
+		ps.setDate(23, TypeConverter.toSqlDateNow());
 		if (bankAccount.getId() > 0)
 			ps.setInt(24, bankAccount.getId());
 	}
@@ -83,15 +83,17 @@ public class BankAccountMapper extends AbstractDaoMapper<BankAccount, Void> {
 	@Override
 	void setParamsForUpdateSource(BankAccount bankAccount, PreparedStatement ps) throws SQLException {
 		ps.setString(1, bankAccount.getSource().name());
-		ps.setString(2, TypeConverter.toTimestampStringNow());
+		ps.setDate(2, TypeConverter.toSqlDateNow());
 		if (bankAccount.getId() > 0)
 			ps.setInt(3, bankAccount.getId());
 	}
 
 	@Override
-	public BankAccount toDao(ResultSet rs) throws SQLException {
-		BankAccount account = new BankAccount();
-		account.setId(rs.getInt("id"));
+	public void mapDao(BankAccount account, ResultSet rs) throws SQLException {
+		if (account == null)
+			account = new BankAccount();
+		super.mapDao(account, rs);
+
 		account.setBankAccessId(rs.getInt("bankAccess_id"));
 		account.setAccountName(rs.getString(SqlFields.ACCOUNT_ACCOUNTNAME));
 		account.setCurrency(rs.getString("currency"));
@@ -116,8 +118,6 @@ public class BankAccountMapper extends AbstractDaoMapper<BankAccount, Void> {
 
 		if (rs.getBigDecimal(SqlFields.BALANCE) != null)
 			account.setBalance(rs.getBigDecimal(SqlFields.BALANCE).setScale(2, RoundingMode.HALF_UP));
-		account.setUpdatedAt((TypeConverter.toCalendarFromTimestampStr(rs.getString(SqlFields.DAO_UPDATEDAT))));
-		return account;
 	}
 
 }

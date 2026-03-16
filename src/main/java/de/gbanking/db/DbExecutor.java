@@ -178,7 +178,7 @@ public class DbExecutor extends DbConnectionHandler {
 		return id;
 	}
 
-	protected <T, V> AbstractDaoMapper<T, V> getMapper(Dao dao) {
+	protected <T extends Dao, V> AbstractDaoMapper<T, V> getMapper(Dao dao) {
 		return getMapper(dao.getClass());
 	}
 
@@ -530,7 +530,7 @@ public class DbExecutor extends DbConnectionHandler {
 		return type.cast(StatementsResultMapper.toDao(type, rs, resultType));
 	}
 
-	private <T, V> AbstractDaoMapper<T, V> getMapper(Class<? extends Dao> type) {
+	private <T extends Dao, V> AbstractDaoMapper<T, V> getMapper(Class<? extends Dao> type) {
 		return StatementsConfig.getMapperForDaoType(type);
 	}
 	
@@ -549,14 +549,14 @@ public class DbExecutor extends DbConnectionHandler {
 		}
 	}
 	
-	private <T> void mapStatementParams(List<T> daoList, Dao mTable, Class<? extends Dao> mapperType, PreparedStatement ps) throws SQLException {
+	private <T extends Dao> void mapStatementParams(List<T> daoList, Dao mTable, Class<? extends Dao> mapperType, PreparedStatement ps) throws SQLException {
 
 		if (mapperType == null)
 			throw new GBankingException("mapperType missing!");
 
-		AbstractDaoMapper<?, T> mapper = getMapper(mapperType);
+		AbstractDaoMapper<T, T> mapper = getMapper(mapperType);
 		if (mTable == null) {
-			getMapper(mapperType).setParamsFull(daoList, ps);
+			mapper.setParamsFull(daoList, ps);
 		} else {
 			mapper.setParamsFull(daoList, mTable, ps);
 		}

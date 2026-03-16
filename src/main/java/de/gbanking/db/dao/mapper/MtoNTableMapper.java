@@ -17,26 +17,19 @@ public class MtoNTableMapper extends AbstractDaoMapper<Dao, Integer> {
 		ps.setInt(1, mTable.getId());
 		for (Integer nTableId : entitySet) {
 			ps.setInt(2, nTableId);
-			ps.setString(3, TypeConverter.toTimestampStringNow());
-			// setParamsFull(nTableId, ps);
+			ps.setDate(3, TypeConverter.toSqlDateNow());
 			ps.addBatch();
 		}
-	}
-
-//	@Override
-//	public void setParamsFull(Integer nTableId, PreparedStatement ps) throws SQLException {
-//		ps.setInt(2, nTableId);
-//		ps.setString(3, TypeConverter.toTimestampStringNow());
-//	}
-
-	@Override
-	public Dao toDao(ResultSet rs) throws SQLException {
-		throw new GBankingException("toDao(ResultSet rs): not implemented for type " + this.getClass().getName());
 	}
 
 	@Override
 	public void setParamsFull(Dao dao, PreparedStatement ps) throws SQLException {
 		throw new GBankingException("setParamsFull(Dao dao, PreparedStatement ps): not implemented for type " + this.getClass().getName());
 
+	}
+
+	@Override
+	public void mapDao(Dao dao, ResultSet rs) throws SQLException {
+		throw new GBankingException("toDao(ResultSet rs): not implemented for type " + this.getClass().getName());
 	}
 }
