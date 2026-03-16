@@ -22,7 +22,6 @@ import de.gbanking.gui.fx.panel.transaction.TransactionListPanel;
 import de.gbanking.gui.fx.util.DateFormatUtils;
 import de.gbanking.gui.fx.util.FxTableUtils;
 import de.gbanking.gui.fx.util.TableColumnFactory;
-import javafx.collections.ObservableList;
 import javafx.scene.control.TableColumn;
 
 public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> {
@@ -163,9 +162,7 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 	}
 
 	public void reload() {
-		ObservableList<BankAccount> accounts = modelAccount.getAccounts();
-		accounts.setAll(dbController.getAll(BankAccount.class));
-		replaceItems(accounts);
+		replaceItems(dbController.getAll(BankAccount.class));
 	}
 
 	public void refreshModelAccount() {
