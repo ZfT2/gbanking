@@ -15,12 +15,15 @@ public abstract class AbstractTitledFormPanel extends BasePanelHolder {
 	private final VBox contentBox = new VBox(8);
 	private final TitledPane titledPane = new TitledPane();
 
+	private String titleKey;
+
 	protected AbstractTitledFormPanel(String titleKey) {
 		contentBox.setPadding(new Insets(6));
 		contentBox.setFillWidth(true);
 		contentBox.getChildren().add(formGrid);
 		VBox.setVgrow(formGrid, Priority.NEVER);
 
+		this.titleKey = titleKey;
 		titledPane.setText(getText(titleKey));
 		titledPane.setCollapsible(false);
 		titledPane.setContent(contentBox);
@@ -54,7 +57,7 @@ public abstract class AbstractTitledFormPanel extends BasePanelHolder {
 		contentBox.getChildren().add(node);
 	}
 
-	protected final void setTitleKey(String titleKey) {
-		titledPane.setText(getText(titleKey));
+	protected final void updateTitle(String additionalTitle) {
+		titledPane.setText(getText(titleKey) + " - " + additionalTitle);
 	}
 }

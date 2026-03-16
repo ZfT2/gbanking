@@ -13,16 +13,16 @@ import javafx.scene.layout.VBox;
 
 public final class FormGridHelper {
 
-	private static final double INLINE_LABEL_WIDTH = 110.0;
+	private static final double INLINE_LABEL_WIDTH = 95.0;
 
 	private FormGridHelper() {
 	}
 
 	public static GridPane createDefaultGrid() {
 		GridPane grid = new GridPane();
-		grid.setHgap(10);
-		grid.setVgap(8);
-		grid.setPadding(new Insets(6));
+		grid.setHgap(14);
+		grid.setVgap(6);
+		grid.setPadding(new Insets(4));
 		grid.getStyleClass().add("gbanking-form-grid");
 		return grid;
 	}
