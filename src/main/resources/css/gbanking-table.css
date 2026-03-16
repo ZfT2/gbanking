@@ -10,20 +10,8 @@
     -fx-background-color: -fx-selection-bar;
 }
 
-.table-row-cell:selected .table-cell {
-    -fx-text-fill: -fx-selection-bar-text;
-}
-
-.table-row-cell:selected .table-cell.amount-positive {
-    -fx-text-fill: rgb(0, 100, 0);
-}
-
-.table-row-cell:selected .table-cell.amount-negative {
-    -fx-text-fill: red;
-}
-
-.table-row-cell:selected .table-cell.amount-neutral {
-    -fx-text-fill: -fx-text-inner-color;
+.table-row-cell:selected .text {
+    -fx-fill: -fx-selection-bar-text;
 }
 
 .table-cell.amount-positive {
@@ -41,115 +29,8 @@
     -fx-font-weight: bold;
 }
 
-.overview-title {
-    -fx-font-size: 16px;
-    -fx-font-weight: bold;
-}
-
-.gbanking-form-panel {
-    -fx-background-color: linear-gradient(to bottom, #ffffff, #fafafa);
-    -fx-background-radius: 6;
-    -fx-padding: 10 12 10 12;
-    -fx-border-color: #e6e6e6;
-    -fx-border-radius: 6;
-}
-
-.gbanking-form-titled-pane > .title {
-    -fx-background-color: linear-gradient(to bottom, #f8f8f8, #eeeeee);
-    -fx-font-weight: bold;
-}
-
-.gbanking-form-grid {
-    -fx-background-color: transparent;
-}
-
-.gbanking-form-label {
-    -fx-font-size: 11px;
-    -fx-font-weight: bold;
-}
-
-.gbanking-button-bar {
-    -fx-padding: 4 0 0 0;
-}
-
-.gbanking-form-button {
-    -fx-background-color: linear-gradient(to bottom, #f4e6a2, #ead57a);
-    -fx-background-radius: 4;
-    -fx-border-color: #d0bb63;
-    -fx-border-radius: 4;
-    -fx-font-weight: bold;
-}
-
-.gbanking-form-button:hover {
-    -fx-background-color: linear-gradient(to bottom, #f7ebba, #efdc8f);
-}
-
-.gbanking-form-button:disabled {
-    -fx-opacity: 0.75;
-}
-
-.gbanking-readonly-control {
-    -fx-opacity: 1.0;
-}
-
-/* ============================= */
-/* Form Layout */
-/* ============================= */
-
-.gbanking-form-panel {
-    -fx-background-color: linear-gradient(to bottom, #ffffff, #fdfdfb);
-    -fx-background-radius: 6;
-    -fx-padding: 10 12 10 12;
-    -fx-border-color: #e8e8e8;
-    -fx-border-radius: 6;
-}
-
-.gbanking-form-grid {
-    -fx-hgap: 12;
-    -fx-vgap: 8;
-}
-
-.gbanking-form-label {
-    -fx-font-size: 11px;
-    -fx-font-weight: bold;
-    -fx-text-fill: #444;
-}
-
-.gbanking-form-field-box {
-    -fx-spacing: 2;
-}
-
-/* ============================= */
-/* Buttons */
-/* ============================= */
-
-.gbanking-button-bar {
-    -fx-padding: 10 0 0 0;
-}
-
-.gbanking-form-button {
-    -fx-background-color: linear-gradient(to bottom, #f4e6a2, #ead57a);
-    -fx-background-radius: 4;
-    -fx-border-color: #d0bb63;
-    -fx-border-radius: 4;
-    -fx-font-weight: bold;
-}
-
-.gbanking-form-button:hover {
-    -fx-background-color: linear-gradient(to bottom, #f7ebba, #efdc8f);
-}
-
-.gbanking-form-button:pressed {
-    -fx-background-color: linear-gradient(to bottom, #e3d07a, #d7c268);
-}
-
-/* ============================= */
-/* Readonly fields */
-/* ============================= */
-
-.gbanking-readonly-control {
-    -fx-background-color: #f8f8f8;
-    -fx-opacity: 1.0;
+.table-cell.amount {
+    -fx-font-family: "Consolas", "Courier New", monospace;
 }
 
 .table-view {
@@ -181,22 +62,65 @@
     -fx-cell-size: 30px;
 }
 
-.table-cell.amount {
-    -fx-font-family: "Consolas", "Courier New", monospace;
+.overview-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
 }
 
-.gbanking-form-inline-field {
-    -fx-alignment: center-left;
-    -fx-spacing: 8;
+.gbanking-form-panel {
+    -fx-background-color: linear-gradient(to bottom, #ffffff, #fdfdfb);
+    -fx-background-radius: 6;
+    -fx-padding: 10 12 10 12;
+    -fx-border-color: #e8e8e8;
+    -fx-border-radius: 6;
 }
 
-.gbanking-form-inline-field .label {
+.gbanking-form-titled-pane > .title {
+    -fx-background-color: linear-gradient(to bottom, #f8f8f8, #eeeeee);
+    -fx-font-weight: bold;
+}
+
+.gbanking-form-grid {
+    -fx-background-color: transparent;
+    -fx-hgap: 12;
+    -fx-vgap: 8;
+}
+
+.gbanking-form-label {
     -fx-font-size: 11px;
     -fx-font-weight: bold;
     -fx-text-fill: #444;
 }
 
-.gbanking-form-grid {
-    -fx-hgap: 18;
-    -fx-vgap: 6;
+.gbanking-form-field-box {
+    -fx-spacing: 2;
+}
+
+.gbanking-button-bar {
+    -fx-padding: 10 0 0 0;
+}
+
+.gbanking-form-button {
+    -fx-background-color: linear-gradient(to bottom, #f4e6a2, #ead57a);
+    -fx-background-radius: 4;
+    -fx-border-color: #d0bb63;
+    -fx-border-radius: 4;
+    -fx-font-weight: bold;
+}
+
+.gbanking-form-button:hover {
+    -fx-background-color: linear-gradient(to bottom, #f7ebba, #efdc8f);
+}
+
+.gbanking-form-button:pressed {
+    -fx-background-color: linear-gradient(to bottom, #e3d07a, #d7c268);
+}
+
+.gbanking-form-button:disabled {
+    -fx-opacity: 0.75;
+}
+
+.gbanking-readonly-control {
+    -fx-background-color: #f8f8f8;
+    -fx-opacity: 1.0;
 }
