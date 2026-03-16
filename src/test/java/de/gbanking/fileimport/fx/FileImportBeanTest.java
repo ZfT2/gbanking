@@ -13,10 +13,10 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 
-import org.junit.Ignore;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
@@ -245,7 +245,7 @@ class FileImportBeanTest {
 
 	}
 
-	@Ignore
+	@Disabled
 	void testImportDefinedBookingsFile_Success() throws URISyntaxException {
 
 		fileImportBean.importFile(verifyFileName("DefinedAccountsBookings.xml"));

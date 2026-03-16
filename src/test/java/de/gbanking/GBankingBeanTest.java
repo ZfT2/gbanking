@@ -1,7 +1,7 @@
 package de.gbanking;
 
-import static org.junit.Assert.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
@@ -24,7 +24,6 @@ import org.kapott.hbci.structures.Value;
 
 import de.gbanking.db.DBController;
 import de.gbanking.db.DBControllerTestUtil;
-import de.gbanking.db.StatementsConfig.StatementType;
 import de.gbanking.db.TestData;
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.Booking;
