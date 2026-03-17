@@ -52,6 +52,12 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 		tableView.setEditable(true);
 		setPanelTitleByKey("UI_PANEL_ACCOUNT");
 		onSelection(this::handleSelection);
+		tableView.setOnMouseClicked(event -> {
+			BankAccount selectedAccount = (BankAccount) tableView.getSelectionModel().getSelectedItem();
+			if (selectedAccount != null) {
+				handleSelection(selectedAccount);
+			}
+		});
 	}
 
 	private void applyWidthProfile() {
@@ -133,6 +139,7 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 
 		transactionListPanel.updatePanelBorder(getText("UI_PANEL_TRANSACTIONS") + " - " + selectedAccount.getAccountName());
 		transactionListPanel.updateModelBooking(bookingList);
+		parent.enableAccountDetailPanel();
 		parent.getAccountDetailPanel().updatePanelFieldValues(selectedAccount);
 	}
 

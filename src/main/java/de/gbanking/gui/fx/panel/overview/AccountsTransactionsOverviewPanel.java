@@ -65,6 +65,13 @@ public class AccountsTransactionsOverviewPanel extends TransactionsOverviewBaseP
 		return accountDetailPanel;
 	}
 
+	public void enableAccountDetailPanel() {
+		if (rightContentBox.getChildren().isEmpty() || rightContentBox.getChildren().get(0) != accountDetailPanel) {
+			rightContentBox.getChildren().set(0, accountDetailPanel);
+		}
+		accountDetailPanel.setDisable(false);
+	}
+
 	public void enableTransactionDetailPanel() {
 		if (rightContentBox.getChildren().isEmpty() || rightContentBox.getChildren().get(0) != transactionDetailPanel) {
 			rightContentBox.getChildren().set(0, transactionDetailPanel);
