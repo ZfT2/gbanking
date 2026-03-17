@@ -4,6 +4,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import de.gbanking.db.StatementsConfig.ResultType;
 import de.gbanking.db.dao.Category;
 import de.gbanking.util.TypeConverter;
 
@@ -33,11 +34,8 @@ public class CategoryMapper extends AbstractDaoMapper<Category, Void> {
 	}
 
 	@Override
-	void mapDao(Category category, ResultSet rs) throws SQLException {
-
-		if (category == null)
-			category = new Category(rs.getString("name"));
-		super.mapDao(category, rs);
+	void mapDao(Category category, ResultType resultType, ResultSet rs) throws SQLException {
+		super.mapDao(category, resultType, rs);
 
 		if (rs.getInt("parent_id") > 0) {
 			category.setParentId(rs.getInt("parent_id"));

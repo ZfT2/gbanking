@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Set;
 
 import de.gbanking.db.SqlFields;
+import de.gbanking.db.StatementsConfig.ResultType;
 import de.gbanking.db.dao.BankAccess;
 import de.gbanking.db.dao.Bpd;
 import de.gbanking.db.dao.Dao;
@@ -80,7 +81,7 @@ public class ParameterDataBankAccessMapper extends AbstractDaoMapper<ParameterDa
 	}
 
 	@Override
-	public void mapDao(ParameterDataBankAccess pdBankAccess, ResultSet rs) throws SQLException {
+	public void mapDao(ParameterDataBankAccess pdBankAccess, ResultType resultType, ResultSet rs) throws SQLException {
 		throw new GBankingException("ParameterDataBankAccess need to be specific type!");
 	}
 

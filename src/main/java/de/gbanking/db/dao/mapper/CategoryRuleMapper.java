@@ -4,6 +4,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import de.gbanking.db.StatementsConfig.ResultType;
 import de.gbanking.db.dao.CategoryRule;
 import de.gbanking.db.dao.CategoryRule.JoinType;
 import de.gbanking.util.TypeConverter;
@@ -28,10 +29,8 @@ public class CategoryRuleMapper extends AbstractDaoMapper<CategoryRule, Void> {
 	}
 
 	@Override
-	public void mapDao(CategoryRule categoryRule, ResultSet rs) throws SQLException {
-		if (categoryRule == null)
-			categoryRule = new CategoryRule();
-		super.mapDao(categoryRule, rs);
+	public void mapDao(CategoryRule categoryRule, ResultType resultType, ResultSet rs) throws SQLException {
+		super.mapDao(categoryRule, resultType, rs);
 		// categoryRule.setCategoryId(rs.getInt("category_id")); TODO Category..
 		categoryRule.setFilterDateFrom((TypeConverter.toCalendarFromSqlDate(rs.getDate("filterDateFrom"))));
 		categoryRule.setFilterDateTo((TypeConverter.toCalendarFromSqlDate(rs.getDate("filterDateTo"))));

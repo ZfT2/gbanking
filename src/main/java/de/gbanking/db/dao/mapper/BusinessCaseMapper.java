@@ -5,6 +5,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Set;
 
+import de.gbanking.db.StatementsConfig.ResultType;
 import de.gbanking.db.dao.BusinessCase;
 import de.gbanking.util.TypeConverter;
 
@@ -27,10 +28,8 @@ public class BusinessCaseMapper extends AbstractDaoMapper<BusinessCase, Void> {
 	}
 
 	@Override
-	public void mapDao(BusinessCase businessCase, ResultSet rs) throws SQLException {
-		if (businessCase == null)
-			businessCase = new BusinessCase();
-		super.mapDao(businessCase, rs);
+	public void mapDao(BusinessCase businessCase, ResultType resultType, ResultSet rs) throws SQLException {
+		super.mapDao(businessCase, resultType, rs);
 		businessCase.setCaseValue(rs.getString("caseValue"));
 	}
 

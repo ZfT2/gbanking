@@ -5,6 +5,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import de.gbanking.db.SqlFields;
+import de.gbanking.db.StatementsConfig.ResultType;
 import de.gbanking.db.dao.BankAccess;
 import de.gbanking.db.dao.enu.HbciEncodingFilterType;
 import de.gbanking.db.dao.enu.TanProcedure;
@@ -41,10 +42,8 @@ public class BankAccessMapper extends AbstractDaoMapper<BankAccess, Void> {
 	}
 
 	@Override
-	public void mapDao(BankAccess access, ResultSet rs) throws SQLException {
-		if (access == null)
-			access = new BankAccess();
-		super.mapDao(access, rs);
+	public void mapDao(BankAccess access, ResultType resultType, ResultSet rs) throws SQLException {
+		super.mapDao(access, resultType, rs);
 		access.setBankName(rs.getString(SqlFields.BANKNAME));
 		access.setCountry(rs.getString("country"));
 		access.setBlz(rs.getString("blz"));

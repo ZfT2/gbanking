@@ -4,6 +4,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import de.gbanking.db.StatementsConfig.ResultType;
 import de.gbanking.db.dao.Setting;
 import de.gbanking.db.enu.DataType;
 import de.gbanking.util.TypeConverter;
@@ -29,10 +30,8 @@ public class SettingMapper extends AbstractDaoMapper<Setting, Void> {
 	}
 
 	@Override
-	public void mapDao(Setting setting, ResultSet rs) throws SQLException {
-		if (setting == null)
-			setting = new Setting();
-		super.mapDao(setting, rs);
+	public void mapDao(Setting setting, ResultType resultType, ResultSet rs) throws SQLException {
+		super.mapDao(setting, resultType, rs);
 		setting.setAttribute(rs.getString("attribute"));
 		setting.setValue(rs.getString("value"));
 		setting.setDataType((DataType) DataType.forInt(rs.getInt("dataType")));

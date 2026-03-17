@@ -70,18 +70,11 @@ public abstract class AbstractDaoMapper<T extends Dao, V> {
 		ps.setInt(1, dao.getId());
 	}
 
-	void mapDao(T dao, ResultSet rs) throws SQLException {
+	void mapDao(T dao, ResultType resultType, ResultSet rs) throws SQLException {
 		if (dao == null)
 			return;
-		// throw new GBankingException("mapDao(T dao, ResultSet rs): must be called from
-		// Subclass");
 		dao.setId(rs.getInt("id"));
 		dao.setUpdatedAt((TypeConverter.toCalendarFromSqlDate(rs.getDate(SqlFields.DAO_UPDATEDAT))));
-	}
-
-	void mapDao(T dao, ResultType resultType, ResultSet rs) throws SQLException {
-		// mapDao(dao, rs);
-		throw new GBankingException("toDao(ResultSet rs, ResultType resultType): not implemented for type " + this.getClass().getName());
 	}
 
 	protected int setBooleanNullable(int index, Boolean value, PreparedStatement ps) throws SQLException {

@@ -1,7 +1,6 @@
 package de.gbanking.db.dao.mapper;
 
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Set;
 
@@ -28,8 +27,4 @@ public class MtoNTableMapper extends AbstractDaoMapper<Dao, Integer> {
 
 	}
 
-	@Override
-	public void mapDao(Dao dao, ResultSet rs) throws SQLException {
-		throw new GBankingException("toDao(ResultSet rs): not implemented for type " + this.getClass().getName());
-	}
 }

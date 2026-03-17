@@ -4,6 +4,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import de.gbanking.db.StatementsConfig.ResultType;
 import de.gbanking.db.dao.Institute;
 import de.gbanking.db.dao.enu.InstituteStatus;
 import de.gbanking.util.TypeConverter;
@@ -48,10 +49,8 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 	}
 
 	@Override
-	public void mapDao(Institute institute, ResultSet rs) throws SQLException {
-		if (institute == null)
-			institute = new Institute();
-		super.mapDao(institute, rs);
+	public void mapDao(Institute institute, ResultType resultType, ResultSet rs) throws SQLException {
+		super.mapDao(institute, resultType, rs);
 		institute.setImportNumber(rs.getInt("importNumber"));
 		institute.setBlz(rs.getString("blz"));
 		institute.setBic(rs.getString("bic"));

@@ -4,6 +4,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import de.gbanking.db.StatementsConfig.ResultType;
 import de.gbanking.db.dao.Recipient;
 import de.gbanking.db.dao.enu.Source;
 import de.gbanking.util.TypeConverter;
@@ -43,10 +44,8 @@ public class RecipientMapper extends AbstractDaoMapper<Recipient, Void> {
 	}
 
 	@Override
-	public void mapDao(Recipient recipient, ResultSet rs) throws SQLException {
-		if (recipient == null)
-			recipient = new Recipient();
-		super.mapDao(recipient, rs);
+	public void mapDao(Recipient recipient, ResultType resultType, ResultSet rs) throws SQLException {
+		super.mapDao(recipient, resultType, rs);
 		recipient.setName(rs.getString("name"));
 		recipient.setIban(rs.getString("iban"));
 		recipient.setAccountNumber(rs.getString("accountNumber"));

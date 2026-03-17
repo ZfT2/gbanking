@@ -106,9 +106,7 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 
 	@Override
 	public void mapDao(Booking booking, ResultType resultType, ResultSet rs) throws SQLException {
-		if (booking == null)
-			booking = new Booking();
-		// super.mapDao(booking, rs);
+		super.mapDao(booking, resultType, rs);
 		booking.setAccountId(rs.getInt(SqlFields.ACCOUNT_ACCOUNTID));
 		booking.setBookingType(rs.getString(SqlFields.BOOKING_BOOKINGTYPE) != null ? BookingType.valueOf(rs.getString(SqlFields.BOOKING_BOOKINGTYPE)) : null);
 		booking.setSource(Source.valueOf(rs.getString("bookingSource")));

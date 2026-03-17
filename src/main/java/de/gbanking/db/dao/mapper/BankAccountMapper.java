@@ -8,6 +8,7 @@ import java.util.List;
 
 import de.gbanking.db.SqlFields;
 import de.gbanking.db.StatementsConfig;
+import de.gbanking.db.StatementsConfig.ResultType;
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.Booking;
 import de.gbanking.db.dao.enu.AccountState;
@@ -89,10 +90,8 @@ public class BankAccountMapper extends AbstractDaoMapper<BankAccount, Void> {
 	}
 
 	@Override
-	public void mapDao(BankAccount account, ResultSet rs) throws SQLException {
-		if (account == null)
-			account = new BankAccount();
-		super.mapDao(account, rs);
+	public void mapDao(BankAccount account, ResultType resultType, ResultSet rs) throws SQLException {
+		super.mapDao(account, resultType, rs);
 
 		account.setBankAccessId(rs.getInt("bankAccess_id"));
 		account.setAccountName(rs.getString(SqlFields.ACCOUNT_ACCOUNTNAME));

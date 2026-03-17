@@ -5,6 +5,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import de.gbanking.db.SqlFields;
+import de.gbanking.db.StatementsConfig.ResultType;
 import de.gbanking.db.dao.MoneyTransfer;
 import de.gbanking.db.dao.Recipient;
 import de.gbanking.db.dao.enu.MoneyTransferStatus;
@@ -33,10 +34,8 @@ public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> 
 	}
 
 	@Override
-	public void mapDao(MoneyTransfer moneytransfer, ResultSet rs) throws SQLException {
-		if (moneytransfer == null)
-			moneytransfer = new MoneyTransfer();
-		super.mapDao(moneytransfer, rs);
+	public void mapDao(MoneyTransfer moneytransfer, ResultType resultType, ResultSet rs) throws SQLException {
+		super.mapDao(moneytransfer, resultType, rs);
 		moneytransfer.setAccountId(rs.getInt(SqlFields.ACCOUNT_ACCOUNTID));
 		moneytransfer.setOrderType(OrderType.valueOf(rs.getString("moneytransferType")));
 		moneytransfer.setRecipientId(rs.getInt("recipient_id"));

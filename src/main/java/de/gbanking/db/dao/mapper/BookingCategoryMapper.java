@@ -4,6 +4,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import de.gbanking.db.StatementsConfig.ResultType;
 import de.gbanking.db.dao.BookingCategory;
 import de.gbanking.db.dao.enu.CategoryRuleMode;
 import de.gbanking.util.TypeConverter;
@@ -21,10 +22,8 @@ public class BookingCategoryMapper extends AbstractDaoMapper<BookingCategory, Vo
 	}
 
 	@Override
-	public void mapDao(BookingCategory bookingCategory, ResultSet rs) throws SQLException {
-		if (bookingCategory == null)
-			bookingCategory = new BookingCategory();
-		super.mapDao(bookingCategory, rs);
+	public void mapDao(BookingCategory bookingCategory, ResultType resultType, ResultSet rs) throws SQLException {
+		super.mapDao(bookingCategory, resultType, rs);
 		bookingCategory.setmTableId(rs.getInt("booking_id"));
 		bookingCategory.setnTableId(rs.getInt("category_id"));
 		bookingCategory.setCategoryRuleMode((CategoryRuleMode) CategoryRuleMode.forInt(rs.getInt("categoryRuleMode")));

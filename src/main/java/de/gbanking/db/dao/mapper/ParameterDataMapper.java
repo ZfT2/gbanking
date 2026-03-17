@@ -6,6 +6,7 @@ import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.Set;
 
+import de.gbanking.db.StatementsConfig.ResultType;
 import de.gbanking.db.dao.ParameterData;
 import de.gbanking.db.dao.enu.ParameterDataType;
 import de.gbanking.util.TypeConverter;
@@ -30,10 +31,8 @@ public class ParameterDataMapper extends AbstractDaoMapper<ParameterData, Void> 
 	}
 
 	@Override
-	public void mapDao(ParameterData pd, ResultSet rs) throws SQLException {
-		if (pd == null)
-			pd = new ParameterData();
-		super.mapDao(pd, rs);
+	public void mapDao(ParameterData pd, ResultType resultType, ResultSet rs) throws SQLException {
+		super.mapDao(pd, resultType, rs);
 		pd.setPdKey(rs.getString("pdKey"));
 		ParameterDataType typ = ParameterDataType.valueOf(rs.getString("pdType"));
 		pd.setPdType(typ);
