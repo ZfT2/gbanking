@@ -5,14 +5,15 @@ import java.util.Calendar;
 
 public enum DataType implements IdType {
 
-	INT(Integer.class, 1), 
-	DOUBLE(Double.class, 2), 
+	INT(Integer.class, 1),
+	DOUBLE(Double.class, 2),
 	FLOAT(Float.class, 3),
 	BIGDECIMAL(BigDecimal.class, 4),
-	CALENDAR(Calendar.class, 5),
-	ENUM(IdType.class, 6),
-	STRING(String.class, 7),
-	CHAR(char.class, 8);
+	BOOLEAN(Boolean.class, 5),
+	CALENDAR(Calendar.class, 6),
+	ENUM(IdType.class, 7),
+	STRING(String.class, 8),
+	CHAR(char.class, 9);
 
 	public static DataType forType(Class<?> type) {
 		for (DataType x : values()) {
@@ -21,7 +22,7 @@ public enum DataType implements IdType {
 		}
 		return null;
 	}
-	
+
 	public static IdType forInt(int intValue) {
 		for (DataType x : values()) {
 			if (x.dbStateId == intValue)

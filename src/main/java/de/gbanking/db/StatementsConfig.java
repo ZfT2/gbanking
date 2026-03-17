@@ -95,6 +95,7 @@ import de.gbanking.db.dao.mapper.MtoNTableMapper;
 import de.gbanking.db.dao.mapper.ParameterDataBankAccessMapper;
 import de.gbanking.db.dao.mapper.ParameterDataMapper;
 import de.gbanking.db.dao.mapper.RecipientMapper;
+import de.gbanking.db.dao.mapper.SettingMapper;
 import de.gbanking.db.dao.mapper.UpdMapper;
 import de.gbanking.exception.GBankingException;
 
@@ -316,6 +317,7 @@ public class StatementsConfig {
 					Map.entry(BusinessCase.class, new BusinessCaseMapper()),
 					Map.entry(Recipient.class, new RecipientMapper()),
 					Map.entry(Institute.class, new InstituteMapper()),
+					Map.entry(Setting.class, new SettingMapper()),
 					Map.entry(Bpd.class, new BpdMapper()),
 					Map.entry(Upd.class, new UpdMapper())
 					);

@@ -31,11 +31,11 @@ public class MoneyTransferDetailListTabPanel extends BorderPane {
 		}
 
 		RecipientListPanel recipientListPanel = new RecipientListPanel(this);
-		recipientListPanel.setPrefWidth(360);
-		recipientListPanel.setMinWidth(300);
+		recipientListPanel.setPrefWidth(520);
+		recipientListPanel.setMinWidth(420);
 
-		moneyTransferInputPanel.setPrefWidth(620);
-		moneyTransferInputPanel.setMinWidth(520);
+		moneyTransferInputPanel.setPrefWidth(560);
+		moneyTransferInputPanel.setMinWidth(480);
 		moneyTransferInputPanel.setMaxWidth(Double.MAX_VALUE);
 
 		moneyTransferListPanel = new MoneyTransferListPanel(orderType, this);
@@ -46,7 +46,7 @@ public class MoneyTransferDetailListTabPanel extends BorderPane {
 		topRow.setFillHeight(true);
 
 		HBox.setHgrow(moneyTransferInputPanel, Priority.ALWAYS);
-		HBox.setHgrow(recipientListPanel, Priority.SOMETIMES);
+		HBox.setHgrow(recipientListPanel, Priority.ALWAYS);
 
 		setTop(topRow);
 		setCenter(moneyTransferListPanel);

@@ -26,6 +26,7 @@ import de.gbanking.gui.fx.panel.overview.CategoryOverviewPanel;
 import de.gbanking.gui.fx.panel.overview.MoneyTransferOverviewPanel;
 import de.gbanking.gui.fx.panel.overview.OverviewBasePanel;
 import de.gbanking.gui.fx.panel.overview.RecipientOverviewPanel;
+import de.gbanking.gui.fx.panel.setting.SettingsDialog;
 import de.gbanking.gui.fx.progress.FileExportProgressBarPanel;
 import de.gbanking.gui.fx.progress.FileImportProgressBarPanel;
 import javafx.application.Application;
@@ -155,59 +156,58 @@ public class GBankingGui extends Application {
 	private MenuBar createMenuBar() {
 		MenuBar menuBar = new MenuBar();
 
-		Menu fileMenu = new Menu("Datei");
-		Menu editMenu = new Menu("Bearbeiten");
-		Menu executeMenu = new Menu("Ausführen");
-		Menu aboutMenu = new Menu("Über");
+		Menu fileMenu = new Menu(getText("UI_MENU_FILE"));
+		Menu editMenu = new Menu(getText("UI_MENU_EDIT"));
+		Menu executeMenu = new Menu(getText("UI_MENU_EXECUTE"));
+		Menu settingsMenu = new Menu(getText("UI_MENU_SETTINGS"));
+		Menu aboutMenu = new Menu(getText("UI_MENU_ABOUT"));
 
-		MenuItem fileNewMenuItem = new MenuItem("Neu");
-		fileNewMenuItem.setOnAction(e -> statusLabel.setText("New MenuItem clicked"));
+		MenuItem fileNewMenuItem = new MenuItem(getText("UI_MENU_FILE_NEW"));
+		fileNewMenuItem.setOnAction(e -> statusLabel.setText(getText("UI_STATUS_NEW")));
 
-		MenuItem fileOpenMenuItem = new MenuItem("Öffnen");
-		fileOpenMenuItem.setOnAction(e -> statusLabel.setText("Open MenuItem clicked"));
+		MenuItem fileOpenMenuItem = new MenuItem(getText("UI_MENU_FILE_OPEN"));
+		fileOpenMenuItem.setOnAction(e -> statusLabel.setText(getText("UI_STATUS_OPEN")));
 
-		MenuItem fileSaveMenuItem = new MenuItem("Speichern");
-		fileSaveMenuItem.setOnAction(e -> statusLabel.setText("Save MenuItem clicked"));
+		MenuItem fileSaveMenuItem = new MenuItem(getText("UI_MENU_FILE_SAVE"));
+		fileSaveMenuItem.setOnAction(e -> statusLabel.setText(getText("UI_STATUS_SAVE")));
 
-		Menu fileImportMenu = new Menu("Importieren...");
+		Menu fileImportMenu = new Menu(getText("UI_MENU_FILE_IMPORT"));
 		MenuItem fileImportXML = new MenuItem("XML");
 		fileImportXML.setOnAction(e -> processImport());
 		fileImportMenu.getItems().add(fileImportXML);
 
-		Menu fileExportMenu = new Menu("Exportieren...");
+		Menu fileExportMenu = new Menu(getText("UI_MENU_FILE_EXPORT"));
 		MenuItem fileExportCSV = new MenuItem("CSV");
 		fileExportCSV.setOnAction(e -> processExport(FileType.CSV));
-
 		MenuItem fileExportXML = new MenuItem("XML");
 		fileExportXML.setOnAction(e -> processExport(FileType.XML));
-
 		fileExportMenu.getItems().addAll(fileExportCSV, fileExportXML);
 
-		MenuItem fileExitMenuItem = new MenuItem("Beenden");
+		MenuItem fileExitMenuItem = new MenuItem(getText("UI_MENU_FILE_EXIT"));
 		fileExitMenuItem.setOnAction(e -> shutdownApplication());
 
 		fileMenu.getItems().addAll(fileNewMenuItem, fileOpenMenuItem, fileSaveMenuItem, fileImportMenu, fileExportMenu, new SeparatorMenuItem(),
 				fileExitMenuItem);
 
-		MenuItem editAccountsMenuItem = new MenuItem("Konten...");
+		MenuItem editAccountsMenuItem = new MenuItem(getText("UI_MENU_EDIT_ACCOUNTS"));
 		editAccountsMenuItem.setOnAction(e -> activateOverview(PageContext.ACCOUNTS_TRANSACTIONS.name()));
 
-		MenuItem editOrdersMenuItem = new MenuItem("Aufträge...");
+		MenuItem editOrdersMenuItem = new MenuItem(getText("UI_MENU_EDIT_ORDERS"));
 		editOrdersMenuItem.setOnAction(e -> activateOverview(PageContext.ACCOUNTS_MONEYTRANSFERS.name()));
 
-		MenuItem editBankAccessMenuItem = new MenuItem("Bankzugänge...");
+		MenuItem editBankAccessMenuItem = new MenuItem(getText("UI_MENU_EDIT_BANKACCESS"));
 		editBankAccessMenuItem.setOnAction(e -> activateOverview(PageContext.BANKACCESS.name()));
 
-		MenuItem editCategoriesMenuItem = new MenuItem("Kategorien...");
+		MenuItem editCategoriesMenuItem = new MenuItem(getText("UI_MENU_EDIT_CATEGORIES"));
 		editCategoriesMenuItem.setOnAction(e -> activateOverview(PageContext.CATEGORIES.name()));
 
-		MenuItem editRecipientsMenuItem = new MenuItem("Adressbuch...");
+		MenuItem editRecipientsMenuItem = new MenuItem(getText("UI_MENU_EDIT_RECIPIENTS"));
 		editRecipientsMenuItem.setOnAction(e -> activateOverview(PageContext.RECIPIENTS.name()));
 
-		MenuItem editAllAccountsMenuItem = new MenuItem("Alle Konten...");
+		MenuItem editAllAccountsMenuItem = new MenuItem(getText("UI_MENU_EDIT_ALL_ACCOUNTS"));
 		editAllAccountsMenuItem.setOnAction(e -> activateOverview(PageContext.ALL_ACCOUNTS.name()));
 
-		MenuItem editAllTransactionsMenuItem = new MenuItem("Alle Umsätze...");
+		MenuItem editAllTransactionsMenuItem = new MenuItem(getText("UI_MENU_EDIT_ALL_TRANSACTIONS"));
 		editAllTransactionsMenuItem.setOnAction(e -> activateOverview(PageContext.ALL_TRANSACTIONS.name()));
 
 		editMenu.getItems().addAll(editAccountsMenuItem, editOrdersMenuItem, editBankAccessMenuItem, editCategoriesMenuItem, editRecipientsMenuItem,
@@ -215,19 +215,23 @@ public class GBankingGui extends Application {
 
 		PinAskDialog pinWindow = new PinAskDialog(primaryStage);
 
-		MenuItem updateAccountsMenuItem = new MenuItem("Umsätze abrufen");
+		MenuItem updateAccountsMenuItem = new MenuItem(getText("UI_MENU_EXECUTE_UPDATE_ACCOUNTS"));
 		updateAccountsMenuItem.setOnAction(e -> updateAccounts(pinWindow));
 
-		MenuItem executeTransfersMenuItem = new MenuItem("Aufträge ausführen");
+		MenuItem executeTransfersMenuItem = new MenuItem(getText("UI_MENU_EXECUTE_TRANSFERS"));
 		executeTransfersMenuItem.setOnAction(e -> executeTransfers(pinWindow));
 
 		executeMenu.getItems().addAll(updateAccountsMenuItem, executeTransfersMenuItem);
 
-		MenuItem aboutMenuItem = new MenuItem("Über GBanking...");
+		MenuItem settingsMenuItem = new MenuItem(getText("UI_MENU_SETTINGS_OPEN"));
+		settingsMenuItem.setOnAction(e -> showSettingsWindow());
+		settingsMenu.getItems().add(settingsMenuItem);
+
+		MenuItem aboutMenuItem = new MenuItem(getText("UI_MENU_ABOUT_OPEN"));
 		aboutMenuItem.setOnAction(e -> showAboutWindow());
 		aboutMenu.getItems().add(aboutMenuItem);
 
-		menuBar.getMenus().addAll(fileMenu, editMenu, executeMenu, aboutMenu);
+		menuBar.getMenus().addAll(fileMenu, editMenu, executeMenu, settingsMenu, aboutMenu);
 		return menuBar;
 	}
 
@@ -343,6 +347,12 @@ public class GBankingGui extends Application {
 
 			bean.executeTransfer(moneytransfer, bankAccount, pin);
 		}
+	}
+
+	private void showSettingsWindow() {
+		SettingsDialog settingsDialog = new SettingsDialog(primaryStage);
+		Stage settingsWindow = settingsDialog.createWindow();
+		settingsWindow.showAndWait();
 	}
 
 	private void showAboutWindow() {
