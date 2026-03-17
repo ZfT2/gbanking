@@ -6,7 +6,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import de.fp32xmlextract.data.Booking.SepaTyp;
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.Booking;
 import de.gbanking.db.dao.Category;
@@ -61,11 +60,10 @@ public class DaoMapper {
 		bankAccount.setSource(Source.IMPORT_INITIAL);
 		bankAccount.setOfflineAccount(true);
 		bankAccount.setAccountState(AccountState.ACTIVE);
-		
+
 		bankAccount.setBalance(bankAccountXML.getBalance());
 
-		bankAccount.setAccountName(
-				bankAccountXML.getBezeichnung() != null ? bankAccountXML.getBezeichnung() : bankAccount.getDefaultAccountName());
+		bankAccount.setAccountName(bankAccountXML.getBezeichnung() != null ? bankAccountXML.getBezeichnung() : bankAccount.getDefaultAccountName());
 
 		bankAccount.setBankAccessId(null);
 
@@ -87,64 +85,71 @@ public class DaoMapper {
 
 		return bookingDaoList;
 	}
-	
-	public static Booking maptoBookingDao(String accountName, de.fp32xmlextract.data.Booking xmlBooking,
-			Map<String, Integer> accountIdMapByAccountName, Map<String, Integer> crossAccountIdMapByIdentifier, Source source) {
 
-			Booking booking = new Booking();
+	public static Booking maptoBookingDao(String accountName, de.fp32xmlextract.data.Booking xmlBooking, Map<String, Integer> accountIdMapByAccountName,
+			Map<String, Integer> crossAccountIdMapByIdentifier, Source source) {
 
-			if (xmlBooking.getAccountNamePP() == null) {
-				xmlBooking.setAccountNamePP(accountName);
+		Booking booking = new Booking();
+
+		if (xmlBooking.getAccountNamePP() == null) {
+			xmlBooking.setAccountNamePP(accountName);
+		}
+		booking.setAccountId(accountIdMapByAccountName.get(xmlBooking.getAccountNamePP()));
+		booking.setSource(source);
+		booking.setBookingType(getBookingType(xmlBooking));
+		booking.setAmount(xmlBooking.getAmount());
+		// booking.setDate(TypeConverter.toCalendarFromDateStr(xmlBooking.getDate()));
+		booking.setDateBooking(TypeConverter.toCalendarFromDateStrShort(xmlBooking.getDateBooking()));
+		booking.setDateValue(TypeConverter.toCalendarFromDateStrShort(xmlBooking.getDateValue()));
+		booking.setPurpose(xmlBooking.getPurpose());
+
+		booking.setSepaCustomerRef(xmlBooking.getSepaCustomerRef());
+		booking.setSepaCreditorId(xmlBooking.getSepaCreditorId());
+		booking.setSepaEndToEnd(xmlBooking.getSepaEndToEnd());
+		booking.setSepaMandate(xmlBooking.getSepaMandate());
+		booking.setSepaPersonId(xmlBooking.getSepaPersonId());
+		booking.setSepaPurpose(xmlBooking.getSepaPurpose());
+		booking.setSepaTyp(xmlBooking.getSepaTyp());
+
+		if (xmlBooking.getCrossAccountNamePP() != null) {
+			booking.setCrossAccountId(accountIdMapByAccountName.get(xmlBooking.getCrossAccountNamePP()));
+		} else if (xmlBooking.getCrossAccountIBAN() != null) {
+			String crossIban = xmlBooking.getCrossAccountIBAN();
+			Integer crossAccountId = crossAccountIdMapByIdentifier.get(crossIban.replaceFirst("^0+(?!$)", ""));
+			if (crossAccountId == null && crossIban.length() >= 15) {
+				crossAccountId = crossAccountIdMapByIdentifier.get(crossIban.substring(12).replaceFirst("^0+(?!$)", ""));
 			}
-			booking.setAccountId(accountIdMapByAccountName.get(xmlBooking.getAccountNamePP()));
-			booking.setSource(source);
-			booking.setBookingType(xmlBooking.getTyp() != null ? BookingType.forString(xmlBooking.getTyp().name()) : null);
-			booking.setAmount(xmlBooking.getAmount());
-			//booking.setDate(TypeConverter.toCalendarFromDateStr(xmlBooking.getDate()));
-			booking.setDateBooking(TypeConverter.toCalendarFromDateStrShort(xmlBooking.getDateBooking()));
-			booking.setDateValue(TypeConverter.toCalendarFromDateStrShort(xmlBooking.getDateValue()));
-			booking.setPurpose(xmlBooking.getPurpose());
-			
-			booking.setSepaCustomerRef(xmlBooking.getSepaCustomerRef());
-			booking.setSepaCreditorId(xmlBooking.getSepaCreditorId());
-			booking.setSepaEndToEnd(xmlBooking.getSepaEndToEnd());
-			booking.setSepaMandate(xmlBooking.getSepaMandate());
-			booking.setSepaPersonId(xmlBooking.getSepaPersonId());
-			booking.setSepaPurpose(xmlBooking.getSepaPurpose());
-			booking.setSepaTyp(xmlBooking.getSepaTyp());
-			
-			if (xmlBooking.getCrossAccountNamePP() != null) {
-				booking.setCrossAccountId(accountIdMapByAccountName.get(xmlBooking.getCrossAccountNamePP()));
-			} else if (xmlBooking.getCrossAccountIBAN() != null) {
-				String crossIban = xmlBooking.getCrossAccountIBAN();
-				Integer crossAccountId = crossAccountIdMapByIdentifier.get(crossIban.replaceFirst("^0+(?!$)", ""));
-				if (crossAccountId == null && crossIban.length() >= 15) {
-					crossAccountId = crossAccountIdMapByIdentifier.get(crossIban.substring(12).replaceFirst("^0+(?!$)", ""));
-				}
-				booking.setCrossAccountId(crossAccountId);
-			} else {
-				booking.setCrossAccountId(null);
-			}
-
-//			setCrossBooking(booking, crossBookingMap.get(xmlBooking));
-			
-			mapRecipient(xmlBooking, booking, source);
-
-			mapCategory(xmlBooking, booking);
-			
-			return booking;
+			booking.setCrossAccountId(crossAccountId);
+		} else {
+			booking.setCrossAccountId(null);
 		}
 
-		public static void setCrossBooking(Booking bookingDao, Integer crossBookingId) {
-			if (crossBookingId != null) {
-				bookingDao.setCrossBookingId(crossBookingId);
-				bookingDao.setBookingType(bookingDao.getAmount().compareTo(BigDecimal.ZERO) < 0 ? BookingType.REBOOKING_OUT : BookingType.REBOOKING_IN);
-			}
-		}
+		// setCrossBooking(booking, crossBookingMap.get(xmlBooking));
 
-		private static void mapRecipient(de.fp32xmlextract.data.Booking xmlBooking, Booking booking, Source source) {
-		if (xmlBooking.getCrossReceiverName() != null || xmlBooking.getCrossAccountIBAN() != null
-				|| xmlBooking.getCrossAccountNumber() != null) {
+		mapRecipient(xmlBooking, booking, source);
+
+		mapCategory(xmlBooking, booking);
+
+		return booking;
+	}
+
+	private static BookingType getBookingType(de.fp32xmlextract.data.Booking xmlBooking) {
+		if (xmlBooking.getTyp() != null) {
+			return BookingType.forString(xmlBooking.getTyp().name());
+		} else {
+			return xmlBooking.getAmount().compareTo(BigDecimal.ZERO) > 0 ? BookingType.DEPOSIT : BookingType.REMOVAL;
+		}
+	}
+
+	public static void setCrossBooking(Booking bookingDao, Integer crossBookingId) {
+		if (crossBookingId != null) {
+			bookingDao.setCrossBookingId(crossBookingId);
+			bookingDao.setBookingType(bookingDao.getAmount().compareTo(BigDecimal.ZERO) < 0 ? BookingType.REBOOKING_OUT : BookingType.REBOOKING_IN);
+		}
+	}
+
+	private static void mapRecipient(de.fp32xmlextract.data.Booking xmlBooking, Booking booking, Source source) {
+		if (xmlBooking.getCrossReceiverName() != null || xmlBooking.getCrossAccountIBAN() != null || xmlBooking.getCrossAccountNumber() != null) {
 			Recipient recipient = new Recipient();
 			recipient.setName(xmlBooking.getCrossReceiverName());
 			recipient.setIban(xmlBooking.getCrossAccountIBAN());

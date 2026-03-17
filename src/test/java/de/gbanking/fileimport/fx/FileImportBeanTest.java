@@ -26,6 +26,7 @@ import de.gbanking.db.DBControllerTestUtil;
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.Booking;
 import de.gbanking.db.dao.Recipient;
+import de.gbanking.db.dao.enu.BookingType;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FileImportBeanTest {
@@ -243,6 +244,13 @@ class FileImportBeanTest {
 		List<Booking> dbBookingList = dbController.getAllFull(Booking.class);
 		assertEquals(788, dbBookingList.size());
 
+		assertEquals(107, dbBookingList.stream().filter(booking -> BookingType.REBOOKING_IN == booking.getBookingType()).count());
+		assertEquals(133, dbBookingList.stream().filter(booking -> BookingType.REBOOKING_OUT == booking.getBookingType()).count());
+		assertEquals(138, dbBookingList.stream().filter(booking -> BookingType.DEPOSIT == booking.getBookingType()).count());
+		assertEquals(234, dbBookingList.stream().filter(booking -> BookingType.REMOVAL == booking.getBookingType()).count());
+		assertEquals(165, dbBookingList.stream().filter(booking -> BookingType.INTEREST == booking.getBookingType()).count());
+		assertEquals(3, dbBookingList.stream().filter(booking -> BookingType.INTEREST_CHARGE == booking.getBookingType()).count());
+		assertEquals(8, dbBookingList.stream().filter(booking -> booking.getBookingType() == null).count());
 	}
 
 	@Disabled
