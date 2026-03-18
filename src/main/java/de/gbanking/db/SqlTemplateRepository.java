@@ -158,8 +158,7 @@ final class SqlTemplateRepository {
                 }
                 if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
                     if (currentKey != null) {
-                        throw new IllegalStateException(
-                                "New SQL block started before previous block was terminated in " + resource + ": " + trimmed);
+                        storeEntry(resource, currentKey, currentValue, rawValues, resourceByKey, keyOrder);
                     }
                     currentKey = trimmed.substring(1, trimmed.length() - 1).trim();
                     currentValue = new StringBuilder();
@@ -189,7 +188,7 @@ final class SqlTemplateRepository {
                 currentValue.append(line).append(System.lineSeparator());
             }
             if (currentKey != null) {
-                throw new IllegalStateException("SQL block was not terminated with ';' in " + resource + ": [" + currentKey + "]");
+                storeEntry(resource, currentKey, currentValue, rawValues, resourceByKey, keyOrder);
             }
         } catch (IOException e) {
             throw new IllegalStateException("Could not read SQL resource: " + resource, e);
