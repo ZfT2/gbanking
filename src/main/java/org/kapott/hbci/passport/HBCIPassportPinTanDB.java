@@ -122,7 +122,7 @@ public class HBCIPassportPinTanDB extends HBCIPassportPinTan {
 			
 			bankAccess.setBpdVersion(this.getBPDVersion());
 			bankAccess.setUpdVersion(this.getUPDVersion());
-			bankAccess.setUpd(this.getBPD());
+			bankAccess.setBpd(this.getBPD());
 			bankAccess.setUpd(this.getUPD());
 
 			bankAccess.setHbciVersion(this.getHBCIVersion());
@@ -134,8 +134,7 @@ public class HBCIPassportPinTanDB extends HBCIPassportPinTan {
 			setTANProcedure(bankAccess);
 
 			dbController.insertOrUpdate(bankAccess);
-//			dbController.insertPD("bpd", bankAccess);
-//			dbController.insertPD("upd", bankAccess); TODO
+			dbController.insertOrUpdatePD(bankAccess);
 
 		} catch (HBCI_Exception he) {
 			throw he;

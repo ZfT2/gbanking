@@ -41,6 +41,7 @@ import de.gbanking.db.dao.Category;
 import de.gbanking.db.dao.CategoryRule;
 import de.gbanking.db.dao.MoneyTransfer;
 import de.gbanking.db.dao.Recipient;
+import de.gbanking.db.dao.Setting;
 import de.gbanking.db.dao.enu.AccountState;
 import de.gbanking.db.dao.enu.BookingType;
 import de.gbanking.db.dao.enu.HbciEncodingFilterType;
@@ -533,6 +534,13 @@ public class GBankingBean extends BaseBean implements Serializable {
 		HBCIUtils.init(props, /* new HBCICallbackSwing() */ new GBankingHBCICallback(bankAccess));
 
 		HBCIUtils.setParam("client.passport.PinTan.init", "1");
+
+		Setting settingProductKey = dbController.getAll(Setting.class).stream().filter(setting -> "productKey".equals(setting.getAttribute())).findAny()
+				.orElse(null);
+		if (settingProductKey != null && settingProductKey.getValue() != null)
+			HBCIUtils.setParam("client.product.name", settingProductKey.getValue());
+		else
+			log.warn("Product-Key noch found!");
 
 		HBCIPassport passport = AbstractHBCIPassport.getInstance("PinTanDB", bankAccess.getBlz()); //getInstance("PinTanDB");
 		passport.setCountry("DE");
