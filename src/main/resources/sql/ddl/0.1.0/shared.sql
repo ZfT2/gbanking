@@ -1,0 +1,3 @@
+[SQL_FOREIGN_KEY_CHECKS_ON]
+PRAGMA foreign_keys = ON;
+;

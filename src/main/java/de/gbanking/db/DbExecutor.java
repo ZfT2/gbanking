@@ -422,6 +422,8 @@ public class DbExecutor extends DbConnectionHandler {
 		List<T> entityListDB = null;
 		
 		ResultSet rs = null;
+		// System.out.println("SQL:" + StatementsConfig.getSqlStatement(type,
+		// statementType));
 		try (PreparedStatement ps = connection.prepareStatement(StatementsConfig.getSqlStatement(type, statementType))){
 			
 			if (parentObjectId != null && parentObjectId > 0) {
