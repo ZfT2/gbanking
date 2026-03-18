@@ -46,3 +46,14 @@ SELECT id, category_id, account_id, updatedAt FROM categoryRule_bankAccount;
 
 [SQL_INSERT_CATEGORY_RULE_BANKACCOUNT]
 INSERT INTO categoryRule_bankAccount (category_id, account_id, updatedAt) VALUES (?, ?, ?);
+
+[SQL_UPDATE_CATEGORY]
+UPDATE category SET name = ?, parent_id = ?, updatedAt = ? WHERE id = ?;
+
+[SQL_UPDATE_CATEGORY_RULE]
+UPDATE categoryRule 
+SET category_id = ?, filterDateFrom = ?, filterDateTo = ?, filterAmountFrom = ?, filterAmountTo = ?, filterRecipient = ?, filterPurpose = ?, filterRecipientIsRegex = ?, filterPurposeIsRegex = ?, joinType = ?, updatedAt = ? 
+WHERE id = ?;
+
+[SQL_UPDATE_CATEGORY_RULE_BANKACCOUNT]
+UPDATE categoryRule_bankAccount SET category_id = ?, account_id = ?, updatedAt = ? WHERE id = ?;
