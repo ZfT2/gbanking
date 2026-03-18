@@ -33,6 +33,6 @@ final class BuildInfo {
 	}
 
 	private static boolean isValidProperty(String value) {
-		return value != null && !value.isBlank() && !value.contains("@project.version@") && value.contains("${project.version}");
+		return value != null && !value.isBlank() && !value.contains("@project.version@") && !value.contains("${project.version}");
 	}
 }
