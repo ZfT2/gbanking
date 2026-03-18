@@ -15,7 +15,7 @@ final class DbMigrationRunner {
 	private static final Logger log = LogManager.getLogger(DbMigrationRunner.class);
 	private static final String SETTING_SCHEMA_VERSION = "db.schema.version";
 	private static final String SETTING_LAST_APP_VERSION = "app.version.lastStarted";
-	private static final String SETTING_DATATYPE_STRING = "8";
+	private static final int SETTING_DATATYPE_STRING = 8;
 
 	private DbMigrationRunner() {
 	}
@@ -103,7 +103,7 @@ final class DbMigrationRunner {
 				""")) {
 			ps.setString(1, attribute);
 			ps.setString(2, value);
-			ps.setString(3, SETTING_DATATYPE_STRING);
+			ps.setInt(3, SETTING_DATATYPE_STRING);
 			ps.setString(4, comment);
 			ps.executeUpdate();
 		}

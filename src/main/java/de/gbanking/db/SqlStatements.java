@@ -97,17 +97,10 @@ public class SqlStatements {
     static final String SQL_SELECT_ID_INSTIUTE_BY_BLZ = dml("SQL_SELECT_ID_INSTIUTE_BY_BLZ");
     static final String SQL_INSERT_INSTIUTE = dml("SQL_INSERT_INSTIUTE");
     static final String SQL_UPDATE_INSTIUTE = dml("SQL_UPDATE_INSTIUTE");
-    static final String SQL_SETUP_DROP_VIEW_CATEGORY_FULL = dml("SQL_SETUP_DROP_VIEW_CATEGORY_FULL");
-    static final String SQL_SETUP_VIEW_CATEGORY_FULL = dml("SQL_SETUP_VIEW_CATEGORY_FULL");
     private static final String SETTING_FIELD_LIST = dml("SETTING_FIELD_LIST");
     static final String SQL_SELECT_ALL_SETTINGS = dml("SQL_SELECT_ALL_SETTINGS");
     static final String SQL_SELECT_ID_SETTING_BY_ID = dml("SQL_SELECT_ID_SETTING_BY_ID");
     static final String SQL_SELECT_ID_SETTING_BY_ATTRIBUTE = dml("SQL_SELECT_ID_SETTING_BY_ATTRIBUTE");
     static final String SQL_INSERT_SETTING = dml("SQL_INSERT_SETTING");
     static final String SQL_UPDATE_SETTING = dml("SQL_UPDATE_SETTING");
-    private static final String SQL_SELECT_PD = dml("SQL_SELECT_PD");
-    static final String SQL_SETUP_VIEW_BPD = dml("SQL_SETUP_VIEW_BPD");
-    static final String SQL_SETUP_VIEW_UPD = dml("SQL_SETUP_VIEW_UPD");
-    static final String SQL_SETUP_DROP_VIEW_BPD = dml("SQL_SETUP_DROP_VIEW_BPD");
-    static final String SQL_SETUP_DROP_VIEW_UPD = dml("SQL_SETUP_DROP_VIEW_UPD");
 }

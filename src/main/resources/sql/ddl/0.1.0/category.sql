@@ -1,17 +1,14 @@
 [SQL_SETUP_DROP_CATEGORY]
 DROP TABLE IF EXISTS category;
 
-;
+[SQL_SETUP_DROP_VIEW_CATEGORY_FULL]
+DROP VIEW IF EXISTS categoryFull;
 
 [SQL_SETUP_DROP_CATEGORY_RULE]
 DROP TABLE IF EXISTS categoryRule;
 
-;
-
 [SQL_SETUP_DROP_CATEGORY_RULE_BANKACCOUNT]
 DROP TABLE IF EXISTS categoryRule_bankAccount;
-
-;
 
 [SQL_SETUP_CREATE_CATEGORY]
 CREATE TABLE category (
@@ -20,8 +17,6 @@ CREATE TABLE category (
   parent_id INTEGER,
   updatedAt TEXT NOT NULL,
   FOREIGN KEY(parent_id) REFERENCES category(id) ON DELETE CASCADE);
-
-;
 
 [SQL_SETUP_CREATE_CATEGORY_RULE]
 CREATE TABLE categoryRule (
@@ -40,8 +35,6 @@ CREATE TABLE categoryRule (
   FOREIGN KEY(category_id) REFERENCES category(id) ON DELETE CASCADE,
   CHECK (joinType IN ("AND", "OR")));
 
-;
-
 [SQL_SETUP_CREATE_CATEGORY_RULE_BANKACCOUNT]
 CREATE TABLE categoryRule_bankAccount (
   id INTEGER PRIMARY KEY,
@@ -50,8 +43,6 @@ CREATE TABLE categoryRule_bankAccount (
   updatedAt TEXT NOT NULL,
   FOREIGN KEY(category_id) REFERENCES category(id) ON DELETE CASCADE,
   FOREIGN KEY(account_id) REFERENCES bankAccount(id) ON DELETE CASCADE);
-
-;
 
 [SQL_SETUP_VIEW_CATEGORY_FULL]
 CREATE VIEW categoryFull AS WITH RECURSIVE category_tree (id, parent_id, "singleName", name, updatedAt)  AS (
