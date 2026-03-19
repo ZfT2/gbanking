@@ -2,7 +2,7 @@ package de.gbanking.db.dao;
 
 import de.gbanking.db.dao.enu.ParameterDataType;
 
-public class Bpd extends ParameterDataBankAccess {
+public class Bpd extends ParameterDataBankAccess implements DaoView {
 
 	public Bpd() {
 		super(ParameterDataType.BPD);

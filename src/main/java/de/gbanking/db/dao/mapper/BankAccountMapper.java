@@ -17,8 +17,9 @@ import de.gbanking.db.dao.enu.Source;
 import de.gbanking.util.TypeConverter;
 
 public class BankAccountMapper extends AbstractDaoMapper<BankAccount, Void> {
-	
-	//private AbstractDaoMapper<?, ?> bookingMapper = StatementsConfig.getMapperForDaoType(Booking.class);
+
+	// private AbstractDaoMapper<?, ?> bookingMapper =
+	// StatementsConfig.getMapperForDaoType(Booking.class);
 
 	@Override
 	public void setParamsFull(BankAccount bankAccount, PreparedStatement ps) throws SQLException {
@@ -56,14 +57,14 @@ public class BankAccountMapper extends AbstractDaoMapper<BankAccount, Void> {
 		if (bankAccount.getId() > 0)
 			ps.setInt(24, bankAccount.getId());
 	}
-	
+
 	@Override
 	public <W> void setParamsForUpdateSimpleField(List<BankAccount> entitySet, Class<W> typeToUpdate, PreparedStatement ps) throws SQLException {
 		for (BankAccount bankAccount : entitySet) {
 			setParamsForUpdateSimpleField(bankAccount, typeToUpdate, ps);
 		}
 	}
-	
+
 	@Override
 	public <V> void setParamsForUpdateSimpleField(BankAccount bankAccount, Class<V> typeToUpdate, PreparedStatement ps) throws SQLException {
 
@@ -73,14 +74,15 @@ public class BankAccountMapper extends AbstractDaoMapper<BankAccount, Void> {
 			} else if (Booking.class.equals(typeToUpdate)) {
 				for (Booking booking : bankAccount.getBookings()) {
 					// StatementsQueryMapper.setBookingParamsSource(booking, ps);
-					//StatementsQueryMapper.setParamsForUpdateSimpleField(booking, typeToUpdate, ps);
+					// StatementsQueryMapper.setParamsForUpdateSimpleField(booking, typeToUpdate,
+					// ps);
 					AbstractDaoMapper<Booking, ?> mapper = StatementsConfig.getMapperForDaoType(booking.getClass());
 					mapper.setParamsForUpdateSimpleField(booking, typeToUpdate, ps);
 				}
 			}
 		}
 	}
-	
+
 	@Override
 	void setParamsForUpdateSource(BankAccount bankAccount, PreparedStatement ps) throws SQLException {
 		ps.setString(1, bankAccount.getSource().name());
@@ -91,8 +93,6 @@ public class BankAccountMapper extends AbstractDaoMapper<BankAccount, Void> {
 
 	@Override
 	public void mapDao(BankAccount account, ResultType resultType, ResultSet rs) throws SQLException {
-		super.mapDao(account, resultType, rs);
-
 		account.setBankAccessId(rs.getInt("bankAccess_id"));
 		account.setAccountName(rs.getString(SqlFields.ACCOUNT_ACCOUNTNAME));
 		account.setCurrency(rs.getString("currency"));

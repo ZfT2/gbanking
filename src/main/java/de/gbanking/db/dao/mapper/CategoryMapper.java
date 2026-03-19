@@ -20,7 +20,7 @@ public class CategoryMapper extends AbstractDaoMapper<Category, Void> {
 		if (category.getId() > 0)
 			ps.setInt(4, category.getId());
 	}
-	
+
 	@Override
 	public void setParamsFind(Category category, PreparedStatement ps) throws SQLException {
 		ps.setString(1, category.getName());
@@ -30,12 +30,13 @@ public class CategoryMapper extends AbstractDaoMapper<Category, Void> {
 
 	@Override
 	Category initResultDao(Class<Category> type, ResultSet rs) throws SQLException {
-		return new Category(rs.getString("name"));
+		Category category = new Category(rs.getString("name"));
+		initDefaultFields(category, rs);
+		return category;
 	}
 
 	@Override
 	void mapDao(Category category, ResultType resultType, ResultSet rs) throws SQLException {
-		super.mapDao(category, resultType, rs);
 
 		if (rs.getInt("parent_id") > 0) {
 			category.setParentId(rs.getInt("parent_id"));

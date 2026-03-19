@@ -5,6 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -12,8 +13,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.gbanking.db.SqlFields;
+import de.gbanking.db.StatementsConfig;
 import de.gbanking.db.StatementsConfig.ResultType;
 import de.gbanking.db.dao.Dao;
+import de.gbanking.db.dao.DaoView;
 import de.gbanking.exception.GBankingException;
 import de.gbanking.util.TypeConverter;
 
@@ -28,7 +31,13 @@ public abstract class AbstractDaoMapper<T extends Dao, V> {
 	public abstract void setParamsFull(T dao, PreparedStatement ps) throws SQLException;
 
 	public void setParamsFull(Set<T> entitySet, PreparedStatement ps) throws SQLException {
-		throw new GBankingException("setParamsFull(Set<T> entitySet, PreparedStatement ps): not implemented for type " + this.getClass().getName());
+		Iterator<T> entityIterator = entitySet.iterator();
+		while (entityIterator.hasNext()) {
+			T entity = entityIterator.next();
+			AbstractDaoMapper<T, ?> mapper = StatementsConfig.getMapperForDaoType(entity.getClass());
+			mapper.setParamsFull(entity, ps);
+			ps.addBatch();
+		}
 	}
 
 	public void setParamsFull(List<T> entitySet, PreparedStatement ps) throws SQLException {
@@ -71,33 +80,37 @@ public abstract class AbstractDaoMapper<T extends Dao, V> {
 	}
 
 	void mapDao(T dao, ResultType resultType, ResultSet rs) throws SQLException {
-		if (dao == null)
-			return;
-		dao.setId(rs.getInt("id"));
-		dao.setUpdatedAt((TypeConverter.toCalendarFromSqlDate(rs.getDate(SqlFields.DAO_UPDATEDAT))));
+		throw new GBankingException("mapDao(T dao, ResultType resultType, ResultSet rs): not implemented for type " + this.getClass().getName());
+//		if (dao == null)
+//			return;
+//		dao.setId(rs.getInt("id"));
+//		dao.setUpdatedAt((TypeConverter.toCalendarFromSqlDate(rs.getDate(SqlFields.DAO_UPDATEDAT))));
+	}
+
+	protected int setIntegerNullable(int index, Integer value, PreparedStatement ps) throws SQLException {
+		if (value != null && value <= 0)
+			value = null;
+		return setNullable(index, value, Types.INTEGER, ps);
 	}
 
 	protected int setBooleanNullable(int index, Boolean value, PreparedStatement ps) throws SQLException {
-		if (value == null)
-			ps.setNull(index++, Types.BOOLEAN);
-		else
-			ps.setBoolean(index++, value);
-		return index;
+		return setNullable(index, value, Types.BOOLEAN, ps);
 	}
 
 	protected int setDoubleNullable(int index, Double value, PreparedStatement ps) throws SQLException {
-		if (value == null)
-			ps.setNull(index++, Types.DOUBLE);
-		else
-			ps.setDouble(index++, value);
-		return index;
+		return setNullable(index, value, Types.DOUBLE, ps);
 	}
 
 	protected int setDateNullable(int index, Date value, PreparedStatement ps) throws SQLException {
+		return setNullable(index, value, Types.DATE, ps);
+	}
+
+	private int setNullable(int index, Object value, int type, PreparedStatement ps) throws SQLException {
 		if (value == null)
-			ps.setNull(index++, Types.DATE);
-		else
-			ps.setDate(index++, value);
+			ps.setNull(index++, type);
+		else {
+			ps.setObject(index++, value, type);
+		}
 		return index;
 	}
 
@@ -123,12 +136,20 @@ public abstract class AbstractDaoMapper<T extends Dao, V> {
 	}
 
 	T initResultDao(Class<T> type, ResultSet rs) throws SQLException {
+		T dao = null;
 		try {
-			return type.newInstance();
-		} catch (InstantiationException | IllegalAccessException e) {
-			e.printStackTrace();
+			dao = type.getDeclaredConstructor().newInstance();
+		} catch (ReflectiveOperationException e) {
+			throw new SQLException("Could not instantiate dao type: " + type.getName(), e);
 		}
-		return null;
+		initDefaultFields(dao, rs);
+		return dao;
+	}
+
+	void initDefaultFields(Dao dao, ResultSet rs) throws SQLException {
+		if (!(dao instanceof DaoView))
+			dao.setId(rs.getInt("id"));
+		dao.setUpdatedAt((TypeConverter.toCalendarFromSqlDate(rs.getDate(SqlFields.DAO_UPDATEDAT))));
 	}
 
 }

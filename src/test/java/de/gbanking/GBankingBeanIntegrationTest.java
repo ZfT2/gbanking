@@ -141,7 +141,7 @@ class GBankingBeanIntegrationTest {
 		account.setSource(Source.MANUELL);
 		bankAccess.setAccounts(List.of(account));
 
-		when(dbController.executeSimpleUpdate(bankAccess.getAccounts(), StatementsConfig.StatementType.UPDATE_ACCOUNT_SOURCE, null)).thenReturn(true);
+		when(dbController.executeSimpleUpdate(bankAccess.getAccounts(), StatementsConfig.StatementType.UPDATE_ACCOUNT_SOURCE, null) >= 0).thenReturn(true);
 		when(dbController.delete(bankAccess, null)).thenReturn(true);
 
 		boolean result = gBankingBean.deleteBankAccessFromDB(bankAccess);

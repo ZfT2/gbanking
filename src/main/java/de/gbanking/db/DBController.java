@@ -14,6 +14,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -21,7 +22,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.gbanking.db.StatementsConfig.ResultType;
-import de.gbanking.db.StatementsConfig.StatementType;
 import de.gbanking.db.dao.BankAccess;
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.Booking;
@@ -70,40 +70,40 @@ public class DBController extends DbExecutor {
 	}
 	
 	public boolean insertAccountBookings(Collection<Booking> bookingList) {
-
-		boolean result = true;
-
-		for (Booking booking : bookingList) {
-			booking = executeInsertUpdateStatement(StatementType.INSERT, booking);
-
-			result = result && booking.getId() > 0;
+		if (bookingList == null || bookingList.isEmpty()) {
+			return false;
 		}
-		
-		return result;
-		
+
+		Set<Booking> bookingListDb = insertAll(new HashSet<>(bookingList));
+		return bookingListDb.stream().allMatch(booking -> booking.getId() > 0);
 	}
 	
 	public Booking findCrossBooking(Booking booking) {
-		
+		if (booking == null || booking.getRecipient() == null) {
+			return null;
+		}
+
 		Booking crossBooking = null;
 
 		try (PreparedStatement ps = connection.prepareStatement(SQL_FIND_CROSS_BOOKINGS_FULL)) {
 			ps.setString(1, booking.getRecipient().getIban());
 			ps.setString(2, booking.getRecipient().getAccountNumber());
-			ps.setLong(3, booking.getAmount().longValue() * -1);
+			ps.setBigDecimal(3, booking.getAmount().negate());
 			ps.setDate(4, new java.sql.Date(booking.getDateBooking().getTime().getTime()));
-			
-			ResultSet rs = ps.executeQuery();
-			if (!rs.isBeforeFirst() ) {   
-				return null;
+
+			try (ResultSet rs = ps.executeQuery()) {
+				if (!rs.isBeforeFirst()) {
+					return null;
+				}
+
+				while (rs.next()) {
+					crossBooking = (Booking) StatementsResultMapper.toDao(Booking.class, rs, ResultType.FULL);
+				}
 			}
-			while (rs.next()) {
-				crossBooking = (Booking) StatementsResultMapper.toDao(Booking.class, rs, ResultType.FULL);
-			}
-			rs.close();
 		} catch (SQLException e) {
 			log.error(messages.getMessage(SqlErrors.ERROR_DB_FIND), e);
 		}
+
 		return crossBooking;
 	}
 

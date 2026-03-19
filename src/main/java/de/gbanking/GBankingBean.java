@@ -135,7 +135,7 @@ public class GBankingBean extends BaseBean implements Serializable {
 			account.setSource(Source.MANUELL);
 		}
 		
-		result &= dbController.executeSimpleUpdate(bankAccess.getAccounts(), StatementsConfig.StatementType.UPDATE_ACCOUNT_SOURCE, null);
+		result &= dbController.executeSimpleUpdate(bankAccess.getAccounts(), StatementsConfig.StatementType.UPDATE_ACCOUNT_SOURCE, null) >= 0;
 		result &= dbController.delete(bankAccess, StatementsConfig.StatementType.DELETE_BANKACCESS_BY_BLZ);
 		
 		return result;

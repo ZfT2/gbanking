@@ -2,7 +2,7 @@ package de.gbanking.db.dao;
 
 import de.gbanking.db.dao.enu.ParameterDataType;
 
-public class Upd extends ParameterDataBankAccess {
+public class Upd extends ParameterDataBankAccess implements DaoView {
 
 	public Upd() {
 		super(ParameterDataType.UPD);

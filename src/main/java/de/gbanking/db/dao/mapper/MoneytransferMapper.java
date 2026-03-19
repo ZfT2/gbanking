@@ -35,7 +35,6 @@ public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> 
 
 	@Override
 	public void mapDao(MoneyTransfer moneytransfer, ResultType resultType, ResultSet rs) throws SQLException {
-		super.mapDao(moneytransfer, resultType, rs);
 		moneytransfer.setAccountId(rs.getInt(SqlFields.ACCOUNT_ACCOUNTID));
 		moneytransfer.setOrderType(OrderType.valueOf(rs.getString("moneytransferType")));
 		moneytransfer.setRecipientId(rs.getInt("recipient_id"));

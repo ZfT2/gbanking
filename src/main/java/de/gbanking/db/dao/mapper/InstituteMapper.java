@@ -41,7 +41,7 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 		index = setDateNullable(index, TypeConverter.toSqlDateShort(institute.getLastChanged()), ps);
 		ps.setInt(index++, institute.getStateType().getDbStateId());
 		ps.setDate(index++, TypeConverter.toSqlDateNow());
-		
+
 		if (institute.getId() > 0) {
 			ps.setInt(index, institute.getId());
 		}
@@ -50,7 +50,6 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 
 	@Override
 	public void mapDao(Institute institute, ResultType resultType, ResultSet rs) throws SQLException {
-		super.mapDao(institute, resultType, rs);
 		institute.setImportNumber(rs.getInt("importNumber"));
 		institute.setBlz(rs.getString("blz"));
 		institute.setBic(rs.getString("bic"));
@@ -62,7 +61,7 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 		institute.setHbciIp(rs.getString("hbciIp"));
 		institute.setHbciVersion(getDoubleNullable("hbciVersion", rs));
 		institute.setDdv(rs.getString("ddv"));
-		
+
 		institute.setRdh1(getBooleanNullable("rdh1", rs));
 		institute.setRdh2(getBooleanNullable("rdh2", rs));
 		institute.setRdh3(getBooleanNullable("rdh3", rs));
@@ -73,7 +72,7 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 		institute.setRdh8(getBooleanNullable("rdh8", rs));
 		institute.setRdh9(getBooleanNullable("rdh9", rs));
 		institute.setRdh10(getBooleanNullable("rdh10", rs));
-		
+
 		institute.setPinUrl(rs.getString("pinUrl"));
 		institute.setVersion(rs.getString("version"));
 		institute.setLastChanged(TypeConverter.toCalendarFromSqlDate(rs.getDate("lastChanged")));

@@ -119,10 +119,9 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		booking01.setSource(Source.MANUELL);
 		booking02.setSource(Source.MANUELL);
 
-		//boolean result = db.updateBookingsSource(acc01);
-		boolean result = db.executeSimpleUpdate(Arrays.asList(acc01), StatementsConfig.StatementType.UPDATE_BOOKING_SOURCE, Booking.class);
+		int result = db.executeSimpleUpdate(Arrays.asList(acc01), StatementsConfig.StatementType.UPDATE_BOOKING_SOURCE, Booking.class);
 
-		assertTrue(result);
+		assertTrue(result >= 0);
 
 		assertEquals(Source.MANUELL, booking01.getSource());
 		assertEquals(Source.MANUELL, booking02.getSource());
@@ -153,9 +152,9 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		booking02.setSource(Source.MANUELL);
 		booking03.setSource(Source.MANUELL);
 
-		boolean result = db.executeSimpleUpdate(Arrays.asList(acc01), StatementsConfig.StatementType.UPDATE_BOOKING_SOURCE, Booking.class);
+		int result = db.executeSimpleUpdate(Arrays.asList(acc01), StatementsConfig.StatementType.UPDATE_BOOKING_SOURCE, Booking.class);
 
-		assertTrue(result);
+		assertTrue(result >= 0);
 
 		assertEquals(Source.MANUELL, booking01.getSource());
 		assertEquals(Source.MANUELL, booking02.getSource());

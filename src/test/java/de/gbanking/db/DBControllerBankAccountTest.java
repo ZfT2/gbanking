@@ -41,7 +41,7 @@ class DBControllerBankAccountTest extends DBControllerIntegrationBaseTest {
 		acc02.setSource(Source.MANUELL);
 
 		// boolean result = db.updateAccountsSource(Arrays.asList(acc01, acc02));
-		boolean result = db.executeSimpleUpdate(Arrays.asList(acc01, acc02), StatementsConfig.StatementType.UPDATE_ACCOUNT_SOURCE, null);
+		boolean result = db.executeSimpleUpdate(Arrays.asList(acc01, acc02), StatementsConfig.StatementType.UPDATE_ACCOUNT_SOURCE, null) >= 0;
 
 		assertTrue(result);
 

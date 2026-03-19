@@ -45,7 +45,6 @@ public class RecipientMapper extends AbstractDaoMapper<Recipient, Void> {
 
 	@Override
 	public void mapDao(Recipient recipient, ResultType resultType, ResultSet rs) throws SQLException {
-		super.mapDao(recipient, resultType, rs);
 		recipient.setName(rs.getString("name"));
 		recipient.setIban(rs.getString("iban"));
 		recipient.setAccountNumber(rs.getString("accountNumber"));

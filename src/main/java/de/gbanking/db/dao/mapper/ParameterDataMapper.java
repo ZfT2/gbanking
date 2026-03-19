@@ -3,8 +3,6 @@ package de.gbanking.db.dao.mapper;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Iterator;
-import java.util.Set;
 
 import de.gbanking.db.StatementsConfig.ResultType;
 import de.gbanking.db.dao.ParameterData;
@@ -21,18 +19,7 @@ public class ParameterDataMapper extends AbstractDaoMapper<ParameterData, Void> 
 	}
 
 	@Override
-	public void setParamsFull(Set<ParameterData> entitySet, PreparedStatement ps) throws SQLException {
-		Iterator<ParameterData> parameterDataIterator = entitySet.iterator();
-		while (parameterDataIterator.hasNext()) {
-			ParameterData parameterData = parameterDataIterator.next();
-			setParamsFull(parameterData, ps);
-			ps.addBatch();
-		}
-	}
-
-	@Override
 	public void mapDao(ParameterData pd, ResultType resultType, ResultSet rs) throws SQLException {
-		super.mapDao(pd, resultType, rs);
 		pd.setPdKey(rs.getString("pdKey"));
 		ParameterDataType typ = ParameterDataType.valueOf(rs.getString("pdType"));
 		pd.setPdType(typ);

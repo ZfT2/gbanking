@@ -43,7 +43,6 @@ public class BankAccessMapper extends AbstractDaoMapper<BankAccess, Void> {
 
 	@Override
 	public void mapDao(BankAccess access, ResultType resultType, ResultSet rs) throws SQLException {
-		super.mapDao(access, resultType, rs);
 		access.setBankName(rs.getString(SqlFields.BANKNAME));
 		access.setCountry(rs.getString("country"));
 		access.setBlz(rs.getString("blz"));

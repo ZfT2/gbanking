@@ -135,14 +135,10 @@ public class DbExecutor extends DbConnectionHandler {
 		return executeSqlDeleteStatement(sql,  entity) > 0;
 	}
 
-	public boolean executeSimpleUpdate(List<? extends Dao> daoList, StatementType statementType, Class<? extends Dao> typeToUpdate) {
-
-		boolean result = true;
+	public int executeSimpleUpdate(List<? extends Dao> daoList, StatementType statementType, Class<? extends Dao> typeToUpdate) {
 
 		String sql = StatementsConfig.getSqlStatement(typeToUpdate != null ? typeToUpdate : detectListType(daoList), statementType);
-		executeSqlUpdateStatementForList(sql, statementType, typeToUpdate, daoList);
-
-		return result;
+		return executeSqlUpdateStatementForList(sql, statementType, typeToUpdate, daoList);
 	}
 
 	public <T extends Dao> void setStatementParamsUpdateList(List<T> daoList, PreparedStatement ps) throws SQLException {
@@ -300,24 +296,31 @@ public class DbExecutor extends DbConnectionHandler {
 
 	/** replacement for executePreparedStatement?? **/
 	protected <T extends Dao> T executeInsertUpdateStatement(StatementType statementType, T entity) {
-
 		String sql = StatementsConfig.getSqlStatement(entity.getClass(), statementType);
 		SQLMode mode = statementType.getSqlMode();
-		
-		try (PreparedStatement ps = connection.prepareStatement(sql)) {
+
+		Boolean oldAutoCommit = null;
+		boolean needsGeneratedKeys = mode == SQLMode.INSERT || mode == SQLMode.INSERT_BATCH;
+		try (PreparedStatement ps = needsGeneratedKeys ? connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS) : connection.prepareStatement(sql)) {
+			oldAutoCommit = connection.getAutoCommit();
 
 			mapStatementParams(statementType, entity, null, ps);
 
 			connection.setAutoCommit(false);
 			int affectedRows = 0;
 			if (mode == SQLMode.INSERT_BATCH) {
-				ps.executeBatch();
+				int[] batchResult = ps.executeBatch();
+				for (int count : batchResult) {
+					if (count > 0) {
+						affectedRows += count;
+					}
+				}
 			} else {
 				affectedRows = ps.executeUpdate();
 			}
-			connection.setAutoCommit(true);
+			connection.commit();
 
-			if (mode != SQLMode.UPDATE && mode != SQLMode.DELETE) {
+			if (needsGeneratedKeys) {
 				try (ResultSet generatedKeys = ps.getGeneratedKeys()) {
 					if (generatedKeys.next()) {
 						entity.setId(generatedKeys.getInt(1));
@@ -325,13 +328,29 @@ public class DbExecutor extends DbConnectionHandler {
 						throw new SQLException(messages.getFormattedMessage(SqlErrors.ERROR_DB_NO_ID, entity.getClass().getName()));
 					}
 				}
-			} else /** if (mode == SQLMode.DELETE) **/
-			{
+			} else {
 				log.info("{} for {}, count: {}", mode, entity.getClass().getName(), affectedRows);
 			}
+
 		} catch (SQLException e) {
+			try {
+				connection.rollback();
+			} catch (SQLException rollbackException) {
+				log.error(messages.getFormattedMessage(MessageConstants.ERROR_GENERAL, rollbackException.getMessage()), rollbackException);
+			}
+
 			log.error(messages.getFormattedMessage(mode == SQLMode.UPDATE ? SqlErrors.ERROR_DB_UPDATE : SqlErrors.ERROR_DB_INSERT, entity.getId()), e);
+
+		} finally {
+			if (oldAutoCommit != null) {
+				try {
+					connection.setAutoCommit(oldAutoCommit);
+				} catch (SQLException e) {
+					log.error(messages.getFormattedMessage(MessageConstants.ERROR_GENERAL, e.getMessage()), e);
+				}
+			}
 		}
+
 		return entity;
 	}
 
@@ -493,7 +512,8 @@ public class DbExecutor extends DbConnectionHandler {
 
 		if (type.equals(Boolean.class) && isNullResult(rs, resultField)) {
 			return type.cast(false);
-		}
+		} else if (rs == null)
+			return null;
 
 		Class<?> rsType = type.equals(Calendar.class) ? java.sql.Date.class : type;
 

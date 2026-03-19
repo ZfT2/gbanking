@@ -3,9 +3,7 @@ package de.gbanking.db.dao.mapper;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 
 import de.gbanking.db.SqlFields;
 import de.gbanking.db.StatementsConfig.ResultType;
@@ -27,16 +25,6 @@ public class ParameterDataBankAccessMapper extends AbstractDaoMapper<ParameterDa
 		ps.setInt(2, parameterDataBankAccess.getParameterDataId());
 		ps.setString(3, parameterDataBankAccess.getPdValue());
 		ps.setDate(4, TypeConverter.toSqlDateNow());
-	}
-
-	@Override
-	public void setParamsFull(Set<ParameterDataBankAccess> entitySet, PreparedStatement ps) throws SQLException {
-		Iterator<ParameterDataBankAccess> parameterDataBankAccessIterator = entitySet.iterator();
-		while (parameterDataBankAccessIterator.hasNext()) {
-			ParameterDataBankAccess parameterDataBankAccess = parameterDataBankAccessIterator.next();
-			setParamsFull(parameterDataBankAccess, ps);
-			ps.addBatch();
-		}
 	}
 
 	@Override
@@ -75,9 +63,6 @@ public class ParameterDataBankAccessMapper extends AbstractDaoMapper<ParameterDa
 	public void setParamsDelete(ParameterDataBankAccess parameterDataBankAccess, PreparedStatement ps) throws SQLException {
 		ps.setString(1, parameterDataBankAccess.getPdType().name());
 		ps.setInt(2, parameterDataBankAccess.getBankAccessId());
-
-//		ps.setString(1, typ.name());
-//		ps.setInt(2, bankAccess.getId());
 	}
 
 	@Override

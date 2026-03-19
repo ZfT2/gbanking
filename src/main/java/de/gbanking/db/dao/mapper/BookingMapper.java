@@ -4,14 +4,10 @@ import java.math.RoundingMode;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Types;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 
 import de.fp32xmlextract.data.Booking.SepaTyp;
 import de.gbanking.db.SqlFields;
-import de.gbanking.db.StatementsConfig;
 import de.gbanking.db.StatementsConfig.ResultType;
 import de.gbanking.db.dao.Booking;
 import de.gbanking.db.dao.Category;
@@ -42,24 +38,12 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 		ps.setString(index++, booking.getBookingType() != null ? booking.getBookingType().name() : null);
 		ps.setString(index++, booking.getSource().name());
 
-		if (booking.getCrossAccountId() != null) {
-			ps.setInt(index, booking.getCrossAccountId());
-		} else {
-			ps.setNull(index, Types.INTEGER);
-		}
-		index++;
-		if (booking.getRecipientId() > 0) {
-			ps.setInt(index, booking.getRecipientId());
-		}
-		index++;
-		if (booking.getCategory() != null && booking.getCategory().getId() > 0) {
-			ps.setInt(index, booking.getCategory().getId());
-		}
-		index++;
-		if (booking.getCrossBookingId() != null) {
-			ps.setInt(index, booking.getCrossBookingId());
-		}
-		index++;
+		index = setIntegerNullable(index, booking.getCrossAccountId(), ps);
+		index = setIntegerNullable(index, booking.getRecipientId(), ps);
+		Integer categoryId = booking.getCategory() != null ? booking.getCategory().getId() : null;
+		index = setIntegerNullable(index, categoryId, ps);
+		index = setIntegerNullable(index, booking.getCrossBookingId(), ps);
+
 		ps.setDate(index++, TypeConverter.toSqlDateNow());
 		if (booking.getId() > 0)
 			ps.setInt(index, booking.getId());
@@ -89,24 +73,7 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 	}
 
 	@Override
-	public void setParamsFull(Set<Booking> entitySet, PreparedStatement ps) throws SQLException {
-		Iterator<Booking> parameterDataBookingIterator = entitySet.iterator();
-		while (parameterDataBookingIterator.hasNext()) {
-			Booking booking = parameterDataBookingIterator.next();
-			AbstractDaoMapper<Booking, ?> mapper = StatementsConfig.getMapperForDaoType(booking.getClass());
-			mapper.setParamsFull(booking, ps);
-			ps.addBatch();
-		}
-	}
-
-//	@Override
-//	public void mapDao(Booking booking, ResultSet rs) throws SQLException {
-//		booking = null;
-//	}
-
-	@Override
 	public void mapDao(Booking booking, ResultType resultType, ResultSet rs) throws SQLException {
-		super.mapDao(booking, resultType, rs);
 		booking.setAccountId(rs.getInt(SqlFields.ACCOUNT_ACCOUNTID));
 		booking.setBookingType(rs.getString(SqlFields.BOOKING_BOOKINGTYPE) != null ? BookingType.valueOf(rs.getString(SqlFields.BOOKING_BOOKINGTYPE)) : null);
 		booking.setSource(Source.valueOf(rs.getString("bookingSource")));

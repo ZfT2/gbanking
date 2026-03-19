@@ -3,23 +3,12 @@ package de.gbanking.db.dao.mapper;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Set;
 
 import de.gbanking.db.StatementsConfig.ResultType;
 import de.gbanking.db.dao.BusinessCase;
 import de.gbanking.util.TypeConverter;
 
 public class BusinessCaseMapper extends AbstractDaoMapper<BusinessCase, Void> {
-
-	@Override
-	public void setParamsFull(Set<BusinessCase> businessCaseList, PreparedStatement ps) throws SQLException {
-		// TODO document why this method is empty
-
-		for (BusinessCase businessCaseNew : businessCaseList) {
-			setParamsFull(businessCaseNew, ps);
-			ps.addBatch();
-		}
-	}
 
 	@Override
 	public void setParamsFull(BusinessCase businessCase, PreparedStatement ps) throws SQLException {
@@ -29,7 +18,6 @@ public class BusinessCaseMapper extends AbstractDaoMapper<BusinessCase, Void> {
 
 	@Override
 	public void mapDao(BusinessCase businessCase, ResultType resultType, ResultSet rs) throws SQLException {
-		super.mapDao(businessCase, resultType, rs);
 		businessCase.setCaseValue(rs.getString("caseValue"));
 	}
 
