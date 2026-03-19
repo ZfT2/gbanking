@@ -87,11 +87,8 @@ public class StatementsLogicDefault<T extends Dao, V> extends DbExecutor impleme
 	@Override
 	public Set<T> insertAll(Set<T> entityList) {
 
-		StatementType statementType = null;
-		statementType = getStatementTypeForInsertOrUpdate(entityList.iterator().next());
-
 		for (T entity : entityList) {
-			executeInsertUpdateStatement(statementType, entity);
+			insertOrUpdateSingle(entity);
 		}
 
 		return entityList;
