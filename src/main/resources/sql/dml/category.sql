@@ -23,37 +23,14 @@ ${SQL_SELECT_CATEGORY_RECURSIVE_WITH} SELECT id, parent_id, singleName as name, 
 [SQL_SELECT_CATEGORY_FULL_BY_NAME]
 ${SQL_SELECT_ALL_CATEGORIES_FULL} WHERE name like ?;
 
-[SQL_INSERT_CATEGORY]
-INSERT INTO category (name, parent_id, updatedAt) VALUES (?, ?, ?);
-
 [SQL_SELECT_ID_CATEGORY_BY_NAME]
 SELECT id FROM category WHERE name = ?;
 
-[SQL_DELETE_CATEGORY]
-DELETE FROM category WHERE id = ?;
-
-[SQL_SELECT_ID_CATEGORY_RULE]
-SELECT id FROM categoryRule WHERE id = ?;
-
-[SQL_SELECT_ALL_CATEGORY_RULE]
-SELECT id, category_id, filterDateFrom, filterDateTo, filterAmountFrom, filterAmountTo, filterRecipient, filterPurpose, filterRecipientIsRegex, filterPurposeIsRegex, joinType, updatedAt FROM categoryRule;
-
-[SQL_INSERT_CATEGORY_RULE]
-INSERT INTO categoryRule (category_id, filterDateFrom, filterDateTo, filterAmountFrom, filterAmountTo, filterRecipient, filterPurpose, filterRecipientIsRegex, filterPurposeIsRegex, joinType, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-
-[SQL_SELECT_ALL_CATEGORY_RULE_BANKACCOUNT]
-SELECT id, category_id, account_id, updatedAt FROM categoryRule_bankAccount;
-
-[SQL_INSERT_CATEGORY_RULE_BANKACCOUNT]
-INSERT INTO categoryRule_bankAccount (category_id, account_id, updatedAt) VALUES (?, ?, ?);
+[SQL_INSERT_CATEGORY]
+INSERT INTO category (name, parent_id, updatedAt) VALUES (?, ?, ?);
 
 [SQL_UPDATE_CATEGORY]
 UPDATE category SET name = ?, parent_id = ?, updatedAt = ? WHERE id = ?;
 
-[SQL_UPDATE_CATEGORY_RULE]
-UPDATE categoryRule 
-SET category_id = ?, filterDateFrom = ?, filterDateTo = ?, filterAmountFrom = ?, filterAmountTo = ?, filterRecipient = ?, filterPurpose = ?, filterRecipientIsRegex = ?, filterPurposeIsRegex = ?, joinType = ?, updatedAt = ? 
-WHERE id = ?;
-
-[SQL_UPDATE_CATEGORY_RULE_BANKACCOUNT]
-UPDATE categoryRule_bankAccount SET category_id = ?, account_id = ?, updatedAt = ? WHERE id = ?;
+[SQL_DELETE_CATEGORY]
+DELETE FROM category WHERE id = ?;

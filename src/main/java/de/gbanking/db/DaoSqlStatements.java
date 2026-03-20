@@ -7,8 +7,8 @@ import static de.gbanking.db.SqlStatements.SQL_INSERT_BANKACCESS;
 import static de.gbanking.db.SqlStatements.SQL_INSERT_BANKACCOUNT;
 import static de.gbanking.db.SqlStatements.SQL_INSERT_BOOKING;
 import static de.gbanking.db.SqlStatements.SQL_INSERT_CATEGORY;
-import static de.gbanking.db.SqlStatements.SQL_INSERT_CATEGORY_RULE;
-import static de.gbanking.db.SqlStatements.SQL_INSERT_CATEGORY_RULE_BANKACCOUNT;
+import static de.gbanking.db.SqlStatements.SQL_INSERT_CATEGORYRULE;
+import static de.gbanking.db.SqlStatements.SQL_INSERT_CATEGORYRULE_BANKACCOUNT;
 import static de.gbanking.db.SqlStatements.SQL_INSERT_INSTIUTE;
 import static de.gbanking.db.SqlStatements.SQL_INSERT_MONEYTRANSFER;
 import static de.gbanking.db.SqlStatements.SQL_INSERT_PARAMETERDATA;
@@ -23,6 +23,7 @@ import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_BPD_OR_UPD;
 import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_BUSINESSCASES;
 import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_BUSINESSCASES_BY_BANKACCOUNT;
 import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_CATEGORIES_FULL;
+import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_CATEGORYRULES;
 import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_INSTITUTES;
 import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_MONEYTRANSFERS_WITH_RECIPIENTS_BY_ACCOUNT;
 import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_MONEYTRANSFERS_WITH_RECIPIENTS_BY_ACCOUNT_AND_STATE;
@@ -34,8 +35,8 @@ import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_RECIPIENTS_WITH_NAME_I
 import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_SETTINGS;
 import static de.gbanking.db.SqlStatements.SQL_SELECT_ID_BANKACCESS_BY_BLZ;
 import static de.gbanking.db.SqlStatements.SQL_SELECT_ID_BANKACCOUNT_BY_IBAN_OR_NUMBER;
+import static de.gbanking.db.SqlStatements.SQL_SELECT_ID_CATEGORYRULE;
 import static de.gbanking.db.SqlStatements.SQL_SELECT_ID_CATEGORY_BY_NAME;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ID_CATEGORY_RULE;
 import static de.gbanking.db.SqlStatements.SQL_SELECT_ID_INSTIUTE_BY_ID;
 import static de.gbanking.db.SqlStatements.SQL_SELECT_ID_MONEYTRANSFER_BY_ID_AND_ACCOUNT_ID;
 import static de.gbanking.db.SqlStatements.SQL_SELECT_ID_SETTING_BY_ID;
@@ -44,7 +45,7 @@ import static de.gbanking.db.SqlStatements.SQL_UPDATE_BANKACCESS;
 import static de.gbanking.db.SqlStatements.SQL_UPDATE_BANKACCOUNT;
 import static de.gbanking.db.SqlStatements.SQL_UPDATE_BOOKING;
 import static de.gbanking.db.SqlStatements.SQL_UPDATE_CATEGORY;
-import static de.gbanking.db.SqlStatements.SQL_UPDATE_CATEGORY_RULE;
+import static de.gbanking.db.SqlStatements.SQL_UPDATE_CATEGORYRULE;
 import static de.gbanking.db.SqlStatements.SQL_UPDATE_INSTIUTE;
 import static de.gbanking.db.SqlStatements.SQL_UPDATE_MONEYTRANSFER;
 import static de.gbanking.db.SqlStatements.SQL_UPDATE_RECIPIENT_IF_NOT_REFERENCED;
@@ -99,9 +100,8 @@ class DaoSqlStatements {
 	);
 
 	static final Map<StatementType, String> CATEGORY_RULE_SQL = Map.of(
-	        StatementType.SELECT_ID, SQL_SELECT_ID_CATEGORY_RULE,
-	        StatementType.INSERT, SQL_INSERT_CATEGORY_RULE,
-	        StatementType.UPDATE, SQL_UPDATE_CATEGORY_RULE
+			StatementType.SELECT_ID, SQL_SELECT_ID_CATEGORYRULE, StatementType.SELECT_ALL, SQL_SELECT_ALL_CATEGORYRULES, StatementType.INSERT,
+			SQL_INSERT_CATEGORYRULE, StatementType.UPDATE, SQL_UPDATE_CATEGORYRULE
 	);
 
 	static final Map<StatementType, String> MONEY_TRANSFER_SQL = Map.of(
@@ -162,7 +162,7 @@ class DaoSqlStatements {
 	);
 
 	static final Map<StatementType, String> MN_DAO_SQL = Map.of(
-	        StatementType.INSERT, SQL_INSERT_CATEGORY_RULE_BANKACCOUNT
+			StatementType.INSERT, SQL_INSERT_CATEGORYRULE_BANKACCOUNT
 	);
 	
 }

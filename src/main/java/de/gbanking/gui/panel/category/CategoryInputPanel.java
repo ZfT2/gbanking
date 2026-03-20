@@ -1,5 +1,7 @@
 package de.gbanking.gui.panel.category;
 
+import java.util.Arrays;
+
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -12,7 +14,6 @@ import de.gbanking.gui.panel.overview.CategoryOverviewPanel;
 import javafx.collections.FXCollections;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
@@ -23,17 +24,10 @@ public class CategoryInputPanel extends AbstractTitledFormPanel {
 
 	private final CategoryOverviewPanel parentPanel;
 
-	private final ComboBox<Category> subCategoryName = new ComboBox<>();
 	private final TextField categoryName = new TextField();
-	private final TextField filterDateFrom = new TextField();
-	private final TextField filterDateTo = new TextField();
-	private final TextField filterAmountFrom = new TextField();
-	private final TextField filterAmountTo = new TextField();
-	private final TextField filterRecipient = new TextField();
-	private final TextField filterPurpose = new TextField();
+	private final ComboBox<Category> parentCategoryCombo = new ComboBox<>();
+	private final ComboBox<Source> sourceCombo = new ComboBox<>();
 	private final TextField updatedAtText = new TextField();
-	private final CheckBox filterRecipientRegexCheckbox = new CheckBox();
-	private final CheckBox filterPurposeRegexCheckbox = new CheckBox();
 	private final Button buttonSubmit = new Button();
 
 	private Category selectedCategory;
@@ -45,7 +39,10 @@ public class CategoryInputPanel extends AbstractTitledFormPanel {
 	}
 
 	private void createCategoryInputPanel() {
-		subCategoryName.setItems(FXCollections.observableArrayList(dbController.getAll(Category.class)));
+		refreshCategoryChoices();
+		sourceCombo.setItems(FXCollections.observableArrayList(Arrays.stream(Source.values()).filter(source -> !source.isNew()).toList()));
+		sourceCombo.setValue(Source.MANUELL);
+		sourceCombo.setDisable(true);
 		updatedAtText.setEditable(false);
 
 		Button buttonNew = new Button(getText("UI_BUTTON_NEW"));
@@ -53,72 +50,79 @@ public class CategoryInputPanel extends AbstractTitledFormPanel {
 		Button buttonDelete = new Button(getText("UI_BUTTON_DELETE"));
 		Button buttonCancel = new Button(getText("UI_BUTTON_CANCEL"));
 
-		buttonNew.setOnAction(e -> resetTextFields());
-		buttonSubmit.setOnAction(e -> saveCategory());
-		buttonDelete.setOnAction(e -> deleteCategory());
-		buttonCancel.setOnAction(e -> resetTextFields());
+		buttonNew.setOnAction(event -> resetTextFields());
+		buttonSubmit.setOnAction(event -> saveCategory());
+		buttonDelete.setOnAction(event -> deleteCategory());
+		buttonCancel.setOnAction(event -> resetTextFields());
 
 		addFieldAbove("UI_LABEL_CATEGORY_NAME", categoryName, 0, 0);
-		addFieldAbove("UI_LABEL_SUBCATEGORY", subCategoryName, 1, 0);
-		addFieldAbove("UI_LABEL_DATE_FROM", filterDateFrom, 0, 1);
-		addFieldAbove("UI_LABEL_DATE_TO", filterDateTo, 1, 1);
-		addFieldAbove("UI_LABEL_AMOUNT_FROM", filterAmountFrom, 0, 2);
-		addFieldAbove("UI_LABEL_AMOUNT_TO", filterAmountTo, 1, 2);
-		addFieldAbove("UI_LABEL_REGEX", filterRecipientRegexCheckbox, 2, 2);
-		addFieldAbove("UI_LABEL_RECIPIENT", filterRecipient, 1, 3);
-		addFieldAbove("UI_LABEL_REGEX", filterPurposeRegexCheckbox, 2, 3);
-		addFieldAbove("UI_LABEL_PURPOSE", filterPurpose, 1, 4);
-		addFieldAbove("UI_LABEL_UPDATED_AT", updatedAtText, 2, 4);
+		addFieldAbove("UI_LABEL_PARENT_CATEGORY", parentCategoryCombo, 1, 0);
+		addFieldAbove("UI_LABEL_SOURCE", sourceCombo, 2, 0);
+		addFieldAbove("UI_LABEL_UPDATED_AT", updatedAtText, 0, 1);
 
 		HBox buttonBar = new HBox(10, buttonNew, buttonSubmit, buttonDelete, buttonCancel);
 		addContentNode(buttonBar);
 	}
 
 	private void saveCategory() {
-		if (categoryName.getText().isBlank() && (filterDateFrom.getText().isBlank() || filterDateTo.getText().isBlank() || filterAmountFrom.getText().isBlank()
-				|| filterAmountTo.getText().isBlank() || filterRecipient.getText().isBlank() || filterPurpose.getText().isBlank())) {
+		String trimmedCategoryName = categoryName.getText() != null ? categoryName.getText().trim() : "";
+		if (trimmedCategoryName.isBlank()) {
 			new Alert(Alert.AlertType.WARNING, getText("ALERT_CATEGORY_REQUIRED_FIELD_MISSING")).showAndWait();
 			return;
 		}
 
-		Category category = new Category(categoryName.getText());
-		category.setSource(Source.MANUELL);
+		Category category = selectedCategory != null ? selectedCategory : new Category(trimmedCategoryName, null);
+		category.setName(trimmedCategoryName);
+		category.setParentId(parentCategoryCombo.getValue() != null ? parentCategoryCombo.getValue().getId() : null);
 		bean.saveCategoryToDB(category);
-		parentPanel.getCategoryListPanel().refresh();
+
+		parentPanel.getCategoryListPanel().reload();
+		parentPanel.getCategoryRuleInputPanel().updatePanelFieldValues((BankAccount) null);
+		refreshCategoryChoices();
+		resetTextFields();
 	}
 
 	private void deleteCategory() {
-		if (selectedCategory != null) {
-			bean.deleteCategoryFromDB(selectedCategory);
-			parentPanel.getCategoryListPanel().refresh();
-			resetTextFields();
+		if (selectedCategory == null) {
+			return;
 		}
+
+		bean.deleteCategoryFromDB(selectedCategory);
+		parentPanel.getCategoryListPanel().reload();
+		refreshCategoryChoices();
+		resetTextFields();
 	}
 
 	private void resetTextFields() {
-		categoryName.clear();
-		subCategoryName.setValue(null);
-		filterDateFrom.clear();
-		filterDateTo.clear();
-		filterAmountFrom.clear();
-		filterAmountTo.clear();
-		filterRecipient.clear();
-		filterPurpose.clear();
-		updatedAtText.clear();
-		filterRecipientRegexCheckbox.setSelected(false);
-		filterPurposeRegexCheckbox.setSelected(false);
 		selectedCategory = null;
+		categoryName.clear();
+		parentCategoryCombo.setValue(null);
+		sourceCombo.setValue(Source.MANUELL);
+		updatedAtText.clear();
 	}
 
-	void updatePanelFieldValues(Category selectedCategory) {
-		log.log(Level.INFO, () -> getText("LOG_INFO_CATEGORY_SELECTED", selectedCategory.getId()));
-
-		this.selectedCategory = selectedCategory;
-		categoryName.setText(selectedCategory.getName());
-		updatedAtText.setText(selectedCategory.getUpdatedAt() != null ? selectedCategory.getUpdatedAt().getTime().toString() : "");
+	void updatePanelFieldValues(Category category) {
+		log.log(Level.INFO, () -> getText("LOG_INFO_CATEGORY_SELECTED", category.getId()));
+		selectedCategory = category;
+		categoryName.setText(category.getName());
+		updatedAtText.setText(category.getUpdatedAt() != null ? category.getUpdatedAt().getTime().toString() : "");
+		parentCategoryCombo.setValue(resolveParentCategory(category));
+		sourceCombo.setValue(Source.MANUELL);
 	}
 
 	public void updatePanelFieldValues(BankAccount selectedAccount) {
-		// aktuell kein direktes Account-spezifisches Mapping im alten Swing-Code
+		// categories are not account specific in the current data model
+	}
+
+	private void refreshCategoryChoices() {
+		parentCategoryCombo.setItems(FXCollections.observableArrayList(dbController.getAll(Category.class)));
+	}
+
+	private Category resolveParentCategory(Category category) {
+		if (category.getParentId() == null || parentCategoryCombo.getItems() == null) {
+			return null;
+		}
+
+		return parentCategoryCombo.getItems().stream().filter(parent -> parent.getId() == category.getParentId()).findFirst().orElse(null);
 	}
 }

@@ -155,9 +155,7 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 
 	private void handleCategoriesSelection(BankAccount selectedAccount) {
 		CategoryOverviewPanel parent = (CategoryOverviewPanel) parentPanel;
-		parent.setSelectedAccount(selectedAccount);
-		parent.getCategoryInputPanel().updatePanelFieldValues(selectedAccount);
-		parent.getCategoryListPanel().reload();
+		parent.handleAccountSelection(selectedAccount);
 	}
 
 	public AccountTableModel getModelAccount() {
