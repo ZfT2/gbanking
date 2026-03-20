@@ -1,4 +1,4 @@
-package de.gbanking.gui.swing.model.dto;
+package de.gbanking.gui.dto;
 
 import java.math.BigDecimal;
 

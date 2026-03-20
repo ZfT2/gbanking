@@ -31,9 +31,8 @@ import de.gbanking.db.DBControllerTestUtil;
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.enu.AccountType;
 import de.gbanking.exception.GBankingException;
-import de.gbanking.fileexport.swing.FileExportBean;
-import de.gbanking.fileexport.swing.FileExportXMLBean;
-import de.gbanking.fileimport.swing.FileImportBean;
+import de.gbanking.fileexport.fx.FileExportBean;
+import de.gbanking.fileexport.fx.FileExportXMLBean;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FileImportIntegrationTest {
@@ -163,4 +162,3 @@ class FileImportIntegrationTest {
 		assertEquals("Testkonto", accountName);
 	}
 }
-

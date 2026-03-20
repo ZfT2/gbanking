@@ -51,7 +51,7 @@ import de.gbanking.db.dao.enu.Source;
 import de.gbanking.db.dao.enu.SqlFilter;
 import de.gbanking.exception.GBankingException;
 import de.gbanking.fileimport.institute.InstituteFileImportBean;
-import de.gbanking.gui.swing.model.dto.MoneyTransferForm;
+import de.gbanking.gui.dto.MoneyTransferForm;
 import de.gbanking.hbci.GBankingHBCICallback;
 import de.gbanking.mapper.HbciMapper;
 
@@ -406,6 +406,19 @@ public class GBankingBean extends BaseBean implements Serializable {
 	
 	public MoneyTransfer saveMoneyTransferToDB(MoneyTransferForm mtf) {
 		
+		/*
+		 * Recipient recipientForm = mt.getRecipient();
+		 * 
+		 * Recipient recipientDb = dbController.find(Recipient.class, (new
+		 * Recipient(recipientForm.getName(), recipientForm.getIban()))); if
+		 * (recipientDb == null) { recipientDb = new Recipient(recipientForm.getName(),
+		 * recipientForm.getIban(), recipientForm.getBic(), null, null,
+		 * recipientForm.getBank(), Source.MONEYTRANSFER); recipientDb =
+		 * dbController.insertOrUpdate(recipientDb);
+		 * log.info("created new Recipient with id: {}", recipientDb.getId()); }
+		 * 
+		 */
+
 		Recipient recipient = dbController.find(Recipient.class, (new Recipient(mtf.getRecipientName(), mtf.getIban())));
 		if (recipient == null) {
 			recipient = new Recipient(mtf.getRecipientName(), mtf.getIban(), mtf.getBic(), null, null, mtf.getBank(), Source.MONEYTRANSFER);
@@ -413,7 +426,8 @@ public class GBankingBean extends BaseBean implements Serializable {
 			log.info("created new Recipient with id: {}", recipient.getId());
 		}
 
-		MoneyTransfer moneyTransfer = new MoneyTransfer(mtf.getBankAccount().getId(), OrderType.TRANSFER, recipient.getId(), mtf.getPurpose(), mtf.getAmount(), Calendar.getInstance(), MoneyTransferStatus.NEW);
+		MoneyTransfer moneyTransfer = new MoneyTransfer(mtf.getBankAccount().getId(), OrderType.TRANSFER, recipient.getId(), mtf.getPurpose(), mtf.getAmount(),
+				Calendar.getInstance(), MoneyTransferStatus.NEW);
 		
 		return dbController.insertOrUpdate(moneyTransfer);
 	}

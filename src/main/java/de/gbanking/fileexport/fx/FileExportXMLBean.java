@@ -108,11 +108,11 @@ public class FileExportXMLBean extends FileExportBean {
 				Recipient recipient = booking.getRecipient();
 				if (recipient != null) {
 					addElementTextNode(doc, receiver, "NAME", recipient.getName());
-					addElementTextNode(doc, receiver, TAG_BIC, recipient.getBic());
 					addElementTextNode(doc, receiver, TAG_IBAN, recipient.getIban());
-					addElementTextNode(doc, receiver, TAG_BANKNAME, recipient.getBank());
 					addElementTextNode(doc, receiver, TAG_KONTONR, recipient.getAccountNumber());
+					addElementTextNode(doc, receiver, TAG_BIC, recipient.getBic());
 					addElementTextNode(doc, receiver, TAG_BLZ, recipient.getBlz());
+					addElementTextNode(doc, receiver, TAG_BANKNAME, recipient.getBank());
 				}
 
 				addElementTextNode(doc, bookingNode, "ZWECK", buildPurpose(booking));
