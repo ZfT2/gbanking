@@ -533,12 +533,15 @@ public class DbExecutor extends DbConnectionHandler {
 	}
 
 	private <T extends Dao> void addOneToManyRelations(T parentEntity) {
+		Class<? extends Dao> childType = StatementsConfig.getChildType(parentEntity.getClass());
+		if (childType == null) {
+			return;
+		}
 
-		List<? extends Dao> childrenListDB = getResultList(StatementsConfig.childrenMap.get(parentEntity.getClass()), parentEntity.getId(), StatementType.SELECT_WITH_PARENT_AND_FULL_DATA, null);
+		List<? extends Dao> childrenListDB = getResultList(childType, parentEntity.getId(), StatementType.SELECT_WITH_PARENT_AND_FULL_DATA, null);
 
-		StatementsLogic<T,?> logic = StatementsConfig.getLogicForDaoType(parentEntity.getClass());
+		StatementsLogic<T, ?> logic = StatementsConfig.getLogicForDaoType(parentEntity.getClass());
 		logic.addOneToManyRelations(parentEntity, childrenListDB);
-
 	}
 
 	private <T extends Dao> void addOneToOneRelations(T entity) {
@@ -567,7 +570,6 @@ public class DbExecutor extends DbConnectionHandler {
 			mapper.setParamsForUpdateSimpleField(entity, typeToUpdate, ps);
 			break;
 		default:
-			;
 		}
 	}
 	

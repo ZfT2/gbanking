@@ -103,7 +103,7 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 		booking.setCategoryId(rs.getInt("category_id"));
 		booking.setCrossBookingId(rs.getInt("crossBooking_id"));
 
-		if (resultType.iswithAllColumns() && resultType.isWithRelations()) {
+		if (resultType.isWithAllColumns() && resultType.isWithRelations()) {
 			if (booking.getRecipientId() > 0) {
 				Recipient recipient = new Recipient();
 				recipient.setName(rs.getString("name"));
