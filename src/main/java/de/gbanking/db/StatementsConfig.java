@@ -1,54 +1,19 @@
 package de.gbanking.db;
 
-import static de.gbanking.db.SqlStatements.SQL_DELETE_BANKACCESS_BY_BLZ;
-import static de.gbanking.db.SqlStatements.SQL_FIND_CATEGORY;
-import static de.gbanking.db.SqlStatements.SQL_FIND_RECIPIENT_BY_ARGS;
-import static de.gbanking.db.SqlStatements.SQL_INSERT_BANKACCESS;
-import static de.gbanking.db.SqlStatements.SQL_INSERT_BANKACCOUNT;
-import static de.gbanking.db.SqlStatements.SQL_INSERT_BOOKING;
-import static de.gbanking.db.SqlStatements.SQL_INSERT_CATEGORY;
-import static de.gbanking.db.SqlStatements.SQL_INSERT_CATEGORY_RULE;
-import static de.gbanking.db.SqlStatements.SQL_INSERT_CATEGORY_RULE_BANKACCOUNT;
-import static de.gbanking.db.SqlStatements.SQL_INSERT_INSTIUTE;
-import static de.gbanking.db.SqlStatements.SQL_INSERT_MONEYTRANSFER;
-import static de.gbanking.db.SqlStatements.SQL_INSERT_PARAMETERDATA;
-import static de.gbanking.db.SqlStatements.SQL_INSERT_SETTING;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ACCOUNT_LAST_BOOKING_DATE;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_BANKACCESSES;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_BANKACCOUNTS;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_BANKACCOUNTS_BY_BANKACCESS;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_BOOKINGS;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_BOOKINGS_FULL_BY_ACCOUNT;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_BPD_OR_UPD;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_BUSINESSCASES;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_BUSINESSCASES_BY_BANKACCOUNT;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_CATEGORIES_FULL;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_INSTITUTES;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_MONEYTRANSFERS_WITH_RECIPIENTS_BY_ACCOUNT;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_MONEYTRANSFERS_WITH_RECIPIENTS_BY_ACCOUNT_AND_STATE;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_MONEYTRANSFERS_WITH_RECIPIENTS_BY_STATE;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_PARAMETERDATA;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_PARAMETERDATA_BY_BANKACCESS;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_RECIPIENTS;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_RECIPIENTS_WITH_NAME_IBAN;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_SETTINGS;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ID_BANKACCESS_BY_BLZ;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ID_BANKACCOUNT_BY_IBAN_OR_NUMBER;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ID_CATEGORY_BY_NAME;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ID_CATEGORY_RULE;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ID_INSTIUTE_BY_ID;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ID_MONEYTRANSFER_BY_ID_AND_ACCOUNT_ID;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ID_SETTING_BY_ID;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_RECIPIENT_BY_ID_IF_NOT_REFERENCED;
-import static de.gbanking.db.SqlStatements.SQL_UPDATE_BANKACCESS;
-import static de.gbanking.db.SqlStatements.SQL_UPDATE_BANKACCOUNT;
-import static de.gbanking.db.SqlStatements.SQL_UPDATE_BOOKING;
-import static de.gbanking.db.SqlStatements.SQL_UPDATE_CATEGORY;
-import static de.gbanking.db.SqlStatements.SQL_UPDATE_CATEGORY_RULE;
-import static de.gbanking.db.SqlStatements.SQL_UPDATE_INSTIUTE;
-import static de.gbanking.db.SqlStatements.SQL_UPDATE_MONEYTRANSFER;
-import static de.gbanking.db.SqlStatements.SQL_UPDATE_RECIPIENT_IF_NOT_REFERENCED;
-import static de.gbanking.db.SqlStatements.SQL_UPDATE_SETTING;
+import static de.gbanking.db.DaoSqlStatements.BANK_ACCESS_SQL;
+import static de.gbanking.db.DaoSqlStatements.BANK_ACCOUNT_SQL;
+import static de.gbanking.db.DaoSqlStatements.BOOKING_SQL;
+import static de.gbanking.db.DaoSqlStatements.BPD_SQL;
+import static de.gbanking.db.DaoSqlStatements.BUSINESS_CASE_SQL;
+import static de.gbanking.db.DaoSqlStatements.CATEGORY_RULE_SQL;
+import static de.gbanking.db.DaoSqlStatements.CATEGORY_SQL;
+import static de.gbanking.db.DaoSqlStatements.INSTITUTE_SQL;
+import static de.gbanking.db.DaoSqlStatements.MN_DAO_SQL;
+import static de.gbanking.db.DaoSqlStatements.MONEY_TRANSFER_SQL;
+import static de.gbanking.db.DaoSqlStatements.PARAMETER_DATA_SQL;
+import static de.gbanking.db.DaoSqlStatements.RECIPIENT_SQL;
+import static de.gbanking.db.DaoSqlStatements.SETTING_SQL;
+import static de.gbanking.db.DaoSqlStatements.UPD_SQL;
 import static de.gbanking.db.StatementsConfig.ResultType.FULL;
 import static de.gbanking.db.StatementsConfig.ResultType.SINGLE_FIELD;
 import static de.gbanking.db.StatementsConfig.ResultType.WITHOUT_RELATIONS;
@@ -71,7 +36,6 @@ import de.gbanking.db.dao.ParameterDataBankAccess;
 import de.gbanking.db.dao.Recipient;
 import de.gbanking.db.dao.Setting;
 import de.gbanking.db.dao.Upd;
-import de.gbanking.db.dao.enu.ParameterDataType;
 import de.gbanking.db.dao.logic.MnDao;
 import de.gbanking.db.dao.logic.StatementsLogic;
 import de.gbanking.db.dao.logic.StatementsLogicBankAccess;
@@ -189,165 +153,91 @@ public final class StatementsConfig {
                     new StatementsLogicBankAccess(),
                     BankAccount.class,
                     null,
-                    Map.of(
-                            StatementType.SELECT_ALL, SQL_SELECT_ALL_BANKACCESSES,
-                            StatementType.SELECT_ID, SQL_SELECT_ID_BANKACCESS_BY_BLZ,
-                            StatementType.INSERT, SQL_INSERT_BANKACCESS,
-                            StatementType.UPDATE, SQL_UPDATE_BANKACCESS,
-                            StatementType.DELETE_BANKACCESS_BY_BLZ, SQL_DELETE_BANKACCESS_BY_BLZ
-                    ))),
+					BANK_ACCESS_SQL)),
 
             Map.entry(BankAccount.class, new DaoMetadata<>(
                     new BankAccountMapper(),
                     new StatementsLogicBankAccount(),
                     Booking.class,
                     null,
-                    Map.of(
-                            StatementType.SELECT_ALL, SQL_SELECT_ALL_BANKACCOUNTS,
-                            StatementType.SELECT_WITH_PARENT, SQL_SELECT_ALL_BANKACCOUNTS_BY_BANKACCESS,
-                            StatementType.SELECT_ID, SQL_SELECT_ID_BANKACCOUNT_BY_IBAN_OR_NUMBER,
-                            StatementType.SELECT_FULL_DATA, SQL_SELECT_ALL_BANKACCOUNTS,
-                            StatementType.INSERT, SQL_INSERT_BANKACCOUNT,
-                            StatementType.UPDATE, SQL_UPDATE_BANKACCOUNT,
-                            StatementType.SELECT_ACCOUNT_LAST_BOOKING_DATE, SQL_SELECT_ACCOUNT_LAST_BOOKING_DATE,
-                            StatementType.UPDATE_ACCOUNT_SOURCE, SqlStatements.SQL_UPDATE_BANKACCOUNT_SOURCE
-                    ))),
+					BANK_ACCOUNT_SQL)),
 
             Map.entry(Booking.class, new DaoMetadata<>(
                     new BookingMapper(),
                     new StatementsLogicBooking(),
                     null,
                     null,
-                    Map.of(
-                            StatementType.SELECT_ALL, SQL_SELECT_ALL_BOOKINGS,
-                            StatementType.SELECT_FULL_DATA, SqlStatements.SQL_SELECT_ALL_BOOKINGS_FULL,
-                            StatementType.SELECT_WITH_PARENT, SQL_SELECT_ALL_BOOKINGS_FULL_BY_ACCOUNT,
-                            StatementType.SELECT_WITH_PARENT_AND_FULL_DATA, SQL_SELECT_ALL_BOOKINGS_FULL_BY_ACCOUNT,
-                            StatementType.INSERT, SQL_INSERT_BOOKING,
-                            StatementType.UPDATE, SQL_UPDATE_BOOKING,
-                            StatementType.UPDATE_BOOKING_SOURCE, SqlStatements.SQL_UPDATE_BOOKINGS_SOURCE
-                    ))),
+					BOOKING_SQL)),
 
             Map.entry(Category.class, new DaoMetadata<>(
                     new CategoryMapper(),
                     new StatementsLogicCategory(),
                     null,
                     "categoryFull",
-                    Map.of(
-                            StatementType.SELECT_ALL, SQL_SELECT_ALL_CATEGORIES_FULL,
-                            StatementType.SELECT_ID, SQL_SELECT_ID_CATEGORY_BY_NAME,
-                            StatementType.SELECT_FIND, SQL_FIND_CATEGORY,
-                            StatementType.INSERT, SQL_INSERT_CATEGORY,
-                            StatementType.UPDATE, SQL_UPDATE_CATEGORY
-                    ))),
+					CATEGORY_SQL)),
 
             Map.entry(CategoryRule.class, new DaoMetadata<>(
                     new CategoryRuleMapper(),
                     new StatementsLogicDefault<>(),
                     null,
                     null,
-                    Map.of(
-                            StatementType.SELECT_ID, SQL_SELECT_ID_CATEGORY_RULE,
-                            StatementType.INSERT, SQL_INSERT_CATEGORY_RULE,
-                            StatementType.UPDATE, SQL_UPDATE_CATEGORY_RULE
-                    ))),
+					CATEGORY_RULE_SQL)),
 
             Map.entry(MoneyTransfer.class, new DaoMetadata<>(
                     new MoneytransferMapper(),
                     new StatementsLogicDefault<>(),
                     null,
                     null,
-                    Map.of(
-                            StatementType.SELECT_ALL, SQL_SELECT_ALL_MONEYTRANSFERS_WITH_RECIPIENTS_BY_ACCOUNT,
-                            StatementType.SELECT_WITH_PARENT, SQL_SELECT_ALL_MONEYTRANSFERS_WITH_RECIPIENTS_BY_ACCOUNT,
-                            StatementType.SELECT_FULL_DATA, SQL_SELECT_ALL_MONEYTRANSFERS_WITH_RECIPIENTS_BY_STATE,
-                            StatementType.SELECT_WITH_PARENT_AND_FILTER, SQL_SELECT_ALL_MONEYTRANSFERS_WITH_RECIPIENTS_BY_ACCOUNT_AND_STATE,
-                            StatementType.SELECT_ID, SQL_SELECT_ID_MONEYTRANSFER_BY_ID_AND_ACCOUNT_ID,
-                            StatementType.INSERT, SQL_INSERT_MONEYTRANSFER,
-                            StatementType.UPDATE, SQL_UPDATE_MONEYTRANSFER
-                    ))),
+					MONEY_TRANSFER_SQL)),
 
             Map.entry(Recipient.class, new DaoMetadata<>(
                     new RecipientMapper(),
                     new StatementsLogicRecipient(),
                     null,
                     null,
-                    Map.of(
-                            StatementType.SELECT_ALL, SQL_SELECT_ALL_RECIPIENTS,
-                            StatementType.SELECT_FULL_DATA, SQL_SELECT_ALL_RECIPIENTS_WITH_NAME_IBAN,
-                            StatementType.SELECT_FIND, SQL_FIND_RECIPIENT_BY_ARGS,
-                            StatementType.SELECT_FIND_UNREFERENCED, SQL_SELECT_RECIPIENT_BY_ID_IF_NOT_REFERENCED,
-                            StatementType.SELECT_SPECIFIC_EDITABLE, SQL_SELECT_RECIPIENT_BY_ID_IF_NOT_REFERENCED,
-                            StatementType.INSERT, SqlStatements.SQL_INSERT_RECIPIENT,
-                            StatementType.UPDATE, SqlStatements.SQL_UPDATE_RECIPIENT,
-                            StatementType.UPDATE_SPECIFIC_NOT_REFERENCED, SQL_UPDATE_RECIPIENT_IF_NOT_REFERENCED,
-                            StatementType.UPDATE_SPECIFIC_REFERENCED, SqlStatements.SQL_UPDATE_RECIPIENT_NOTE
-                    ))),
+					RECIPIENT_SQL)),
 
             Map.entry(ParameterData.class, new DaoMetadata<>(
                     new ParameterDataMapper(),
                     new StatementsLogicDefault<>(),
                     null,
                     null,
-                    Map.of(
-                            StatementType.SELECT_ALL, SQL_SELECT_ALL_PARAMETERDATA,
-                            StatementType.INSERT, SQL_INSERT_PARAMETERDATA
-                    ))),
+					PARAMETER_DATA_SQL)),
 
             Map.entry(Bpd.class, new DaoMetadata<>(
                     new BpdMapper(),
                     new StatementsLogicDefault<>(),
                     null,
                     null,
-                    Map.of(
-                            StatementType.SELECT_ALL, String.format(SQL_SELECT_ALL_BPD_OR_UPD, ParameterDataType.BPD.name()),
-                            StatementType.SELECT_WITH_PARENT, String.format(SQL_SELECT_ALL_PARAMETERDATA_BY_BANKACCESS, ParameterDataType.BPD.name())
-                    ))),
+					BPD_SQL)),
 
             Map.entry(Upd.class, new DaoMetadata<>(
                     new UpdMapper(),
                     new StatementsLogicDefault<>(),
                     null,
                     null,
-                    Map.of(
-                            StatementType.SELECT_ALL, String.format(SQL_SELECT_ALL_BPD_OR_UPD, ParameterDataType.UPD.name()),
-                            StatementType.SELECT_WITH_PARENT, String.format(SQL_SELECT_ALL_PARAMETERDATA_BY_BANKACCESS, ParameterDataType.UPD.name())
-                    ))),
+					UPD_SQL)),
 
             Map.entry(Institute.class, new DaoMetadata<>(
                     new InstituteMapper(),
                     new StatementsLogicDefault<>(),
                     null,
                     null,
-                    Map.of(
-                            StatementType.SELECT_ALL, SQL_SELECT_ALL_INSTITUTES,
-                            StatementType.SELECT_ID, SQL_SELECT_ID_INSTIUTE_BY_ID,
-                            StatementType.INSERT, SQL_INSERT_INSTIUTE,
-                            StatementType.UPDATE, SQL_UPDATE_INSTIUTE
-                    ))),
+					INSTITUTE_SQL)),
 
             Map.entry(Setting.class, new DaoMetadata<>(
                     new SettingMapper(),
                     new StatementsLogicDefault<>(),
                     null,
                     null,
-                    Map.of(
-                            StatementType.SELECT_ALL, SQL_SELECT_ALL_SETTINGS,
-                            StatementType.SELECT_ID, SQL_SELECT_ID_SETTING_BY_ID,
-                            StatementType.INSERT, SQL_INSERT_SETTING,
-                            StatementType.UPDATE, SQL_UPDATE_SETTING
-                    ))),
+					SETTING_SQL)),
 
             Map.entry(BusinessCase.class, new DaoMetadata<>(
                     new BusinessCaseMapper(),
                     new StatementsLogicDefault<>(),
                     null,
                     null,
-                    Map.of(
-                            StatementType.SELECT_ALL, SQL_SELECT_ALL_BUSINESSCASES,
-                            StatementType.SELECT_WITH_PARENT, SQL_SELECT_ALL_BUSINESSCASES_BY_BANKACCOUNT,
-                            StatementType.INSERT, SqlStatements.SQL_INSERT_BUSINESSCASE
-                    ))),
+					BUSINESS_CASE_SQL)),
 
             Map.entry(ParameterDataBankAccess.class, new DaoMetadata<>(
                     new ParameterDataBankAccessMapper(),
@@ -362,9 +252,7 @@ public final class StatementsConfig {
                     new StatementsLogicDefault<>(),
                     null,
                     null,
-                    Map.of(
-                            StatementType.INSERT, SQL_INSERT_CATEGORY_RULE_BANKACCOUNT
-                    )))
+					MN_DAO_SQL))
     );
 
 	private static DaoMetadata<?, ?> getMetadata(Class<? extends Dao> type) {
