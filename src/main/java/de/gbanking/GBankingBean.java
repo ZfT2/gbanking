@@ -50,7 +50,7 @@ import de.gbanking.db.dao.enu.OrderType;
 import de.gbanking.db.dao.enu.Source;
 import de.gbanking.db.dao.enu.SqlFilter;
 import de.gbanking.exception.GBankingException;
-import de.gbanking.fileimport.institute.InstituteFileImportBean;
+import de.gbanking.file.imp.institute.InstituteFileImportBean;
 import de.gbanking.gui.dto.MoneyTransferForm;
 import de.gbanking.hbci.GBankingHBCICallback;
 import de.gbanking.mapper.HbciMapper;

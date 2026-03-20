@@ -53,8 +53,8 @@ import de.gbanking.db.dao.Recipient;
 import de.gbanking.db.dao.enu.AccountType;
 import de.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.gbanking.db.dao.enu.Source;
-import de.gbanking.fileexport.fx.FileExportXMLBean;
-import de.gbanking.fileimport.fx.FileImportBean;
+import de.gbanking.file.exp.FileExportXMLBean;
+import de.gbanking.file.imp.FileImportBean;
 import de.gbanking.gui.dto.MoneyTransferForm;
 import de.gbanking.mapper.HbciMapper;
 

@@ -3,7 +3,7 @@ package de.gbanking;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import de.gbanking.gui.fx.GBankingGui;
+import de.gbanking.gui.GBankingGui;
 import javafx.application.Application;
 
 public class GBanking {
