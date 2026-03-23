@@ -2,6 +2,7 @@ package de.gbanking.gui.panel.bankaccess;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import de.gbanking.db.dao.BankAccess;
 import de.gbanking.db.dao.BankAccount;
@@ -14,8 +15,12 @@ import de.gbanking.gui.util.TableColumnFactory;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TableColumn;
@@ -30,6 +35,12 @@ import javafx.stage.Stage;
 
 public class BankAccessDialogHolder extends BasePanelHolder {
 
+	private static final double STEP1_WIDTH = 420;
+	private static final double STEP1_HEIGHT = 240;
+	private static final double STEP2_WIDTH = 900;
+	private static final double STEP2_HEIGHT = 600;
+	private static final double DIALOG_SPACING = 10;
+
 	private final ButtonContext buttonContext;
 	private final BankAccessOverviewPanel overviewPanel;
 	private BankAccess currentBankAccess;
@@ -41,17 +52,41 @@ public class BankAccessDialogHolder extends BasePanelHolder {
 	}
 
 	public void showDialog() {
-		Stage dialog = new Stage();
-		dialog.initModality(Modality.APPLICATION_MODAL);
-		dialog.setTitle(buttonContext.getHeadline());
-
 		switch (buttonContext) {
-		case BUTTON_NEW, BUTTON_EDIT -> dialog.setScene(new Scene(createStep1(dialog), 420, 240));
-		case BUTTON_DELETE -> dialog.setScene(new Scene(createDeletePanel(dialog), 420, 180));
+		case BUTTON_NEW, BUTTON_EDIT -> showWizardDialog();
+		case BUTTON_DELETE -> showDeleteConfirmationDialog();
 		default -> throw new IllegalStateException("Unsupported buttonContext: " + buttonContext);
 		}
+	}
 
+	public boolean showManualEditConfirmationDialog() {
+		Optional<ButtonType> result = createWarningConfirmationAlert(getText("UI_BUTTON_BANK_ACCESS_EDIT"), getText("UI_WARNING_BANK_ACCESS_EDIT_MANUAL"),
+				new Label(getText("UI_QUESTION_BANK_ACCESS_EDIT_MANUAL")), ButtonType.OK, ButtonType.CANCEL).showAndWait();
+
+		return result.filter(ButtonType.OK::equals).isPresent();
+	}
+
+	public void showRequiredFieldsWarningDialog() {
+		showWarningMessageDialog("UI_WARNING_BANK_ACCESS_REQUIRED_FIELDS_TITLE", "UI_WARNING_BANK_ACCESS_REQUIRED_FIELDS_HEADER",
+				"UI_WARNING_BANK_ACCESS_REQUIRED_FIELDS_TEXT");
+	}
+
+	public void showInvalidPortWarningDialog() {
+		showWarningMessageDialog("UI_WARNING_BANK_ACCESS_INVALID_PORT_TITLE", "UI_WARNING_BANK_ACCESS_INVALID_PORT_HEADER",
+				"UI_WARNING_BANK_ACCESS_INVALID_PORT_TEXT");
+	}
+
+	private void showWizardDialog() {
+		Stage dialog = createDialogStage(buttonContext.getHeadline());
+		dialog.setScene(new Scene(createStep1(dialog), STEP1_WIDTH, STEP1_HEIGHT));
 		dialog.showAndWait();
+	}
+
+	private Stage createDialogStage(String title) {
+		Stage dialog = new Stage();
+		dialog.initModality(Modality.APPLICATION_MODAL);
+		dialog.setTitle(title);
+		return dialog;
 	}
 
 	private VBox createStep1(Stage dialog) {
@@ -64,19 +99,16 @@ public class BankAccessDialogHolder extends BasePanelHolder {
 			userNameText.setText(currentBankAccess.getUserId());
 		}
 
-		GridPane grid = new GridPane();
-		grid.setHgap(10);
-		grid.setVgap(6);
-		grid.setPadding(new Insets(10));
-		grid.add(new Label("Bank"), 0, 0);
+		GridPane grid = createDefaultGrid();
+		grid.add(new Label(getText("UI_LABEL_BANK")), 0, 0);
 		grid.add(blzText, 1, 0);
-		grid.add(new Label("Benutzer"), 0, 1);
+		grid.add(new Label(getText("UI_LABEL_USER")), 0, 1);
 		grid.add(userNameText, 1, 1);
-		grid.add(new Label("PIN"), 0, 2);
+		grid.add(new Label(getText("UI_LABEL_PIN")), 0, 2);
 		grid.add(pinText, 1, 2);
 
-		Button okButton = new Button("OK");
-		Button cancelButton = new Button("Abbrechen");
+		Button okButton = new Button(getText("UI_BUTTON_OK"));
+		Button cancelButton = new Button(getText("UI_BUTTON_CANCEL"));
 
 		okButton.setOnAction(e -> {
 			BankAccess bankAccess = new BankAccess();
@@ -86,19 +118,17 @@ public class BankAccessDialogHolder extends BasePanelHolder {
 			bankAccess.setTanProcedure(TanProcedure.APP_TAN);
 
 			if (bean.addNewBankAccess(bankAccess)) {
-				dialog.setScene(new Scene(createStep2(dialog, bankAccess), 900, 600));
+				dialog.setScene(new Scene(createStep2(dialog, bankAccess), STEP2_WIDTH, STEP2_HEIGHT));
 			}
 		});
 
 		cancelButton.setOnAction(e -> dialog.close());
 
-		VBox root = new VBox(10, new Label("Bankzugang Daten"), grid, new HBox(10, okButton, cancelButton));
-		root.setPadding(new Insets(10));
-		return root;
+		return createDialogRoot(getText("UI_BANK_ACCESS_DIALOG_DATA"), grid, createButtonBar(okButton, cancelButton));
 	}
 
 	private VBox createStep2(Stage dialog, BankAccess bankAccess) {
-		Label accountsLabel = new Label("Konten:");
+		Label accountsLabel = new Label(getText("UI_BANK_ACCESS_DIALOG_ACCOUNTS_LABEL"));
 
 		ObservableList<BankAccount> accountItems = FXCollections.observableArrayList(getAccounts(bankAccess));
 		accountItems.forEach(account -> account.setSelected(true));
@@ -116,30 +146,106 @@ public class BankAccessDialogHolder extends BasePanelHolder {
 		TableColumn<BankAccount, String> currencyCol = TableColumnFactory.createFixedTextColumn(getText("UI_LABEL_CURRENCY"),
 				account -> account.getCurrency() != null ? account.getCurrency() : "", 80);
 
-		accountTable.getColumns().setAll(selectedCol, nameCol, ibanCol, bankCol, currencyCol);
+		accountTable.getColumns().setAll(List.of(selectedCol, nameCol, ibanCol, bankCol, currencyCol));
 
-		Button okButton = new Button("OK");
-		Button cancelButton = new Button("Abbrechen");
+		Button okButton = new Button(getText("UI_BUTTON_OK"));
+		Button cancelButton = new Button(getText("UI_BUTTON_CANCEL"));
 
 		okButton.setOnAction(e -> {
 			List<BankAccount> selectedAccounts = accountItems.stream().filter(BankAccount::isSelected).toList();
-
 			bankAccess.setAccounts(new ArrayList<>(selectedAccounts));
 
 			if (bean.saveBankAccessAccountsToDB(bankAccess)) {
 				overviewPanel.getBankAccessListPanel().refreshModelBankAccess();
 				dialog.close();
 			} else {
-				accountsLabel.setText("Fehler bei Speicherung des Bankzugangs!");
+				accountsLabel.setText(getText("ERROR_BANK_ACCESS_SAVE"));
 			}
 		});
 
 		cancelButton.setOnAction(e -> dialog.close());
 
-		VBox root = new VBox(10, new Label("Bankzugang Konten"), accountsLabel, accountTable, new HBox(10, okButton, cancelButton));
-		root.setPadding(new Insets(10));
+		VBox root = createDialogRoot(getText("UI_BANK_ACCESS_DIALOG_ACCOUNTS_TITLE"), accountsLabel, accountTable, createButtonBar(okButton, cancelButton));
 		VBox.setVgrow(accountTable, Priority.ALWAYS);
 		return root;
+	}
+
+	private VBox createDialogRoot(String titleKey, Node... content) {
+		VBox root = new VBox(DIALOG_SPACING);
+		root.setPadding(new Insets(10));
+		root.getChildren().add(new Label(titleKey));
+		root.getChildren().addAll(content);
+		return root;
+	}
+
+	private HBox createButtonBar(Button... buttons) {
+		return new HBox(DIALOG_SPACING, buttons);
+	}
+
+	private void showDeleteConfirmationDialog() {
+		Alert alert = createWarningConfirmationAlert(buttonContext.getHeadline(), getText("UI_WARNING_BANK_ACCESS_DELETE"), createDeleteDialogContent(),
+				ButtonType.OK, ButtonType.CANCEL);
+
+		alert.showAndWait().filter(ButtonType.OK::equals).ifPresent(result -> deleteCurrentBankAccess());
+	}
+
+	private Node createDeleteDialogContent() {
+		VBox content = new VBox(DIALOG_SPACING, createBankAccessInfoGrid(), new Label(getText("UI_QUESTION_BANK_ACCESS_DELETE")));
+		content.setPadding(new Insets(5, 0, 0, 0));
+		return content;
+	}
+
+	private GridPane createBankAccessInfoGrid() {
+		Label blzValue = new Label(currentBankAccess != null ? nullToEmpty(currentBankAccess.getBlz()) : "");
+		Label userValue = new Label(currentBankAccess != null ? nullToEmpty(currentBankAccess.getUserId()) : "");
+
+		GridPane grid = createDefaultGrid();
+		grid.setPadding(Insets.EMPTY);
+		grid.add(new Label(getText("UI_LABEL_BANK")), 0, 0);
+		grid.add(blzValue, 1, 0);
+		grid.add(new Label(getText("UI_LABEL_USER")), 0, 1);
+		grid.add(userValue, 1, 1);
+		return grid;
+	}
+
+	private GridPane createDefaultGrid() {
+		GridPane grid = new GridPane();
+		grid.setHgap(10);
+		grid.setVgap(6);
+		grid.setPadding(new Insets(10));
+		return grid;
+	}
+
+	private Alert createWarningConfirmationAlert(String title, String header, Node content, ButtonType... buttonTypes) {
+		Alert alert = new Alert(AlertType.WARNING);
+		alert.setTitle(title);
+		alert.setHeaderText(header);
+		alert.getButtonTypes().setAll(buttonTypes);
+		alert.getDialogPane().setContent(content);
+		return alert;
+	}
+
+	private void showWarningMessageDialog(String titleKey, String headerKey, String contentKey) {
+		Alert alert = new Alert(AlertType.WARNING);
+		alert.setTitle(getText(titleKey));
+		alert.setHeaderText(getText(headerKey));
+		alert.setContentText(getText(contentKey));
+		alert.showAndWait();
+	}
+
+	private void deleteCurrentBankAccess() {
+		if (currentBankAccess == null) {
+			return;
+		}
+
+		if (bean.deleteBankAccessFromDB(currentBankAccess)) {
+			currentBankAccess = null;
+			overviewPanel.setCurrentBankAccess(null);
+			overviewPanel.getBankAccessListPanel().refreshModelBankAccess();
+			showWarningMessageDialog("UI_BUTTON_BANK_ACCESS_DELETE", "UI_WARNING_BANK_ACCESS_DELETE", "UI_INFO_BANK_ACCESS_DELETE_SUCCESS");
+		} else {
+			showWarningMessageDialog("UI_BUTTON_BANK_ACCESS_DELETE", "UI_WARNING_BANK_ACCESS_DELETE", "ERROR_BANK_ACCESS_DELETE");
+		}
 	}
 
 	private List<BankAccount> getAccounts(BankAccess bankAccess) {
@@ -149,42 +255,7 @@ public class BankAccessDialogHolder extends BasePanelHolder {
 		return bankAccess.getAccounts();
 	}
 
-	private VBox createDeletePanel(Stage dialog) {
-		Label blzValue = new Label(currentBankAccess != null ? currentBankAccess.getBlz() : "");
-		Label userValue = new Label(currentBankAccess != null ? currentBankAccess.getUserId() : "");
-		Label question = new Label(getText("UI_QUESTION_BANK_ACCESS_DELETE"));
-
-		Button okButton = new Button("OK");
-		Button cancelButton = new Button("Abbrechen");
-
-		okButton.setOnAction(e -> {
-			if (currentBankAccess == null) {
-				dialog.close();
-				return;
-			}
-
-			if (bean.deleteBankAccessFromDB(currentBankAccess)) {
-				currentBankAccess = null;
-				overviewPanel.getBankAccessListPanel().refreshModelBankAccess();
-				question.setText(getText("UI_INFO_BANK_ACCESS_DELETE_SUCCESS"));
-				cancelButton.setDisable(true);
-			} else {
-				question.setText(getText("ERROR_BANK_ACCESS_DELETE"));
-			}
-		});
-
-		cancelButton.setOnAction(e -> dialog.close());
-
-		GridPane grid = new GridPane();
-		grid.setHgap(10);
-		grid.setVgap(6);
-		grid.add(new Label("Bank"), 0, 0);
-		grid.add(blzValue, 1, 0);
-		grid.add(new Label("Benutzer"), 0, 1);
-		grid.add(userValue, 1, 1);
-
-		VBox root = new VBox(10, new Label("Bankzugang Daten"), grid, question, new HBox(10, okButton, cancelButton));
-		root.setPadding(new Insets(10));
-		return root;
+	private String nullToEmpty(String value) {
+		return value == null ? "" : value;
 	}
 }

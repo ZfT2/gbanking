@@ -15,9 +15,7 @@ import de.gbanking.gui.util.FormFields;
 import de.gbanking.gui.util.FormStyleUtils;
 import de.gbanking.util.TypeConverter;
 import javafx.collections.FXCollections;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Control;
@@ -190,11 +188,9 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 			return;
 		}
 
-		Alert alert = new Alert(Alert.AlertType.WARNING, getText("UI_QUESTION_BANK_ACCESS_EDIT_MANUAL"), ButtonType.OK, ButtonType.CANCEL);
-		alert.setTitle(getText("UI_BUTTON_BANK_ACCESS_EDIT"));
-		alert.setHeaderText(getText("UI_WARNING_BANK_ACCESS_EDIT_MANUAL"));
-
-		alert.showAndWait().filter(ButtonType.OK::equals).ifPresent(result -> setEditMode(true));
+		if (createDialogHolder(ButtonContext.BUTTON_EDIT).showManualEditConfirmationDialog()) {
+			setEditMode(true);
+		}
 	}
 
 	private void saveManualChanges() {
@@ -222,15 +218,15 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 	}
 
 	private boolean validateForm() {
+		BankAccessDialogHolder dialogHolder = createDialogHolder(ButtonContext.BUTTON_EDIT);
+
 		if (isBlank(blzText.getText()) || isBlank(bankNameText.getText()) || isBlank(urlText.getText()) || isBlank(userNameText.getText())) {
-			showWarningAlert("UI_WARNING_BANK_ACCESS_REQUIRED_FIELDS_TITLE", "UI_WARNING_BANK_ACCESS_REQUIRED_FIELDS_HEADER",
-					"UI_WARNING_BANK_ACCESS_REQUIRED_FIELDS_TEXT");
+			dialogHolder.showRequiredFieldsWarningDialog();
 			return false;
 		}
 
 		if (parseAndValidatePostiveInt(portText.getText()) == null && !isBlank(portText.getText())) {
-			showWarningAlert("UI_WARNING_BANK_ACCESS_INVALID_PORT_TITLE", "UI_WARNING_BANK_ACCESS_INVALID_PORT_HEADER",
-					"UI_WARNING_BANK_ACCESS_INVALID_PORT_TEXT");
+			dialogHolder.showInvalidPortWarningDialog();
 			return false;
 		}
 
@@ -305,16 +301,11 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 		button.setManaged(visible);
 	}
 
-	private void showWarningAlert(String titleKey, String headerKey, String contentKey) {
-		Alert alert = new Alert(Alert.AlertType.WARNING);
-		alert.setTitle(getText(titleKey));
-		alert.setHeaderText(getText(headerKey));
-		alert.setContentText(getText(contentKey));
-		alert.showAndWait();
+	private BankAccessDialogHolder createDialogHolder(ButtonContext buttonContext) {
+		return new BankAccessDialogHolder(buttonContext, parentPanel);
 	}
 
 	private void newBankAccessDialog(ButtonContext buttonContext) {
-		BankAccessDialogHolder dialogHolder = new BankAccessDialogHolder(buttonContext, parentPanel);
-		dialogHolder.showDialog();
+		createDialogHolder(buttonContext).showDialog();
 	}
 }
