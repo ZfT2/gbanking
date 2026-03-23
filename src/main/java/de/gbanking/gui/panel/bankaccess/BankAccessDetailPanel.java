@@ -1,5 +1,6 @@
 package de.gbanking.gui.panel.bankaccess;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -51,6 +52,9 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 	private final Button buttonBankAccessCancel = new Button(getText("UI_BUTTON_CANCEL"));
 	private final Button buttonBankAccessDelete = new Button(getText("UI_BUTTON_BANK_ACCESS_DELETE"));
 
+	private final List<Control> editableControls = List.of(blzText, bankNameText, userNameText, customerIdText, urlText, portText, systemIdText,
+			tanProcedureBox, hbciVersionText, hbciFilterTypeBox, bpdVersionText, updVersionText, activeBox);
+
 	private final BankAccessOverviewPanel parentPanel;
 
 	private BankAccess currentBankAccess;
@@ -84,31 +88,25 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 
 	private void configureComboBoxes() {
 		tanProcedureBox.setMaxWidth(Double.MAX_VALUE);
-		tanProcedureBox.setConverter(new StringConverter<>() {
-			@Override
-			public String toString(TanProcedure value) {
-				return value == null ? "" : value.toString();
-			}
-
-			@Override
-			public TanProcedure fromString(String string) {
-				return null;
-			}
-		});
+		tanProcedureBox.setConverter(createDisplayConverter());
 
 		hbciFilterTypeBox.setItems(FXCollections.observableArrayList(HbciEncodingFilterType.values()));
 		hbciFilterTypeBox.setMaxWidth(Double.MAX_VALUE);
-		hbciFilterTypeBox.setConverter(new StringConverter<>() {
+		hbciFilterTypeBox.setConverter(createDisplayConverter());
+	}
+
+	private <T> StringConverter<T> createDisplayConverter() {
+		return new StringConverter<>() {
 			@Override
-			public String toString(HbciEncodingFilterType value) {
+			public String toString(T value) {
 				return value == null ? "" : value.toString();
 			}
 
 			@Override
-			public HbciEncodingFilterType fromString(String string) {
+			public T fromString(String string) {
 				return null;
 			}
-		});
+		};
 	}
 
 	private void addFields() {
@@ -225,13 +223,14 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 
 	private boolean validateForm() {
 		if (isBlank(blzText.getText()) || isBlank(bankNameText.getText()) || isBlank(urlText.getText()) || isBlank(userNameText.getText())) {
-			showAlert("UI_WARNING_BANK_ACCESS_REQUIRED_FIELDS_TITLE", "UI_WARNING_BANK_ACCESS_REQUIRED_FIELDS_HEADER",
+			showWarningAlert("UI_WARNING_BANK_ACCESS_REQUIRED_FIELDS_TITLE", "UI_WARNING_BANK_ACCESS_REQUIRED_FIELDS_HEADER",
 					"UI_WARNING_BANK_ACCESS_REQUIRED_FIELDS_TEXT");
 			return false;
 		}
 
 		if (parseAndValidatePostiveInt(portText.getText()) == null && !isBlank(portText.getText())) {
-			showAlert("UI_WARNING_BANK_ACCESS_INVALID_PORT_TITLE", "UI_WARNING_BANK_ACCESS_INVALID_PORT_HEADER", "UI_WARNING_BANK_ACCESS_INVALID_PORT_TEXT");
+			showWarningAlert("UI_WARNING_BANK_ACCESS_INVALID_PORT_TITLE", "UI_WARNING_BANK_ACCESS_INVALID_PORT_HEADER",
+					"UI_WARNING_BANK_ACCESS_INVALID_PORT_TEXT");
 			return false;
 		}
 
@@ -239,14 +238,15 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 	}
 
 	private void refreshSupportedTanProcedures(BankAccess access) {
-		List<TanProcedure> supportedProcedures = determineSupportedTanProcedures(access);
-		tanProcedureBox.setItems(FXCollections.observableArrayList(supportedProcedures));
-
+		List<TanProcedure> procedures = new ArrayList<>(determineSupportedTanProcedures(access));
 		TanProcedure selectedProcedure = access.getTanProcedure();
-		if (selectedProcedure != null && !supportedProcedures.contains(selectedProcedure)) {
-			tanProcedureBox.getItems().add(selectedProcedure);
-			tanProcedureBox.getItems().sort(Comparator.comparingInt(this::tanCode));
+
+		if (selectedProcedure != null && !procedures.contains(selectedProcedure)) {
+			procedures.add(selectedProcedure);
 		}
+
+		procedures.sort(Comparator.comparingInt(this::tanCode));
+		tanProcedureBox.setItems(FXCollections.observableArrayList(procedures));
 	}
 
 	private List<TanProcedure> determineSupportedTanProcedures(BankAccess access) {
@@ -279,12 +279,11 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 	}
 
 	private int tanCode(TanProcedure procedure) {
-		String digits = procedure.toString().replaceAll("\\D+", "");
-		return digits.isEmpty() ? Integer.MAX_VALUE : Integer.parseInt(digits);
+		return procedure.getCode();
 	}
 
 	private void setEditMode(boolean editMode) {
-		FormStyleUtils.setEditable(editMode, editableControls().toArray(Control[]::new));
+		FormStyleUtils.setEditable(editMode, editableControls.toArray(Control[]::new));
 
 		updatedAtText.setEditable(false);
 		updatedAtText.setDisable(true);
@@ -301,17 +300,12 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 		setButtonVisible(buttonBankAccessCancel, editMode);
 	}
 
-	private List<Control> editableControls() {
-		return List.of(blzText, bankNameText, userNameText, customerIdText, urlText, portText, systemIdText, tanProcedureBox, hbciVersionText,
-				hbciFilterTypeBox, bpdVersionText, updVersionText, activeBox);
-	}
-
 	private void setButtonVisible(Button button, boolean visible) {
 		button.setVisible(visible);
 		button.setManaged(visible);
 	}
 
-	private void showAlert(String titleKey, String headerKey, String contentKey) {
+	private void showWarningAlert(String titleKey, String headerKey, String contentKey) {
 		Alert alert = new Alert(Alert.AlertType.WARNING);
 		alert.setTitle(getText(titleKey));
 		alert.setHeaderText(getText(headerKey));
@@ -320,7 +314,7 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 	}
 
 	private void newBankAccessDialog(ButtonContext buttonContext) {
-		BankAccessNewDialogHolder dialogHolder = new BankAccessNewDialogHolder(buttonContext, parentPanel);
+		BankAccessDialogHolder dialogHolder = new BankAccessDialogHolder(buttonContext, parentPanel);
 		dialogHolder.showDialog();
 	}
 }

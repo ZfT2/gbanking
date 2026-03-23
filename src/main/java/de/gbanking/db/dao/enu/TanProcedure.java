@@ -27,6 +27,10 @@ public enum TanProcedure {
 		this.name = name;
 	}
 
+	public int getCode() {
+		return code;
+	}
+
 	@Override
 	public final String toString() {
 		return String.valueOf(code + " - " + name);

@@ -28,13 +28,13 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
-public class BankAccessNewDialogHolder extends BasePanelHolder {
+public class BankAccessDialogHolder extends BasePanelHolder {
 
 	private final ButtonContext buttonContext;
 	private final BankAccessOverviewPanel overviewPanel;
 	private BankAccess currentBankAccess;
 
-	public BankAccessNewDialogHolder(ButtonContext buttonContext, BankAccessOverviewPanel overviewPanel) {
+	public BankAccessDialogHolder(ButtonContext buttonContext, BankAccessOverviewPanel overviewPanel) {
 		this.buttonContext = buttonContext;
 		this.overviewPanel = overviewPanel;
 		this.currentBankAccess = overviewPanel.getCurrentBankAccess();
