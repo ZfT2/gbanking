@@ -1,6 +1,6 @@
 package de.gbanking.db.dao;
 
-import java.util.Calendar;
+import java.time.LocalDate;
 
 import de.gbanking.db.dao.enu.Source;
 
@@ -9,7 +9,7 @@ public abstract class Dao {
 	protected boolean selected;
 	protected int id;
 	protected Source source;
-	protected Calendar updatedAt;
+	protected LocalDate updatedAt;
 
 	public boolean isSelected() {
 		return selected;
@@ -35,11 +35,11 @@ public abstract class Dao {
 		this.source = source;
 	}
 
-	public Calendar getUpdatedAt() {
+	public LocalDate getUpdatedAt() {
 		return updatedAt;
 	}
 
-	public void setUpdatedAt(Calendar updatedAt) {
+	public void setUpdatedAt(LocalDate updatedAt) {
 		this.updatedAt = updatedAt;
 	}
 

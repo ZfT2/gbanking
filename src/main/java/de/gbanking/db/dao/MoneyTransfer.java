@@ -1,7 +1,7 @@
 package de.gbanking.db.dao;
 
 import java.math.BigDecimal;
-import java.util.Calendar;
+import java.time.LocalDate;
 
 import de.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.gbanking.db.dao.enu.OrderType;
@@ -14,7 +14,7 @@ public class MoneyTransfer extends Dao {
 	private int recipientId;
 	private String purpose;
 	private BigDecimal amount;
-	private Calendar executionDate;
+	private LocalDate executionDate;
 	private MoneyTransferStatus moneytransferStatus;
 	private StandingorderMode standingorderMode;
 	private Integer historyorderId;
@@ -25,7 +25,7 @@ public class MoneyTransfer extends Dao {
 		super();
 	}
 	
-	public MoneyTransfer(int accountId, OrderType orderType, int recipientId, String purpose, BigDecimal amount, Calendar executionDate, MoneyTransferStatus moneytransferStatus) {
+	public MoneyTransfer(int accountId, OrderType orderType, int recipientId, String purpose, BigDecimal amount, LocalDate executionDate, MoneyTransferStatus moneytransferStatus) {
 		super();
 		this.accountId = accountId;
 		this.orderType = orderType;
@@ -76,11 +76,11 @@ public class MoneyTransfer extends Dao {
 		this.amount = amount;
 	}
 
-	public Calendar getExecutionDate() {
+	public LocalDate getExecutionDate() {
 		return executionDate;
 	}
 
-	public void setExecutionDate(Calendar executionDate) {
+	public void setExecutionDate(LocalDate executionDate) {
 		this.executionDate = executionDate;
 	}
 

@@ -1,6 +1,6 @@
 package de.gbanking.gui.util;
 
-import java.util.Calendar;
+import java.time.LocalDate;
 import java.util.Date;
 import java.util.function.Function;
 
@@ -45,14 +45,14 @@ public final class TableColumnFactory {
 		return column;
 	}
 
-	public static <S> TableColumn<S, String> createCalendarDateColumn(String title, Function<S, Calendar> valueProvider, double width) {
+	public static <S> TableColumn<S, String> createCalendarDateColumn(String title, Function<S, LocalDate> valueProvider, double width) {
 		TableColumn<S, String> column = new TableColumn<>(title);
 		column.setCellValueFactory(data -> new SimpleStringProperty(DateFormatUtils.formatShort(valueProvider.apply(data.getValue()))));
 		FxTableUtils.setFixedWidth(column, width);
 		return column;
 	}
 
-	public static <S> TableColumn<S, String> createUpdatedAtColumn(String title, Function<S, Calendar> valueProvider, double width) {
+	public static <S> TableColumn<S, String> createUpdatedAtColumn(String title, Function<S, LocalDate> valueProvider, double width) {
 		return createCalendarDateColumn(title, valueProvider, width);
 	}
 

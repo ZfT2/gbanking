@@ -1,7 +1,7 @@
 package org.kapott.hbci.passport;
 
 import java.util.ArrayList;
-import java.util.Calendar;
+import java.time.LocalDate;
 import java.util.List;
 
 import org.kapott.hbci.exceptions.HBCI_Exception;
@@ -129,7 +129,7 @@ public class HBCIPassportPinTanDB extends HBCIPassportPinTan {
 			bankAccess.setFilterType(HbciEncodingFilterType.forString(this.getFilterType()));
 
 			bankAccess.setActive(true);
-			bankAccess.setUpdatedAt(Calendar.getInstance());
+			bankAccess.setUpdatedAt(LocalDate.now());
 
 			setTANProcedure(bankAccess);
 

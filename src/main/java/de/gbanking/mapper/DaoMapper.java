@@ -98,9 +98,9 @@ public class DaoMapper {
 		booking.setSource(source);
 		booking.setBookingType(getBookingType(xmlBooking));
 		booking.setAmount(xmlBooking.getAmount());
-		// booking.setDate(TypeConverter.toCalendarFromDateStr(xmlBooking.getDate()));
-		booking.setDateBooking(TypeConverter.toCalendarFromDateStrShort(xmlBooking.getDateBooking()));
-		booking.setDateValue(TypeConverter.toCalendarFromDateStrShort(xmlBooking.getDateValue()));
+		// booking.setDate(TypeConverter.toLocalDateFromDateStr(xmlBooking.getDate()));
+		booking.setDateBooking(TypeConverter.toLocalDateFromDateStrShort(xmlBooking.getDateBooking()));
+		booking.setDateValue(TypeConverter.toLocalDateFromDateStrShort(xmlBooking.getDateValue()));
 		booking.setPurpose(xmlBooking.getPurpose());
 
 		booking.setSepaCustomerRef(xmlBooking.getSepaCustomerRef());

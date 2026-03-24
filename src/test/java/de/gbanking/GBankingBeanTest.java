@@ -86,7 +86,7 @@ class GBankingBeanTest {
 
 		Booking bookingAccount0101 = new Booking();
 		bookingAccount0101.setAccountId(bankAccount01.getId());
-		bookingAccount0101.setDateBooking(TypeConverter.toCalendarFromDateStrShort("14.10.2025"));
+		bookingAccount0101.setDateBooking(TypeConverter.toLocalDateFromDateStr("14.10.2025"));
 		bookingAccount0101.setAmount(BigDecimal.valueOf(200.00));
 		bookingAccount0101.setRecipient(recipient01);
 		bookingAccount0101.setRecipientId(recipient01.getId());
@@ -103,7 +103,7 @@ class GBankingBeanTest {
 
 		Booking bookingAccount0102 = new Booking();
 		bookingAccount0102.setAccountId(bankAccount01.getId());
-		bookingAccount0102.setDateBooking(TypeConverter.toCalendarFromDateStrShort("15.10.2025"));
+		bookingAccount0102.setDateBooking(TypeConverter.toLocalDateFromDateStr("15.10.2025"));
 		bookingAccount0102.setAmount(BigDecimal.valueOf(-50.00));
 		bookingAccount0102.setRecipient(recipient02);
 		bookingAccount0102.setRecipientId(recipient02.getId());
@@ -114,7 +114,7 @@ class GBankingBeanTest {
 
 		Booking bookingAccount0103 = new Booking();
 		bookingAccount0103.setAccountId(bankAccount01.getId());
-		bookingAccount0103.setDateBooking(TypeConverter.toCalendarFromDateStrShort("16.10.2025"));
+		bookingAccount0103.setDateBooking(TypeConverter.toLocalDateFromDateStr("16.10.2025"));
 		bookingAccount0103.setAmount(BigDecimal.valueOf(400.00));
 		bookingAccount0103.setRecipient(recipient01);
 		bookingAccount0103.setRecipientId(recipient01.getId());
@@ -142,7 +142,7 @@ class GBankingBeanTest {
 
 		Booking bookingAccount0201 = new Booking();
 		bookingAccount0201.setAccountId(bankAccount02.getId());
-		bookingAccount0201.setDateBooking(TypeConverter.toCalendarFromDateStrShort("15.10.2025"));
+		bookingAccount0201.setDateBooking(TypeConverter.toLocalDateFromDateStr("15.10.2025"));
 		bookingAccount0201.setAmount(BigDecimal.valueOf(50.00));
 		bookingAccount0201.setRecipient(recipient03);
 		bookingAccount0201.setRecipientId(recipient03.getId());

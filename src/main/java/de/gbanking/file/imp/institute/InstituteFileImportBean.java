@@ -9,7 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
-import java.util.Calendar;
+import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -183,12 +183,12 @@ public class InstituteFileImportBean {
 
 		String date = csvRecord.get("Datum letzte Änderung");
 		if (!date.isEmpty()) {
-			institute.setLastChanged(TypeConverter.toCalendarFromDateStr(date));
+			institute.setLastChanged(TypeConverter.toLocalDateFromDateStr(date));
 		}
 
 		institute.setStateType(InstituteStatus.ACTIVE);
 		institute.setSource(Source.IMPORT);
-		institute.setUpdatedAt(Calendar.getInstance());
+		institute.setUpdatedAt(LocalDate.now());
 
 		return institute;
 	}
@@ -199,8 +199,8 @@ public class InstituteFileImportBean {
 				&& Objects.equals(a.getVersion(), b.getVersion()) && Objects.equals(getTime(a.getLastChanged()), getTime(b.getLastChanged()));
 	}
 
-	private Long getTime(Calendar cal) {
-		return cal == null ? null : cal.getTimeInMillis();
+	private Long getTime(LocalDate cal) {
+		return cal == null ? null : cal.toEpochDay();
 	}
 
 	private void moveToArchive(Path file) throws IOException {

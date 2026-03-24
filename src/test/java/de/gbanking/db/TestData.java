@@ -2,7 +2,7 @@ package de.gbanking.db;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
-import java.util.Calendar;
+import java.time.LocalDate;
 import java.util.Properties;
 import java.util.Random;
 import java.util.UUID;
@@ -41,7 +41,7 @@ public class TestData {
 		ba.setUpdVersion("1");
 		ba.setFilterType(HbciEncodingFilterType.NONE);
 		ba.setActive(true);
-		Calendar cal = Calendar.getInstance();
+		LocalDate cal = LocalDate.now();
 		ba.setUpdatedAt(cal);
 		return ba;
 	}
@@ -68,7 +68,7 @@ public class TestData {
 		acc.setCreditorid("CR-1");
 		acc.setSEPAAccount(true);
 		acc.setAccountState(AccountState.ACTIVE);
-		acc.setUpdatedAt(Calendar.getInstance());
+		acc.setUpdatedAt(LocalDate.now());
 		return acc;
 	}
 	
@@ -84,15 +84,15 @@ public class TestData {
 		acc.setCountry("DE");
 		acc.setSEPAAccount(true);
 		acc.setAccountState(accountState);
-		acc.setUpdatedAt(Calendar.getInstance());
+		acc.setUpdatedAt(LocalDate.now());
 		return acc;
 	}
 	
 	public static Booking createSampleBooking(Integer bankAccountId) {
 		Booking booking = new Booking();
 		booking.setAccountId(bankAccountId);
-		booking.setDateBooking(Calendar.getInstance());
-		booking.setDateValue(Calendar.getInstance());
+		booking.setDateBooking(LocalDate.now());
+		booking.setDateValue(LocalDate.now());
 		booking.setPurpose("Miete");
 		booking.setAmount(new BigDecimal("1200.00"));
 		booking.setCurrency("EUR");
@@ -104,8 +104,8 @@ public class TestData {
 	public static Booking createSampleBookingWithRecipient(Integer bankAccountId, Integer recipientId) {
 		Booking booking = new Booking();
 		booking.setAccountId(bankAccountId);
-		booking.setDateBooking(Calendar.getInstance());
-		booking.setDateValue(Calendar.getInstance());
+		booking.setDateBooking(LocalDate.now());
+		booking.setDateValue(LocalDate.now());
 		booking.setPurpose("Bareinzahlung");
 		booking.setAmount(new BigDecimal("50.00"));
 		booking.setCurrency("EUR");
@@ -118,8 +118,8 @@ public class TestData {
 	public static Booking createSampleBooking2(Integer bankAccountId) {
 		Booking booking = new Booking();
 		booking.setAccountId(bankAccountId);
-		booking.setDateBooking(Calendar.getInstance());
-		booking.setDateValue(Calendar.getInstance());
+		booking.setDateBooking(LocalDate.now());
+		booking.setDateValue(LocalDate.now());
 		booking.setPurpose("Kreditrate");
 		booking.setAmount(new BigDecimal("400.00"));
 		booking.setCurrency("EUR");
@@ -132,8 +132,8 @@ public class TestData {
 		Booking booking = new Booking();
 		booking.setAccountId(bankAccountId);
 		booking.setRecipientId(recipientId);
-		booking.setDateBooking(Calendar.getInstance());
-		booking.setDateValue(Calendar.getInstance());
+		booking.setDateBooking(LocalDate.now());
+		booking.setDateValue(LocalDate.now());
 		booking.setPurpose(purpose);
 		booking.setAmount(new BigDecimal(amount));
 		booking.setCurrency("EUR");
@@ -144,7 +144,7 @@ public class TestData {
 	
 	public static Category createSampleCategory(String categoryName) {
 		Category cg = new Category(categoryName);
-		Calendar cal = Calendar.getInstance();
+		LocalDate cal = LocalDate.now();
 		cg.setUpdatedAt(cal);
 		return cg;
 	}

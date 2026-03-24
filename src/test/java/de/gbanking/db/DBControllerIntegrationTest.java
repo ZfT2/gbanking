@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
-import java.util.Calendar;
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -100,7 +100,7 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 		// test that insert works even when bankAccessId is null.
 		BankAccount acc = TestData.createSampleAccount(null);
 		// ensure no NPE: set updatedAt inherited via Dao if required
-		acc.setUpdatedAt(Calendar.getInstance());
+		acc.setUpdatedAt(LocalDate.now());
 		db.insertOrUpdate(acc);
 
 		List<BankAccount> accounts = db.getAll(BankAccount.class);
@@ -165,10 +165,8 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 		BankAccount acc = TestData.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc);
 
-		Calendar d1 = Calendar.getInstance();
-		d1.set(2020, Calendar.JANUARY, 1);
-		Calendar d2 = Calendar.getInstance();
-		d2.set(2020, Calendar.FEBRUARY, 2);
+		LocalDate d1 = LocalDate.of(2020, 1, 1);
+		LocalDate d2 = LocalDate.of(2020, 2, 2);
 
 		Booking b1 = new Booking();
 		b1.setAccountId(acc.getId());
@@ -190,12 +188,9 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 		b2.setSource(Source.ONLINE);
 		db.insertOrUpdate(b2);
 
-//		Calendar last = db.getAccountLastBookingDate(acc.getId());
-		Calendar last = db.getSingleResultField(acc, StatementsConfig.StatementType.SELECT_ACCOUNT_LAST_BOOKING_DATE, Calendar.class);
+		LocalDate last = db.getSingleResultField(acc, StatementsConfig.StatementType.SELECT_ACCOUNT_LAST_BOOKING_DATE, LocalDate.class);
 		assertNotNull(last);
-		assertEquals(d2.get(Calendar.YEAR), last.get(Calendar.YEAR));
-		assertEquals(d2.get(Calendar.MONTH), last.get(Calendar.MONTH));
-		assertEquals(d2.get(Calendar.DAY_OF_MONTH), last.get(Calendar.DAY_OF_MONTH));
+		assertEquals(d2, last);
 	}
 
 	// ------------------------------------------------------------
@@ -257,7 +252,7 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 		mt.setRecipientId(rec.getId());
 		mt.setPurpose("Rent");
 		mt.setAmount(new BigDecimal("750.00"));
-		mt.setExecutionDate(Calendar.getInstance());
+		mt.setExecutionDate(LocalDate.now());
 		mt.setStandingorderMode(StandingorderMode.MONTHLY);
 		mt.setMoneytransferStatus(MoneyTransferStatus.NEW);
 		db.insertOrUpdate(mt);

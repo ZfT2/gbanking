@@ -105,7 +105,7 @@ public class CategoryInputPanel extends AbstractTitledFormPanel {
 		log.log(Level.INFO, () -> getText("LOG_INFO_CATEGORY_SELECTED", category.getId()));
 		selectedCategory = category;
 		categoryName.setText(category.getName());
-		updatedAtText.setText(category.getUpdatedAt() != null ? category.getUpdatedAt().getTime().toString() : "");
+		updatedAtText.setText(category.getUpdatedAt() != null ? category.getUpdatedAt().toString() : "");
 		parentCategoryCombo.setValue(resolveParentCategory(category));
 		sourceCombo.setValue(Source.MANUELL);
 	}

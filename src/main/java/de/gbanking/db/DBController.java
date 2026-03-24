@@ -89,7 +89,7 @@ public class DBController extends DbExecutor {
 			ps.setString(1, booking.getRecipient().getIban());
 			ps.setString(2, booking.getRecipient().getAccountNumber());
 			ps.setBigDecimal(3, booking.getAmount().negate());
-			ps.setDate(4, new java.sql.Date(booking.getDateBooking().getTime().getTime()));
+			ps.setDate(4, java.sql.Date.valueOf(booking.getDateBooking()));
 
 			try (ResultSet rs = ps.executeQuery()) {
 				if (!rs.isBeforeFirst()) {

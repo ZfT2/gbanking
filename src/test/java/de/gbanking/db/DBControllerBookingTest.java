@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
-import java.util.Calendar;
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -49,9 +49,9 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		assertEquals(BookingType.REMOVAL, booking.getBookingType());
 		assertEquals(Source.ONLINE, booking.getSource());
 
-		Calendar dateCurrentWithoutSeconds = getCalendarWithoutTime(Calendar.getInstance());
-		Calendar dateBookingWithoutSeconds = getCalendarWithoutTime(booking.getDateBooking());
-		Calendar dateValueWithoutSeconds = getCalendarWithoutTime(booking.getDateValue());
+		LocalDate dateCurrentWithoutSeconds = getCalendarWithoutTime(LocalDate.now());
+		LocalDate dateBookingWithoutSeconds = getCalendarWithoutTime(booking.getDateBooking());
+		LocalDate dateValueWithoutSeconds = getCalendarWithoutTime(booking.getDateValue());
 		assertEquals(dateCurrentWithoutSeconds, dateBookingWithoutSeconds);
 		assertEquals(dateCurrentWithoutSeconds, dateValueWithoutSeconds);
 	}
@@ -82,9 +82,9 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		assertEquals("EUR", booking.getCurrency());
 		assertEquals(BookingType.REMOVAL, booking.getBookingType());
 		assertEquals(Source.ONLINE, booking.getSource());
-		Calendar dateCurrentWithoutSeconds = getCalendarWithoutTime(Calendar.getInstance());
-		Calendar dateBookingWithoutSeconds = getCalendarWithoutTime(booking.getDateBooking());
-		Calendar dateValueWithoutSeconds = getCalendarWithoutTime(booking.getDateValue());
+		LocalDate dateCurrentWithoutSeconds = getCalendarWithoutTime(LocalDate.now());
+		LocalDate dateBookingWithoutSeconds = getCalendarWithoutTime(booking.getDateBooking());
+		LocalDate dateValueWithoutSeconds = getCalendarWithoutTime(booking.getDateValue());
 		assertEquals(dateCurrentWithoutSeconds, dateBookingWithoutSeconds);
 		assertEquals(dateCurrentWithoutSeconds, dateValueWithoutSeconds);
 
@@ -196,9 +196,9 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		assertEquals("EUR", booking01.getCurrency());
 		assertEquals(BookingType.REMOVAL, booking01.getBookingType());
 		assertEquals(Source.ONLINE, booking01.getSource());
-		Calendar dateCurrentWithoutSeconds = getCalendarWithoutTime(Calendar.getInstance());
-		Calendar dateBookingWithoutSeconds = getCalendarWithoutTime(booking01.getDateBooking());
-		Calendar dateValueWithoutSeconds = getCalendarWithoutTime(booking01.getDateValue());
+		LocalDate dateCurrentWithoutSeconds = getCalendarWithoutTime(LocalDate.now());
+		LocalDate dateBookingWithoutSeconds = getCalendarWithoutTime(booking01.getDateBooking());
+		LocalDate dateValueWithoutSeconds = getCalendarWithoutTime(booking01.getDateValue());
 		assertEquals(dateCurrentWithoutSeconds, dateBookingWithoutSeconds);
 		assertEquals(dateCurrentWithoutSeconds, dateValueWithoutSeconds);
 
@@ -252,9 +252,9 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		assertEquals("EUR", booking01.getCurrency());
 		assertEquals(BookingType.REMOVAL, booking01.getBookingType());
 		assertEquals(Source.ONLINE, booking01.getSource());
-		Calendar dateCurrentWithoutSeconds = getCalendarWithoutTime(Calendar.getInstance());
-		Calendar dateBookingWithoutSeconds = getCalendarWithoutTime(booking01.getDateBooking());
-		Calendar dateValueWithoutSeconds = getCalendarWithoutTime(booking01.getDateValue());
+		LocalDate dateCurrentWithoutSeconds = getCalendarWithoutTime(LocalDate.now());
+		LocalDate dateBookingWithoutSeconds = getCalendarWithoutTime(booking01.getDateBooking());
+		LocalDate dateValueWithoutSeconds = getCalendarWithoutTime(booking01.getDateValue());
 		assertEquals(dateCurrentWithoutSeconds, dateBookingWithoutSeconds);
 		assertEquals(dateCurrentWithoutSeconds, dateValueWithoutSeconds);
 
@@ -308,9 +308,9 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		assertEquals(BookingType.DEPOSIT, rebookingToCheck.getBookingType());
 		assertEquals(Source.ONLINE, booking01.getSource());
 		assertEquals(Source.ONLINE, rebookingToCheck.getSource());
-		Calendar dateCurrentWithoutSeconds = getCalendarWithoutTime(Calendar.getInstance());
-		Calendar dateBookingWithoutSeconds = getCalendarWithoutTime(rebookingToCheck.getDateBooking());
-		Calendar dateValueWithoutSeconds = getCalendarWithoutTime(rebookingToCheck.getDateValue());
+		LocalDate dateCurrentWithoutSeconds = getCalendarWithoutTime(LocalDate.now());
+		LocalDate dateBookingWithoutSeconds = getCalendarWithoutTime(rebookingToCheck.getDateBooking());
+		LocalDate dateValueWithoutSeconds = getCalendarWithoutTime(rebookingToCheck.getDateValue());
 		assertEquals(dateCurrentWithoutSeconds, dateBookingWithoutSeconds);
 		assertEquals(dateCurrentWithoutSeconds, dateValueWithoutSeconds);
 	}

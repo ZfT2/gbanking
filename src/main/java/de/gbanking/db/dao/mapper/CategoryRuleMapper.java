@@ -31,8 +31,8 @@ public class CategoryRuleMapper extends AbstractDaoMapper<CategoryRule, Void> {
 	@Override
 	public void mapDao(CategoryRule categoryRule, ResultType resultType, ResultSet rs) throws SQLException {
 		// categoryRule.setCategoryId(rs.getInt("category_id")); TODO Category..
-		categoryRule.setFilterDateFrom((TypeConverter.toCalendarFromSqlDate(rs.getDate("filterDateFrom"))));
-		categoryRule.setFilterDateTo((TypeConverter.toCalendarFromSqlDate(rs.getDate("filterDateTo"))));
+		categoryRule.setFilterDateFrom((TypeConverter.toLocalDateFromSqlDate(rs.getDate("filterDateFrom"))));
+		categoryRule.setFilterDateTo((TypeConverter.toLocalDateFromSqlDate(rs.getDate("filterDateTo"))));
 		categoryRule.setFilterAmountFrom(rs.getBigDecimal("filterAmountFrom"));
 		categoryRule.setFilterAmountTo(rs.getBigDecimal("filterAmountTo"));
 		categoryRule.setFilterRecipient(rs.getString("filterRecipient"));

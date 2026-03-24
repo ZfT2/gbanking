@@ -75,7 +75,7 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 
 		institute.setPinUrl(rs.getString("pinUrl"));
 		institute.setVersion(rs.getString("version"));
-		institute.setLastChanged(TypeConverter.toCalendarFromSqlDate(rs.getDate("lastChanged")));
+		institute.setLastChanged(TypeConverter.toLocalDateFromSqlDate(rs.getDate("lastChanged")));
 		institute.setStateType(InstituteStatus.forInt(rs.getInt("stateType")));
 	}
 

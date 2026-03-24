@@ -1,7 +1,7 @@
 package de.gbanking.db.enu;
 
 import java.math.BigDecimal;
-import java.util.Calendar;
+import java.time.LocalDate;
 
 public enum DataType implements IdType {
 
@@ -10,7 +10,7 @@ public enum DataType implements IdType {
 	FLOAT(Float.class, 3),
 	BIGDECIMAL(BigDecimal.class, 4),
 	BOOLEAN(Boolean.class, 5),
-	CALENDAR(Calendar.class, 6),
+	CALENDAR(LocalDate.class, 6),
 	ENUM(IdType.class, 7),
 	STRING(String.class, 8),
 	CHAR(char.class, 9);

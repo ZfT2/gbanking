@@ -1,11 +1,12 @@
 package de.gbanking.util;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.sql.Date;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
@@ -23,102 +24,69 @@ public class TypeConverter {
 	public static final String DATE_PATTERN_LONG = "dd.MM.yyyy";
 	public static final String TIMESTAMP_PATTERN = "dd.MM.yy HH:mm:ss.SSS";
 
-	public static final String ISO8601_PATTERN = SQLiteConfig.DEFAULT_DATE_STRING_FORMAT; // "yyyy-MM-dd HH:mm:ss.SSS";
+	public static final String ISO8601_PATTERN = SQLiteConfig.DEFAULT_DATE_STRING_FORMAT;
 
-	public static String toDateStringShort(Calendar date) {
-		return date != null ? new SimpleDateFormat(DATE_PATTERN_SHORT).format(date.getTime()) : null;
+	private static final DateTimeFormatter DATE_FORMATTER_SHORT = DateTimeFormatter.ofPattern(DATE_PATTERN_SHORT);
+	private static final DateTimeFormatter DATE_FORMATTER_LONG = DateTimeFormatter.ofPattern(DATE_PATTERN_LONG);
+
+	public static String toDateStringShort(LocalDate date) {
+		return date != null ? DATE_FORMATTER_SHORT.format(date) : null;
 	}
 
-	public static String toDateStringLong(Calendar date) {
-		return date != null ? new SimpleDateFormat(DATE_PATTERN_LONG).format(date.getTime()) : null;
+	public static String toDateStringLong(LocalDate date) {
+		return date != null ? DATE_FORMATTER_LONG.format(date) : null;
 	}
 
-	public static String toTimestampString(Calendar date) {
-		return date != null ? new SimpleDateFormat(TIMESTAMP_PATTERN).format(date.getTime()) : null;
+	public static String toTimestampString(LocalDate date) {
+		return toDateStringLong(date);
 	}
 
 	public static String toTimestampStringNow() {
-		return new SimpleDateFormat(TIMESTAMP_PATTERN).format(Calendar.getInstance().getTime());
+		return toDateStringLong(LocalDate.now());
 	}
 
-//	public static String toISO8601DateStringShort(Calendar cal) {
-//		if (cal == null) {
-//			return null;
-//		}
-//		cal.set(Calendar.HOUR_OF_DAY, 0);
-//		cal.set(Calendar.MINUTE, 0);
-//		cal.set(Calendar.SECOND, 0);
-//		cal.set(Calendar.MILLISECOND, 0);
-//		return new SimpleDateFormat(ISO8601_PATTERN).format(cal.getTime());
-//	}
-//	
-//	public static String toISO8601DateStringLong(Calendar cal) {
-//		return cal != null ? new SimpleDateFormat(ISO8601_PATTERN).format(cal.getTime()) : null;
-//	}
-//	
-//	public static String toISO8601TimestampStringNow() {
-//		return new SimpleDateFormat(ISO8601_PATTERN).format(Calendar.getInstance().getTime());
-//	}
-
-	public static java.sql.Date toSqlDateShort(Calendar cal) {
-		if (cal == null) {
-			return null;
-		}
-		cal.set(Calendar.HOUR_OF_DAY, 0);
-		cal.set(Calendar.MINUTE, 0);
-		cal.set(Calendar.SECOND, 0);
-		cal.set(Calendar.MILLISECOND, 0);
-		return new java.sql.Date(cal.getTime().getTime());
+	public static Date toSqlDateShort(LocalDate date) {
+		return date != null ? Date.valueOf(date) : null;
 	}
 
-	public static java.sql.Date toSqlDateLong(Calendar cal) {
-		return cal != null ? new java.sql.Date(cal.getTime().getTime()) : null;
+	public static Date toSqlDateLong(LocalDate date) {
+		return date != null ? Date.valueOf(date) : null;
 	}
 
-	public static java.sql.Date toSqlDateNow() {
-		return new java.sql.Date(System.currentTimeMillis());
+	public static Date toSqlDateNow() {
+		return Date.valueOf(LocalDate.now());
 	}
 
-	public static Calendar toCalendarFromDateStrShort(String date) {
-		return toCalendar(DATE_PATTERN_SHORT, date);
+	public static LocalDate toLocalDateFromDateStrShort(String date) {
+		return toLocalDate(DATE_FORMATTER_SHORT, date);
 	}
 
-	public static Calendar toCalendarFromDateStr(String date) {
-		return toCalendar(DATE_PATTERN_LONG, date);
+	public static LocalDate toLocalDateFromDateStr(String date) {
+		return toLocalDate(DATE_FORMATTER_LONG, date);
 	}
 
-	public static Calendar toCalendarFromTimestampStr(String date) {
-		return toCalendar(TIMESTAMP_PATTERN, date);
+	public static LocalDate toLocalDateFromTimestampStr(String date) {
+		return toLocalDateFromDateStr(date);
 	}
 
-	public static Calendar toCalendarFromDate(Date date) {
-		Calendar cal = Calendar.getInstance();
-		cal.setTime(date);
-		return cal;
+	public static LocalDate toLocalDateFromDate(java.util.Date date) {
+		return date == null ? null : Instant.ofEpochMilli(date.getTime()).atZone(ZoneId.systemDefault()).toLocalDate();
 	}
 
-	private static Calendar toCalendar(String pattern, String date) {
+	private static LocalDate toLocalDate(DateTimeFormatter formatter, String date) {
 		if (date == null) {
 			return null;
 		}
-		Calendar cal = Calendar.getInstance();
 		try {
-			cal.setTime(new SimpleDateFormat(pattern).parse(date));
-		} catch (ParseException e) {
-			log.error("Error parsing Date String to Calendar: {}", date);
+			return LocalDate.from(formatter.parse(date));
+		} catch (Exception e) {
+			log.error("Error parsing Date String to LocalDate: {}", date);
 			return null;
 		}
-
-		return cal;
 	}
 
-	public static Calendar toCalendarFromSqlDate(java.sql.Date sqlDate) {
-		if (sqlDate == null) {
-			return null;
-		}
-		Calendar cal = Calendar.getInstance();
-		cal.setTime(sqlDate);
-		return cal;
+	public static LocalDate toLocalDateFromSqlDate(Date sqlDate) {
+		return sqlDate == null ? null : sqlDate.toLocalDate();
 	}
 
 	public static List<String> toList(String commaSeparatedString) {

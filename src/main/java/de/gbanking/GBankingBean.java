@@ -5,7 +5,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Calendar;
+import java.time.LocalDate;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -162,7 +162,7 @@ public class GBankingBean extends BaseBean implements Serializable {
 
 		BankAccess bankAccess = initBankAccess(bankAccount, pin);
 		
-		Calendar lastBookingDate = getAccountLastBookingDate(bankAccount);
+		LocalDate lastBookingDate = getAccountLastBookingDate(bankAccount);
 		
 		HBCIPassport passport = initBankConnection(bankAccess);
 		
@@ -184,7 +184,7 @@ public class GBankingBean extends BaseBean implements Serializable {
 
 					HBCIJob<?> umsatzJob = null;
 					if (lastBookingDate != null) {
-						umsatzJob = createAndAddHbciJob(handle, "KUmsAllCamt", Map.of("my", konto, "startdate", lastBookingDate.getTime()));
+						umsatzJob = createAndAddHbciJob(handle, "KUmsAllCamt", Map.of("my", konto, "startdate", (java.util.Date.from(lastBookingDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()))));
 					} else {
 						umsatzJob = createAndAddHbciJob(handle, "KUmsAllCamt", Map.of("my", konto));
 					}
@@ -392,7 +392,7 @@ public class GBankingBean extends BaseBean implements Serializable {
 				log.error("HBCI Error, Status: {}", status);
 				moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.ERROR);
 			} else {
-				moneyTransfer.setExecutionDate(Calendar.getInstance());
+				moneyTransfer.setExecutionDate(LocalDate.now());
 				moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.SENT);		
 			}
 			dbController.insertOrUpdate(moneyTransfer);
@@ -427,7 +427,7 @@ public class GBankingBean extends BaseBean implements Serializable {
 		}
 
 		MoneyTransfer moneyTransfer = new MoneyTransfer(mtf.getBankAccount().getId(), OrderType.TRANSFER, recipient.getId(), mtf.getPurpose(), mtf.getAmount(),
-				Calendar.getInstance(), MoneyTransferStatus.NEW);
+				LocalDate.now(), MoneyTransferStatus.NEW);
 		
 		return dbController.insertOrUpdate(moneyTransfer);
 	}
@@ -620,8 +620,8 @@ public class GBankingBean extends BaseBean implements Serializable {
 	
 	/** shortcut methods **/
 	
-	private Calendar getAccountLastBookingDate(BankAccount bankAccount){
-		return dbController.getSingleResultField(bankAccount, StatementsConfig.StatementType.SELECT_ACCOUNT_LAST_BOOKING_DATE, Calendar.class);
+	private LocalDate getAccountLastBookingDate(BankAccount bankAccount){
+		return dbController.getSingleResultField(bankAccount, StatementsConfig.StatementType.SELECT_ACCOUNT_LAST_BOOKING_DATE, LocalDate.class);
 	}
 
 	public void setup() {

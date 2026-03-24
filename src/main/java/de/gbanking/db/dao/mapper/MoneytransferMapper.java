@@ -40,7 +40,7 @@ public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> 
 		moneytransfer.setRecipientId(rs.getInt("recipient_id"));
 		moneytransfer.setPurpose(rs.getString(SqlFields.BOOKING_PURPOSE));
 		moneytransfer.setAmount(rs.getBigDecimal(SqlFields.BOOKING_AMOUNT));
-		moneytransfer.setExecutionDate(TypeConverter.toCalendarFromTimestampStr(rs.getString("executionDate")));
+		moneytransfer.setExecutionDate(TypeConverter.toLocalDateFromDateStrShort(rs.getString("executionDate")));
 		moneytransfer.setMoneytransferStatus(MoneyTransferStatus.valueOf(rs.getString("moneytransferStatus")));
 		moneytransfer.setStandingorderMode(rs.getString("standingorderMode") != null ? StandingorderMode.valueOf(rs.getString("standingorderMode")) : null);
 		moneytransfer.setHistoryorderId(rs.getInt("historyorder_id"));

@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Calendar;
+import java.time.LocalDate;
 import java.util.Collection;
 
 import org.junit.jupiter.api.AfterAll;
@@ -46,12 +46,8 @@ abstract class DBControllerIntegrationBaseTest {
 		DBControllerTestUtil.deleteTemporaryDir(tempDir);
 	}
 	
-	protected Calendar getCalendarWithoutTime(Calendar cal){
-		cal.set(Calendar.HOUR_OF_DAY, 0);
-		cal.set(Calendar.MINUTE, 0);
-		cal.set(Calendar.SECOND, 0);
-		cal.set(Calendar.MILLISECOND, 0);
-		return cal;
+	protected LocalDate getCalendarWithoutTime(LocalDate date) {
+		return date;
 	}
 	
 	protected <T extends Dao> T findById(Collection<T> list, int id) {

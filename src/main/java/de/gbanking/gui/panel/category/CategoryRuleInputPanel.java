@@ -2,8 +2,7 @@ package de.gbanking.gui.panel.category;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.Calendar;
+
 import java.util.List;
 
 import org.apache.logging.log4j.Level;
@@ -152,7 +151,7 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 		filterPurpose.setText(categoryRule.getFilterPurpose() != null ? categoryRule.getFilterPurpose() : "");
 		filterRecipientRegexCheckbox.setSelected(categoryRule.isFilterRecipientIsRegex());
 		filterPurposeRegexCheckbox.setSelected(categoryRule.isFilterPurposeIsRegex());
-		updatedAtText.setText(categoryRule.getUpdatedAt() != null ? categoryRule.getUpdatedAt().getTime().toString() : "");
+		updatedAtText.setText(categoryRule.getUpdatedAt() != null ? categoryRule.getUpdatedAt().toString() : "");
 	}
 
 	public void updatePanelFieldValues(BankAccount bankAccount) {
@@ -172,18 +171,11 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 		return value == null || value.isBlank() ? null : value.trim();
 	}
 
-	private Calendar toCalendar(LocalDate value) {
-		if (value == null) {
-			return null;
-		}
-
-		Calendar calendar = Calendar.getInstance();
-		calendar.clear();
-		calendar.set(value.getYear(), value.getMonthValue() - 1, value.getDayOfMonth());
-		return calendar;
+	private LocalDate toCalendar(LocalDate value) {
+		return value;
 	}
 
-	private LocalDate toLocalDate(Calendar value) {
-		return value == null ? null : value.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+	private LocalDate toLocalDate(LocalDate value) {
+		return value;
 	}
 }

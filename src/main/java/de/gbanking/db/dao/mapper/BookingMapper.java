@@ -77,8 +77,8 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 		booking.setAccountId(rs.getInt(SqlFields.ACCOUNT_ACCOUNTID));
 		booking.setBookingType(rs.getString(SqlFields.BOOKING_BOOKINGTYPE) != null ? BookingType.valueOf(rs.getString(SqlFields.BOOKING_BOOKINGTYPE)) : null);
 		booking.setSource(Source.valueOf(rs.getString("bookingSource")));
-		booking.setDateBooking(TypeConverter.toCalendarFromSqlDate(rs.getDate(SqlFields.BOOKING_DATEBOOKING)));
-		booking.setDateValue(TypeConverter.toCalendarFromSqlDate(rs.getDate("dateValue")));
+		booking.setDateBooking(TypeConverter.toLocalDateFromSqlDate(rs.getDate(SqlFields.BOOKING_DATEBOOKING)));
+		booking.setDateValue(TypeConverter.toLocalDateFromSqlDate(rs.getDate("dateValue")));
 		booking.setPurpose(rs.getString(SqlFields.BOOKING_PURPOSE));
 		booking.setAmount(rs.getBigDecimal(SqlFields.BOOKING_AMOUNT).setScale(2, RoundingMode.HALF_UP));
 		booking.setCurrency(rs.getString("currency"));

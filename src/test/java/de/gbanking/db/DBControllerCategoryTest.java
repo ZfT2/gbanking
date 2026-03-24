@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
-import java.util.Calendar;
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -34,8 +34,8 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 		assertEquals("Auto", cg.getName());
 		assertEquals("Auto", cg.getFullName());
 		
-		Calendar dateUpdatedAtWithoutTime = getCalendarWithoutTime(cg.getUpdatedAt());
-		assertEquals(dateUpdatedAtWithoutTime, getCalendarWithoutTime(Calendar.getInstance()));
+		LocalDate dateUpdatedAtWithoutTime = getCalendarWithoutTime(cg.getUpdatedAt());
+		assertEquals(dateUpdatedAtWithoutTime, getCalendarWithoutTime(LocalDate.now()));
 	}
 	
 	@Test
@@ -116,8 +116,8 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 		assertTrue(cr.getId() > 0);
 		assertEquals("Fahrkarte", cr.getFilterPurpose());
 		
-		Calendar dateUpdatedAtWithoutTime = getCalendarWithoutTime(cr.getUpdatedAt());
-		assertEquals(dateUpdatedAtWithoutTime, getCalendarWithoutTime(Calendar.getInstance()));
+		LocalDate dateUpdatedAtWithoutTime = getCalendarWithoutTime(cr.getUpdatedAt());
+		assertEquals(dateUpdatedAtWithoutTime, getCalendarWithoutTime(LocalDate.now()));
 	}
 
 }

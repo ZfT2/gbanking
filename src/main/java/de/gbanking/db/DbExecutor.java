@@ -4,8 +4,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -27,7 +27,6 @@ import de.gbanking.db.dao.mapper.StatementsResultMapper;
 import de.gbanking.db.enu.StateType;
 import de.gbanking.exception.GBankingException;
 import de.gbanking.messages.MessageConstants;
-import de.gbanking.util.TypeConverter;
 
 public class DbExecutor extends DbConnectionHandler {
 
@@ -512,25 +511,30 @@ public class DbExecutor extends DbConnectionHandler {
 
 		if (type.equals(Boolean.class) && isNullResult(rs, resultField)) {
 			return type.cast(false);
-		} else if (rs == null)
+		} else if (rs == null) {
 			return null;
-
-		Class<?> rsType = type.equals(Calendar.class) ? java.sql.Date.class : type;
-
-		Object resultObject = resultField == null ? rs.getObject(1, rsType) : rs.getObject(resultField, rsType);
-
-		if (type.equals(Calendar.class)) {
-			convertedResult = type.cast(TypeConverter.toCalendarFromSqlDate((java.sql.Date) resultObject));
-		} else {
-			convertedResult = type.cast(resultObject);
+		} else if (type == LocalDate.class && getResultObject(rs, resultField, null) instanceof Integer) {
+			return null;
 		}
 
+		Object resultObject = getResultObject(rs, resultField, type);
+
+		convertedResult = type.cast(resultObject);
+
 		return convertedResult;
+	}
+
+	private <T> Object getResultObject(ResultSet rs, String resultField, Class<T> type) throws SQLException {
+		if (type == null) {
+			return resultField == null ? rs.getObject(1) : rs.getObject(resultField);
+		}
+		return resultField == null ? rs.getObject(1, type) : rs.getObject(resultField, type);
 	}
 
 	private boolean isNullResult(ResultSet rs, String resultField) throws SQLException {
 		return (rs == null || (resultField == null ? rs.getObject(1) : rs.getObject(resultField)) == null);
 	}
+
 
 	private <T extends Dao> void addOneToManyRelations(T parentEntity) {
 		Class<? extends Dao> childType = StatementsConfig.getChildType(parentEntity.getClass());

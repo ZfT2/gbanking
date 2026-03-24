@@ -3,7 +3,7 @@ package de.gbanking.db.dao;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Calendar;
+import java.time.LocalDate;
 import java.util.Objects;
 
 import de.fp32xmlextract.data.Booking.SepaTyp;
@@ -17,9 +17,9 @@ public class Booking extends Dao implements Serializable {
 	private static final long serialVersionUID = -5006523951641613067L;
 
 	private int accountId;
-	private Calendar date;
-	private Calendar dateBooking;
-	private Calendar dateValue;
+	private LocalDate date;
+	private LocalDate dateBooking;
+	private LocalDate dateValue;
 	private String purpose;
 	private BigDecimal amount;
 	private String currency;
@@ -44,7 +44,7 @@ public class Booking extends Dao implements Serializable {
 	private int recipientId;
 	private int categoryId;
 
-	public Booking(int accountId, Calendar dateBooking, Calendar dateValue, String purpose, BigDecimal amount, BookingType bookingType,
+	public Booking(int accountId, LocalDate dateBooking, LocalDate dateValue, String purpose, BigDecimal amount, BookingType bookingType,
 			int crossAccountId) {
 		this.accountId = accountId;
 		this.date = dateValue != null ? dateValue : dateBooking;
@@ -84,27 +84,27 @@ public class Booking extends Dao implements Serializable {
 		this.accountId = accountId;
 	}
 
-	public Calendar getDate() {
+	public LocalDate getDate() {
 		return date;
 	}
 
-	public void setDate(Calendar date) {
+	public void setDate(LocalDate date) {
 		this.date = date;
 	}
 
-	public Calendar getDateBooking() {
+	public LocalDate getDateBooking() {
 		return dateBooking;
 	}
 
-	public void setDateBooking(Calendar dateBooking) {
+	public void setDateBooking(LocalDate dateBooking) {
 		this.dateBooking = dateBooking;
 	}
 
-	public Calendar getDateValue() {
+	public LocalDate getDateValue() {
 		return dateValue;
 	}
 
-	public void setDateValue(Calendar dateValue) {
+	public void setDateValue(LocalDate dateValue) {
 		this.dateValue = dateValue;
 	}
 

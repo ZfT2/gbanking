@@ -74,7 +74,7 @@ public class ParameterDataBankAccessMapper extends AbstractDaoMapper<ParameterDa
 		pdBankAccess.setBankAccessId(rs.getInt("bankAccess_id"));
 		pdBankAccess.setPdKey(rs.getString("pdKey"));
 		pdBankAccess.setPdValue(rs.getString("pdValue"));
-		pdBankAccess.setUpdatedAt((TypeConverter.toCalendarFromTimestampStr(rs.getString(SqlFields.DAO_UPDATEDAT))));
+		pdBankAccess.setUpdatedAt((TypeConverter.toLocalDateFromSqlDate(rs.getDate(SqlFields.DAO_UPDATEDAT))));
 		return pdBankAccess;
 	}
 

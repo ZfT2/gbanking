@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.eq;
 
-import java.util.Date;
+import java.time.LocalDate;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,7 +42,7 @@ class DbExecuterErrorHandlingTest extends DBControllerIntegrationBaseTest {
 		BankAccount acc01 = TestData.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc01);
 
-		Date result = setupMock(acc01, Date.class, "select id from bankAccount where id = ?");
+		LocalDate result = setupMock(acc01, LocalDate.class, "select id from bankAccount where id = ?");
 
 		assertNull(result);
 	}

@@ -1,7 +1,5 @@
 package de.gbanking.gui.panel.account;
 
-import java.text.SimpleDateFormat;
-
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.enu.AccountState;
 import de.gbanking.gui.panel.AbstractReadonlyDetailPanel;
@@ -16,7 +14,6 @@ import javafx.scene.layout.Priority;
 
 public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 
-	private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yy");
 	private final boolean fullDetails;
 
 	private final TextField accountIbanText = FormFields.textM();
@@ -139,6 +136,6 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 			}
 		}
 
-		updatedAtText.setText(bankAccount.getUpdatedAt() != null ? dateFormat.format(bankAccount.getUpdatedAt().getTime()) : "");
+		updatedAtText.setText(bankAccount.getUpdatedAt() != null ? de.gbanking.gui.util.DateFormatUtils.formatShort(bankAccount.getUpdatedAt()) : "");
 	}
 }

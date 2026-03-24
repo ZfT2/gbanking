@@ -1,7 +1,7 @@
 package de.gbanking.gui.panel.transaction;
 
 import java.math.BigDecimal;
-import java.util.Calendar;
+import java.time.LocalDate;
 
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.Booking;
@@ -265,8 +265,8 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 			displayedBooking = new Booking();
 		}
 
-		displayedBooking.setDateBooking(TypeConverter.toCalendarFromDateStrShort(dateBookingText.getText()));
-		displayedBooking.setDateValue(TypeConverter.toCalendarFromDateStrShort(dateValueText.getText()));
+		displayedBooking.setDateBooking(TypeConverter.toLocalDateFromDateStrShort(dateBookingText.getText()));
+		displayedBooking.setDateValue(TypeConverter.toLocalDateFromDateStrShort(dateValueText.getText()));
 		displayedBooking.setPurpose(purposeText.getText());
 		displayedBooking.setAmount(amountText.getText() == null || amountText.getText().isBlank() ? null : new BigDecimal(amountText.getText()));
 		displayedBooking.setCurrency(currencyText.getText());
@@ -278,7 +278,7 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 			displayedBooking.setCrossAccountId(cross.getId());
 		}
 
-		displayedBooking.setUpdatedAt(Calendar.getInstance());
+		displayedBooking.setUpdatedAt(LocalDate.now());
 	}
 
 	public void updatePanelFieldValues(Booking booking) {

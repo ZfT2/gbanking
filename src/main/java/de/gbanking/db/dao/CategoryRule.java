@@ -2,7 +2,7 @@ package de.gbanking.db.dao;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.util.Calendar;
+import java.time.LocalDate;
 import java.util.List;
 
 public class CategoryRule extends Dao implements Serializable /* MnRelation */ {
@@ -28,8 +28,8 @@ public class CategoryRule extends Dao implements Serializable /* MnRelation */ {
 	}
 
 	private Category category;
-	private Calendar filterDateFrom;
-	private Calendar filterDateTo;
+	private LocalDate filterDateFrom;
+	private LocalDate filterDateTo;
 	private BigDecimal filterAmountFrom;
 	private BigDecimal filterAmountTo;
 	private String filterRecipient;
@@ -53,19 +53,19 @@ public class CategoryRule extends Dao implements Serializable /* MnRelation */ {
 		this.category = category;
 	}
 
-	public Calendar getFilterDateFrom() {
+	public LocalDate getFilterDateFrom() {
 		return filterDateFrom;
 	}
 
-	public void setFilterDateFrom(Calendar filterDateFrom) {
+	public void setFilterDateFrom(LocalDate filterDateFrom) {
 		this.filterDateFrom = filterDateFrom;
 	}
 
-	public Calendar getFilterDateTo() {
+	public LocalDate getFilterDateTo() {
 		return filterDateTo;
 	}
 
-	public void setFilterDateTo(Calendar filterDateTo) {
+	public void setFilterDateTo(LocalDate filterDateTo) {
 		this.filterDateTo = filterDateTo;
 	}
 

@@ -1,7 +1,7 @@
 package de.gbanking.db.dao;
 
 import java.io.Serializable;
-import java.util.Calendar;
+import java.time.LocalDate;
 
 import de.gbanking.db.enu.IdType;
 
@@ -35,7 +35,7 @@ public class Institute extends Dao implements Serializable {
 	private Boolean rdh10;
 	private String pinUrl;
 	private String version;
-	private Calendar lastChanged;
+	private LocalDate lastChanged;
 
 	private transient IdType stateType;
 
@@ -223,11 +223,11 @@ public class Institute extends Dao implements Serializable {
 		this.version = version;
 	}
 
-	public Calendar getLastChanged() {
+	public LocalDate getLastChanged() {
 		return lastChanged;
 	}
 
-	public void setLastChanged(Calendar lastChanged) {
+	public void setLastChanged(LocalDate lastChanged) {
 		this.lastChanged = lastChanged;
 	}
 

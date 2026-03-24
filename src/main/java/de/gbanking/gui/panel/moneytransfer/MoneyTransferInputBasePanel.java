@@ -16,6 +16,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputControl;
 import javafx.scene.layout.HBox;
 
 public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPanel {
@@ -81,8 +82,7 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 	protected void saveTransfer() {
 		BankAccount account = parentPanel.getSelectedAccount();
 
-		if (account == null || tfRecipientName.getText().isBlank() || tfIBAN.getText().isBlank() || tfBank.getText().isBlank() || tfAmount.getText().isBlank()
-				|| tfPurpose.getText().isBlank()) {
+		if (!validateTransferInput(account)) {
 
 			new Alert(Alert.AlertType.WARNING, getText("ALERT_MONEYTRANSFER_REQUIRED_FIELD_MISSING")).showAndWait();
 			return;
@@ -94,6 +94,16 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 		bean.saveMoneyTransferToDB(moneyTransfer);
 		parentPanel.getMoneyTransferListPanel().reload();
 	}
+
+	private boolean validateTransferInput(BankAccount account) {
+		return account != null && validateInputElement(tfRecipientName) && validateInputElement(tfIBAN) && validateInputElement(tfAmount)
+				&& validateInputElement(tfPurpose);
+	}
+
+	private boolean validateInputElement(TextInputControl textField) {
+		return textField.getText() != null && !textField.getText().isBlank();
+	}
+
 
 	protected void deleteTransfer() {
 		if (currentMoneytransfer != null) {

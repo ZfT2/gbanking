@@ -84,7 +84,7 @@ public abstract class AbstractDaoMapper<T extends Dao, V> {
 //		if (dao == null)
 //			return;
 //		dao.setId(rs.getInt("id"));
-//		dao.setUpdatedAt((TypeConverter.toCalendarFromSqlDate(rs.getDate(SqlFields.DAO_UPDATEDAT))));
+//		dao.setUpdatedAt((TypeConverter.toLocalDateFromSqlDate(rs.getDate(SqlFields.DAO_UPDATEDAT))));
 	}
 
 	protected int setIntegerNullable(int index, Integer value, PreparedStatement ps) throws SQLException {
@@ -149,7 +149,7 @@ public abstract class AbstractDaoMapper<T extends Dao, V> {
 	void initDefaultFields(Dao dao, ResultSet rs) throws SQLException {
 		if (!(dao instanceof DaoView))
 			dao.setId(rs.getInt("id"));
-		dao.setUpdatedAt((TypeConverter.toCalendarFromSqlDate(rs.getDate(SqlFields.DAO_UPDATEDAT))));
+		dao.setUpdatedAt((TypeConverter.toLocalDateFromSqlDate(rs.getDate(SqlFields.DAO_UPDATEDAT))));
 	}
 
 }

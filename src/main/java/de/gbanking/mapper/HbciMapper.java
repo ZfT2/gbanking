@@ -1,7 +1,7 @@
 package de.gbanking.mapper;
 
 import java.util.ArrayList;
-import java.util.Calendar;
+import java.time.LocalDate;
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
@@ -62,7 +62,7 @@ public class HbciMapper {
 		}
 		bankAccount.setAllowedBusinessCases(businessCaseList);
 		
-		bankAccount.setUpdatedAt(Calendar.getInstance());
+		bankAccount.setUpdatedAt(LocalDate.now());
 		
 		//bankAccount.setAccountName(bankAccount.getDefaultAccountName());
 
@@ -74,8 +74,8 @@ public class HbciMapper {
 		Booking booking = new Booking();
 		
 		booking.setAccountId(accountId);
-		booking.setDateBooking(TypeConverter.toCalendarFromDate(umsLine.bdate));
-		booking.setDateValue(TypeConverter.toCalendarFromDate(umsLine.valuta));
+		booking.setDateBooking(TypeConverter.toLocalDateFromDate(umsLine.bdate));
+		booking.setDateValue(TypeConverter.toLocalDateFromDate(umsLine.valuta));
 		StringBuilder sb = new StringBuilder();
 		for( String purposeline : umsLine.usage){
 			sb.append(purposeline + "\n");
@@ -92,7 +92,7 @@ public class HbciMapper {
 		booking.setSepaPurpose(umsLine.purposecode);
 		booking.setSepaTyp(null);
 		
-		booking.setUpdatedAt(Calendar.getInstance());
+		booking.setUpdatedAt(LocalDate.now());
 
 		return booking;
 	}
@@ -111,7 +111,7 @@ public class HbciMapper {
 		recipient.setAccountNumber(other.number);
 		recipient.setBlz(other.blz);
 		recipient.setSource(Source.ONLINE);
-		recipient.setUpdatedAt(Calendar.getInstance());
+		recipient.setUpdatedAt(LocalDate.now());
 
 		return recipient;
 	}
