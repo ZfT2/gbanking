@@ -1,11 +1,10 @@
 package de.gbanking;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.time.LocalDate;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -50,10 +49,13 @@ import de.gbanking.db.dao.enu.OrderType;
 import de.gbanking.db.dao.enu.Source;
 import de.gbanking.db.dao.enu.SqlFilter;
 import de.gbanking.exception.GBankingException;
-import de.gbanking.file.imp.institute.InstituteFileImportBean;
 import de.gbanking.gui.dto.MoneyTransferForm;
+import de.gbanking.gui.progress.InstituteFileImportProgressBarPanel;
 import de.gbanking.hbci.GBankingHBCICallback;
 import de.gbanking.mapper.HbciMapper;
+import javafx.application.Platform;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 
 public class GBankingBean extends BaseBean implements Serializable {
 
@@ -625,13 +627,30 @@ public class GBankingBean extends BaseBean implements Serializable {
 	}
 
 	public void setup() {
-		InstituteFileImportBean instituteFileImport = new InstituteFileImportBean();
-		try {
-			instituteFileImport.runImport();
-		} catch (IOException e) {
-			log.error("Error importing bank institute list: ", e);
-		}
-		
+
+		Platform.runLater(() -> {
+			try {
+				startInstituteImportWithProgress();
+			} catch (Exception e) {
+				log.error("Error starting startInstituteImportWithProgress()", e);
+			}
+		});
+
+	}
+
+	private void startInstituteImportWithProgress() throws Exception {
+
+		// Use primary stage (or any existing window)
+		Stage dialogStage = new Stage();
+		dialogStage.initModality(Modality.APPLICATION_MODAL);
+
+		InstituteFileImportProgressBarPanel progressPanel = new InstituteFileImportProgressBarPanel(dialogStage);
+
+		Stage progressStage = progressPanel.createNewFileImportProgressBarWindow();
+
+		progressStage.show();
+
+		progressPanel.startTask("fints_institute NEU mit BIC Master.csv", null, null);
 	}
 
 }
