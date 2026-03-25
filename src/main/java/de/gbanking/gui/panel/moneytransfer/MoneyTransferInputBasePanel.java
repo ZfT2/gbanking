@@ -3,6 +3,9 @@ package de.gbanking.gui.panel.moneytransfer;
 import java.math.BigDecimal;
 import java.util.List;
 
+import de.gbanking.gui.components.BankNameLookupField;
+import de.gbanking.gui.service.InstituteLookupCache;
+import de.gbanking.gui.service.InstituteLookupCache.InstituteLookupEntry;
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.MoneyTransfer;
 import de.gbanking.db.dao.Recipient;
@@ -24,7 +27,7 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 	protected final TextField tfRecipientName = FormStyleUtils.applyWidth(new TextField(), FieldWidth.L);
 	protected final TextField tfIBAN = FormStyleUtils.applyWidth(new TextField(), FieldWidth.L);
 	protected final TextField tfBIC = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
-	protected final TextField tfBank = FormStyleUtils.applyWidth(new TextField(), FieldWidth.M);
+	protected final BankNameLookupField bankNameLookupField = new BankNameLookupField();
 	protected final TextField tfAmount = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
 	protected final TextArea tfPurpose = FormStyleUtils.prepareLargeTextArea(new TextArea(), 3);
 	protected final TextField tfAccountSender = FormStyleUtils.applyWidth(new TextField(), FieldWidth.M);
@@ -34,6 +37,8 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 	private final MoneyTransferDetailListTabPanel parentPanel;
 	private MoneyTransfer currentMoneytransfer;
 	private boolean specificFieldsInitialized = false;
+	private boolean updatingBicProgrammatically = false;
+	private boolean bicProtectedFromLookup = false;
 
 	protected MoneyTransferInputBasePanel(MoneyTransferDetailListTabPanel parentPanel) {
 		super("UI_PANEL_MONEYTRANSFER_INPUT");
@@ -49,7 +54,7 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 		addFieldAbove("UI_LABEL_TRANSFER_RECIPIENT", tfRecipientName, 0, 0, 3);
 		addFieldAbove("UI_LABEL_TRANSFER_IBAN", tfIBAN, 0, 1, 3);
 		addFieldAbove("UI_LABEL_BIC", tfBIC, 0, 2);
-		addFieldAbove("UI_LABEL_BANK", tfBank, 1, 2, 2);
+		addFieldAbove("UI_LABEL_BANK", bankNameLookupField, 1, 2, 2);
 		addFieldAbove("UI_LABEL_CURRENCY", new Label(getText("UI_LABEL_CURRENCY_EUR")), 1, 3);
 		addFieldAbove("UI_LABEL_AMOUNT", tfAmount, 2, 3);
 		addFieldAbove("UI_LABEL_PURPOSE", tfPurpose, 0, 4, 3);
@@ -58,6 +63,18 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 		buttonNew.setOnAction(e -> resetTextFields());
 
 		buttonSubmit.setOnAction(e -> saveTransfer());
+
+		tfIBAN.focusedProperty().addListener((observable, oldValue, newValue) -> {
+			if (Boolean.FALSE.equals(newValue)) {
+				updateBankDataFromIban(false);
+			}
+		});
+		bankNameLookupField.selectedEntryProperty().addListener((observable, oldValue, newValue) -> applyLookupBicIfAllowed(newValue));
+		tfBIC.textProperty().addListener((observable, oldValue, newValue) -> {
+			if (!updatingBicProgrammatically) {
+				bicProtectedFromLookup = !isBlank(newValue);
+			}
+		});
 
 		Button buttonDelete = new Button(getText("UI_BUTTON_DELETE"));
 		buttonDelete.setOnAction(e -> deleteTransfer());
@@ -88,8 +105,8 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 			return;
 		}
 
-		MoneyTransferForm moneyTransfer = new MoneyTransferForm(account, tfRecipientName.getText(), tfIBAN.getText(), tfBIC.getText(), tfBank.getText(),
-				new BigDecimal(tfAmount.getText()), tfPurpose.getText());
+		MoneyTransferForm moneyTransfer = new MoneyTransferForm(account, tfRecipientName.getText(), tfIBAN.getText(), tfBIC.getText(),
+				bankNameLookupField.getSelectedBankName(), new BigDecimal(tfAmount.getText()), tfPurpose.getText());
 
 		bean.saveMoneyTransferToDB(moneyTransfer);
 		parentPanel.getMoneyTransferListPanel().reload();
@@ -113,7 +130,9 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 	}
 
 	protected void resetTextFields() {
-		FormControlUtils.clearTextInputs(List.of(tfRecipientName, tfIBAN, tfBIC, tfBank, tfAmount, tfPurpose, tfAccountSender));
+		FormControlUtils.clearTextInputs(List.of(tfRecipientName, tfIBAN, tfAmount, tfPurpose, tfAccountSender));
+		setBicText("", false);
+		bankNameLookupField.clear();
 	}
 
 	void updatePanelFieldValues(MoneyTransfer selectedMoneytransfer) {
@@ -129,11 +148,50 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 	public void updatePanelFieldValues(Recipient selectedRecipient) {
 		tfRecipientName.setText(selectedRecipient.getName());
 		tfIBAN.setText(selectedRecipient.getIban());
-		tfBIC.setText(selectedRecipient.getBic());
-		tfBank.setText(selectedRecipient.getBank());
+		setBicText(selectedRecipient.getBic(), !isBlank(selectedRecipient.getBic()));
+		bankNameLookupField.setManualBankName(selectedRecipient.getBank());
+		updateBankDataFromIban(true);
 	}
 
 	public void updatePanelFieldValues(BankAccount selectedAccount) {
 		tfAccountSender.setText(selectedAccount.getAccountName());
+	}
+
+	private void updateBankDataFromIban(boolean ibanPrefilled) {
+		String blz = InstituteLookupCache.extractGermanBlzFromIban(tfIBAN.getText());
+		if (blz == null) {
+			if (ibanPrefilled && isBlank(bankNameLookupField.getSelectedBankName())) {
+				bankNameLookupField.clear();
+			}
+			return;
+		}
+
+		List<InstituteLookupEntry> entries = InstituteLookupCache.getEntriesForBlz(blz);
+		if (entries.isEmpty()) {
+			if (ibanPrefilled && isBlank(bankNameLookupField.getSelectedBankName())) {
+				bankNameLookupField.clear();
+			}
+			return;
+		}
+
+		bankNameLookupField.setEntries(entries);
+		applyLookupBicIfAllowed(entries.get(0));
+	}
+
+	private void applyLookupBicIfAllowed(InstituteLookupEntry selectedEntry) {
+		if (selectedEntry == null || bicProtectedFromLookup || isBlank(selectedEntry.bic())) {
+			return;
+		}
+		setBicText(selectedEntry.bic(), false);
+	}
+
+	private void setBicText(String bic, boolean protectFromLookup) {
+		updatingBicProgrammatically = true;
+		try {
+			tfBIC.setText(bic == null ? "" : bic);
+			bicProtectedFromLookup = protectFromLookup;
+		} finally {
+			updatingBicProgrammatically = false;
+		}
 	}
 }
