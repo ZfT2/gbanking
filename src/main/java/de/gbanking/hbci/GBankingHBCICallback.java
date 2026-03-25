@@ -1,6 +1,8 @@
 package de.gbanking.hbci;
 
 import java.util.Date;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -10,12 +12,17 @@ import org.kapott.hbci.exceptions.HBCI_Exception;
 import org.kapott.hbci.passport.HBCIPassport;
 
 import de.gbanking.db.dao.BankAccess;
+import de.gbanking.gui.dialog.DialogWindowSupport;
+import de.gbanking.gui.dialog.HbciCallbackMessageDialog;
+import javafx.application.Platform;
+import javafx.stage.Stage;
 
 public class GBankingHBCICallback extends AbstractHBCICallback {
-	
-	private static Logger log = LogManager.getLogger(GBankingHBCICallback.class);
 
-	BankAccess bankAccess;
+	private static final Logger log = LogManager.getLogger(GBankingHBCICallback.class);
+
+	private final BankAccess bankAccess;
+	private final Set<String> shownMessages = new LinkedHashSet<>();
 
 	public GBankingHBCICallback(BankAccess bankAccess) {
 		this.bankAccess = bankAccess;
@@ -213,6 +220,7 @@ public class GBankingHBCICallback extends AbstractHBCICallback {
 		// Manche Fehlermeldungen werden hier ausgegeben
 		case HAVE_ERROR:
 			log.error(msg);
+			showHbciFeedback(msg, msg);
 			break;
 
 		default:
@@ -227,10 +235,37 @@ public class GBankingHBCICallback extends AbstractHBCICallback {
 	 *      int, java.lang.Object[])
 	 */
 	@Override
-	public void status(HBCIPassport passport, int statusTag, Object[] o) {
-		// So aehnlich wie log(String,int,Date,StackTraceElement) jedoch fuer Status-Meldungen.
-		log.info("HBCI status: {} {} {}", statusTag, passport, o);
+	public void status(HBCIPassport passport, int statusTag, Object[] statusPayload) {
+		// So aehnlich wie log(String,int,Date,StackTraceElement) jedoch fuer
+		// Status-Meldungen.
+		log.info("HBCI status: {} {} {}", statusTag, passport, statusPayload);
+
+		// retData enthaelt u.a. HBCI-Rohantworten (HIRMG/HIRMS).
+		// Diese werden nach lesbaren Meldungen fuer den Anwender durchsucht.
+		String readableMessage = HbciStatusMessageExtractor.extractMessages(statusPayload);
+		if (readableMessage.isBlank()) {
+			return;
+		}
+
+		String details = HbciStatusMessageExtractor.sanitizeForDetails(statusPayload);
+		showHbciFeedback(readableMessage, details);
 	}
 
-}
+	private void showHbciFeedback(String message, String details) {
+		if (message == null || message.isBlank() || !shownMessages.add(message)) {
+			return;
+		}
 
+		Runnable showDialogTask = () -> {
+			HbciCallbackMessageDialog dialog = new HbciCallbackMessageDialog(DialogWindowSupport.findBestOwnerWindow().orElse(null));
+			Stage stage = dialog.createDialog(message, details);
+			stage.showAndWait();
+		};
+
+		if (Platform.isFxApplicationThread()) {
+			showDialogTask.run();
+		} else {
+			Platform.runLater(showDialogTask);
+		}
+	}
+}

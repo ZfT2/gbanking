@@ -315,6 +315,7 @@ public class GBankingGui extends Application {
 		}
 
 		for (BankAccount bankAccount : checkedAccounts) {
+			pinWindow.setBankInfo(bankAccount.getBlz(), bankAccount.getBankName());
 			Stage pinDialog = pinWindow.createNewPinAskDialog();
 			pinDialog.showAndWait();
 			char[] pin = pinWindow.getPin();
@@ -339,6 +340,7 @@ public class GBankingGui extends Application {
 			if (accountId != moneytransfer.getAccountId()) {
 				accountId = moneytransfer.getAccountId();
 				bankAccount = bean.getAccountForOpenMoneytransfers(accountId);
+				pinWindow.setBankInfo(bankAccount.getBlz(), bankAccount.getBankName());
 
 				Stage pinDialog = pinWindow.createNewPinAskDialog();
 				pinDialog.showAndWait();
