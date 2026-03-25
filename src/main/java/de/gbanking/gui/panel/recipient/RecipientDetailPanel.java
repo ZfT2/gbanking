@@ -64,8 +64,8 @@ public class RecipientDetailPanel extends AbstractTitledFormPanel {
 		addFieldAbove("UI_LABEL_BIC", bicText, 1, 1);
 		addFieldAbove("UI_LABEL_ACCOUNT_NUMBER", accountNumberText, 0, 2);
 		addFieldAbove("UI_LABEL_BLZ", blzText, 1, 2);
-		addFieldAbove("UI_LABEL_NOTE", noteText, 0, 3);
 		addFieldAbove("UI_LABEL_UPDATED_AT", updatedAtText, 1, 3);
+		addFieldAbove("UI_LABEL_NOTE", noteText, 0, 4, 2);
 
 		HBox buttonBar = FormStyleUtils.createButtonBar(buttonRecipientNew, buttonRecipientSave, buttonRecipientDelete);
 		addContentNode(buttonBar);

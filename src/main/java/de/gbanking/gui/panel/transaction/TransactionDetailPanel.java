@@ -163,12 +163,12 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 		grid.setVgap(6);
 		grid.setPadding(new Insets(6));
 
-		addFieldAbove(grid, "UI_LABEL_NAME", recipientNameText, 0, 0);
+		addFieldAbove(grid, "UI_LABEL_NAME", recipientNameText, 0, 0, 2);
 		addFieldAbove(grid, "UI_LABEL_IBAN_OR_ACCOUNT_NUMBER", recipientIbanText, 0, 1);
 		addFieldAbove(grid, "UI_LABEL_ACCOUNT_NUMBER_EMPTY", recipientAccountNumberText, 1, 1);
 		addFieldAbove(grid, "UI_LABEL_BIC_OR_BLZ", recipientBicText, 0, 2);
 		addFieldAbove(grid, "UI_LABEL_BLZ_EMPTY", recipientBlzText, 1, 2);
-		addFieldAbove(grid, "UI_LABEL_BANK", recipientBankText, 0, 3);
+		addFieldAbove(grid, "UI_LABEL_BANK", recipientBankText, 0, 3, 2);
 
 		return titled(getText("UI_PANEL_RECIPIENT_PAYER"), grid);
 	}
@@ -193,9 +193,13 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 	}
 
 	private void addFieldAbove(GridPane grid, String labelKey, Control field, int col, int rowGroup) {
+		addFieldAbove(grid, labelKey, field, col, rowGroup, 1);
+	}
+
+	private void addFieldAbove(GridPane grid, String labelKey, Control field, int col, int rowGroup, int colspan) {
 		int row = rowGroup * 2;
 		VBox box = new VBox(2, new Label(getText(labelKey)), field);
-		grid.add(box, col, row, 1, 2);
+		grid.add(box, col, row, colspan, 2);
 
 		if (field instanceof Region) {
 			Region region = field;
