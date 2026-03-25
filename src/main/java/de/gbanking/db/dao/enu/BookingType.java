@@ -1,13 +1,27 @@
 package de.gbanking.db.dao.enu;
 
-public enum BookingType {
-	
-	DEPOSIT("Einnahme"),
-	REMOVAL("Ausgabe"), 
-	INTEREST("Zinsen"),
-	INTEREST_CHARGE("Zinsbelastung"),
-	REBOOKING_OUT("Umbuchung (Ausgang)"),
-	REBOOKING_IN("Umbuchung (Eingang)");
+import de.gbanking.db.enu.IdType;
+
+public enum BookingType implements IdType {
+
+	DEPOSIT("Einnahme", 1),
+	REMOVAL("Ausgabe", 2),
+	INTEREST("Zinsen", 3),
+	INTEREST_CHARGE("Zinsbelastung", 4),
+	REBOOKING_OUT("Umbuchung (Ausgang)", 5),
+	REBOOKING_IN("Umbuchung (Eingang)", 6);
+
+	private final String description;
+	private int dbStateId;
+
+	private BookingType(String description, int dbStateId) {
+		this.description = description;
+		this.dbStateId = dbStateId;
+	}
+
+	public static BookingType forInt(int intValue) {
+		return IdType.forId(BookingType.class, intValue);
+	}
 
 	public static BookingType forString(String strValue) {
 		for (BookingType x : values()) {
@@ -17,15 +31,14 @@ public enum BookingType {
 		return null;
 	}
 
-	private final String translation;
-
-	private BookingType(String translation) {
-		this.translation = translation;
+	@Override
+	public int getDbStateId() {
+		return dbStateId;
 	}
 
 	@Override
 	public final String toString() {
-		return translation;
+		return description;
 	}
 
 }

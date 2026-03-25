@@ -1,7 +1,9 @@
-package de.gbanking.db.enu;
+package de.gbanking.db.dao.enu;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+
+import de.gbanking.db.enu.IdType;
 
 public enum DataType implements IdType {
 
@@ -23,12 +25,8 @@ public enum DataType implements IdType {
 		return null;
 	}
 
-	public static IdType forInt(int intValue) {
-		for (DataType x : values()) {
-			if (x.dbStateId == intValue)
-				return x;
-		}
-		return null;
+	public static DataType forInt(int intValue) {
+		return IdType.forId(DataType.class, intValue);
 	}
 
 	private final Class<?> classType;

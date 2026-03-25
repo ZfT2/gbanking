@@ -1,10 +1,24 @@
 package de.gbanking.db.dao.enu;
 
-public enum AccountState {
+import de.gbanking.db.enu.IdType;
+
+public enum AccountState implements IdType {
 	
-	ACTIVE("aktiv"),
-	INACTIVE("inaktiv"),
-	IGNORE("für Auswetrtungen ignorieren");
+	ACTIVE("aktiv", 1),
+	INACTIVE("inaktiv", 0),
+	IGNORE("für Auswetrtungen ignorieren", 2);
+
+	private final String description;
+	private final int dbStateId;
+
+	private AccountState(String description, int dbStateId) {
+		this.description = description;
+		this.dbStateId = dbStateId;
+	}
+
+	public static AccountState forInt(int intValue) {
+		return IdType.forId(AccountState.class, intValue);
+	}
 
 	public static AccountState forString(String strValue) {
 		for (AccountState x : values()) {
@@ -14,10 +28,9 @@ public enum AccountState {
 		return null;
 	}
 
-	private final String description;
-
-	private AccountState(String description) {
-		this.description = description;
+	@Override
+	public int getDbStateId() {
+		return dbStateId;
 	}
 
 	@Override

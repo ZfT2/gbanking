@@ -47,7 +47,7 @@ import de.gbanking.db.dao.enu.HbciEncodingFilterType;
 import de.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.gbanking.db.dao.enu.OrderType;
 import de.gbanking.db.dao.enu.Source;
-import de.gbanking.db.dao.enu.SqlFilter;
+import de.gbanking.db.enu.SqlFilter;
 import de.gbanking.exception.GBankingException;
 import de.gbanking.gui.dto.MoneyTransferForm;
 import de.gbanking.gui.progress.InstituteFileImportProgressBarPanel;

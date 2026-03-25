@@ -1,14 +1,31 @@
 package de.gbanking.db.dao.enu;
 
-public enum AccountType {
-	
-	CURRENT_ACCOUNT("Girokonto"),
-	OVERNIGHT_MONEY("Tagesgeld"), 
-	SAVINGS_ACCOUNT("Sparkonto"),
-	SAVINGS_PLAN("Sparplan"),
-	SAVINGS_BOOK("Sparbuch"),
-	FIXED_DEPOSIT("Festgeld"),
-	CREDIT_ACCOUNT("Kreditkonto");
+import de.gbanking.db.enu.IdType;
+
+public enum AccountType implements IdType {
+
+	CURRENT_ACCOUNT("Girokonto", 1),
+	OVERNIGHT_MONEY("Tagesgeld", 2),
+	SAVINGS_ACCOUNT("Sparkonto", 3),
+	SAVINGS_PLAN("Sparplan", 4),
+	SAVINGS_BOOK("Sparbuch", 5),
+	FIXED_DEPOSIT("Festgeld", 6),
+	SAVEINGS_HOME("Bausparen", 7),
+	CREDIT_CARD("Kreditkarte", 10),
+	CREDIT_ACCOUNT("Kreditkonto", 11),
+	SPECIAL_ACCOUNT("Sonderkonto", 15); /* z.B. Paypal.. */
+
+	private final String description;
+	private int dbStateId;
+
+	private AccountType(String description, int dbStateId) {
+		this.description = description;
+		this.dbStateId = dbStateId;
+	}
+
+	public static AccountType forInt(int intValue) {
+		return IdType.forId(AccountType.class, intValue);
+	}
 
 	public static AccountType forString(String strValue) {
 		for (AccountType x : values()) {
@@ -18,10 +35,9 @@ public enum AccountType {
 		return null;
 	}
 
-	private final String description;
-
-	private AccountType(String description) {
-		this.description = description;
+	@Override
+	public int getDbStateId() {
+		return dbStateId;
 	}
 
 	@Override

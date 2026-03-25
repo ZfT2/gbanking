@@ -1,24 +1,29 @@
 package de.gbanking.db.dao.enu;
 
-public enum CategoryRuleType {
-	
-	AMOUNT("Zuweisung nach Betrag"),
-	PURPOSE_CONTAINS_STRING("Zuweisung nach Text im Verwendungszweck"),
-	PURPOSE_CONTAINS_REGEX("Zuweisung nach RegEx im Verwendungszweck"),
-	COMBINED("kombinierte Zuweisung");
+import de.gbanking.db.enu.IdType;
 
-	public static CategoryRuleType forString(String strValue) {
-		for (CategoryRuleType x : values()) {
-			if (x.description.equals(strValue))
-				return x;
-		}
-		return null;
-	}
+public enum CategoryRuleType implements IdType {
+	
+	AMOUNT("Zuweisung nach Betrag", 1),
+	PURPOSE_CONTAINS_STRING("Zuweisung nach Text im Verwendungszweck", 1),
+	PURPOSE_CONTAINS_REGEX("Zuweisung nach RegEx im Verwendungszweck", 2),
+	COMBINED("kombinierte Zuweisung", 3);
 
 	private final String description;
+	private int dbStateId;
 
-	private CategoryRuleType(String description) {
+	private CategoryRuleType(String description, int dbStateId) {
 		this.description = description;
+		this.dbStateId = dbStateId;
+	}
+
+	public static CategoryRuleType forInt(int intValue) {
+		return IdType.forId(CategoryRuleType.class, intValue);
+	}
+
+	@Override
+	public int getDbStateId() {
+		return dbStateId;
 	}
 
 	@Override

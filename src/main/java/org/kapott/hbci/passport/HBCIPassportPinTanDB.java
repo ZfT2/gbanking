@@ -1,7 +1,7 @@
 package org.kapott.hbci.passport;
 
-import java.util.ArrayList;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.kapott.hbci.exceptions.HBCI_Exception;
@@ -91,7 +91,7 @@ public class HBCIPassportPinTanDB extends HBCIPassportPinTan {
 		this.setBPD(bankAccess.getBpd());
 		this.setUPD(bankAccess.getUpd());
 		
-		this.setFilterType(bankAccess.getFilterType().getTranslation());
+		this.setFilterType(bankAccess.getFilterType().getDescription());
 		this.setAllowedTwostepMechanisms(bankAccess.getAllowedTwostepMechanisms());
 		/* this.setCurrentTANMethod(bankAccess.getTanProcedure().toString()); */ this.setCurrentTANMethod(null);
 		this.setAllowedTwostepMechanisms(new ArrayList<String>());

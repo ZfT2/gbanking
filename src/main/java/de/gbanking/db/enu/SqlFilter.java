@@ -1,10 +1,15 @@
-package de.gbanking.db.dao.enu;
-
-import de.gbanking.db.enu.StateType;
+package de.gbanking.db.enu;
 
 public enum SqlFilter implements StateType {
  
 	SPECIFIC_QUERY("SQL Bedingung");
+
+	private final String translation;
+	private String sql;
+
+	private SqlFilter(String translation) {
+		this.translation = translation;
+	}
 
 	public static SqlFilter forString(String strValue) {
 		for (SqlFilter x : values()) {
@@ -12,13 +17,6 @@ public enum SqlFilter implements StateType {
 				return x;
 		}
 		return null;
-	}
-
-	private final String translation;
-	private String sql;
-
-	private SqlFilter(String translation) {
-		this.translation = translation;
 	}
 
 	public String getSql() {

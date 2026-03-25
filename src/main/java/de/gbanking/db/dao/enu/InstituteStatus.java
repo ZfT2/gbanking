@@ -8,28 +8,16 @@ public enum InstituteStatus implements IdType {
 	DUPLICATE("Dublette", 2), 
 	ARCHIVED("archiviert", 0);
 
-	public static InstituteStatus forString(String strValue) {
-		for (InstituteStatus x : values()) {
-			if (x.translation.equals(strValue))
-				return x;
-		}
-		return null;
-	}
-	
-	public static IdType forInt(int intValue) {
-		for (InstituteStatus x : values()) {
-			if (x.dbStateId == intValue)
-				return x;
-		}
-		return null;
-	}
-
-	private final String translation;
+	private final String description;
 	private final int dbStateId;
 
-	private InstituteStatus(String translation, int dbStateId) {
-		this.translation = translation;
+	private InstituteStatus(String description, int dbStateId) {
+		this.description = description;
 		this.dbStateId = dbStateId;
+	}
+
+	public static InstituteStatus forInt(int intValue) {
+		return IdType.forId(InstituteStatus.class, intValue);
 	}
 
 	@Override
@@ -39,7 +27,7 @@ public enum InstituteStatus implements IdType {
 
 	@Override
 	public final String toString() {
-		return translation;
+		return description;
 	}
 
 }

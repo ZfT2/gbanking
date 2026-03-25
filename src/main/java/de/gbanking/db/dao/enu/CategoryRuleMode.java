@@ -8,28 +8,24 @@ public enum CategoryRuleMode implements IdType {
 	MANUAL("manuelle Zuweisung", 2), 
 	IMPORT("Übernahme aus Datenimport", 3);
 
-	public static CategoryRuleMode forString(String strValue) {
-		for (CategoryRuleMode x : values()) {
-			if (x.translation.equals(strValue))
-				return x;
-		}
-		return null;
-	}
-	
-	public static IdType forInt(int intValue) {
-		for (CategoryRuleMode x : values()) {
-			if (x.dbStateId == intValue)
-				return x;
-		}
-		return null;
-	}
-
-	private final String translation;
+	private final String description;
 	private final int dbStateId;
 
 	private CategoryRuleMode(String translation, int dbStateId) {
-		this.translation = translation;
+		this.description = translation;
 		this.dbStateId = dbStateId;
+	}
+
+	public static CategoryRuleMode forInt(int intValue) {
+		return IdType.forId(CategoryRuleMode.class, intValue);
+	}
+
+	public static CategoryRuleMode forString(String strValue) {
+		for (CategoryRuleMode x : values()) {
+			if (x.description.equals(strValue))
+				return x;
+		}
+		return null;
 	}
 
 	@Override
@@ -39,7 +35,7 @@ public enum CategoryRuleMode implements IdType {
 
 	@Override
 	public final String toString() {
-		return translation;
+		return description;
 	}
 
 }

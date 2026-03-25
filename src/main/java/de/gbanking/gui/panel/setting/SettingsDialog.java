@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 
 import de.gbanking.db.DbExecutor;
 import de.gbanking.db.dao.Setting;
-import de.gbanking.db.enu.DataType;
+import de.gbanking.db.dao.enu.DataType;
 import de.gbanking.messages.Messages;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;

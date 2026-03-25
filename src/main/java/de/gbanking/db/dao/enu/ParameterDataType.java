@@ -1,9 +1,23 @@
 package de.gbanking.db.dao.enu;
 
-public enum ParameterDataType {
-	
-	BPD("Bank-Parameter-Daten (BPD)"),
-	UPD("User-Parameter-Daten (UPD)");
+import de.gbanking.db.enu.IdType;
+
+public enum ParameterDataType implements IdType {
+
+	BPD("Bank-Parameter-Daten (BPD)", 1),
+	UPD("User-Parameter-Daten (UPD)", 2);
+
+	private final String description;
+	private final int dbStateId;
+
+	private ParameterDataType(String description, int dbStateId) {
+		this.description = description;
+		this.dbStateId = dbStateId;
+	}
+
+	public static InstituteStatus forInt(int intValue) {
+		return IdType.forId(InstituteStatus.class, intValue);
+	}
 
 	public static ParameterDataType forString(String strValue) {
 		for (ParameterDataType x : values()) {
@@ -13,10 +27,9 @@ public enum ParameterDataType {
 		return null;
 	}
 
-	private final String description;
-
-	private ParameterDataType(String description) {
-		this.description = description;
+	@Override
+	public int getDbStateId() {
+		return dbStateId;
 	}
 
 	@Override

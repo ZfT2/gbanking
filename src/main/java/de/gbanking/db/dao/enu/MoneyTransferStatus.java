@@ -1,30 +1,34 @@
 package de.gbanking.db.dao.enu;
 
+import de.gbanking.db.enu.IdType;
 import de.gbanking.db.enu.StateType;
 
-public enum MoneyTransferStatus implements StateType {
-	
-	NEW("neu"),
-	ERROR("Fehler"), 
-	SENT("gesendet");
+public enum MoneyTransferStatus implements IdType, StateType {
 
-	public static MoneyTransferStatus forString(String strValue) {
-		for (MoneyTransferStatus x : values()) {
-			if (x.translation.equals(strValue))
-				return x;
-		}
-		return null;
+	NEW("neu", 0),
+	ERROR("Fehler", 2),
+	SENT("gesendet", 1);
+
+	private final String description;
+	private final int dbStateId;
+
+	private MoneyTransferStatus(String description, int dbStateId) {
+		this.description = description;
+		this.dbStateId = dbStateId;
 	}
 
-	private final String translation;
+	public static MoneyTransferStatus forInt(int intValue) {
+		return IdType.forId(MoneyTransferStatus.class, intValue);
+	}
 
-	private MoneyTransferStatus(String translation) {
-		this.translation = translation;
+	@Override
+	public int getDbStateId() {
+		return dbStateId;
 	}
 
 	@Override
 	public final String toString() {
-		return translation;
+		return description;
 	}
 
 }

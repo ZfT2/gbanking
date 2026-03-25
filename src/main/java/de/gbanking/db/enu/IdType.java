@@ -1,9 +1,10 @@
 package de.gbanking.db.enu;
 
 public interface IdType {
-	
-	public int getDbStateId();
-	
-	//public IdType forInt(int intValue);
 
+	int getDbStateId();
+
+	static <E extends Enum<E> & IdType> E forId(Class<E> enumClass, int id) {
+		return IdTypeLookup.forId(enumClass, id);
+	}
 }

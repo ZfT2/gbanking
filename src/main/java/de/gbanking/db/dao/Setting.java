@@ -2,7 +2,7 @@ package de.gbanking.db.dao;
 
 import java.io.Serializable;
 
-import de.gbanking.db.enu.DataType;
+import de.gbanking.db.dao.enu.DataType;
 
 public class Setting extends Dao implements Serializable {
 

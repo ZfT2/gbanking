@@ -6,7 +6,7 @@ import java.sql.SQLException;
 
 import de.gbanking.db.StatementsConfig.ResultType;
 import de.gbanking.db.dao.Setting;
-import de.gbanking.db.enu.DataType;
+import de.gbanking.db.dao.enu.DataType;
 import de.gbanking.util.TypeConverter;
 
 public class SettingMapper extends AbstractDaoMapper<Setting, Void> {

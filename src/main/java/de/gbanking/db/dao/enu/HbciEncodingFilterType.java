@@ -1,31 +1,44 @@
 package de.gbanking.db.dao.enu;
 
-public enum HbciEncodingFilterType {
-	
-	BASE64("Base64"), 
-	NONE(null);
+import de.gbanking.db.enu.IdType;
+
+public enum HbciEncodingFilterType implements IdType {
+
+	BASE64("Base64", 1),
+	NONE("keine", 0);
+
+	private final String description;
+	private int dbStateId;
+
+	private HbciEncodingFilterType(String description, int dbStateId) {
+		this.description = description;
+		this.dbStateId = dbStateId;
+	}
 
 	public static HbciEncodingFilterType forString(String strValue) {
 		for (HbciEncodingFilterType x : values()) {
-			if (x.translation.equals(strValue))
+			if (x.description.equals(strValue))
 				return x;
 		}
 		return null;
 	}
 
-	private final String translation;
-
-	private HbciEncodingFilterType(String translation) {
-		this.translation = translation;
+	public static HbciEncodingFilterType forInt(int intValue) {
+		return IdType.forId(HbciEncodingFilterType.class, intValue);
 	}
 
-	public String getTranslation() {
-		return translation;
+	@Override
+	public int getDbStateId() {
+		return dbStateId;
+	}
+
+	public String getDescription() {
+		return description;
 	}
 
 	@Override
 	public final String toString() {
-		return translation;
+		return description;
 	}
 
 }
