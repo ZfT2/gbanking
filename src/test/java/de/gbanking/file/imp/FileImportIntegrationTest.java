@@ -25,7 +25,6 @@ import org.w3c.dom.Document;
 import org.xmlunit.builder.DiffBuilder;
 import org.xmlunit.diff.Diff;
 
-import de.gbanking.GBankingBean;
 import de.gbanking.db.DBController;
 import de.gbanking.db.DBControllerTestUtil;
 import de.gbanking.db.dao.BankAccount;
@@ -33,18 +32,15 @@ import de.gbanking.db.dao.enu.AccountType;
 import de.gbanking.exception.GBankingException;
 import de.gbanking.file.exp.FileExportBean;
 import de.gbanking.file.exp.FileExportXMLBean;
-import de.gbanking.file.imp.FileImportBean;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FileImportIntegrationTest {
 
 	private FileImportBean fileImportBean;
 	private FileExportBean fileExportBean;
-	private GBankingBean gBankingBean;
 	private File importFile;
 	private File exportFile;
 
-	private DBController dbController;
 	private Path tempDir;
 
 	@BeforeAll
@@ -52,9 +48,6 @@ class FileImportIntegrationTest {
 
 		// Create fresh DBControllerForTest instance
 		tempDir = Files.createTempDirectory("gb_test_");
-		dbController = DBController.getInstance(tempDir.toString());
-
-		gBankingBean = new GBankingBean();
 	}
 
 	@BeforeEach
@@ -70,7 +63,6 @@ class FileImportIntegrationTest {
 
 	@BeforeEach
 	void setUp() throws Exception {
-		gBankingBean = new GBankingBean();
 		fileImportBean = new FileImportBean(null);
 		fileExportBean = new FileExportXMLBean(null);
 

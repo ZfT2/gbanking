@@ -128,7 +128,10 @@ public class FileExportXMLBean extends FileExportBean {
 			}
 
 			rootElement.appendChild(accountNode);
+			exportedAccountsCount++;
 		}
+		log.info("Exported {} accounts.", exportedAccountsCount);
+
 		return doc;
 	}
 

@@ -20,21 +20,17 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
-import de.gbanking.GBankingBean;
 import de.gbanking.db.DBController;
 import de.gbanking.db.DBControllerTestUtil;
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.Booking;
 import de.gbanking.db.dao.Recipient;
 import de.gbanking.db.dao.enu.BookingType;
-import de.gbanking.file.imp.FileImportBean;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FileImportBeanTest {
 
 	private FileImportBean fileImportBean;
-	private GBankingBean gBankingBean;
-	private File importFile;
 	private File exportFile;
 
 	private DBController dbController;
@@ -46,8 +42,6 @@ class FileImportBeanTest {
 		// Create fresh DBControllerForTest instance
 		tempDir = Files.createTempDirectory("gb_test_");
 		dbController = DBController.getInstance(tempDir.toString());
-
-		gBankingBean = new GBankingBean();
 	}
 
 	@BeforeEach
@@ -63,13 +57,11 @@ class FileImportBeanTest {
 
 	@BeforeEach
 	void setUp() throws Exception {
-		gBankingBean = new GBankingBean();
 		fileImportBean = new FileImportBean(null);
 
 		// Load test XML from resources
 		URL resource = getClass().getClassLoader().getResource("dummy_import.xml");
 		assertNotNull(resource, "Test XML file dummy_import.xml must be in src/test/resources");
-		importFile = new File(resource.toURI());
 
 		// Create temporary export file
 		exportFile = File.createTempFile("export_test_", ".xml");

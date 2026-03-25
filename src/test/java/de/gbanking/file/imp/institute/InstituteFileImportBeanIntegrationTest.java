@@ -24,7 +24,6 @@ import de.gbanking.db.DBController;
 import de.gbanking.db.DBControllerTestUtil;
 import de.gbanking.db.dao.Institute;
 import de.gbanking.db.dao.enu.InstituteStatus;
-import de.gbanking.file.imp.institute.InstituteFileImportBean;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class InstituteFileImportBeanIntegrationTest {

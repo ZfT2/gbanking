@@ -22,7 +22,6 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Properties;
 
@@ -37,7 +36,6 @@ import org.kapott.hbci.callback.HBCICallbackConsole;
 import org.kapott.hbci.manager.HBCIHandler;
 import org.kapott.hbci.manager.HBCIUtils;
 import org.kapott.hbci.passport.HBCIPassport;
-import org.kapott.hbci.passport.HBCIPassportPinTan;
 import org.kapott.hbci.structures.Konto;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -83,26 +81,16 @@ class GBankingBeanIntegrationTest {
 	private HBCIHandler handler;
 
 	@Mock
-	private HBCIJob saldoJob;
+	private HBCIJob<?> saldoJob;
 
 	@Mock
-	private HBCIJob umsatzJob;
+	private HBCIJob<?> umsatzJob;
 
 	@Mock
 	private Konto konto;
 
-	private static Path tempDir;
-
-	private HBCIPassportPinTan mockPassport;
 	private HBCIHandler mockHandler;
 
-//    @BeforeAll
-//    static void setupDatabase() throws Exception {
-//
-//        // Create fresh DBControllerForTest instance
-//        tempDir = Files.createTempDirectory("gb_test_");
-//        dbController = DBController.getInstance(tempDir.toString());
-//    }
 
 	@BeforeAll
 	static void initHBCI() {
@@ -118,7 +106,6 @@ class GBankingBeanIntegrationTest {
 		// Spy real bean to allow selective mocking
 		gBankingBean = spy(new GBankingBean());
 
-		mockPassport = mock(HBCIPassportPinTan.class);
 		mockHandler = mock(HBCIHandler.class);
 
 		dbController = mock(DBController.class);

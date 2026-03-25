@@ -55,7 +55,7 @@ final class DbMigrationRunner {
 
 	private static void ensureSettingTableExists(Connection connection) throws SQLException {
 		try (Statement statement = connection.createStatement()) {
-			statement.executeUpdate(SqlStatementsDDL.SQL_SETUP_CREATE_SETTING);
+			statement.executeUpdate(SqlTemplateRepository.getDdl("SQL_SETUP_CREATE_SETTING"));
 		}
 	}
 
