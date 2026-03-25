@@ -74,7 +74,8 @@ public class GBankingBean extends BaseBean implements Serializable {
 
 		log.info("addNewBankAccess called.");
 
-		HBCIPassport passport = initBankConnection(bankAccess);
+		GBankingHBCICallback hbciCallback = new GBankingHBCICallback(bankAccess);
+		HBCIPassport passport = initBankConnection(bankAccess, hbciCallback);
 
 		List<BankAccount> bankAccountList = new ArrayList<>();
 
@@ -125,6 +126,7 @@ public class GBankingBean extends BaseBean implements Serializable {
 			ex.printStackTrace();
 			throw new GBankingException(getText("EXCEPTION_ADD_BANKACCESS"), ex);
 		} finally {
+			hbciCallback.showCollectedHbciFeedback();
 			passport.close();
 		}
 		
@@ -166,7 +168,8 @@ public class GBankingBean extends BaseBean implements Serializable {
 		
 		LocalDate lastBookingDate = getAccountLastBookingDate(bankAccount);
 		
-		HBCIPassport passport = initBankConnection(bankAccess);
+		GBankingHBCICallback hbciCallback = new GBankingHBCICallback(bankAccess);
+		HBCIPassport passport = initBankConnection(bankAccess, hbciCallback);
 		
 		refreshBankAccount(bankAccount);
 		updatePreviousNewBookings(bankAccount);
@@ -210,6 +213,8 @@ public class GBankingBean extends BaseBean implements Serializable {
 		} catch (Exception e) {
 			log.error("Error in handling HBCI calls: ", e);
 			result = false;
+		} finally {
+			hbciCallback.showCollectedHbciFeedback();
 		}
 
 		return result;
@@ -544,10 +549,12 @@ public class GBankingBean extends BaseBean implements Serializable {
 	}
 	
 	HBCIPassport initBankConnection(BankAccess bankAccess) {
-		
-		
+		return initBankConnection(bankAccess, new GBankingHBCICallback(bankAccess));
+	}
+
+	HBCIPassport initBankConnection(BankAccess bankAccess, GBankingHBCICallback hbciCallback) {
 		Properties props = new Properties();
-		HBCIUtils.init(props, /* new HBCICallbackSwing() */ new GBankingHBCICallback(bankAccess));
+		HBCIUtils.init(props, /* new HBCICallbackSwing() */ hbciCallback);
 
 		HBCIUtils.setParam("client.passport.PinTan.init", "1");
 

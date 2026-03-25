@@ -22,7 +22,8 @@ public class GBankingHBCICallback extends AbstractHBCICallback {
 	private static final Logger log = LogManager.getLogger(GBankingHBCICallback.class);
 
 	private final BankAccess bankAccess;
-	private final Set<String> shownMessages = new LinkedHashSet<>();
+	private final Set<String> collectedMessages = new LinkedHashSet<>();
+	private final Set<String> collectedDetails = new LinkedHashSet<>();
 
 	public GBankingHBCICallback(BankAccess bankAccess) {
 		this.bankAccess = bankAccess;
@@ -220,7 +221,7 @@ public class GBankingHBCICallback extends AbstractHBCICallback {
 		// Manche Fehlermeldungen werden hier ausgegeben
 		case HAVE_ERROR:
 			log.error(msg);
-			showHbciFeedback(msg, msg);
+			collectHbciFeedback(msg, msg);
 			break;
 
 		default:
@@ -248,17 +249,39 @@ public class GBankingHBCICallback extends AbstractHBCICallback {
 		}
 
 		String details = HbciStatusMessageExtractor.sanitizeForDetails(statusPayload);
-		showHbciFeedback(readableMessage, details);
+		collectHbciFeedback(readableMessage, details);
 	}
 
-	private void showHbciFeedback(String message, String details) {
-		if (message == null || message.isBlank() || !shownMessages.add(message)) {
+	private void collectHbciFeedback(String message, String details) {
+		if (message == null || message.isBlank()) {
 			return;
+		}
+
+		synchronized (collectedMessages) {
+			collectedMessages.add(message);
+			if (details != null && !details.isBlank()) {
+				collectedDetails.add(details);
+			}
+		}
+	}
+
+	public void showCollectedHbciFeedback() {
+		String messageText;
+		String detailsText;
+
+		synchronized (collectedMessages) {
+			if (collectedMessages.isEmpty()) {
+				return;
+			}
+			messageText = String.join(System.lineSeparator() + System.lineSeparator(), collectedMessages);
+			detailsText = String.join(System.lineSeparator() + System.lineSeparator(), collectedDetails);
+			collectedMessages.clear();
+			collectedDetails.clear();
 		}
 
 		Runnable showDialogTask = () -> {
 			HbciCallbackMessageDialog dialog = new HbciCallbackMessageDialog(DialogWindowSupport.findBestOwnerWindow().orElse(null));
-			Stage stage = dialog.createDialog(message, details);
+			Stage stage = dialog.createDialog(messageText, detailsText);
 			stage.showAndWait();
 		};
 
