@@ -19,7 +19,7 @@ import java.util.jar.JarFile;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-final class SqlTemplateRepository {
+public final class SqlTemplateRepository {
 
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\$\\{([A-Z0-9_]+)}");
     private static final TemplateBundle DML = loadBundle(listSqlResources("sql/dml", false));
@@ -28,17 +28,16 @@ final class SqlTemplateRepository {
     private SqlTemplateRepository() {
     }
 
-    static String getDml(String key) {
+    public static String getDml(String key) {
         return DML.get(key);
     }
 
-    static String getDdl(String key) {
+    public static String getDdl(String key) {
         return DDL.get(key);
     }
 
     static List<String> getBaselineStatements() {
-        VersionScript baselineScript = DDL.baselineScript();
-        return baselineScript == null ? List.of() : baselineScript.getStatements();
+        return DDL.baselineStatements();
     }
 
     static VersionScript getBaselineVersionScript() {
@@ -52,18 +51,35 @@ final class SqlTemplateRepository {
     private static VersionedTemplateBundle loadVersionedBundle(String directory) {
         List<String> resources = listSqlResources(directory, true);
         TemplateBundle bundle = loadBundle(resources);
-        Map<String, List<String>> statementsByVersion = new TreeMap<>(DbMigrationRunner::compareVersions);
+
+        TreeMap<String, List<String>> baselineStatementsByVersion = new TreeMap<String, List<String>>(new java.util.Comparator<String>() {
+            @Override
+            public int compare(String left, String right) {
+                return DbMigrationRunner.compareVersions(left, right);
+            }
+        });
+        TreeMap<String, List<String>> migrationStatementsByVersion = new TreeMap<String, List<String>>(new java.util.Comparator<String>() {
+            @Override
+            public int compare(String left, String right) {
+                return DbMigrationRunner.compareVersions(left, right);
+            }
+        });
 
         for (String resource : resources) {
             String version = extractVersion(directory, resource);
-            statementsByVersion.computeIfAbsent(version, key -> new ArrayList<>())
-                    .addAll(bundle.executableStatementsFor(resource));
+            baselineStatementsByVersion.computeIfAbsent(version, key -> new ArrayList<>())
+                    .addAll(bundle.executableStatementsFor(resource, StatementMode.BASELINE));
+            migrationStatementsByVersion.computeIfAbsent(version, key -> new ArrayList<>())
+                    .addAll(bundle.executableStatementsFor(resource, StatementMode.MIGRATION));
         }
 
-        List<VersionScript> versionScripts = statementsByVersion.entrySet().stream()
+        List<VersionScript> versionScripts = migrationStatementsByVersion.entrySet().stream()
                 .map(entry -> new VersionScript(entry.getKey(), entry.getValue()))
                 .toList();
-        return new VersionedTemplateBundle(bundle, versionScripts);
+        List<String> baselineStatements = baselineStatementsByVersion.isEmpty()
+                ? List.of()
+                : List.copyOf(baselineStatementsByVersion.firstEntry().getValue());
+        return new VersionedTemplateBundle(bundle, versionScripts, baselineStatements);
     }
 
     private static String extractVersion(String rootDirectory, String resource) {
@@ -245,12 +261,20 @@ final class SqlTemplateRepository {
         return value.replaceFirst("\\s+$", "");
     }
 
-    private static boolean isExecutableStatement(String key) {
+    private enum StatementMode {
+        BASELINE,
+        MIGRATION
+    }
+
+    private static boolean isExecutableBaselineStatement(String key) {
         return key.startsWith("SQL_FOREIGN_KEY_")
                 || key.startsWith("SQL_SETUP_CREATE_")
                 || key.startsWith("SQL_SETUP_VIEW_")
-                || key.startsWith("SQL_SETUP_INSERT_")
-                || key.startsWith("SQL_MIGRATION_");
+                || key.startsWith("SQL_SETUP_INSERT_");
+    }
+
+    private static boolean isExecutableMigrationStatement(String key) {
+        return key.startsWith("SQL_MIGRATION_");
     }
 
     private static InputStream getRequiredResource(String resource) {
@@ -306,10 +330,16 @@ final class SqlTemplateRepository {
             return value;
         }
 
-        List<String> executableStatementsFor(String resource) {
+        List<String> executableStatementsFor(String resource, StatementMode mode) {
             List<String> statements = new ArrayList<>();
             for (String key : keyOrder) {
-                if (resource.equals(resourceByKey.get(key)) && isExecutableStatement(key)) {
+                if (!resource.equals(resourceByKey.get(key))) {
+                    continue;
+                }
+                boolean include = mode == StatementMode.BASELINE
+                        ? isExecutableBaselineStatement(key)
+                        : isExecutableMigrationStatement(key);
+                if (include) {
                     statements.add(get(key));
                 }
             }
@@ -319,10 +349,12 @@ final class SqlTemplateRepository {
 
     private static final class VersionedTemplateBundle extends TemplateBundle {
         private final List<VersionScript> versionScripts;
+        private final List<String> baselineStatements;
 
-        private VersionedTemplateBundle(TemplateBundle delegate, List<VersionScript> versionScripts) {
+        private VersionedTemplateBundle(TemplateBundle delegate, List<VersionScript> versionScripts, List<String> baselineStatements) {
             super(delegate.resolvedValues, delegate.resourceByKey, delegate.keyOrder);
             this.versionScripts = List.copyOf(versionScripts);
+            this.baselineStatements = List.copyOf(baselineStatements);
         }
 
         VersionScript baselineScript() {
@@ -331,6 +363,10 @@ final class SqlTemplateRepository {
 
         List<VersionScript> versionScripts() {
             return versionScripts;
+        }
+
+        List<String> baselineStatements() {
+            return baselineStatements;
         }
     }
 }

@@ -1,12 +1,5 @@
 package de.gbanking.db;
 
-import static de.gbanking.db.SqlStatements.SQL_FIND_CROSS_BOOKINGS_FULL;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_BANKACCOUNTS;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_BOOKINGS;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_BANKACCESS_BY_BLZ;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_BANKACCESS_BY_ID;
-import static de.gbanking.db.SqlStatements.SQL_UPDATE_BOOKINGS_CATEGORY;
-import static de.gbanking.db.SqlStatements.SQL_UPDATE_BOOKINGS_RECIPIENT;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -46,12 +39,12 @@ public class DBController extends DbExecutor {
 	
 	public boolean updateBookingsWithRecipients(Map<Recipient, Set<Integer>> recipientBookingMap) {
 		
-		return updateDaoListWithDetailIdList(recipientBookingMap, SQL_UPDATE_BOOKINGS_RECIPIENT);
+		return updateDaoListWithDetailIdList(recipientBookingMap, DaoSqlStatements.SQL_UPDATE_BOOKINGS_RECIPIENT);
 	}
 	
 	public boolean updateBookingsWithCategories(Map<Category, Set<Integer>> categoryBookingMap) {
 		
-		return updateDaoListWithDetailIdList(categoryBookingMap, SQL_UPDATE_BOOKINGS_CATEGORY);
+		return updateDaoListWithDetailIdList(categoryBookingMap, DaoSqlStatements.SQL_UPDATE_BOOKINGS_CATEGORY);
 	}
 	
 	public boolean insertOrUpdatePD(BankAccess bankAccess) {
@@ -85,7 +78,7 @@ public class DBController extends DbExecutor {
 
 		Booking crossBooking = null;
 
-		try (PreparedStatement ps = connection.prepareStatement(SQL_FIND_CROSS_BOOKINGS_FULL)) {
+		try (PreparedStatement ps = connection.prepareStatement(DaoSqlStatements.SQL_FIND_CROSS_BOOKINGS_FULL)) {
 			ps.setString(1, booking.getRecipient().getIban());
 			ps.setString(2, booking.getRecipient().getAccountNumber());
 			ps.setBigDecimal(3, booking.getAmount().negate());
@@ -120,12 +113,12 @@ public class DBController extends DbExecutor {
 	}
 	
 	public BankAccess getBankAccessById(int id) {
-		return getBankAccessByField(SQL_SELECT_BANKACCESS_BY_ID, id);
+		return getBankAccessByField(DaoSqlStatements.SQL_SELECT_BANKACCESS_BY_ID, id);
 
 	}
 	
 	public BankAccess getBankAccessByBlz(String blz) {
-		return getBankAccessByField(SQL_SELECT_BANKACCESS_BY_BLZ, blz);
+		return getBankAccessByField(DaoSqlStatements.SQL_SELECT_BANKACCESS_BY_BLZ, blz);
 	}
 	
 	public <T extends Dao> Set<T> insertAll(Set<T> entityList) {
@@ -141,7 +134,7 @@ public class DBController extends DbExecutor {
 
 		try (Statement stmt = connection.createStatement()) {
 
-			ResultSet rs = stmt.executeQuery(SQL_SELECT_ALL_BANKACCOUNTS);
+			ResultSet rs = stmt.executeQuery(DaoSqlStatements.SQL_SELECT_ALL_BANKACCOUNTS);
 			while (rs.next()) {
 				if (log.isInfoEnabled())
 					log.info("id = {}, accountName = {}, accountType = {}, iban = {}, bic = {}, number = {}, bankName = {}",
@@ -158,7 +151,7 @@ public class DBController extends DbExecutor {
 
 		try (Statement stmt = connection.createStatement()) {
 
-			ResultSet rs = stmt.executeQuery(SQL_SELECT_ALL_BOOKINGS);
+			ResultSet rs = stmt.executeQuery(DaoSqlStatements.SQL_SELECT_ALL_BOOKINGS);
 			while (rs.next()) {
 				if (log.isInfoEnabled())
 					log.info("id = {}, account_id = {}, dateBooking = {}, dateValue = {}, purpose = {}, amount = {}, typ = {}, crossAccount_id = {}",

@@ -9,7 +9,7 @@ import java.util.Set;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import de.gbanking.db.SqlStatements;
+import de.gbanking.db.DaoSqlStatements;
 import de.gbanking.db.StatementsConfig;
 import de.gbanking.db.StatementsConfig.StatementType;
 import de.gbanking.db.dao.BankAccount;
@@ -74,7 +74,7 @@ public class StatementsLogicBankAccount extends StatementsLogicDefault<BankAccou
 
 		Map<String, Integer> businessCaseMapDB = null;
 
-		businessCaseMapDB = executeSqlSelectStatementForMap(SqlStatements.SQL_SELECT_ALL_BUSINESSCASES, null, "caseValue", String.class, "id", Integer.class);
+		businessCaseMapDB = executeSqlSelectStatementForMap(DaoSqlStatements.SQL_SELECT_ALL_BUSINESSCASES, null, "caseValue", String.class, "id", Integer.class);
 
 		return businessCaseMapDB;
 	}
@@ -86,7 +86,7 @@ public class StatementsLogicBankAccount extends StatementsLogicDefault<BankAccou
 			businessCaseIdList.add(businessCaseMapDB.get(businessCaseAcc.getCaseValue()));
 		}
 
-		executeStatementList(SqlStatements.SQL_INSERT_BANKACCOUNT_BUSINESSCASE, businessCaseIdList, bankAccount, MnDao.class);
+		executeStatementList(DaoSqlStatements.SQL_INSERT_BANKACCOUNT_BUSINESSCASE, businessCaseIdList, bankAccount, MnDao.class);
 	}
 	
 	@Override

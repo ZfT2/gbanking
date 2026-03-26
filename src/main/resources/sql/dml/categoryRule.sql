@@ -5,7 +5,7 @@ id, category_id, filterDateFrom, filterDateTo, filterAmountFrom, filterAmountTo,
 SELECT ${SQL_SELECT_ALL_CATEGORYRULES_BASE} FROM categoryRule;
 
 [SQL_SELECT_ALL_CATEGORYRULES_FULL]
-SELECT ${SQL_SELECT_ALL_CATEGORYRULES_BASE}, cg.id, cg.name, cg.fullName, FROM categoryRule cgr, category cg WHERE cgr.category_id = cg.id;
+SELECT ${SQL_SELECT_ALL_CATEGORYRULES_BASE}, cg.id, cg.name, cg.fullName FROM categoryRule cgr, categoryFull cg WHERE cgr.category_id = cg.id;
 
 [SQL_SELECT_ID_CATEGORYRULE]
 SELECT id FROM categoryRule WHERE id = ?;

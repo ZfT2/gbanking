@@ -1,8 +1,8 @@
 package de.gbanking.db.dao.logic;
 
-import static de.gbanking.db.SqlStatements.SQL_INSERT_BANKACCESS_PARAMETERDATA;
-import static de.gbanking.db.SqlStatements.SQL_INSERT_PARAMETERDATA;
-import static de.gbanking.db.SqlStatements.SQL_SELECT_ALL_PARAMETERDATA_BY_BANKACCESS;
+import static de.gbanking.db.DaoSqlStatements.SQL_INSERT_BANKACCESS_PARAMETERDATA;
+import static de.gbanking.db.DaoSqlStatements.SQL_INSERT_PARAMETERDATA;
+import static de.gbanking.db.DaoSqlStatements.SQL_SELECT_ALL_PARAMETERDATA_BY_BANKACCESS;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import de.gbanking.db.SqlStatements;
+import de.gbanking.db.DaoSqlStatements;
 import de.gbanking.db.StatementsConfig.StatementType;
 import de.gbanking.db.dao.BankAccess;
 import de.gbanking.db.dao.BankAccount;
@@ -70,7 +70,7 @@ public class StatementsLogicBankAccess extends StatementsLogicDefault<BankAccess
 			ParameterDataBankAccess pda = typ == ParameterDataType.BPD ? new Bpd() : new Upd();
 			pda.setBankAccessId(bankAccess.getId());
 
-			int affectedRows = executeSqlDeleteStatement(SqlStatements.SQL_DELETE_ALL_BANKACCESS_PARAMETERDATA_BY_BANKACCESS, pda);
+			int affectedRows = executeSqlDeleteStatement(DaoSqlStatements.SQL_DELETE_ALL_BANKACCESS_PARAMETERDATA_BY_BANKACCESS, pda);
 
 			log.info("deleted {} {} entries for BankAccess: {}", affectedRows, typ.name(), bankAccess.getBankName());
 			
@@ -91,7 +91,7 @@ public class StatementsLogicBankAccess extends StatementsLogicDefault<BankAccess
 			
 			executeSqlUpdateStatementForList(pdDataBankAccessSql, parameterDataListBa, bankAccess, ParameterDataBankAccess.class);
 
-			affectedRows = executeSqlDeleteStatement(SqlStatements.SQL_DELETE_UNUSED_PARAMETERDATA, null);
+			affectedRows = executeSqlDeleteStatement(DaoSqlStatements.SQL_DELETE_UNUSED_PARAMETERDATA, null);
 			
 			log.info("deleted {} now unused entries for ParameterData:", affectedRows);
 

@@ -44,5 +44,5 @@ CREATE TABLE institute (
 [SQL_SETUP_CREATE_UNIQUE_INDEX_INSTITUTE]
 CREATE UNIQUE INDEX uk_institute_blz_importnr_current
   ON institute (blz, importNumber)
-  WHERE stateType IN ('ACTIVE', 'DUPLICATE');
+  WHERE stateType IN (1, 2);
 ;

@@ -16,12 +16,21 @@ final class DbMigrationRunner {
 	private static final String SETTING_SCHEMA_VERSION = "db.schema.version";
 	private static final String SETTING_LAST_APP_VERSION = "app.version.lastStarted";
 	private static final int SETTING_DATATYPE_STRING = 8;
+	private static final String BASELINE_SCHEMA_PROBE_TABLE = "bankAccess";
 
 	private DbMigrationRunner() {
 	}
 
 	static void migrate(Connection connection) throws SQLException {
 		ensureSettingTableExists(connection);
+		SqlTemplateRepository.VersionScript baselineScript = SqlTemplateRepository.getBaselineVersionScript();
+		if (baselineScript != null
+				&& !isMigrationApplied(connection, baselineScript.getSettingKey())
+				&& hasLegacySchema(connection)) {
+			log.info("Existing database schema detected without migration markers. Marking baseline {} as already applied.",
+					baselineScript.getVersion());
+			markBaselineAsApplied(connection);
+		}
 
 		String appVersion = normalizeVersion(BuildInfo.getVersion());
 		List<SqlTemplateRepository.VersionScript> applicableScripts = SqlTemplateRepository.getVersionScripts().stream()
@@ -51,6 +60,15 @@ final class DbMigrationRunner {
 				"Baseline-DB-Schema initial erstellt mit Version " + baselineScript.getVersion());
 		upsertHiddenSetting(connection, SETTING_SCHEMA_VERSION, baselineScript.getVersion(), "Zuletzt erfolgreich angewendete DB-Schemaversion");
 		upsertHiddenSetting(connection, SETTING_LAST_APP_VERSION, appVersion, "Zuletzt gestartete Anwendungsversion");
+	}
+
+	private static boolean hasLegacySchema(Connection connection) throws SQLException {
+		try (var ps = connection.prepareStatement("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?")) {
+			ps.setString(1, BASELINE_SCHEMA_PROBE_TABLE);
+			try (var rs = ps.executeQuery()) {
+				return rs.next();
+			}
+		}
 	}
 
 	private static void ensureSettingTableExists(Connection connection) throws SQLException {
