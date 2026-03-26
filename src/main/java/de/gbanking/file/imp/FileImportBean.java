@@ -139,11 +139,27 @@ public class FileImportBean extends BaseBean {
 			writeBookingsToDB(xml2CsvKontoList);
 		} else if (fp32CsvBookingList != null) {
 			accountIdMapByAccountname = dbController.getAccountsIdsByAccountName();
-			dbController.insertAccountBookings(
-					DaoMapper.maptoBookingDaoList("TODO", fp32CsvBookingList, accountIdMapByAccountname, crossAccountIdMapByIdentifier, Source.IMPORT_INITIAL));
+			crossAccountIdMapByIdentifier = dbController.getCrossAccountsIdsByIbanOrNumber();
+			String fallbackAccountName = resolveFallbackAccountName(fp32CsvBookingList);
+			dbController.insertAccountBookings(DaoMapper.maptoBookingDaoList(fallbackAccountName, fp32CsvBookingList, accountIdMapByAccountname,
+					crossAccountIdMapByIdentifier, Source.IMPORT_INITIAL));
 		} else {
 			log.error("xml2CsvKontoList and fp32CsvBookingList are both null!");
 		}
+	}
+
+	private String resolveFallbackAccountName(Collection<de.fp32xmlextract.data.Booking> bookingList) {
+		if (bookingList == null) {
+			return null;
+		}
+
+		for (de.fp32xmlextract.data.Booking booking : bookingList) {
+			if (booking != null && booking.getAccountNamePP() != null && !booking.getAccountNamePP().isBlank()) {
+				return booking.getAccountNamePP();
+			}
+		}
+
+		return null;
 	}
 
 	boolean writeAccountsToDB(Collection<de.fp32xmlextract.data.BankAccount> bankAccountList) {
@@ -184,11 +200,11 @@ public class FileImportBean extends BaseBean {
 		long importedBookingsCount = 0;
 
 		Collection<Booking> allBookings = new ArrayList<>();
-		List<Booking> bookingDaoList = new ArrayList<>();
 
 		for (de.fp32xmlextract.data.BankAccount bankAccountXml : bankAccountList) {
 			String accountName = bankAccountXml.getNamePP();
 			List<de.fp32xmlextract.data.Booking> bookingsList = bankAccountXml.getBookings();
+			List<Booking> bookingDaoList = new ArrayList<>();
 
 			updateWorkerStateBookings(importedBookingsCount, "Importiere Buchungen für Konto: %s (Anzahl: %d)", accountName, bookingsList.size());
 

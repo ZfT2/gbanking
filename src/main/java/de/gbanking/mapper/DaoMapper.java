@@ -14,6 +14,7 @@ import de.gbanking.db.dao.enu.AccountState;
 import de.gbanking.db.dao.enu.AccountType;
 import de.gbanking.db.dao.enu.BookingType;
 import de.gbanking.db.dao.enu.Source;
+import de.gbanking.exception.GBankingException;
 import de.gbanking.util.TypeConverter;
 
 public class DaoMapper {
@@ -91,10 +92,14 @@ public class DaoMapper {
 
 		Booking booking = new Booking();
 
-		if (xmlBooking.getAccountNamePP() == null) {
+		if (xmlBooking.getAccountNamePP() == null || xmlBooking.getAccountNamePP().isBlank()) {
 			xmlBooking.setAccountNamePP(accountName);
 		}
-		booking.setAccountId(accountIdMapByAccountName.get(xmlBooking.getAccountNamePP()));
+		Integer accountId = accountIdMapByAccountName.get(xmlBooking.getAccountNamePP());
+		if (accountId == null) {
+			throw new GBankingException("No account found for imported booking accountNamePP: " + xmlBooking.getAccountNamePP());
+		}
+		booking.setAccountId(accountId);
 		booking.setSource(source);
 		booking.setBookingType(getBookingType(xmlBooking));
 		booking.setAmount(xmlBooking.getAmount());
@@ -115,8 +120,11 @@ public class DaoMapper {
 			booking.setCrossAccountId(accountIdMapByAccountName.get(xmlBooking.getCrossAccountNamePP()));
 		} else if (xmlBooking.getCrossAccountIBAN() != null) {
 			String crossIban = xmlBooking.getCrossAccountIBAN();
-			Integer crossAccountId = crossAccountIdMapByIdentifier.get(crossIban.replaceFirst("^0+(?!$)", ""));
-			if (crossAccountId == null && crossIban.length() >= 15) {
+			Integer crossAccountId = null;
+			if (crossAccountIdMapByIdentifier != null) {
+				crossAccountId = crossAccountIdMapByIdentifier.get(crossIban.replaceFirst("^0+(?!$)", ""));
+			}
+			if (crossAccountId == null && crossAccountIdMapByIdentifier != null && crossIban.length() >= 15) {
 				crossAccountId = crossAccountIdMapByIdentifier.get(crossIban.substring(12).replaceFirst("^0+(?!$)", ""));
 			}
 			booking.setCrossAccountId(crossAccountId);

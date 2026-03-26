@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -27,6 +28,8 @@ import de.gbanking.db.DBControllerTestUtil;
 import de.gbanking.db.TestData;
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.Booking;
+import de.gbanking.db.dao.Category;
+import de.gbanking.db.dao.CategoryRule;
 import de.gbanking.db.dao.Recipient;
 import de.gbanking.db.dao.enu.AccountState;
 import de.gbanking.db.dao.enu.AccountType;
@@ -245,6 +248,60 @@ class GBankingBeanTest {
 		boolean editable = gBankingBean.isRecipientEditable(r1);
 
 		assertFalse(editable);
+	}
+
+	@Test
+	void testApplyCategoryRule_WithAndFilter_SetsCategoryOnlyForMatchingBooking() {
+		BankAccount account = TestData.createSampleAccount(null);
+		account = dbController.insertOrUpdate(account);
+
+		Recipient matchRecipient = new Recipient("Supermarkt Nord", "DE00000000000000001000");
+		matchRecipient.setSource(Source.IMPORT_INITIAL);
+		matchRecipient = dbController.insertOrUpdate(matchRecipient);
+
+		Recipient otherRecipient = new Recipient("Baeckerei", "DE00000000000000002000");
+		otherRecipient.setSource(Source.IMPORT_INITIAL);
+		otherRecipient = dbController.insertOrUpdate(otherRecipient);
+
+		Booking matchingBooking = new Booking();
+		matchingBooking.setAccountId(account.getId());
+		matchingBooking.setDateBooking(LocalDate.of(2025, 10, 14));
+		matchingBooking.setDateValue(LocalDate.of(2025, 10, 14));
+		matchingBooking.setAmount(BigDecimal.valueOf(-42.50));
+		matchingBooking.setPurpose("Einkauf Wochenende");
+		matchingBooking.setBookingType(BookingType.REMOVAL);
+		matchingBooking.setSource(Source.IMPORT_INITIAL);
+		matchingBooking.setRecipientId(matchRecipient.getId());
+		matchingBooking = dbController.insertOrUpdate(matchingBooking);
+
+		Booking nonMatchingBooking = new Booking();
+		nonMatchingBooking.setAccountId(account.getId());
+		nonMatchingBooking.setDateBooking(LocalDate.of(2025, 10, 14));
+		nonMatchingBooking.setDateValue(LocalDate.of(2025, 10, 14));
+		nonMatchingBooking.setAmount(BigDecimal.valueOf(-12.00));
+		nonMatchingBooking.setPurpose("Kaffee");
+		nonMatchingBooking.setBookingType(BookingType.REMOVAL);
+		nonMatchingBooking.setSource(Source.IMPORT_INITIAL);
+		nonMatchingBooking.setRecipientId(otherRecipient.getId());
+		nonMatchingBooking = dbController.insertOrUpdate(nonMatchingBooking);
+
+		Category category = dbController.insertOrUpdate(TestData.createSampleCategory("Lebensmittel"));
+
+		CategoryRule categoryRule = new CategoryRule();
+		categoryRule.setCategory(category);
+		categoryRule.setJoinType(CategoryRule.JoinType.AND);
+		categoryRule.setFilterPurpose("einkauf");
+		categoryRule.setFilterRecipient("supermarkt.*");
+		categoryRule.setFilterRecipientIsRegex(true);
+		categoryRule.setBankAccountList(List.of(account));
+
+		gBankingBean.applyCategoryRule(categoryRule);
+
+		matchingBooking = dbController.getByIdFull(Booking.class, matchingBooking.getId());
+		nonMatchingBooking = dbController.getByIdFull(Booking.class, nonMatchingBooking.getId());
+
+		assertEquals(category.getId(), matchingBooking.getCategory().getId());
+		assertEquals(0, nonMatchingBooking.getCategoryId());
 	}
 
 	private Konto createKonto(String iban, String blz, String name1) {

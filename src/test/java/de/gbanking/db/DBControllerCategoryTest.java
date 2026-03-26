@@ -114,10 +114,28 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 		cr = db.getById(CategoryRule.class, cr.getId());
 
 		assertTrue(cr.getId() > 0);
+		assertEquals(cg.getId(), cr.getCategory().getId());
 		assertEquals("Fahrkarte", cr.getFilterPurpose());
 		
 		LocalDate dateUpdatedAtWithoutTime = getCalendarWithoutTime(cr.getUpdatedAt());
 		assertEquals(dateUpdatedAtWithoutTime, getCalendarWithoutTime(LocalDate.now()));
+	}
+
+	@Test
+	void getAllCategoryRules_shouldIncludeCategoryDetails() {
+
+		Category cg = db.insertOrUpdate(TestData.createSampleCategory("Mobilitaet:Bahn"));
+
+		CategoryRule cr = new CategoryRule();
+		cr.setCategory(cg);
+		cr.setFilterPurpose("Ticket");
+		db.insertOrUpdate(cr);
+
+		List<CategoryRule> categoryRules = db.getAll(CategoryRule.class);
+
+		assertEquals(1, categoryRules.size());
+		assertEquals(cg.getId(), categoryRules.get(0).getCategory().getId());
+		assertEquals("Mobilitaet:Bahn", categoryRules.get(0).getCategory().getFullName());
 	}
 
 }

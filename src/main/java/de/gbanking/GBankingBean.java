@@ -13,7 +13,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -47,7 +49,6 @@ import de.gbanking.db.dao.enu.HbciEncodingFilterType;
 import de.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.gbanking.db.dao.enu.OrderType;
 import de.gbanking.db.dao.enu.Source;
-import de.gbanking.db.enu.SqlFilter;
 import de.gbanking.exception.GBankingException;
 import de.gbanking.gui.dto.MoneyTransferForm;
 import de.gbanking.gui.progress.InstituteFileImportProgressBarPanel;
@@ -106,7 +107,7 @@ public class GBankingBean extends BaseBean implements Serializable {
 			bankAccess.setBlz(passport.getBLZ());
 
 			bankAccess.setUpd(passport.getUPD());
-			bankAccess.setUpd(passport.getBPD());
+			bankAccess.setBpd(passport.getBPD());
 			bankAccess.setAccounts(bankAccountList);
 			
 			BankAccess bankAccessDb = dbController.getBankAccessByBlz(bankAccess.getBlz());
@@ -300,28 +301,10 @@ public class GBankingBean extends BaseBean implements Serializable {
 		return umsResult.getFlatData();
 	}
 
-
 	private boolean hbciKontosMatches(BankAccount bankAccount, Konto konto) {
 		return bankAccount.getIban() != null && bankAccount.getIban().equalsIgnoreCase(konto.iban)
 				|| bankAccount.getNumber() != null && bankAccount.getNumber().equalsIgnoreCase(konto.number);
 	}
-	
-	
-//	HBCIJob<?> createAndAddHbciJob(HBCIHandler handle, String jobDescription, Map<String, Object> params) {
-//		HBCIJob<?> job = handle.newJob(jobDescription);
-//		for (Entry<String, Object> param : params.entrySet()) {
-//			switch (param.getValue()) {
-//				case String s -> job.setParam(param.getKey(), s);
-//				case Date d -> job.setParam(param.getKey(), d);
-//				case Integer i -> job.setParam(param.getKey(), i);
-//				case Konto k -> job.setParam(param.getKey(), k);
-//				default -> log.error("Unknown HBCI Job Param Type: {}", param.getValue().getClass());
-//			}
-//
-//			job.addToQueue();
-//		}
-//		return job;
-//	}
 
 	HBCIJob<?> createAndAddHbciJob(HBCIHandler handle, String jobDescription, Map<String, Object> params) {
 		HBCIJob<?> job = handle.newJob(jobDescription);
@@ -503,52 +486,98 @@ public class GBankingBean extends BaseBean implements Serializable {
 	
 	
 	public void applyCategoryRule(CategoryRule categoryRule ) {
-		
-		List<BankAccount> accountListForRule = categoryRule.getBankAccountList();
-		
-		List<CategoryParam> paramList = new ArrayList<>();
-		
-//		for (BankAccount bankAccount : accountListForRule) {
-			
-//			StringBuilder sb = new StringBuilder("UPDATE BOOKING set category_id = ? WHERE");
-			StringBuilder sb = new StringBuilder("SELECT id FROM BOOKING b, RECIPIENT r WHERE b.recipient_id = r.id ");
-			
-				addFilterParam("amount", ">=", categoryRule.getFilterAmountFrom(), paramList);
-				addFilterParam("amount", "<=", categoryRule.getFilterAmountTo(), paramList);
+		if (categoryRule == null || categoryRule.getCategory() == null) {
+			return;
+		}
 
-				addFilterParam("dateBooking", ">=", categoryRule.getFilterDateFrom(), paramList);
-				addFilterParam("dateBooking", "<=", categoryRule.getFilterDateTo(), paramList);
+		List<Predicate<Booking>> filters = buildCategoryRuleFilters(categoryRule);
+		Predicate<Booking> matchesRule = combineCategoryRuleFilters(categoryRule, filters);
 
-				addFilterParam("purpose", "LIKE", categoryRule.getFilterPurpose(), paramList);
-				addFilterParam("name", "LIKE", categoryRule.getFilterRecipient(), paramList);
+		Set<Integer> allowedAccountIds = getAllowedAccountIds(categoryRule);
+		List<Booking> bookingListToCategorize = dbController.getAllFull(Booking.class).stream()
+				.filter(booking -> allowedAccountIds.isEmpty() || allowedAccountIds.contains(booking.getAccountId()))
+				.filter(matchesRule)
+				.toList();
 
-				addFilterParam("account_id", "IN", categoryRule.getBankAccountList().stream().map(account -> String.valueOf(account.getId())).collect(Collectors.joining(", ")), paramList);
-				
-				for (CategoryParam param : paramList) {
-					sb.append("AND ").append(param.getParamField()).append(" ").append(param.getOperator()).append(" ").append(param.getValue());
-				}
+		if (bookingListToCategorize.isEmpty()) {
+			return;
+		}
 
-				SqlFilter sqlFilter = SqlFilter.SPECIFIC_QUERY;
-				sqlFilter.setSql(sb.toString());
-				List<Booking> bookingListToCategorize = dbController.getAllWithFilter(Booking.class, sqlFilter);
-				//dbController.gets
+		Set<Integer> bookingIdSet = bookingListToCategorize.stream().map(Booking::getId).collect(java.util.stream.Collectors.toSet());
+		Map<Category, Set<Integer>> categoryBookingMap = new HashMap<>();
+		categoryBookingMap.put(categoryRule.getCategory(), bookingIdSet);
 
-				Set<Integer> bookingIdSet = bookingListToCategorize.stream().map(Booking::getId).collect(Collectors.toSet());
-				Map<Category, Set<Integer>> categoryBookingMap = new HashMap<>();
-				categoryBookingMap.put(categoryRule.getCategory(), bookingIdSet);
-
-				dbController.updateBookingsWithCategories(categoryBookingMap);
-
-//			for (Booking booking : bankAccount.getBookings()) {
-//				categoryRule.getFilterAmountFrom();
-//				categoryRule.getFilterAmountTo();
-//			}
-//		}
+		dbController.updateBookingsWithCategories(categoryBookingMap);
 	}
-	
-	private void addFilterParam(String field, String operator, Object value, List<CategoryParam> paramList) {
-		if (value != null)
-			paramList.add(new CategoryParam(field, operator, value));
+
+	private List<Predicate<Booking>> buildCategoryRuleFilters(CategoryRule categoryRule) {
+		List<Predicate<Booking>> filters = new ArrayList<>();
+
+		if (categoryRule.getFilterAmountFrom() != null) {
+			filters.add(booking -> booking.getAmount() != null && booking.getAmount().compareTo(categoryRule.getFilterAmountFrom()) >= 0);
+		}
+		if (categoryRule.getFilterAmountTo() != null) {
+			filters.add(booking -> booking.getAmount() != null && booking.getAmount().compareTo(categoryRule.getFilterAmountTo()) <= 0);
+		}
+		if (categoryRule.getFilterDateFrom() != null) {
+			filters.add(booking -> booking.getDateBooking() != null && !booking.getDateBooking().isBefore(categoryRule.getFilterDateFrom()));
+		}
+		if (categoryRule.getFilterDateTo() != null) {
+			filters.add(booking -> booking.getDateBooking() != null && !booking.getDateBooking().isAfter(categoryRule.getFilterDateTo()));
+		}
+		if (categoryRule.getFilterPurpose() != null) {
+			filters.add(booking -> matchesTextFilter(booking.getPurpose(), categoryRule.getFilterPurpose(), categoryRule.isFilterPurposeIsRegex()));
+		}
+		if (categoryRule.getFilterRecipient() != null) {
+			filters.add(booking -> matchesTextFilter(booking.getRecipient() != null ? booking.getRecipient().getName() : null,
+					categoryRule.getFilterRecipient(), categoryRule.isFilterRecipientIsRegex()));
+		}
+
+		return filters;
+	}
+
+	private Predicate<Booking> combineCategoryRuleFilters(CategoryRule categoryRule, List<Predicate<Booking>> filters) {
+		if (filters.isEmpty()) {
+			return booking -> true;
+		}
+
+		if (categoryRule.getJoinType() == CategoryRule.JoinType.AND) {
+			return booking -> filters.stream().allMatch(filter -> filter.test(booking));
+		}
+
+		return booking -> filters.stream().anyMatch(filter -> filter.test(booking));
+	}
+
+	private Set<Integer> getAllowedAccountIds(CategoryRule categoryRule) {
+		if (categoryRule.getBankAccountList() == null || categoryRule.getBankAccountList().isEmpty()) {
+			return Set.of();
+		}
+
+		Set<Integer> accountIds = new HashSet<>();
+		for (BankAccount account : categoryRule.getBankAccountList()) {
+			if (account != null && account.getId() > 0) {
+				accountIds.add(account.getId());
+			}
+		}
+		return accountIds;
+	}
+
+	private boolean matchesTextFilter(String value, String filter, boolean regex) {
+		if (filter == null) {
+			return true;
+		}
+		if (value == null) {
+			return false;
+		}
+		if (regex) {
+			try {
+				return Pattern.compile(filter, Pattern.CASE_INSENSITIVE).matcher(value).find();
+			} catch (PatternSyntaxException ex) {
+				log.warn("Invalid regex for category rule filter: {}", filter, ex);
+				return false;
+			}
+		}
+		return value.toLowerCase().contains(filter.toLowerCase());
 	}
 
 	BankAccess initBankAccess(BankAccount bankAccount, char[] pin) {

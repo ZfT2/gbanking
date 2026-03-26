@@ -5,6 +5,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import de.gbanking.db.StatementsConfig.ResultType;
+import de.gbanking.db.dao.Category;
 import de.gbanking.db.dao.CategoryRule;
 import de.gbanking.db.dao.CategoryRule.JoinType;
 import de.gbanking.util.TypeConverter;
@@ -30,7 +31,15 @@ public class CategoryRuleMapper extends AbstractDaoMapper<CategoryRule, Void> {
 
 	@Override
 	public void mapDao(CategoryRule categoryRule, ResultType resultType, ResultSet rs) throws SQLException {
-		// categoryRule.setCategoryId(rs.getInt("category_id")); TODO Category..
+		int categoryId = rs.getInt("category_id");
+		if (categoryId > 0) {
+			String fullName = hasColumn(rs, "fullName") ? rs.getString("fullName") : null;
+			Category category = new Category(categoryId, fullName);
+			if (hasColumn(rs, "name")) {
+				category.setName(rs.getString("name"));
+			}
+			categoryRule.setCategory(category);
+		}
 		categoryRule.setFilterDateFrom((TypeConverter.toLocalDateFromSqlDate(rs.getDate("filterDateFrom"))));
 		categoryRule.setFilterDateTo((TypeConverter.toLocalDateFromSqlDate(rs.getDate("filterDateTo"))));
 		categoryRule.setFilterAmountFrom(rs.getBigDecimal("filterAmountFrom"));
@@ -40,6 +49,15 @@ public class CategoryRuleMapper extends AbstractDaoMapper<CategoryRule, Void> {
 		categoryRule.setFilterRecipientIsRegex(rs.getBoolean("filterRecipientIsRegex"));
 		categoryRule.setFilterPurposeIsRegex(rs.getBoolean("filterPurposeIsRegex"));
 		categoryRule.setJoinType(JoinType.valueOf(rs.getString("joinType")));
+	}
+
+	private boolean hasColumn(ResultSet rs, String columnName) {
+		try {
+			rs.findColumn(columnName);
+			return true;
+		} catch (SQLException ex) {
+			return false;
+		}
 	}
 
 }
