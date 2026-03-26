@@ -118,9 +118,6 @@ public class GBankingBean extends BaseBean implements Serializable {
 				bankAccess.setId(bankAccessDb.getId());
 			
 			HBCIExecStatus status = handle.execute();
-			
-			//delete PIN
-			 Arrays.fill(bankAccess.getPin(),'0');
 
 			if (!status.isOK()) {
 				log.log(Level.ERROR, () -> messages.getFormattedMessage("ERROR_HBCI_STATE", status.getErrorString()));
@@ -134,6 +131,7 @@ public class GBankingBean extends BaseBean implements Serializable {
 			ex.printStackTrace();
 			throw new GBankingException(getText("EXCEPTION_ADD_BANKACCESS"), ex);
 		} finally {
+			clearSecret(bankAccess != null ? bankAccess.getPin() : null);
 			hbciCallback.finishStatusDialog();
 			passport.close();
 		}
@@ -226,6 +224,7 @@ public class GBankingBean extends BaseBean implements Serializable {
 			log.error("Error in handling HBCI calls: ", e);
 			result = false;
 		} finally {
+			clearSecret(pin);
 			hbciCallback.finishStatusDialog();
 			passport.close();
 		}
@@ -417,6 +416,7 @@ public class GBankingBean extends BaseBean implements Serializable {
 			ex.printStackTrace();
 			throw new GBankingException(getText("EXCEPTION_MONEYTRANSFER_SENDING_ACCOUNT_NOT_FOUND"), ex);
 		} finally {
+			clearSecret(pin);
 			hbciCallback.finishStatusDialog();
 			passport.close();
 		}
@@ -797,6 +797,12 @@ public class GBankingBean extends BaseBean implements Serializable {
 				.collect(java.util.stream.Collectors.toSet());
 
 		return getRequiredBusinessCases(orderType).stream().anyMatch(supportedCases::contains);
+	}
+
+	private void clearSecret(char[] secret) {
+		if (secret != null) {
+			Arrays.fill(secret, '\0');
+		}
 	}
 
 	Set<String> getRequiredBusinessCases(OrderType orderType) {

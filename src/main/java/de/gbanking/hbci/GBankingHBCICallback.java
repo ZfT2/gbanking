@@ -52,7 +52,7 @@ public class GBankingHBCICallback extends AbstractHBCICallback {
 
 	@Override
 	public void callback(HBCIPassport passport, int reason, String msg, int datatype, StringBuffer retData) {
-		log.info("HBCI callback reason={}, retData={}", reason, retData);
+		log.info("HBCI callback reason={}, datatype={}", reason, datatype);
 
 		switch (reason) {
 		case NEED_PASSPHRASE_LOAD, NEED_PASSPHRASE_SAVE, NEED_PT_PIN -> retData.replace(0, retData.length(), new String(bankAccess.getPin()));
@@ -92,7 +92,7 @@ public class GBankingHBCICallback extends AbstractHBCICallback {
 
 	@Override
 	public void status(HBCIPassport passport, int statusTag, Object[] statusPayload) {
-		log.info("HBCI status: {} {} {}", statusTag, passport, statusPayload);
+		log.info("HBCI status: {}", statusTag);
 		appendFeedback(HbciStatusMessageExtractor.extractMessageLines(statusPayload), HbciStatusMessageExtractor.sanitizeForDetails(statusPayload));
 	}
 

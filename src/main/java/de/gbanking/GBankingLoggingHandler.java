@@ -5,12 +5,11 @@ import java.util.Arrays;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.kapott.hbci.GV_Result.GVRKUms.UmsLine;
-import org.kapott.hbci.passport.AbstractHBCIPassport;
 import org.kapott.hbci.passport.AbstractPinTanPassport;
 import org.kapott.hbci.passport.HBCIPassport;
 import org.kapott.hbci.structures.Konto;
 
-import de.gbanking.util.TypeConverter;
+import de.gbanking.security.SensitiveDataMasker;
 
 public class GBankingLoggingHandler {
 	
@@ -23,29 +22,31 @@ public class GBankingLoggingHandler {
 	void logRetrivedBankAccessInfo(HBCIPassport passport, boolean withPD) {
 		if (withPD) {
 			log.info(
-					"Access: InstName: {}, Host: {}, Port: {}, filterType: {}, " 
+					"Access: InstName: {}, Host: {}, Port: {}, filterType: {}, "
 							+ "HBCIVersion: {}, SuppVersion: {}, "
 							+ "BPDVersion: {}, BPD: {}, UPDVersion: {}, UPD: {}, "
 							+ "UserId: {}, CustomerId: {}, Country: {}, DefaultLang: {}",
 							passport::getInstName, passport::getHost, passport::getPort, passport::getFilterType,
-							passport::getHBCIVersion, () ->  Arrays.toString(passport.getSuppVersions()), 
-							passport::getBPDVersion, passport::getBPD, passport::getUPDVersion, passport::getUPD, 
-							passport::getUserId, passport::getCustomerId, passport::getCountry, passport::getDefaultLang);
+							passport::getHBCIVersion, () -> Arrays.toString(passport.getSuppVersions()),
+							passport::getBPDVersion, () -> SensitiveDataMasker.describePresence(passport.getBPD()), passport::getUPDVersion,
+							() -> SensitiveDataMasker.describePresence(passport.getUPD()), () -> SensitiveDataMasker.maskIdentifier(passport.getUserId()),
+							() -> SensitiveDataMasker.maskIdentifier(passport.getCustomerId()), passport::getCountry, passport::getDefaultLang);
 		} else {
 			log.info(
-					"Access: InstName: {}, Host: {}, Port: {}, FilterType: {}, " 
+					"Access: InstName: {}, Host: {}, Port: {}, FilterType: {}, "
 							+ "HBCIVersion: {}, SuppVersion: {}, "
 							+ "BPDVersion: {}, UPDVersion: {}, "
 							+ "UserId: {}, CustomerId: {}, Country: {}, DefaultLang: {}",
 							passport::getInstName, passport::getHost, passport::getPort, passport::getFilterType,
-							passport::getHBCIVersion, () -> Arrays.toString(passport.getSuppVersions()), 
+							passport::getHBCIVersion, () -> Arrays.toString(passport.getSuppVersions()),
 							passport::getBPDVersion, passport::getUPDVersion,
-							passport::getUserId, passport::getCustomerId, passport::getCountry, passport::getDefaultLang);
+							() -> SensitiveDataMasker.maskIdentifier(passport.getUserId()),
+							() -> SensitiveDataMasker.maskIdentifier(passport.getCustomerId()), passport::getCountry, passport::getDefaultLang);
 		}
-		if (passport instanceof AbstractHBCIPassport) {
-			AbstractPinTanPassport pinTanPassport = ((AbstractPinTanPassport) passport);
-			log.info("Access HBCIPassport Details: AllowedTwostepMechanisms: {}, CurrentTANMethod: {}", 
-					() -> TypeConverter.toCommaSeparatedString(pinTanPassport.getAllowedTwostepMechanisms()),  () -> pinTanPassport.getCurrentTANMethod(false));
+		if (passport instanceof AbstractPinTanPassport pinTanPassport) {
+			log.info("Access HBCIPassport Details: AllowedTwostepMechanisms: {}, CurrentTANMethod: {}",
+					() -> pinTanPassport.getAllowedTwostepMechanisms() != null ? pinTanPassport.getAllowedTwostepMechanisms().size() : 0,
+					() -> pinTanPassport.getCurrentTANMethod(false));
 		}
 	}
 	
@@ -53,8 +54,8 @@ public class GBankingLoggingHandler {
 		log.info(
 				"Konto: acctype {}, bic {}, blz {}, country {}, creditorid {}, curr {}, customerid {}, iban {}, limit {}, name {}, name2 {}, number {}, subnumber {}, type {}, isSEPAAccount? {}",
 				konto.acctype, konto.bic, konto.blz, konto.country, konto.creditorid, konto.curr,
-				konto.customerid, konto.iban, konto.limit, konto.name, konto.name2, konto.number,
-				konto.subnumber, konto.type, konto.isSEPAAccount());
+				SensitiveDataMasker.maskIdentifier(konto.customerid), SensitiveDataMasker.maskIban(konto.iban), konto.limit, konto.name, konto.name2,
+				SensitiveDataMasker.maskAccountNumber(konto.number), SensitiveDataMasker.maskAccountNumber(konto.subnumber), konto.type, konto.isSEPAAccount());
 	}
 	
 	void logRetrivedBookingInfo(UmsLine buchung) {
@@ -64,7 +65,8 @@ public class GBankingLoggingHandler {
 				+ "mandateId {}, orig_value {}, other {}, primanota {}, purposecode? {}, saldo {}, text {}, usage {}, value {}, valuta {}",
 				buchung.id, buchung.additional, buchung.addkey, buchung.bdate, buchung.charge_value, buchung.customerref,
 				buchung.endToEndId, buchung.gvcode, buchung.instref, buchung.isCamt, buchung.isSepa, buchung.isStorno,
-				buchung.mandateId, buchung.orig_value, buchung.other, buchung.primanota, buchung.purposecode, buchung.saldo, buchung.text, buchung.usage, buchung.value, buchung.valuta);
+				buchung.mandateId, buchung.orig_value, SensitiveDataMasker.describePresence(buchung.other), buchung.primanota, buchung.purposecode, buchung.saldo,
+				buchung.text, buchung.usage, buchung.value, buchung.valuta);
 	}
 
 }
