@@ -224,13 +224,7 @@ public class InstituteFileImportBean {
 		institute.setDataCenter(csvRecord.get("RZ"));
 		institute.setOrganisation(csvRecord.get("Organisation"));
 		institute.setHbciDns(csvRecord.get("HBCI-Zugang DNS"));
-		String header = "HBCI- Zugang IP-Adresse";
-		try {
-			institute.setHbciIp(csvRecord.get(header));
-		} catch (IllegalArgumentException e) {
-			log.warn("CSV Header {} not found, trying now: {} ", header, "HBCI- Zugang     IP-Adresse");
-			institute.setHbciIp(csvRecord.get("HBCI- Zugang     IP-Adresse"));
-		}
+		institute.setHbciIp(csvRecord.get("HBCI- Zugang     IP-Adresse"));
 
 		String hbciVersion = csvRecord.get("HBCI-Version");
 		if (!hbciVersion.isEmpty()) {
