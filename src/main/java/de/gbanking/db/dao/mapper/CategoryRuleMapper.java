@@ -50,14 +50,4 @@ public class CategoryRuleMapper extends AbstractDaoMapper<CategoryRule, Void> {
 		categoryRule.setFilterPurposeIsRegex(rs.getBoolean("filterPurposeIsRegex"));
 		categoryRule.setJoinType(JoinType.valueOf(rs.getString("joinType")));
 	}
-
-	private boolean hasColumn(ResultSet rs, String columnName) {
-		try {
-			rs.findColumn(columnName);
-			return true;
-		} catch (SQLException ex) {
-			return false;
-		}
-	}
-
 }

@@ -135,6 +135,15 @@ public abstract class AbstractDaoMapper<T extends Dao, V> {
 		return value;
 	}
 
+	protected boolean hasColumn(ResultSet rs, String columnName) {
+		try {
+			rs.findColumn(columnName);
+			return true;
+		} catch (SQLException ex) {
+			return false;
+		}
+	}
+
 	T initResultDao(Class<T> type, ResultSet rs) throws SQLException {
 		T dao = null;
 		try {
