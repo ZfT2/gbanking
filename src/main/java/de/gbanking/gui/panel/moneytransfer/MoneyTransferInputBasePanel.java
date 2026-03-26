@@ -1,14 +1,17 @@
 package de.gbanking.gui.panel.moneytransfer;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
-import de.gbanking.gui.components.BankNameLookupField;
-import de.gbanking.gui.service.InstituteLookupCache;
-import de.gbanking.gui.service.InstituteLookupCache.InstituteLookupEntry;
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.MoneyTransfer;
 import de.gbanking.db.dao.Recipient;
+import de.gbanking.db.dao.enu.OrderType;
+import de.gbanking.db.dao.enu.StandingorderMode;
+import de.gbanking.gui.components.BankNameLookupField;
+import de.gbanking.gui.service.InstituteLookupCache;
+import de.gbanking.gui.service.InstituteLookupCache.InstituteLookupEntry;
 import de.gbanking.gui.dto.MoneyTransferForm;
 import de.gbanking.gui.panel.AbstractTitledFormPanel;
 import de.gbanking.gui.util.FormControlUtils;
@@ -100,21 +103,29 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 		BankAccount account = parentPanel.getSelectedAccount();
 
 		if (!validateTransferInput(account)) {
-
 			new Alert(Alert.AlertType.WARNING, getText("ALERT_MONEYTRANSFER_REQUIRED_FIELD_MISSING")).showAndWait();
 			return;
 		}
 
-		MoneyTransferForm moneyTransfer = new MoneyTransferForm(account, tfRecipientName.getText(), tfIBAN.getText(), tfBIC.getText(),
-				bankNameLookupField.getSelectedBankName(), new BigDecimal(tfAmount.getText()), tfPurpose.getText());
+		MoneyTransferForm moneyTransfer = buildMoneyTransferForm(account);
 
 		bean.saveMoneyTransferToDB(moneyTransfer);
 		parentPanel.getMoneyTransferListPanel().reload();
 	}
 
 	private boolean validateTransferInput(BankAccount account) {
-		return account != null && validateInputElement(tfRecipientName) && validateInputElement(tfIBAN) && validateInputElement(tfAmount)
-				&& validateInputElement(tfPurpose);
+		if (account == null || !validateInputElement(tfRecipientName) || !validateInputElement(tfIBAN) || !validateInputElement(tfAmount)
+				|| !validateInputElement(tfPurpose)) {
+			return false;
+		}
+
+		try {
+			new BigDecimal(tfAmount.getText().trim());
+		} catch (NumberFormatException ex) {
+			return false;
+		}
+
+		return validateSpecificInput();
 	}
 
 	private boolean validateInputElement(TextInputControl textField) {
@@ -133,12 +144,14 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 		FormControlUtils.clearTextInputs(List.of(tfRecipientName, tfIBAN, tfAmount, tfPurpose, tfAccountSender));
 		setBicText("", false);
 		bankNameLookupField.clear();
+		resetSpecificFields();
 	}
 
 	void updatePanelFieldValues(MoneyTransfer selectedMoneytransfer) {
 		currentMoneytransfer = selectedMoneytransfer;
 		tfAmount.setText(selectedMoneytransfer.getAmount() != null ? selectedMoneytransfer.getAmount().toString() : "");
 		tfPurpose.setText(selectedMoneytransfer.getPurpose());
+		updateSpecificFieldValues(selectedMoneytransfer);
 
 		if (selectedMoneytransfer.getRecipient() != null) {
 			updatePanelFieldValues(selectedMoneytransfer.getRecipient());
@@ -193,5 +206,43 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 		} finally {
 			updatingBicProgrammatically = false;
 		}
+	}
+
+	public OrderType getOrderType() {
+		return OrderType.TRANSFER;
+	}
+
+	protected LocalDate getExecutionDate() {
+		return LocalDate.now();
+	}
+
+	protected Integer getExecutionDay() {
+		return null;
+	}
+
+	protected StandingorderMode getStandingorderMode() {
+		return null;
+	}
+
+	protected boolean validateSpecificInput() {
+		return true;
+	}
+
+	protected void resetSpecificFields() {
+		// default: no-op
+	}
+
+	protected void updateSpecificFieldValues(MoneyTransfer selectedMoneytransfer) {
+		// default: no-op
+	}
+
+	private MoneyTransferForm buildMoneyTransferForm(BankAccount account) {
+		return new MoneyTransferForm(account, getOrderType(), tfRecipientName.getText().trim(), tfIBAN.getText().trim(), trimToNull(tfBIC.getText()),
+				trimToNull(bankNameLookupField.getSelectedBankName()), new BigDecimal(tfAmount.getText().trim()), tfPurpose.getText().trim(), getExecutionDate(),
+				getExecutionDay(), getStandingorderMode());
+	}
+
+	protected MoneyTransferDetailListTabPanel getParentPanel() {
+		return parentPanel;
 	}
 }

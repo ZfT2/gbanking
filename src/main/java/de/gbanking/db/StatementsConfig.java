@@ -43,6 +43,7 @@ import de.gbanking.db.dao.logic.StatementsLogicBankAccount;
 import de.gbanking.db.dao.logic.StatementsLogicBooking;
 import de.gbanking.db.dao.logic.StatementsLogicCategory;
 import de.gbanking.db.dao.logic.StatementsLogicDefault;
+import de.gbanking.db.dao.logic.StatementsLogicMoneyTransfer;
 import de.gbanking.db.dao.logic.StatementsLogicRecipient;
 import de.gbanking.db.dao.mapper.AbstractDaoMapper;
 import de.gbanking.db.dao.mapper.BankAccessMapper;
@@ -185,7 +186,7 @@ public final class StatementsConfig {
 
             Map.entry(MoneyTransfer.class, new DaoMetadata<>(
                     new MoneytransferMapper(),
-                    new StatementsLogicDefault<>(),
+                    new StatementsLogicMoneyTransfer(),
                     null,
                     null,
 					MONEY_TRANSFER_SQL)),

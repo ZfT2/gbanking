@@ -19,6 +19,7 @@ public class DBControllerTestUtil {
 	 * intended for test setup and should not be used in production.
 	 */
 	public static void clearAllTables(Connection connection) {
+		assertTestDatabase(connection);
 
 		Map<String, String> tableViewMap = new HashMap<>();
 		ResultSet rs;
@@ -49,6 +50,23 @@ public class DBControllerTestUtil {
 		}
 	}
 
+	private static void assertTestDatabase(Connection connection) {
+		if (connection == null) {
+			throw new IllegalStateException("No test database connection available");
+		}
+
+		try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery("PRAGMA database_list")) {
+			while (rs.next()) {
+				String file = rs.getString("file");
+				if (file != null && !file.isBlank() && !file.contains("gb_test_")) {
+					throw new IllegalStateException("Refusing to clear non-test database: " + file);
+				}
+			}
+		} catch (SQLException e) {
+			throw new RuntimeException("Failed to verify test database", e);
+		}
+	}
+
 	public static void closeAndNullifyConnection() throws Exception {
 		Field connField = DbConnectionHandler.class.getDeclaredField("connection");
 		connField.setAccessible(true);
@@ -67,7 +85,7 @@ public class DBControllerTestUtil {
 			messagesField.setAccessible(true);
 			messagesField.set(null, null);
 		} catch (NoSuchFieldException ignored) {
-			// falls Feld nicht vorhanden – nicht kritisch
+			// falls Feld nicht vorhanden - nicht kritisch
 		}
 	}
 

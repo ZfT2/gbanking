@@ -24,7 +24,7 @@ public class MoneyTransferDetailListTabPanel extends BorderPane {
 
 	private void getTabbedPanel() {
 		switch (orderType) {
-		case TRANSFER -> moneyTransferInputPanel = new MoneyTransferInputPanel(this);
+		case TRANSFER, REALTIME_TRANSFER -> moneyTransferInputPanel = new MoneyTransferInputPanel(this);
 		case SCHEDULED_TRANSFER -> moneyTransferInputPanel = new MoneyTransferInputScheduledPanel(this);
 		case STANDING_ORDER -> moneyTransferInputPanel = new MoneyTransferInputStandingOrderPanel(this);
 		default -> throw new IllegalStateException("Unsupported order type: " + orderType);

@@ -14,10 +14,12 @@ import javafx.scene.control.TableColumn;
 public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTransfer> {
 
 	private final MoneyTransferDetailListTabPanel parentPanel;
+	private final OrderType orderType;
 
 	public MoneyTransferListPanel(OrderType orderType, MoneyTransferDetailListTabPanel parent) {
 		super(FXCollections.observableArrayList());
 		this.parentPanel = parent;
+		this.orderType = orderType;
 		createInnerMoneyTransfersListPanel(orderType);
 	}
 
@@ -67,7 +69,7 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 	}
 
 	public void updateModelMoneytransfer(List<MoneyTransfer> orderList) {
-		replaceItems(orderList);
+		replaceItems(filterByOrderType(orderList));
 	}
 
 	public void updatePanelBorder(String borderTitle) {
@@ -75,10 +77,19 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 	}
 
 	public void reload() {
-		replaceItems(dbController.getAllByParent(MoneyTransfer.class, 1));
+		if (parentPanel.getSelectedAccount() == null) {
+			replaceItems(List.of());
+			return;
+		}
+		updateModelMoneytransfer(dbController.getAllByParent(MoneyTransfer.class, parentPanel.getSelectedAccount().getId()));
 	}
 
 	public void refresh() {
 		reload();
+	}
+
+	private List<MoneyTransfer> filterByOrderType(List<MoneyTransfer> orderList) {
+		OrderType effectiveOrderType = orderType == OrderType.TRANSFER ? parentPanel.getMoneyTransferInputPanel().getOrderType() : orderType;
+		return orderList.stream().filter(transfer -> transfer.getOrderType() == effectiveOrderType).toList();
 	}
 }

@@ -17,6 +17,7 @@ CREATE TABLE moneytransfer (
   purpose TEXT,
   amount REAL,
   executionDate TEXT,
+  executionDay INTEGER,
   moneytransferStatus TEXT NOT NULL,
   standingorderMode TEXT,
   historyorder_id INTEGER,

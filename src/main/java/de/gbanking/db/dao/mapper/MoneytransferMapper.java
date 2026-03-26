@@ -23,14 +23,21 @@ public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> 
 		ps.setString(4, moneytransfer.getPurpose());
 		ps.setDouble(5, moneytransfer.getAmount().doubleValue());
 		ps.setString(6, TypeConverter.toDateStringShort(moneytransfer.getExecutionDate()));
-		ps.setString(7, moneytransfer.getMoneytransferStatus().name());
-		ps.setString(8, moneytransfer.getStandingorderMode() != null ? moneytransfer.getStandingorderMode().name() : null);
-		if (moneytransfer.getHistoryorderId() != null) {
-			ps.setInt(9, moneytransfer.getHistoryorderId());
+		if (moneytransfer.getExecutionDay() != null) {
+			ps.setInt(7, moneytransfer.getExecutionDay());
+		} else {
+			ps.setNull(7, java.sql.Types.INTEGER);
 		}
-		ps.setDate(10, TypeConverter.toSqlDateNow());
+		ps.setString(8, moneytransfer.getMoneytransferStatus().name());
+		ps.setString(9, moneytransfer.getStandingorderMode() != null ? moneytransfer.getStandingorderMode().name() : null);
+		if (moneytransfer.getHistoryorderId() != null) {
+			ps.setInt(10, moneytransfer.getHistoryorderId());
+		} else {
+			ps.setNull(10, java.sql.Types.INTEGER);
+		}
+		ps.setDate(11, TypeConverter.toSqlDateNow());
 		if (moneytransfer.getId() > 0)
-			ps.setInt(11, moneytransfer.getId());
+			ps.setInt(12, moneytransfer.getId());
 	}
 
 	@Override
@@ -41,9 +48,12 @@ public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> 
 		moneytransfer.setPurpose(rs.getString(SqlFields.BOOKING_PURPOSE));
 		moneytransfer.setAmount(rs.getBigDecimal(SqlFields.BOOKING_AMOUNT));
 		moneytransfer.setExecutionDate(TypeConverter.toLocalDateFromDateStrShort(rs.getString("executionDate")));
+		int executionDay = rs.getInt("executionDay");
+		moneytransfer.setExecutionDay(rs.wasNull() ? null : executionDay);
 		moneytransfer.setMoneytransferStatus(MoneyTransferStatus.valueOf(rs.getString("moneytransferStatus")));
 		moneytransfer.setStandingorderMode(rs.getString("standingorderMode") != null ? StandingorderMode.valueOf(rs.getString("standingorderMode")) : null);
-		moneytransfer.setHistoryorderId(rs.getInt("historyorder_id"));
+		int historyOrderId = rs.getInt("historyorder_id");
+		moneytransfer.setHistoryorderId(rs.wasNull() ? null : historyOrderId);
 
 		Recipient recipient = new Recipient();
 		recipient.setId(rs.getInt("r_id"));

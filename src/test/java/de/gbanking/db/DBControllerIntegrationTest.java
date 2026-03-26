@@ -253,6 +253,7 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 		mt.setPurpose("Rent");
 		mt.setAmount(new BigDecimal("750.00"));
 		mt.setExecutionDate(LocalDate.now());
+		mt.setExecutionDay(15);
 		mt.setStandingorderMode(StandingorderMode.MONTHLY);
 		mt.setMoneytransferStatus(MoneyTransferStatus.NEW);
 		db.insertOrUpdate(mt);
@@ -260,6 +261,8 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 		List<MoneyTransfer> transfers = db.getAllByParent(MoneyTransfer.class, acc.getId());
 		assertEquals(1, transfers.size());
 		assertEquals("Rent", transfers.get(0).getPurpose());
+		assertEquals(Integer.valueOf(15), transfers.get(0).getExecutionDay());
+		assertEquals(StandingorderMode.MONTHLY, transfers.get(0).getStandingorderMode());
 	}
 
 	// ------------------------------------------------------------

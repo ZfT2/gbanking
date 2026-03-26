@@ -28,13 +28,19 @@ import de.gbanking.db.DBControllerTestUtil;
 import de.gbanking.db.TestData;
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.Booking;
+import de.gbanking.db.dao.BusinessCase;
 import de.gbanking.db.dao.Category;
 import de.gbanking.db.dao.CategoryRule;
+import de.gbanking.db.dao.MoneyTransfer;
 import de.gbanking.db.dao.Recipient;
 import de.gbanking.db.dao.enu.AccountState;
 import de.gbanking.db.dao.enu.AccountType;
 import de.gbanking.db.dao.enu.BookingType;
+import de.gbanking.db.dao.enu.MoneyTransferStatus;
+import de.gbanking.db.dao.enu.OrderType;
 import de.gbanking.db.dao.enu.Source;
+import de.gbanking.db.dao.enu.StandingorderMode;
+import de.gbanking.gui.dto.MoneyTransferForm;
 import de.gbanking.util.TypeConverter;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -304,6 +310,45 @@ class GBankingBeanTest {
 		assertEquals(0, nonMatchingBooking.getCategoryId());
 	}
 
+	@Test
+	void testSaveMoneyTransferToDB_WithStandingOrderData_PersistsExtendedFields() {
+		BankAccount account = TestData.createSampleAccount(null);
+		account = dbController.insertOrUpdate(account);
+
+		MoneyTransferForm form = new MoneyTransferForm(account, OrderType.STANDING_ORDER, "Stromanbieter", "DE12345678901234567890", "TESTDEFFXXX",
+				"Testbank", BigDecimal.valueOf(89.45), "Monatlicher Abschlag", LocalDate.of(2026, 4, 1), 15, StandingorderMode.MONTHLY);
+
+		MoneyTransfer savedTransfer = gBankingBean.saveMoneyTransferToDB(form);
+		List<MoneyTransfer> transfers = dbController.getAllByParent(MoneyTransfer.class, account.getId());
+
+		assertEquals(1, transfers.size());
+		assertEquals(savedTransfer.getId(), transfers.get(0).getId());
+		assertEquals(OrderType.STANDING_ORDER, transfers.get(0).getOrderType());
+		assertEquals(LocalDate.of(2026, 4, 1), transfers.get(0).getExecutionDate());
+		assertEquals(Integer.valueOf(15), transfers.get(0).getExecutionDay());
+		assertEquals(StandingorderMode.MONTHLY, transfers.get(0).getStandingorderMode());
+		assertEquals(MoneyTransferStatus.NEW, transfers.get(0).getMoneytransferStatus());
+	}
+
+	@Test
+	void testSupportsTransferOrderType_WithAllowedBusinessCases_ReturnsExpectedResult() {
+		BankAccount account = new BankAccount();
+		account.setAllowedBusinessCases(List.of(createBusinessCase("UebSEPA"), createBusinessCase("InstUebSEPA")));
+
+		assertTrue(gBankingBean.supportsTransferOrderType(account, OrderType.TRANSFER));
+		assertTrue(gBankingBean.supportsTransferOrderType(account, OrderType.REALTIME_TRANSFER));
+		assertFalse(gBankingBean.supportsTransferOrderType(account, OrderType.SCHEDULED_TRANSFER));
+		assertFalse(gBankingBean.supportsTransferOrderType(account, OrderType.STANDING_ORDER));
+	}
+
+	@Test
+	void testSupportsTransferOrderType_WithoutBusinessCases_DoesNotBlockTransfer() {
+		BankAccount account = new BankAccount();
+
+		assertTrue(gBankingBean.supportsTransferOrderType(account, OrderType.TRANSFER));
+		assertTrue(gBankingBean.supportsTransferOrderType(account, OrderType.STANDING_ORDER));
+	}
+
 	private Konto createKonto(String iban, String blz, String name1) {
 
 		Konto konto = new Konto();
@@ -312,6 +357,12 @@ class GBankingBeanTest {
 		konto.name = name1;
 
 		return konto;
+	}
+
+	private BusinessCase createBusinessCase(String caseValue) {
+		BusinessCase businessCase = new BusinessCase();
+		businessCase.setCaseValue(caseValue);
+		return businessCase;
 	}
 
 	private UmsLine createUmsLine(Date date, String customerref, String gvcode, String primanota, String currency, Double balance,

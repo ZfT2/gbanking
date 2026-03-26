@@ -70,7 +70,7 @@ class DbConnectionHandler {
                 if (!DbDdlSetup.setupDB()) {
                     throw new GBankingException("Error in initialisation of database connection: setup DB failed");
                 }
-                DbMigrationRunner.markBaselineAsApplied(connection);
+                DbMigrationRunner.markFreshSchemaAsApplied(connection);
             }
             DbMigrationRunner.migrate(connection);
         } catch (SQLException e) {

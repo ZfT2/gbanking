@@ -8,8 +8,6 @@ import org.apache.logging.log4j.Logger;
 
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.Booking;
-import de.gbanking.db.dao.MoneyTransfer;
-import de.gbanking.db.dao.enu.OrderType;
 import de.gbanking.gui.enu.PageContext;
 import de.gbanking.gui.model.AccountTableModel;
 import de.gbanking.gui.panel.AbstractFilterableTablePanel;
@@ -144,12 +142,11 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 	}
 
 	private void handleMoneyTransfersSelection(BankAccount selectedAccount) {
-		List<MoneyTransfer> transfers = dbController.getAllByParent(MoneyTransfer.class, selectedAccount.getId());
 		MoneyTransferOverviewPanel parent = (MoneyTransferOverviewPanel) parentPanel;
 
 		parent.setSelectedAccount(selectedAccount);
-		parent.getMoneyTransferListPanel().updateModelMoneytransfer(transfers);
-		parent.getMoneyTransferListPanel().updatePanelBorder(OrderType.TRANSFER.getPlural() + " " + selectedAccount.getAccountName());
+		parent.getMoneyTransferListPanel().reload();
+		parent.getMoneyTransferListPanel().updatePanelBorder(parent.getMoneyTransferInputPanel().getOrderType().getPlural() + " " + selectedAccount.getAccountName());
 		parent.getMoneyTransferInputPanel().updatePanelFieldValues(selectedAccount);
 	}
 

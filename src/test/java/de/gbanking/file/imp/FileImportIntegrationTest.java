@@ -48,6 +48,7 @@ class FileImportIntegrationTest {
 
 		// Create fresh DBControllerForTest instance
 		tempDir = Files.createTempDirectory("gb_test_");
+		DBController.getInstance(tempDir.toString());
 	}
 
 	@BeforeEach

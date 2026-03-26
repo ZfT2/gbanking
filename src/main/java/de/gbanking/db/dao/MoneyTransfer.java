@@ -15,6 +15,7 @@ public class MoneyTransfer extends Dao {
 	private String purpose;
 	private BigDecimal amount;
 	private LocalDate executionDate;
+	private Integer executionDay;
 	private MoneyTransferStatus moneytransferStatus;
 	private StandingorderMode standingorderMode;
 	private Integer historyorderId;
@@ -82,6 +83,14 @@ public class MoneyTransfer extends Dao {
 
 	public void setExecutionDate(LocalDate executionDate) {
 		this.executionDate = executionDate;
+	}
+
+	public Integer getExecutionDay() {
+		return executionDay;
+	}
+
+	public void setExecutionDay(Integer executionDay) {
+		this.executionDay = executionDay;
 	}
 
 	public MoneyTransferStatus getMoneytransferStatus() {

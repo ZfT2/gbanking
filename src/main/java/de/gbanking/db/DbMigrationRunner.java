@@ -34,7 +34,6 @@ final class DbMigrationRunner {
 
 		String appVersion = normalizeVersion(BuildInfo.getVersion());
 		List<SqlTemplateRepository.VersionScript> applicableScripts = SqlTemplateRepository.getVersionScripts().stream()
-				.filter(script -> compareVersions(script.getVersion(), appVersion) <= 0)
 				.sorted(Comparator.comparing(SqlTemplateRepository.VersionScript::getVersion, DbMigrationRunner::compareVersions)).toList();
 
 		for (SqlTemplateRepository.VersionScript script : applicableScripts) {
@@ -59,6 +58,22 @@ final class DbMigrationRunner {
 		upsertHiddenSetting(connection, baselineScript.getSettingKey(), appVersion,
 				"Baseline-DB-Schema initial erstellt mit Version " + baselineScript.getVersion());
 		upsertHiddenSetting(connection, SETTING_SCHEMA_VERSION, baselineScript.getVersion(), "Zuletzt erfolgreich angewendete DB-Schemaversion");
+		upsertHiddenSetting(connection, SETTING_LAST_APP_VERSION, appVersion, "Zuletzt gestartete Anwendungsversion");
+	}
+
+	static void markFreshSchemaAsApplied(Connection connection) throws SQLException {
+		ensureSettingTableExists(connection);
+
+		String appVersion = normalizeVersion(BuildInfo.getVersion());
+		List<SqlTemplateRepository.VersionScript> scripts = SqlTemplateRepository.getVersionScripts().stream()
+				.sorted(Comparator.comparing(SqlTemplateRepository.VersionScript::getVersion, DbMigrationRunner::compareVersions)).toList();
+
+		for (SqlTemplateRepository.VersionScript script : scripts) {
+			upsertHiddenSetting(connection, script.getSettingKey(), appVersion, "DB-Schema bereits im Initialzustand enthalten: " + script.getVersion());
+		}
+
+		String schemaVersion = scripts.isEmpty() ? "0.0.0" : scripts.get(scripts.size() - 1).getVersion();
+		upsertHiddenSetting(connection, SETTING_SCHEMA_VERSION, schemaVersion, "Zuletzt erfolgreich angewendete DB-Schemaversion");
 		upsertHiddenSetting(connection, SETTING_LAST_APP_VERSION, appVersion, "Zuletzt gestartete Anwendungsversion");
 	}
 

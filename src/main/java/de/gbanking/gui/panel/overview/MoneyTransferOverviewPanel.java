@@ -52,6 +52,10 @@ public class MoneyTransferOverviewPanel extends OverviewBasePanel {
 	private void switchTab(Tab tab) {
 		log.info("selected Tab: {}", tab.getText());
 		setActivePanels((MoneyTransferDetailListTabPanel) tab.getContent());
+		if (selectedAccount != null) {
+			moneyTransferInputPanel.updatePanelFieldValues(selectedAccount);
+			moneyTransferListPanel.reload();
+		}
 	}
 
 	private void setActivePanels(MoneyTransferDetailListTabPanel selectedTab) {

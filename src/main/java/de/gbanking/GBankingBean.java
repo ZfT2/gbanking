@@ -3,6 +3,7 @@ package de.gbanking;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -24,6 +25,7 @@ import org.kapott.hbci.GV.HBCIJob;
 import org.kapott.hbci.GV_Result.GVRKUms;
 import org.kapott.hbci.GV_Result.GVRKUms.UmsLine;
 import org.kapott.hbci.GV_Result.GVRSaldoReq;
+import org.kapott.hbci.GV_Result.HBCIJobResult;
 import org.kapott.hbci.manager.BankInfo;
 import org.kapott.hbci.manager.HBCIHandler;
 import org.kapott.hbci.manager.HBCIUtils;
@@ -38,6 +40,7 @@ import de.gbanking.db.StatementsConfig;
 import de.gbanking.db.dao.BankAccess;
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.Booking;
+import de.gbanking.db.dao.BusinessCase;
 import de.gbanking.db.dao.Category;
 import de.gbanking.db.dao.CategoryRule;
 import de.gbanking.db.dao.MoneyTransfer;
@@ -357,44 +360,54 @@ public class GBankingBean extends BaseBean implements Serializable {
 	}
 	
 	public BankAccount getAccountForOpenMoneytransfers(int accountId) {
-		return dbController.getById(BankAccount.class, accountId);
+		return dbController.getByIdFull(BankAccount.class, accountId);
 	}
 	
 	public boolean executeTransfer(MoneyTransfer moneyTransfer, BankAccount bankAccount, char[] pin) {
 
 		boolean result = false;
+		BankAccount transferAccount = resolveBankAccountForTransfer(bankAccount);
 
-		BankAccess bankAccess = initBankAccess(bankAccount, pin);
+		if (transferAccount == null || !supportsTransferOrderType(transferAccount, moneyTransfer.getOrderType())) {
+			log.warn("Transfer order type {} is not supported for account {}", moneyTransfer.getOrderType(),
+					transferAccount != null ? transferAccount.getAccountName() : null);
+			moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.ERROR);
+			dbController.insertOrUpdate(moneyTransfer);
+			return false;
+		}
+
+		BankAccess bankAccess = initBankAccess(transferAccount, pin);
+		if (bankAccess == null) {
+			moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.ERROR);
+			dbController.insertOrUpdate(moneyTransfer);
+			return false;
+		}
 		GBankingHBCICallback hbciCallback = new GBankingHBCICallback(bankAccess);
 		hbciCallback.startStatusDialog();
 		HBCIPassport passport = initBankConnection(bankAccess, hbciCallback);
 		
 		try (HBCIHandler handle = createHBCIHandler(VERSION.getId(), passport)) {
 
-			Konto hbciSenderAccount = getSenderAccount(passport, bankAccount); /* passport.getAccounts()[0]; */
-			Konto hbciRecipientAccount = new Konto();
-			hbciRecipientAccount.iban = moneyTransfer.getRecipient().getIban();
-			hbciRecipientAccount.bic = moneyTransfer.getRecipient().getBic();
-			hbciRecipientAccount.name = moneyTransfer.getRecipient().getName();
-
-			HBCIJob<?> job = handle.newJob("SEPAU");
-
-			job.setParam("src", hbciSenderAccount);
-			job.setParam("dst", hbciRecipientAccount);
-			job.setParam("btg.value", moneyTransfer.getAmount().toPlainString());
-			job.setParam("btg.curr", "EUR");
-			job.setParam("usage", moneyTransfer.getPurpose());
+			Konto hbciSenderAccount = getSenderAccount(passport, transferAccount); /* passport.getAccounts()[0]; */
+			Konto hbciRecipientAccount = createRecipientAccount(moneyTransfer);
+			HBCIJob<?> job = createTransferJob(handle, moneyTransfer, hbciSenderAccount, hbciRecipientAccount);
 
 			job.addToQueue();
 			HBCIExecStatus status = handle.execute();
+			HBCIJobResult jobResult = job.getJobResult();
 
-			result = status.isOK();
+			result = status.isOK() && (jobResult == null || jobResult.isOK());
 			if (!result) {
 				log.error("HBCI Error, Status: {}", status);
+				if (jobResult != null && !jobResult.isOK()) {
+					hbciCallback.handleFailure(jobResult.getJobStatus().toString());
+				}
 				hbciCallback.handleFailure(status.getErrorString());
 				moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.ERROR);
 			} else {
-				moneyTransfer.setExecutionDate(LocalDate.now());
+				if (moneyTransfer.getOrderType() == OrderType.TRANSFER || moneyTransfer.getOrderType() == OrderType.REALTIME_TRANSFER) {
+					moneyTransfer.setExecutionDate(LocalDate.now());
+				}
 				moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.SENT);		
 			}
 			dbController.insertOrUpdate(moneyTransfer);
@@ -432,8 +445,16 @@ public class GBankingBean extends BaseBean implements Serializable {
 			log.info("created new Recipient with id: {}", recipient.getId());
 		}
 
-		MoneyTransfer moneyTransfer = new MoneyTransfer(mtf.getBankAccount().getId(), OrderType.TRANSFER, recipient.getId(), mtf.getPurpose(), mtf.getAmount(),
-				LocalDate.now(), MoneyTransferStatus.NEW);
+		MoneyTransfer moneyTransfer = new MoneyTransfer();
+		moneyTransfer.setAccountId(mtf.getBankAccount().getId());
+		moneyTransfer.setOrderType(mtf.getOrderType());
+		moneyTransfer.setRecipientId(recipient.getId());
+		moneyTransfer.setPurpose(mtf.getPurpose());
+		moneyTransfer.setAmount(mtf.getAmount());
+		moneyTransfer.setExecutionDate(mtf.getExecutionDate());
+		moneyTransfer.setExecutionDay(mtf.getExecutionDay());
+		moneyTransfer.setStandingorderMode(mtf.getStandingorderMode());
+		moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.NEW);
 		
 		return dbController.insertOrUpdate(moneyTransfer);
 	}
@@ -669,6 +690,122 @@ public class GBankingBean extends BaseBean implements Serializable {
 	
 	HBCIHandler createHBCIHandler(String versionId, HBCIPassport passport) {
 	    return new HBCIHandler(versionId, passport);
+	}
+
+	private HBCIJob<?> createTransferJob(HBCIHandler handle, MoneyTransfer moneyTransfer, Konto senderAccount, Konto recipientAccount) {
+		HBCIJob<?> job = handle.newJob(resolveJobName(moneyTransfer.getOrderType()));
+		job.setParam("src", senderAccount);
+		job.setParam("dst", recipientAccount);
+		job.setParam("btg.value", moneyTransfer.getAmount().toPlainString());
+		job.setParam("btg.curr", "EUR");
+		job.setParam("usage", moneyTransfer.getPurpose());
+
+		switch (moneyTransfer.getOrderType()) {
+		case SCHEDULED_TRANSFER -> job.setParam("date", toUtilDate(moneyTransfer.getExecutionDate()));
+		case STANDING_ORDER -> applyStandingOrderParams(job, moneyTransfer);
+		case TRANSFER, REALTIME_TRANSFER -> {
+			// no-op
+		}
+		default -> throw new GBankingException("Unsupported transfer order type: " + moneyTransfer.getOrderType());
+		}
+
+		return job;
+	}
+
+	private void applyStandingOrderParams(HBCIJob<?> job, MoneyTransfer moneyTransfer) {
+		if (moneyTransfer.getExecutionDate() == null || moneyTransfer.getExecutionDay() == null || moneyTransfer.getStandingorderMode() == null) {
+			throw new GBankingException(getText("ALERT_MONEYTRANSFER_REQUIRED_FIELD_MISSING"));
+		}
+
+		job.setParam("firstdate", toUtilDate(moneyTransfer.getExecutionDate()));
+		job.setParam("timeunit", "M");
+		job.setParam("turnus", determineStandingOrderTurnus(moneyTransfer.getStandingorderMode()));
+		job.setParam("execday", formatStandingOrderExecutionDay(moneyTransfer.getExecutionDay()));
+	}
+
+	private String resolveJobName(OrderType orderType) {
+		return switch (orderType) {
+		case TRANSFER -> "UebSEPA";
+		case REALTIME_TRANSFER -> "InstUebSEPA";
+		case SCHEDULED_TRANSFER -> "TermUebSEPA";
+		case STANDING_ORDER -> "DauerSEPANew";
+		};
+	}
+
+	private Konto createRecipientAccount(MoneyTransfer moneyTransfer) {
+		Konto hbciRecipientAccount = new Konto();
+		hbciRecipientAccount.iban = moneyTransfer.getRecipient().getIban();
+		hbciRecipientAccount.bic = moneyTransfer.getRecipient().getBic();
+		hbciRecipientAccount.name = moneyTransfer.getRecipient().getName();
+		return hbciRecipientAccount;
+	}
+
+	private Date toUtilDate(LocalDate date) {
+		return date == null ? null : Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant());
+	}
+
+	private String determineStandingOrderTurnus(de.gbanking.db.dao.enu.StandingorderMode standingorderMode) {
+		return switch (standingorderMode) {
+		case MONTHLY -> "1";
+		case BIMONTHLY -> "2";
+		case QUARTERLY -> "3";
+		case SEMI_ANNUALLY -> "6";
+		case ANNUALLY -> "12";
+		};
+	}
+
+	private String formatStandingOrderExecutionDay(Integer executionDay) {
+		if (executionDay == null) {
+			return null;
+		}
+		if (executionDay >= 31) {
+			return "31";
+		}
+		return String.format("%02d", executionDay);
+	}
+
+	BankAccount resolveBankAccountForTransfer(BankAccount bankAccount) {
+		if (bankAccount == null) {
+			return null;
+		}
+
+		if (bankAccount.getId() > 0) {
+			BankAccount accountFromDb = dbController.getByIdFull(BankAccount.class, bankAccount.getId());
+			if (accountFromDb != null) {
+				return accountFromDb;
+			}
+		}
+
+		return bankAccount;
+	}
+
+	boolean supportsTransferOrderType(BankAccount bankAccount, OrderType orderType) {
+		if (bankAccount == null || orderType == null) {
+			return false;
+		}
+
+		List<BusinessCase> allowedBusinessCases = bankAccount.getAllowedBusinessCases();
+		if (allowedBusinessCases == null || allowedBusinessCases.isEmpty()) {
+			return true;
+		}
+
+		Set<String> supportedCases = allowedBusinessCases.stream()
+				.map(BusinessCase::getCaseValue)
+				.filter(value -> value != null && !value.isBlank())
+				.map(String::trim)
+				.map(String::toUpperCase)
+				.collect(java.util.stream.Collectors.toSet());
+
+		return getRequiredBusinessCases(orderType).stream().anyMatch(supportedCases::contains);
+	}
+
+	Set<String> getRequiredBusinessCases(OrderType orderType) {
+		return switch (orderType) {
+		case TRANSFER -> Set.of("UEBSEPA", "HKCCS");
+		case REALTIME_TRANSFER -> Set.of("INSTUEBSEPA", "HKIPZ");
+		case SCHEDULED_TRANSFER -> Set.of("TERMUEBSEPA", "HKCSE");
+		case STANDING_ORDER -> Set.of("DAUERSEPANEW", "HKDSE");
+		};
 	}
 
 	
