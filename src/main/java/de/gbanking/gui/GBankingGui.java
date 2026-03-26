@@ -3,8 +3,10 @@ package de.gbanking.gui;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -31,6 +33,7 @@ import de.gbanking.gui.progress.FileExportProgressBarPanel;
 import de.gbanking.gui.progress.FileImportProgressBarPanel;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
@@ -314,17 +317,36 @@ public class GBankingGui extends Application {
 			return;
 		}
 
+		Map<BankAccount, char[]> pinMap = new LinkedHashMap<>();
 		for (BankAccount bankAccount : checkedAccounts) {
 			pinWindow.setBankInfo(bankAccount.getBlz(), bankAccount.getBankName());
 			Stage pinDialog = pinWindow.createNewPinAskDialog();
 			pinDialog.showAndWait();
 			char[] pin = pinWindow.getPin();
-
-			log.info("Account to update: {}", bankAccount.getAccountName());
-			bean.retrieveAccountTransactions(bankAccount, pin);
+			if (pin == null || pin.length == 0) {
+				return;
+			}
+			pinMap.put(bankAccount, pin);
 		}
 
-		bean.postRetriveActions(checkedAccounts);
+		Task<Void> updateTask = new Task<>() {
+			@Override
+			protected Void call() {
+				for (Entry<BankAccount, char[]> entry : pinMap.entrySet()) {
+					BankAccount bankAccount = entry.getKey();
+					log.info("Account to update: {}", bankAccount.getAccountName());
+					bean.retrieveAccountTransactions(bankAccount, entry.getValue());
+				}
+				bean.postRetriveActions(checkedAccounts);
+				return null;
+			}
+		};
+		updateTask.setOnSucceeded(event -> overviewPanel.refreshOnShow());
+		updateTask.setOnFailed(event -> log.error("Error updating accounts", updateTask.getException()));
+
+		Thread thread = new Thread(updateTask, "gbanking-hbci-update-accounts");
+		thread.setDaemon(true);
+		thread.start();
 	}
 
 	private void executeTransfers(PinAskDialog pinWindow) {
@@ -332,23 +354,46 @@ public class GBankingGui extends Application {
 
 		List<MoneyTransfer> moneytransferList = bean.retrieveOpenTransfers();
 
-		int accountId = -1;
-		BankAccount bankAccount = null;
-		char[] pin = null;
+		Map<Integer, char[]> pinMap = new LinkedHashMap<>();
+		Map<Integer, BankAccount> accountMap = new LinkedHashMap<>();
 
 		for (MoneyTransfer moneytransfer : moneytransferList) {
-			if (accountId != moneytransfer.getAccountId()) {
-				accountId = moneytransfer.getAccountId();
-				bankAccount = bean.getAccountForOpenMoneytransfers(accountId);
+			int accountId = moneytransfer.getAccountId();
+			if (!pinMap.containsKey(accountId)) {
+				BankAccount bankAccount = bean.getAccountForOpenMoneytransfers(accountId);
+				accountMap.put(accountId, bankAccount);
 				pinWindow.setBankInfo(bankAccount.getBlz(), bankAccount.getBankName());
 
 				Stage pinDialog = pinWindow.createNewPinAskDialog();
 				pinDialog.showAndWait();
-				pin = pinWindow.getPin();
+				char[] pin = pinWindow.getPin();
+				if (pin == null || pin.length == 0) {
+					return;
+				}
+				pinMap.put(accountId, pin);
 			}
-
-			bean.executeTransfer(moneytransfer, bankAccount, pin);
 		}
+
+		Task<Void> transferTask = new Task<>() {
+			@Override
+			protected Void call() {
+				for (MoneyTransfer moneytransfer : moneytransferList) {
+					int accountId = moneytransfer.getAccountId();
+					bean.executeTransfer(moneytransfer, accountMap.get(accountId), pinMap.get(accountId));
+				}
+				return null;
+			}
+		};
+		transferTask.setOnSucceeded(event -> {
+			if (moneyTransferPanel != null) {
+				moneyTransferPanel.refreshOnShow();
+			}
+		});
+		transferTask.setOnFailed(event -> log.error("Error executing transfers", transferTask.getException()));
+
+		Thread thread = new Thread(transferTask, "gbanking-hbci-execute-transfers");
+		thread.setDaemon(true);
+		thread.start();
 	}
 
 	private void showSettingsWindow() {

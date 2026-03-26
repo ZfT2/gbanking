@@ -1,8 +1,8 @@
 package de.gbanking.hbci;
 
-import java.util.LinkedHashSet;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -14,25 +14,33 @@ public final class HbciStatusMessageExtractor {
 	}
 
 	public static String extractMessages(Object[] statusPayload) {
-		if (statusPayload == null || statusPayload.length == 0) {
-			return "";
-		}
-
-		Set<String> messages = new LinkedHashSet<>();
-		for (Object payloadEntry : statusPayload) {
-			collectMessages(payloadEntry, messages);
-		}
-		return String.join(System.lineSeparator(), messages);
+		return String.join(System.lineSeparator(), extractMessageLines(statusPayload));
 	}
 
 	public static String extractMessages(String rawMessage) {
-		if (rawMessage == null || rawMessage.isBlank()) {
-			return "";
+		return String.join(System.lineSeparator(), extractMessageLines(rawMessage));
+	}
+
+	public static List<String> extractMessageLines(Object[] statusPayload) {
+		if (statusPayload == null || statusPayload.length == 0) {
+			return List.of();
 		}
 
-		Set<String> messages = new LinkedHashSet<>();
-		collectMessages(rawMessage, messages);
-		return String.join(System.lineSeparator(), messages);
+		List<String> messages = new ArrayList<>();
+		for (Object payloadEntry : statusPayload) {
+			collectMessageLines(payloadEntry, messages);
+		}
+		return messages;
+	}
+
+	public static List<String> extractMessageLines(String rawMessage) {
+		if (rawMessage == null || rawMessage.isBlank()) {
+			return List.of();
+		}
+
+		List<String> messages = new ArrayList<>();
+		collectMessageLines(rawMessage, messages);
+		return messages;
 	}
 
 	public static String sanitizeForDetails(Object[] statusPayload) {
@@ -46,13 +54,13 @@ public final class HbciStatusMessageExtractor {
 		return builder.toString().trim();
 	}
 
-	private static void collectMessages(Object payloadEntry, Set<String> messages) {
+	private static void collectMessageLines(Object payloadEntry, List<String> messages) {
 		if (payloadEntry == null) {
 			return;
 		}
 		if (payloadEntry instanceof Object[] nestedPayload) {
 			for (Object nestedEntry : nestedPayload) {
-				collectMessages(nestedEntry, messages);
+				collectMessageLines(nestedEntry, messages);
 			}
 			return;
 		}

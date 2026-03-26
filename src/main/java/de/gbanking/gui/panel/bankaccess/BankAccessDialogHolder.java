@@ -13,6 +13,7 @@ import de.gbanking.gui.panel.overview.BankAccessOverviewPanel;
 import de.gbanking.gui.util.FxTableUtils;
 import de.gbanking.gui.util.TableColumnFactory;
 import javafx.collections.FXCollections;
+import javafx.concurrent.Task;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
@@ -117,9 +118,30 @@ public class BankAccessDialogHolder extends BasePanelHolder {
 			bankAccess.setPin(pinText.getText().toCharArray());
 			bankAccess.setTanProcedure(TanProcedure.APP_TAN);
 
-			if (bean.addNewBankAccess(bankAccess)) {
-				dialog.setScene(new Scene(createStep2(dialog, bankAccess), STEP2_WIDTH, STEP2_HEIGHT));
-			}
+			okButton.setDisable(true);
+			cancelButton.setDisable(true);
+
+			Task<Boolean> loadBankAccessTask = new Task<>() {
+				@Override
+				protected Boolean call() {
+					return bean.addNewBankAccess(bankAccess);
+				}
+			};
+			loadBankAccessTask.setOnSucceeded(event -> {
+				okButton.setDisable(false);
+				cancelButton.setDisable(false);
+				if (Boolean.TRUE.equals(loadBankAccessTask.getValue())) {
+					dialog.setScene(new Scene(createStep2(dialog, bankAccess), STEP2_WIDTH, STEP2_HEIGHT));
+				}
+			});
+			loadBankAccessTask.setOnFailed(event -> {
+				okButton.setDisable(false);
+				cancelButton.setDisable(false);
+			});
+
+			Thread thread = new Thread(loadBankAccessTask, "gbanking-hbci-add-bank-access");
+			thread.setDaemon(true);
+			thread.start();
 		});
 
 		cancelButton.setOnAction(e -> dialog.close());

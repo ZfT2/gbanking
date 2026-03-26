@@ -1,8 +1,9 @@
 package de.gbanking.hbci;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Date;
-import java.util.LinkedHashSet;
-import java.util.Set;
+import java.util.List;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -14,19 +15,23 @@ import org.kapott.hbci.passport.HBCIPassport;
 import de.gbanking.db.dao.BankAccess;
 import de.gbanking.gui.dialog.DialogWindowSupport;
 import de.gbanking.gui.dialog.HbciCallbackMessageDialog;
-import javafx.application.Platform;
-import javafx.stage.Stage;
 
 public class GBankingHBCICallback extends AbstractHBCICallback {
 
 	private static final Logger log = LogManager.getLogger(GBankingHBCICallback.class);
 
+	private static final int ESTIMATED_STATUS_MESSAGE_COUNT = 20;
+
 	private final BankAccess bankAccess;
-	private final Set<String> collectedMessages = new LinkedHashSet<>();
-	private final Set<String> collectedDetails = new LinkedHashSet<>();
+	private final HbciCallbackMessageDialog statusDialog;
+	private int receivedMessageCount;
+	private String lastMessageBlock;
+	private String lastDetailsBlock;
+	private boolean successful = true;
 
 	public GBankingHBCICallback(BankAccess bankAccess) {
 		this.bankAccess = bankAccess;
+		this.statusDialog = new HbciCallbackMessageDialog(DialogWindowSupport.findBestOwnerWindow().orElse(null));
 	}
 
 	/**
@@ -221,7 +226,8 @@ public class GBankingHBCICallback extends AbstractHBCICallback {
 		// Manche Fehlermeldungen werden hier ausgegeben
 		case HAVE_ERROR:
 			log.error(msg);
-			collectHbciFeedback(msg, msg);
+			appendFeedback(HbciStatusMessageExtractor.extractMessageLines(msg), msg);
+			successful = false;
 			break;
 
 		default:
@@ -243,52 +249,58 @@ public class GBankingHBCICallback extends AbstractHBCICallback {
 
 		// retData enthaelt u.a. HBCI-Rohantworten (HIRMG/HIRMS).
 		// Diese werden nach lesbaren Meldungen fuer den Anwender durchsucht.
-		String readableMessage = HbciStatusMessageExtractor.extractMessages(statusPayload);
-		if (readableMessage.isBlank()) {
-			return;
-		}
-
-		String details = HbciStatusMessageExtractor.sanitizeForDetails(statusPayload);
-		collectHbciFeedback(readableMessage, details);
+		appendFeedback(HbciStatusMessageExtractor.extractMessageLines(statusPayload), HbciStatusMessageExtractor.sanitizeForDetails(statusPayload));
 	}
 
-	private void collectHbciFeedback(String message, String details) {
-		if (message == null || message.isBlank()) {
+	public void startStatusDialog() {
+		statusDialog.showDialog();
+		statusDialog.updateProgress(0d);
+	}
+
+	public void finishStatusDialog() {
+		statusDialog.markFinished(successful);
+	}
+
+	public void handleException(Exception exception) {
+		if (exception == null) {
 			return;
 		}
+		successful = false;
+		appendFeedback(HbciStatusMessageExtractor.extractMessageLines(exception.getMessage()), buildExceptionDetails(exception));
+	}
 
-		synchronized (collectedMessages) {
-			collectedMessages.add(message);
-			if (details != null && !details.isBlank()) {
-				collectedDetails.add(details);
-			}
+	public void handleFailure(String failureMessage) {
+		if (failureMessage == null || failureMessage.isBlank()) {
+			return;
+		}
+		successful = false;
+		appendFeedback(HbciStatusMessageExtractor.extractMessageLines(failureMessage), failureMessage);
+	}
+
+	private void appendFeedback(List<String> messageLines, String details) {
+		String messageBlock = String.join(System.lineSeparator(), messageLines);
+		if (!messageBlock.isBlank() && !messageBlock.equals(lastMessageBlock)) {
+			lastMessageBlock = messageBlock;
+			receivedMessageCount += messageLines.size();
+			statusDialog.appendMessages(messageBlock);
+			statusDialog.updateProgress(calculateProgress());
+		}
+		if (details != null && !details.isBlank() && !details.equals(lastDetailsBlock)) {
+			lastDetailsBlock = details;
+			statusDialog.appendDetails(details);
 		}
 	}
 
-	public void showCollectedHbciFeedback() {
-		String messageText;
-		String detailsText;
-
-		synchronized (collectedMessages) {
-			if (collectedMessages.isEmpty()) {
-				return;
-			}
-			messageText = String.join(System.lineSeparator() + System.lineSeparator(), collectedMessages);
-			detailsText = String.join(System.lineSeparator() + System.lineSeparator(), collectedDetails);
-			collectedMessages.clear();
-			collectedDetails.clear();
+	private double calculateProgress() {
+		if (receivedMessageCount <= 0) {
+			return 0d;
 		}
+		return Math.min(0.95d, (double) receivedMessageCount / ESTIMATED_STATUS_MESSAGE_COUNT);
+	}
 
-		Runnable showDialogTask = () -> {
-			HbciCallbackMessageDialog dialog = new HbciCallbackMessageDialog(DialogWindowSupport.findBestOwnerWindow().orElse(null));
-			Stage stage = dialog.createDialog(messageText, detailsText);
-			stage.showAndWait();
-		};
-
-		if (Platform.isFxApplicationThread()) {
-			showDialogTask.run();
-		} else {
-			Platform.runLater(showDialogTask);
-		}
+	private String buildExceptionDetails(Exception exception) {
+		StringWriter stringWriter = new StringWriter();
+		exception.printStackTrace(new PrintWriter(stringWriter));
+		return stringWriter.toString().trim();
 	}
 }

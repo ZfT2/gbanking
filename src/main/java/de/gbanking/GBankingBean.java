@@ -75,6 +75,7 @@ public class GBankingBean extends BaseBean implements Serializable {
 		log.info("addNewBankAccess called.");
 
 		GBankingHBCICallback hbciCallback = new GBankingHBCICallback(bankAccess);
+		hbciCallback.startStatusDialog();
 		HBCIPassport passport = initBankConnection(bankAccess, hbciCallback);
 
 		List<BankAccount> bankAccountList = new ArrayList<>();
@@ -117,16 +118,19 @@ public class GBankingBean extends BaseBean implements Serializable {
 			//delete PIN
 			 Arrays.fill(bankAccess.getPin(),'0');
 
-			if (!status.isOK())
+			if (!status.isOK()) {
 				log.log(Level.ERROR, () -> messages.getFormattedMessage("ERROR_HBCI_STATE", status.getErrorString()));
+				hbciCallback.handleFailure(status.getErrorString());
+			}
 			
 			return status.isOK();
 			
 		} catch (Exception ex) {
+			hbciCallback.handleException(ex);
 			ex.printStackTrace();
 			throw new GBankingException(getText("EXCEPTION_ADD_BANKACCESS"), ex);
 		} finally {
-			hbciCallback.showCollectedHbciFeedback();
+			hbciCallback.finishStatusDialog();
 			passport.close();
 		}
 		
@@ -169,6 +173,7 @@ public class GBankingBean extends BaseBean implements Serializable {
 		LocalDate lastBookingDate = getAccountLastBookingDate(bankAccount);
 		
 		GBankingHBCICallback hbciCallback = new GBankingHBCICallback(bankAccess);
+		hbciCallback.startStatusDialog();
 		HBCIPassport passport = initBankConnection(bankAccess, hbciCallback);
 		
 		refreshBankAccount(bankAccount);
@@ -197,8 +202,10 @@ public class GBankingBean extends BaseBean implements Serializable {
 					HBCIExecStatus status = handle.execute();
 					result = status.isOK();
 					
-					if (!result)
+					if (!result) {
 						log.error("HBCI Error, Status: {}", status);
+						hbciCallback.handleFailure(status.getErrorString());
+					}
 
 					readSaldo(saldoJob);
 
@@ -211,10 +218,12 @@ public class GBankingBean extends BaseBean implements Serializable {
 			}
 
 		} catch (Exception e) {
+			hbciCallback.handleException(e);
 			log.error("Error in handling HBCI calls: ", e);
 			result = false;
 		} finally {
-			hbciCallback.showCollectedHbciFeedback();
+			hbciCallback.finishStatusDialog();
+			passport.close();
 		}
 
 		return result;
@@ -373,7 +382,9 @@ public class GBankingBean extends BaseBean implements Serializable {
 		boolean result = false;
 
 		BankAccess bankAccess = initBankAccess(bankAccount, pin);
-		HBCIPassport passport = initBankConnection(bankAccess);
+		GBankingHBCICallback hbciCallback = new GBankingHBCICallback(bankAccess);
+		hbciCallback.startStatusDialog();
+		HBCIPassport passport = initBankConnection(bankAccess, hbciCallback);
 		
 		try (HBCIHandler handle = createHBCIHandler(VERSION.getId(), passport)) {
 
@@ -397,6 +408,7 @@ public class GBankingBean extends BaseBean implements Serializable {
 			result = status.isOK();
 			if (!result) {
 				log.error("HBCI Error, Status: {}", status);
+				hbciCallback.handleFailure(status.getErrorString());
 				moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.ERROR);
 			} else {
 				moneyTransfer.setExecutionDate(LocalDate.now());
@@ -405,8 +417,12 @@ public class GBankingBean extends BaseBean implements Serializable {
 			dbController.insertOrUpdate(moneyTransfer);
 
 		} catch (Exception ex) {
+			hbciCallback.handleException(ex);
 			ex.printStackTrace();
 			throw new GBankingException(getText("EXCEPTION_MONEYTRANSFER_SENDING_ACCOUNT_NOT_FOUND"), ex);
+		} finally {
+			hbciCallback.finishStatusDialog();
+			passport.close();
 		}
 		return result;
 	}
