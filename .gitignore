@@ -32,6 +32,7 @@ replay_pid*
 target/
 logs/
 .m2/
+db/
 
 #Files in Folders
 properties/*.properties

@@ -2,6 +2,8 @@ package de.gbanking.gui;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -13,8 +15,11 @@ import org.apache.logging.log4j.Logger;
 
 import de.gbanking.GBankingBean;
 import de.gbanking.SystemInfo;
+import de.gbanking.db.DBController;
+import de.gbanking.db.DbRuntimeContext;
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.MoneyTransfer;
+import de.gbanking.gui.dialog.TenantSelectionDialog;
 import de.gbanking.gui.enu.FileType;
 import de.gbanking.gui.enu.PageContext;
 import de.gbanking.gui.model.AccountTableModel;
@@ -31,6 +36,9 @@ import de.gbanking.gui.panel.overview.RecipientOverviewPanel;
 import de.gbanking.gui.panel.setting.SettingsDialog;
 import de.gbanking.gui.progress.FileExportProgressBarPanel;
 import de.gbanking.gui.progress.FileImportProgressBarPanel;
+import de.gbanking.gui.service.InstituteLookupCache;
+import de.gbanking.messages.Messages;
+import de.gbanking.tenant.TenantStore;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -52,6 +60,8 @@ public class GBankingGui extends Application {
 
 	private static final Logger log = LogManager.getLogger(GBankingGui.class);
 	private static final String LAST_PATH_SELECTED = "lastPathSelected";
+	private static final String LAST_TENANT_ID = "lastTenantId";
+	private static final String LANGUAGE = "language";
 
 	private final FileChooser fileChooser = new FileChooser();
 
@@ -79,50 +89,14 @@ public class GBankingGui extends Application {
 	public void start(Stage stage) {
 		this.primaryStage = stage;
 
-		root = new BorderPane();
-		root.setPadding(new Insets(4));
-
 		restoreOptions();
-		configureFileChooser();
 
-		root.setTop(createMenuBar());
-
-		statusLabel = new Label("Info");
-		BorderPane bottom = new BorderPane();
-		bottom.setPadding(new Insets(4));
-		bottom.setLeft(statusLabel);
-
-		var javaVersion = SystemInfo.javaVersion();
-		var javafxVersion = SystemInfo.javafxVersion();
-
-		versionLabel = new Label("JavaFX " + javafxVersion + ", running on Java " + javaVersion + ".");
-		bottom.setRight(versionLabel);
-
-		root.setBottom(bottom);
-
-		createAndShowStartGui();
-		createOverviewPanelMap();
-
-		Scene scene = new Scene(root, 1600, 1200);
-
-		stage.setTitle("GBanking");
-		stage.setScene(scene);
-		stage.setOnCloseRequest(event -> shutdownApplication());
-
-		try {
-			Image icon = new Image(getClass().getResourceAsStream("/icon_coin.png"));
-			stage.getIcons().add(icon);
-		} catch (Exception e) {
-			log.error("Error setting icon: {}", e.getMessage());
+		if (!loginTenant()) {
+			Platform.exit();
+			return;
 		}
 
-		scene.getStylesheets().add(getClass().getResource("/css/gbanking-table.css").toExternalForm());
-
-		stage.show();
-
-		bean = new GBankingBean();
-		bean.setup();
-		
+		initializeMainWindow(stage);
 		log.info("GBanking started.");
 	}
 
@@ -138,6 +112,64 @@ public class GBankingGui extends Application {
 		if (optionsMap.get(LAST_PATH_SELECTED) != null) {
 			fileChooser.setInitialDirectory(new File(optionsMap.get(LAST_PATH_SELECTED)));
 		}
+	}
+
+	private boolean loginTenant() {
+		Messages.setLocale(Messages.localeFromCode(optionsMap.get(LANGUAGE)));
+
+		TenantStore tenantStore = new TenantStore();
+		TenantSelectionDialog tenantDialog = new TenantSelectionDialog(primaryStage, tenantStore);
+		return tenantDialog.showAndWait(optionsMap.get(LAST_TENANT_ID), optionsMap.get(LANGUAGE)).map(loginResult -> {
+			optionsMap.put(LAST_TENANT_ID, loginResult.lastSelectedTenantId());
+			optionsMap.put(LANGUAGE, loginResult.languageCode());
+			DbRuntimeContext.setCurrentDbDirectory(tenantStore.getTenantDirectory(loginResult.tenant().id()).toString());
+			return true;
+		}).orElseGet(() -> {
+			optionsMap.put(LANGUAGE, tenantDialog.getSelectedLanguageCode());
+			storeOptionsQuietly();
+			return false;
+		});
+	}
+
+	private void initializeMainWindow(Stage stage) {
+		root = new BorderPane();
+		root.setPadding(new Insets(4));
+
+		configureFileChooser();
+		root.setTop(createMenuBar());
+
+		statusLabel = new Label("Info");
+		BorderPane bottom = new BorderPane();
+		bottom.setPadding(new Insets(4));
+		bottom.setLeft(statusLabel);
+
+		var javaVersion = SystemInfo.javaVersion();
+		var javafxVersion = SystemInfo.javafxVersion();
+
+		versionLabel = new Label("JavaFX " + javafxVersion + ", running on Java " + javaVersion + ".");
+		bottom.setRight(versionLabel);
+		root.setBottom(bottom);
+
+		createAndShowStartGui();
+		createOverviewPanelMap();
+
+		Scene scene = new Scene(root, 1600, 1200);
+		stage.setTitle("GBanking");
+		stage.setScene(scene);
+		stage.setOnCloseRequest(event -> shutdownApplication());
+
+		try {
+			Image icon = new Image(getClass().getResourceAsStream("/icon_coin.png"));
+			stage.getIcons().add(icon);
+		} catch (Exception e) {
+			log.error("Error setting icon: {}", e.getMessage());
+		}
+
+		scene.getStylesheets().add(getClass().getResource("/css/gbanking-table.css").toExternalForm());
+		stage.show();
+
+		bean = new GBankingBean();
+		bean.setup();
 	}
 
 	private void createAndShowStartGui() {
@@ -189,8 +221,11 @@ public class GBankingGui extends Application {
 		MenuItem fileExitMenuItem = new MenuItem(getText("UI_MENU_FILE_EXIT"));
 		fileExitMenuItem.setOnAction(e -> shutdownApplication());
 
+		MenuItem switchTenantMenuItem = new MenuItem(getText("UI_MENU_FILE_SWITCH_TENANT"));
+		switchTenantMenuItem.setOnAction(e -> switchTenant());
+
 		fileMenu.getItems().addAll(fileNewMenuItem, fileOpenMenuItem, fileSaveMenuItem, fileImportMenu, fileExportMenu, new SeparatorMenuItem(),
-				fileExitMenuItem);
+				switchTenantMenuItem, fileExitMenuItem);
 
 		MenuItem editAccountsMenuItem = new MenuItem(getText("UI_MENU_EDIT_ACCOUNTS"));
 		editAccountsMenuItem.setOnAction(e -> activateOverview(PageContext.ACCOUNTS_TRANSACTIONS.name()));
@@ -475,12 +510,47 @@ public class GBankingGui extends Application {
 	}
 
 	private void shutdownApplication() {
-		try {
-			RestoreHandler.storeOptions(optionsMap);
-		} catch (Exception e) {
-			log.error("IOException: {}", e.getMessage());
-		}
+		storeOptionsQuietly();
 		Platform.exit();
+	}
+
+	private void switchTenant() {
+		String previousDbDirectory = DbRuntimeContext.getCurrentDbDirectory();
+		Path previousDbPath = Path.of(previousDbDirectory);
+
+		DBController.resetConnection();
+		InstituteLookupCache.clear();
+		primaryStage.hide();
+
+		if (!loginTenant()) {
+			if (Files.exists(previousDbPath)) {
+				DbRuntimeContext.setCurrentDbDirectory(previousDbDirectory);
+				DBController.getInstance(previousDbDirectory);
+				primaryStage.show();
+			} else {
+				Platform.exit();
+			}
+			return;
+		}
+
+		resetMainWindowState();
+		initializeMainWindow(primaryStage);
+	}
+
+	private void resetMainWindowState() {
+		overviewPanelMap.clear();
+		overviewPanel = null;
+		moneyTransferPanel = null;
+		bankAccessOverviewPanel = null;
+		categoryOverviewPanel = null;
+		recipientOverviewPanel = null;
+		allAccountsOverviewPanel = null;
+		allTransactionsOverviewPanel = null;
+		bean = null;
+		root = null;
+		statusLabel = null;
+		versionLabel = null;
+		choosenFile = null;
 	}
 
 	private void showWarning(String text) {
@@ -493,7 +563,15 @@ public class GBankingGui extends Application {
 	}
 
 	private String getText(String key) {
-		return de.gbanking.messages.Messages.getInstance().getMessage(key);
+		return Messages.getInstance().getMessage(key);
+	}
+
+	private void storeOptionsQuietly() {
+		try {
+			RestoreHandler.storeOptions(optionsMap);
+		} catch (Exception e) {
+			log.error("IOException: {}", e.getMessage());
+		}
 	}
 
 	public static void main(String[] args) {

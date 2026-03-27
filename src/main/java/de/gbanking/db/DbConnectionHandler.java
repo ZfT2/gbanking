@@ -21,6 +21,8 @@ class DbConnectionHandler {
 
     protected static Connection connection;
     protected static Messages messages;
+    private static String currentDatabasePath;
+    private static boolean shutdownHookRegistered;
 
     static {
         try {
@@ -37,9 +39,18 @@ class DbConnectionHandler {
         return connection;
     }
 
-    public static DbConnectionHandler getInstance(String dbFilePath) {
-        String path = dbFilePath + "/gbanking.db";
+    public static synchronized DbConnectionHandler getInstance(String dbFilePath) {
+        String path = new File(dbFilePath, "gbanking.db").getAbsolutePath();
         File dbFile = new File(path);
+
+        messages = Messages.getInstance();
+        if (isCurrentConnection(path)) {
+            return dbConnectionHandler;
+        }
+
+        closeCurrentConnection();
+        ensureParentDirectoryExists(dbFile);
+
         if (dbFile.exists()) {
             initDBConnection(path, false);
         } else {
@@ -47,15 +58,19 @@ class DbConnectionHandler {
             initDBConnection(path, true);
         }
 
-        messages = Messages.getInstance();
+        currentDatabasePath = path;
+        registerShutdownHook();
         return dbConnectionHandler;
+    }
+
+    public static synchronized void resetConnection() {
+        closeCurrentConnection();
+        currentDatabasePath = null;
+        messages = null;
     }
 
     private static void initDBConnection(String path, boolean setupDB) {
         try {
-            if (connection != null) {
-                return;
-            }
             log.info("Creating Connection to Database...");
             SQLiteConfig config = new SQLiteConfig();
             config.enforceForeignKeys(true);
@@ -76,19 +91,46 @@ class DbConnectionHandler {
         } catch (SQLException e) {
             throw new GBankingException("Error in initialisation of database connection:", e);
         }
+    }
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            try {
-                if (connection != null && !connection.isClosed()) {
-                    connection.close();
-                    if (connection.isClosed()) {
-                        log.info("Connection to Database closed");
-                    }
+    private static boolean isCurrentConnection(String path) {
+        try {
+            return connection != null && !connection.isClosed() && path.equals(currentDatabasePath);
+        } catch (SQLException e) {
+            log.warn("Could not inspect current database connection", e);
+            return false;
+        }
+    }
+
+    private static void ensureParentDirectoryExists(File dbFile) {
+        File parentFile = dbFile.getParentFile();
+        if (parentFile != null && !parentFile.exists() && !parentFile.mkdirs()) {
+            throw new GBankingException("Error in initialisation of database connection: could not create DB directory");
+        }
+    }
+
+    private static void registerShutdownHook() {
+        if (shutdownHookRegistered) {
+            return;
+        }
+
+        Runtime.getRuntime().addShutdownHook(new Thread(DbConnectionHandler::closeCurrentConnection));
+        shutdownHookRegistered = true;
+    }
+
+    private static synchronized void closeCurrentConnection() {
+        try {
+            if (connection != null && !connection.isClosed()) {
+                connection.close();
+                if (connection.isClosed()) {
+                    log.info("Connection to Database closed");
                 }
-            } catch (SQLException e) {
-                log.error("Error closing database connection", e);
             }
-        }));
+        } catch (SQLException e) {
+            log.error("Error closing database connection", e);
+        } finally {
+            connection = null;
+        }
     }
 
     private static String executeConfigStatement(String columnHeader, String sql) {

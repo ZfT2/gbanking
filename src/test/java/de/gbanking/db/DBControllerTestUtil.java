@@ -1,7 +1,6 @@
 package de.gbanking.db;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -42,7 +41,7 @@ public class DBControllerTestUtil {
 				stmt.executeUpdate(String.format("DELETE FROM %s", tableVieName));
 			}
 
-			// Re-enable foreign key checks
+			// Re-enable foreign key check
 			stmt.execute("PRAGMA foreign_keys = ON");
 
 		} catch (SQLException e) {
@@ -67,26 +66,9 @@ public class DBControllerTestUtil {
 		}
 	}
 
-	public static void closeAndNullifyConnection() throws Exception {
-		Field connField = DbConnectionHandler.class.getDeclaredField("connection");
-		connField.setAccessible(true);
-		Object connObj = connField.get(null);
-		if (connObj instanceof Connection) {
-			Connection conn = (Connection) connObj;
-			if (!conn.isClosed())
-				conn.close();
-		}
-		connField.set(null, null);
-
-		// messages (static) zurücksetzen, damit getInstance wieder
-		// Messages.getInstance() aufruft
-		try {
-			Field messagesField = DbConnectionHandler.class.getDeclaredField("messages");
-			messagesField.setAccessible(true);
-			messagesField.set(null, null);
-		} catch (NoSuchFieldException ignored) {
-			// falls Feld nicht vorhanden - nicht kritisch
-		}
+	public static void closeAndNullifyConnection() {
+		DbConnectionHandler.resetConnection();
+		DbRuntimeContext.setCurrentDbDirectory(".");
 	}
 
 	public static void deleteTemporaryDir(Path tempDir) throws IOException {

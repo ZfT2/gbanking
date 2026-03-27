@@ -11,6 +11,10 @@ import java.util.Properties;
 
 class RestoreHandler {
 
+	private static final String DEFAULT_DIR = "defaultDir";
+	private static final String LAST_TENANT_ID = "lastTenantId";
+	private static final String LANGUAGE = "language";
+
 	private RestoreHandler() {
 	}
 
@@ -20,7 +24,9 @@ class RestoreHandler {
 		File file = new File(FILE_NAME);
 		Properties p = new Properties();
 
-		p.setProperty("defaultDir", optionsMap.get("lastPathSelected"));
+		putIfPresent(p, DEFAULT_DIR, optionsMap.get("lastPathSelected"));
+		putIfPresent(p, LAST_TENANT_ID, optionsMap.get("lastTenantId"));
+		putIfPresent(p, LANGUAGE, optionsMap.get("language"));
 
 		try (BufferedWriter br = new BufferedWriter(new FileWriter(file))) {
 			p.store(br, "GUI Properties of the user app");
@@ -35,7 +41,15 @@ class RestoreHandler {
 				p.load(br);
 			}
 
-			optionsMap.put("lastPathSelected", p.getProperty("defaultDir"));
+			optionsMap.put("lastPathSelected", p.getProperty(DEFAULT_DIR));
+			optionsMap.put("lastTenantId", p.getProperty(LAST_TENANT_ID));
+			optionsMap.put("language", p.getProperty(LANGUAGE));
+		}
+	}
+
+	private static void putIfPresent(Properties properties, String key, String value) {
+		if (value != null && !value.isBlank()) {
+			properties.setProperty(key, value);
 		}
 	}
 

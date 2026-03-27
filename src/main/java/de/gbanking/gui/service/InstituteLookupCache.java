@@ -39,6 +39,12 @@ public final class InstituteLookupCache {
 		return normalizedIban.substring(4, 12);
 	}
 
+	public static void clear() {
+		synchronized (InstituteLookupCache.class) {
+			entriesByBlz = null;
+		}
+	}
+
 	private static Map<String, List<InstituteLookupEntry>> getEntriesByBlz() {
 		Map<String, List<InstituteLookupEntry>> cache = entriesByBlz;
 		if (cache == null) {

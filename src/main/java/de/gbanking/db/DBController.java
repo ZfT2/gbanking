@@ -31,10 +31,14 @@ public class DBController extends DbExecutor {
 	private static final DBController dbcontroller = new DBController();
 
 	public static DBController getInstance(String dbFilePath) {
-		
-		DbConnectionHandler.getInstance(dbFilePath);
+		String resolvedDbFilePath = DbRuntimeContext.resolveDbDirectory(dbFilePath);
+		DbConnectionHandler.getInstance(resolvedDbFilePath);
 
 		return dbcontroller;
+	}
+
+	public static void resetConnection() {
+		DbConnectionHandler.resetConnection();
 	}
 	
 	public boolean updateBookingsWithRecipients(Map<Recipient, Set<Integer>> recipientBookingMap) {
