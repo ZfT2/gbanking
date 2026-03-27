@@ -62,6 +62,9 @@ public class GBankingGui extends Application {
 	private static final String LAST_PATH_SELECTED = "lastPathSelected";
 	private static final String LAST_TENANT_ID = "lastTenantId";
 	private static final String LANGUAGE = "language";
+	private static final List<String> APP_ICON_RESOURCES = List.of("/logo/GBankingIcon16.png", "/logo/GBankingIcon24.png",
+			"/logo/GBankingIcon32.png", "/logo/GBankingIcon48.png", "/logo/GBankingIcon64.png", "/logo/GBankingIcon128.png",
+			"/logo/GBankingIcon256.png");
 
 	private final FileChooser fileChooser = new FileChooser();
 
@@ -159,8 +162,7 @@ public class GBankingGui extends Application {
 		stage.setOnCloseRequest(event -> shutdownApplication());
 
 		try {
-			Image icon = new Image(getClass().getResourceAsStream("/icon_coin.png"));
-			stage.getIcons().add(icon);
+			stage.getIcons().addAll(loadApplicationIcons());
 		} catch (Exception e) {
 			log.error("Error setting icon: {}", e.getMessage());
 		}
@@ -170,6 +172,18 @@ public class GBankingGui extends Application {
 
 		bean = new GBankingBean();
 		bean.setup();
+	}
+
+	private List<Image> loadApplicationIcons() throws IOException {
+		List<Image> icons = new java.util.ArrayList<>();
+		for (String iconResource : APP_ICON_RESOURCES) {
+			var iconUrl = getClass().getResource(iconResource);
+			if (iconUrl == null) {
+				throw new IOException("Icon resource not found: " + iconResource);
+			}
+			icons.add(new Image(iconUrl.toExternalForm()));
+		}
+		return icons;
 	}
 
 	private void createAndShowStartGui() {

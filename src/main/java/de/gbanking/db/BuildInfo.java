@@ -4,14 +4,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
-final class BuildInfo {
+public final class BuildInfo {
 
 	private static final String UNKNOWN_VERSION = "0.0.0";
 
 	private BuildInfo() {
 	}
 
-	static String getVersion() {
+	public static String getVersion() {
 		Package pkg = BuildInfo.class.getPackage();
 		if (pkg != null && pkg.getImplementationVersion() != null && !pkg.getImplementationVersion().isBlank()) {
 			return pkg.getImplementationVersion();
