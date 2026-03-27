@@ -193,9 +193,9 @@ public class GBankingBean extends BaseBean implements Serializable {
 				if (hbciKontosMatches(bankAccount, konto)) {
 					logHandler.logRetrievedAccountInfo(konto);
 
-					HBCIJob<?> saldoJob = createAndAddHbciJob(handle, "SaldoReq",  Map.of("my", konto));
+					HBCIJob<GVRSaldoReq> saldoJob = createAndAddHbciJob(handle, "SaldoReq",  Map.of("my", konto));
 
-					HBCIJob<?> umsatzJob = null;
+					HBCIJob<GVRKUms> umsatzJob = null;
 					if (lastBookingDate != null) {
 						umsatzJob = createAndAddHbciJob(handle, "KUmsAllCamt", Map.of("my", konto, "startdate", (java.util.Date.from(lastBookingDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()))));
 					} else {
@@ -239,12 +239,12 @@ public class GBankingBean extends BaseBean implements Serializable {
 
 		for (UmsLine buchung : buchungen) {
 
-			/* logHandler.logRetrivedBookingInfo(buchung); */
+			logHandler.logRetrivedBookingInfo(buchung);
 
 			Booking newBooking = HbciMapper.mapUmsLineToBooking(bankAccount.getId(), buchung);
-			
-			/* log.info("Konto other: {}", buchung.other.toString()); */
-			
+
+			log.debug("Konto other: {}", buchung.other);
+
 			Recipient recipient = HbciMapper.mapUmsLineKontoToRecipient(buchung.other);
 
 			if (recipient != null) {
@@ -286,8 +286,8 @@ public class GBankingBean extends BaseBean implements Serializable {
 		dbController.executeSimpleUpdate(Arrays.asList(bankAccount), StatementsConfig.StatementType.UPDATE_BOOKING_SOURCE, Booking.class);
 	}
 
-	private void readSaldo(HBCIJob<?> saldoJob) {
-		GVRSaldoReq saldoResult = (GVRSaldoReq) saldoJob.getJobResult();
+	private void readSaldo(HBCIJob<GVRSaldoReq> saldoJob) {
+		GVRSaldoReq saldoResult = saldoJob.getJobResult();
 		if (!saldoResult.isOK())
 			log.error("Error in retrieving Saldo: {}", saldoResult);
 
@@ -295,8 +295,8 @@ public class GBankingBean extends BaseBean implements Serializable {
 		log.info("Saldo: {}", s);
 	}
 
-	private List<UmsLine> readUms(HBCIJob<?> umsatzJob) {
-		GVRKUms umsResult = (GVRKUms) umsatzJob.getJobResult();
+	private List<UmsLine> readUms(HBCIJob<GVRKUms> umsatzJob) {
+		GVRKUms umsResult = umsatzJob.getJobResult();
 
 		if (!umsResult.isOK())
 			log.error("Error in retrieving Umsatz: {}", umsResult);
@@ -309,8 +309,8 @@ public class GBankingBean extends BaseBean implements Serializable {
 				|| bankAccount.getNumber() != null && bankAccount.getNumber().equalsIgnoreCase(konto.number);
 	}
 
-	HBCIJob<?> createAndAddHbciJob(HBCIHandler handle, String jobDescription, Map<String, Object> params) {
-		HBCIJob<?> job = handle.newJob(jobDescription);
+	<T extends HBCIJobResult> HBCIJob<T> createAndAddHbciJob(HBCIHandler handle, String jobDescription, Map<String, Object> params) {
+		HBCIJob<T> job = newHbciJob(handle, jobDescription);
 
 		for (Entry<String, Object> param : params.entrySet()) {
 			Object value = param.getValue();
@@ -390,26 +390,14 @@ public class GBankingBean extends BaseBean implements Serializable {
 
 			Konto hbciSenderAccount = getSenderAccount(passport, transferAccount); /* passport.getAccounts()[0]; */
 			Konto hbciRecipientAccount = createRecipientAccount(moneyTransfer);
-			HBCIJob<?> job = createTransferJob(handle, moneyTransfer, hbciSenderAccount, hbciRecipientAccount);
+			HBCIJob<HBCIJobResult> job = createTransferJob(handle, moneyTransfer, hbciSenderAccount, hbciRecipientAccount);
 
 			job.addToQueue();
 			HBCIExecStatus status = handle.execute();
 			HBCIJobResult jobResult = job.getJobResult();
 
 			result = status.isOK() && (jobResult == null || jobResult.isOK());
-			if (!result) {
-				log.error("HBCI Error, Status: {}", status);
-				if (jobResult != null && !jobResult.isOK()) {
-					hbciCallback.handleFailure(jobResult.getJobStatus().toString());
-				}
-				hbciCallback.handleFailure(status.getErrorString());
-				moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.ERROR);
-			} else {
-				if (moneyTransfer.getOrderType() == OrderType.TRANSFER || moneyTransfer.getOrderType() == OrderType.REALTIME_TRANSFER) {
-					moneyTransfer.setExecutionDate(LocalDate.now());
-				}
-				moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.SENT);		
-			}
+			updateMoneyTransferAfterExecution(moneyTransfer, hbciCallback, status, jobResult, result);
 			dbController.insertOrUpdate(moneyTransfer);
 
 		} catch (Exception ex) {
@@ -693,8 +681,8 @@ public class GBankingBean extends BaseBean implements Serializable {
 	    return new HBCIHandler(versionId, passport);
 	}
 
-	private HBCIJob<?> createTransferJob(HBCIHandler handle, MoneyTransfer moneyTransfer, Konto senderAccount, Konto recipientAccount) {
-		HBCIJob<?> job = handle.newJob(resolveJobName(moneyTransfer.getOrderType()));
+	private HBCIJob<HBCIJobResult> createTransferJob(HBCIHandler handle, MoneyTransfer moneyTransfer, Konto senderAccount, Konto recipientAccount) {
+		HBCIJob<HBCIJobResult> job = newHbciJob(handle, resolveJobName(moneyTransfer.getOrderType()));
 		job.setParam("src", senderAccount);
 		job.setParam("dst", recipientAccount);
 		job.setParam("btg.value", moneyTransfer.getAmount().toPlainString());
@@ -713,7 +701,7 @@ public class GBankingBean extends BaseBean implements Serializable {
 		return job;
 	}
 
-	private void applyStandingOrderParams(HBCIJob<?> job, MoneyTransfer moneyTransfer) {
+	private void applyStandingOrderParams(HBCIJob<HBCIJobResult> job, MoneyTransfer moneyTransfer) {
 		if (moneyTransfer.getExecutionDate() == null || moneyTransfer.getExecutionDay() == null || moneyTransfer.getStandingorderMode() == null) {
 			throw new GBankingException(getText("ALERT_MONEYTRANSFER_REQUIRED_FIELD_MISSING"));
 		}
@@ -804,6 +792,29 @@ public class GBankingBean extends BaseBean implements Serializable {
 		if (secret != null) {
 			Arrays.fill(secret, '\0');
 		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private <T extends HBCIJobResult> HBCIJob<T> newHbciJob(HBCIHandler handle, String jobDescription) {
+		return handle.newJob(jobDescription);
+	}
+
+	private void updateMoneyTransferAfterExecution(MoneyTransfer moneyTransfer, GBankingHBCICallback hbciCallback, HBCIExecStatus status,
+			HBCIJobResult jobResult, boolean success) {
+		if (!success) {
+			log.error("HBCI Error, Status: {}", status);
+			if (jobResult != null && !jobResult.isOK()) {
+				hbciCallback.handleFailure(jobResult.getJobStatus().toString());
+			}
+			hbciCallback.handleFailure(status.getErrorString());
+			moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.ERROR);
+			return;
+		}
+
+		if (moneyTransfer.getOrderType() == OrderType.TRANSFER || moneyTransfer.getOrderType() == OrderType.REALTIME_TRANSFER) {
+			moneyTransfer.setExecutionDate(LocalDate.now());
+		}
+		moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.SENT);
 	}
 
 	Set<String> getRequiredBusinessCases(OrderType orderType) {

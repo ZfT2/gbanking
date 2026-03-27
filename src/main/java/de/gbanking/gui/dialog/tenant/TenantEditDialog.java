@@ -21,6 +21,18 @@ public class TenantEditDialog {
 	private final TenantStore tenantStore;
 	private final Messages messages = Messages.getInstance();
 
+	private static final class SaveRequest {
+		private boolean editMode;
+		private TenantProfile tenant;
+		private TextField usernameField;
+		private PasswordField oldPasswordField;
+		private PasswordField passwordField;
+		private PasswordField confirmPasswordField;
+		private Label errorLabel;
+		private TenantProfile[] result;
+		private Stage dialog;
+	}
+
 	public TenantEditDialog(Window parentWindow, TenantStore tenantStore) {
 		this.parentWindow = parentWindow;
 		this.tenantStore = tenantStore;
@@ -71,31 +83,17 @@ public class TenantEditDialog {
 		cancelButton.setCancelButton(true);
 
 		final TenantProfile[] result = new TenantProfile[1];
-
-		saveButton.setOnAction(event -> {
-			char[] oldPassword = oldPasswordField.getText() != null ? oldPasswordField.getText().toCharArray() : new char[0];
-			char[] password = passwordField.getText() != null ? passwordField.getText().toCharArray() : new char[0];
-			char[] confirmPassword = confirmPasswordField.getText() != null ? confirmPasswordField.getText().toCharArray() : new char[0];
-
-			try {
-				if (!Arrays.equals(password, confirmPassword)) {
-					throw new IllegalArgumentException(getText("UI_ERROR_TENANT_PASSWORD_MISMATCH"));
-				}
-
-				if (editMode) {
-					result[0] = tenantStore.updateTenant(tenant.id(), usernameField.getText(), oldPassword, password);
-				} else {
-					result[0] = tenantStore.createTenant(usernameField.getText(), password);
-				}
-				dialog.close();
-			} catch (IllegalArgumentException ex) {
-				errorLabel.setText(ex.getMessage());
-			} finally {
-				Arrays.fill(oldPassword, '\0');
-				Arrays.fill(password, '\0');
-				Arrays.fill(confirmPassword, '\0');
-			}
-		});
+		SaveRequest saveRequest = new SaveRequest();
+		saveRequest.editMode = editMode;
+		saveRequest.tenant = tenant;
+		saveRequest.usernameField = usernameField;
+		saveRequest.oldPasswordField = oldPasswordField;
+		saveRequest.passwordField = passwordField;
+		saveRequest.confirmPasswordField = confirmPasswordField;
+		saveRequest.errorLabel = errorLabel;
+		saveRequest.result = result;
+		saveRequest.dialog = dialog;
+		saveButton.setOnAction(event -> handleSave(saveRequest));
 
 		cancelButton.setOnAction(event -> dialog.close());
 
@@ -105,6 +103,35 @@ public class TenantEditDialog {
 		dialog.setScene(DialogWindowSupport.createScene(DialogWindowSupport.createDialogRoot(grid, buttonBar), 460, editMode ? 280 : 240));
 		dialog.showAndWait();
 		return result[0];
+	}
+
+	private void handleSave(SaveRequest request) {
+		char[] oldPassword = request.oldPasswordField.getText() != null ? request.oldPasswordField.getText().toCharArray() : new char[0];
+		char[] password = request.passwordField.getText() != null ? request.passwordField.getText().toCharArray() : new char[0];
+		char[] confirmPassword = request.confirmPasswordField.getText() != null ? request.confirmPasswordField.getText().toCharArray() : new char[0];
+
+		try {
+			validateMatchingPasswords(password, confirmPassword);
+			request.result[0] = request.editMode ? tenantStore.updateTenant(request.tenant.id(), request.usernameField.getText(), oldPassword, password)
+					: tenantStore.createTenant(request.usernameField.getText(), password);
+			request.dialog.close();
+		} catch (IllegalArgumentException ex) {
+			request.errorLabel.setText(ex.getMessage());
+		} finally {
+			clearPasswords(oldPassword, password, confirmPassword);
+		}
+	}
+
+	private void validateMatchingPasswords(char[] password, char[] confirmPassword) {
+		if (!Arrays.equals(password, confirmPassword)) {
+			throw new IllegalArgumentException(getText("UI_ERROR_TENANT_PASSWORD_MISMATCH"));
+		}
+	}
+
+	private void clearPasswords(char[]... passwords) {
+		for (char[] password : passwords) {
+			Arrays.fill(password, '\0');
+		}
 	}
 
 	private String getText(String key) {

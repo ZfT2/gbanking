@@ -3,6 +3,7 @@ package de.gbanking.gui.dialog.hbci;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import de.gbanking.gui.dialog.DialogWindowSupport;
 import de.gbanking.messages.Messages;
@@ -31,7 +32,6 @@ public class HbciCallbackMessageDialog {
 	private ProgressBar progressBar;
 	private Label progressLabel;
 	private TextArea messageArea;
-	private Label detailsLabel;
 	private TextArea detailsArea;
 	private Button detailsButton;
 	private Button closeButton;
@@ -116,16 +116,19 @@ public class HbciCallbackMessageDialog {
 	}
 
 	public boolean requestConfirmation(String prompt, String details, String confirmLabel, String cancelLabel) {
-		Boolean result = requestInteraction(InteractionMode.CONFIRMATION, prompt, details, List.of(), confirmLabel, cancelLabel, "");
+		Boolean result = requestInteraction(new InteractionRequest<>(InteractionMode.CONFIRMATION, prompt, details, List.of(), confirmLabel, cancelLabel, "",
+				() -> Boolean.TRUE, () -> Boolean.FALSE));
 		return Boolean.TRUE.equals(result);
 	}
 
 	public String requestSecretInput(String prompt, String details, String confirmLabel, String cancelLabel) {
-		return requestInteraction(InteractionMode.SECRET, prompt, details, List.of(), confirmLabel, cancelLabel, "");
+		return requestInteraction(new InteractionRequest<>(InteractionMode.SECRET, prompt, details, List.of(), confirmLabel, cancelLabel, "",
+				() -> interactionSecretField.getText(), () -> null));
 	}
 
 	public String requestSelection(String prompt, String details, List<DialogOption> options, String confirmLabel, String cancelLabel) {
-		return requestInteraction(InteractionMode.SELECTION, prompt, details, options, confirmLabel, cancelLabel, "");
+		return requestInteraction(new InteractionRequest<>(InteractionMode.SELECTION, prompt, details, options, confirmLabel, cancelLabel, "",
+				this::getSelectedOptionValue, () -> null));
 	}
 
 	private Stage getOrCreateDialog() {
@@ -167,7 +170,7 @@ public class HbciCallbackMessageDialog {
 		messageArea = createReadOnlyTextArea();
 		messageArea.setPrefRowCount(10);
 
-		detailsLabel = new Label(messages.getMessage("UI_DIALOG_HBCI_FEEDBACK_DETAILS"));
+		Label detailsLabel = new Label(messages.getMessage("UI_DIALOG_HBCI_FEEDBACK_DETAILS"));
 		detailsArea = createReadOnlyTextArea();
 		detailsArea.setPrefRowCount(10);
 		detailsBox = new VBox(8, detailsLabel, detailsArea);
@@ -244,61 +247,18 @@ public class HbciCallbackMessageDialog {
 		}
 	}
 
-	private <T> T requestInteraction(InteractionMode mode, String prompt, String details, List<DialogOption> options, String confirmLabel, String cancelLabel,
-			String initialValue) {
+	private <T> T requestInteraction(InteractionRequest<T> request) {
 		AtomicReference<T> result = new AtomicReference<>();
 		CountDownLatch latch = new CountDownLatch(1);
 
 		runOnFxThread(() -> {
 			Stage stage = getOrCreateDialog();
 			interactionActive = true;
-			interactionLabel.setText(prompt == null ? "" : prompt);
-			if (details != null && !details.isBlank()) {
-				appendText(detailsArea, details);
-				detailsVisible = true;
-				detailsBox.setVisible(true);
-				detailsBox.setManaged(true);
-				detailsButton.setText(messages.getMessage("UI_BUTTON_DETAILS_HIDE"));
-			}
-
-			interactionTextField.clear();
-			interactionTextField.setText(initialValue == null ? "" : initialValue);
-			interactionSecretField.clear();
-			interactionChoiceBox.getItems().setAll(options);
-			if (!options.isEmpty()) {
-				interactionChoiceBox.getSelectionModel().selectFirst();
-			}
-
-			interactionTextField.setVisible(mode == InteractionMode.TEXT);
-			interactionTextField.setManaged(mode == InteractionMode.TEXT);
-			interactionSecretField.setVisible(mode == InteractionMode.SECRET);
-			interactionSecretField.setManaged(mode == InteractionMode.SECRET);
-			interactionChoiceBox.setVisible(mode == InteractionMode.SELECTION);
-			interactionChoiceBox.setManaged(mode == InteractionMode.SELECTION);
-
-			interactionConfirmButton.setText(confirmLabel == null || confirmLabel.isBlank() ? messages.getMessage("UI_BUTTON_OK") : confirmLabel);
-			interactionCancelButton.setText(cancelLabel == null || cancelLabel.isBlank() ? messages.getMessage("UI_BUTTON_CANCEL") : cancelLabel);
-
-			interactionConfirmButton.setOnAction(event -> {
-				Object value = switch (mode) {
-				case CONFIRMATION -> Boolean.TRUE;
-				case SECRET -> interactionSecretField.getText();
-				case TEXT -> interactionTextField.getText();
-				case SELECTION -> {
-					DialogOption option = interactionChoiceBox.getSelectionModel().getSelectedItem();
-					yield option != null ? option.value() : null;
-				}
-				};
-				result.set((T) value);
-				hideInteraction();
-				latch.countDown();
-			});
-			interactionCancelButton.setOnAction(event -> {
-				Object value = mode == InteractionMode.CONFIRMATION ? Boolean.FALSE : null;
-				result.set((T) value);
-				hideInteraction();
-				latch.countDown();
-			});
+			interactionLabel.setText(request.prompt() == null ? "" : request.prompt());
+			showInteractionDetails(request.details());
+			prepareInteractionFields(request.mode(), request.initialValue(), request.options());
+			configureInteractionButtons(request.confirmLabel(), request.cancelLabel(), result, latch, request.confirmValueSupplier(),
+					request.cancelValueSupplier());
 
 			interactionBox.setVisible(true);
 			interactionBox.setManaged(true);
@@ -311,6 +271,55 @@ public class HbciCallbackMessageDialog {
 
 		awaitLatch(latch);
 		return result.get();
+	}
+
+	private void showInteractionDetails(String details) {
+		if (details == null || details.isBlank()) {
+			return;
+		}
+		appendText(detailsArea, details);
+		detailsVisible = true;
+		detailsBox.setVisible(true);
+		detailsBox.setManaged(true);
+		detailsButton.setText(messages.getMessage("UI_BUTTON_DETAILS_HIDE"));
+	}
+
+	private void prepareInteractionFields(InteractionMode mode, String initialValue, List<DialogOption> options) {
+		interactionTextField.clear();
+		interactionTextField.setText(initialValue == null ? "" : initialValue);
+		interactionSecretField.clear();
+		interactionChoiceBox.getItems().setAll(options);
+		if (!options.isEmpty()) {
+			interactionChoiceBox.getSelectionModel().selectFirst();
+		}
+
+		setInteractionControlState(interactionTextField, mode == InteractionMode.TEXT);
+		setInteractionControlState(interactionSecretField, mode == InteractionMode.SECRET);
+		setInteractionControlState(interactionChoiceBox, mode == InteractionMode.SELECTION);
+	}
+
+	private <T> void configureInteractionButtons(String confirmLabel, String cancelLabel, AtomicReference<T> result, CountDownLatch latch,
+			Supplier<T> confirmValueSupplier, Supplier<T> cancelValueSupplier) {
+		interactionConfirmButton.setText(confirmLabel == null || confirmLabel.isBlank() ? messages.getMessage("UI_BUTTON_OK") : confirmLabel);
+		interactionCancelButton.setText(cancelLabel == null || cancelLabel.isBlank() ? messages.getMessage("UI_BUTTON_CANCEL") : cancelLabel);
+		interactionConfirmButton.setOnAction(event -> completeInteraction(result, latch, confirmValueSupplier.get()));
+		interactionCancelButton.setOnAction(event -> completeInteraction(result, latch, cancelValueSupplier.get()));
+	}
+
+	private void setInteractionControlState(javafx.scene.Node control, boolean visible) {
+		control.setVisible(visible);
+		control.setManaged(visible);
+	}
+
+	private String getSelectedOptionValue() {
+		DialogOption option = interactionChoiceBox.getSelectionModel().getSelectedItem();
+		return option != null ? option.value() : null;
+	}
+
+	private <T> void completeInteraction(AtomicReference<T> result, CountDownLatch latch, T value) {
+		result.set(value);
+		hideInteraction();
+		latch.countDown();
 	}
 
 	private void hideInteraction() {
@@ -350,5 +359,9 @@ public class HbciCallbackMessageDialog {
 		SECRET,
 		TEXT,
 		SELECTION
+	}
+
+	private record InteractionRequest<T>(InteractionMode mode, String prompt, String details, List<DialogOption> options, String confirmLabel,
+			String cancelLabel, String initialValue, Supplier<T> confirmValueSupplier, Supplier<T> cancelValueSupplier) {
 	}
 }

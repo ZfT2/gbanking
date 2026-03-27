@@ -18,6 +18,10 @@ public class GBankingLoggingHandler {
 	}
 	
 	public void logRetrivedBankAccessInfo(HBCIPassport passport, boolean withPD) {
+		if (!log.isInfoEnabled()) {
+			return;
+		}
+
 		if (withPD) {
 			log.info(
 					"Access: InstName: {}, Host: {}, Port: {}, filterType: {}, "
@@ -49,6 +53,10 @@ public class GBankingLoggingHandler {
 	}
 	
 	public void logRetrievedAccountInfo(Konto konto) {
+		if (!log.isDebugEnabled()) {
+			return;
+		}
+
 		log.info(
 				"Konto: acctype {}, bic {}, blz {}, country {}, creditorid {}, curr {}, customerid {}, iban {}, limit {}, name {}, name2 {}, number {}, subnumber {}, type {}, isSEPAAccount? {}",
 				konto.acctype, konto.bic, konto.blz, konto.country, konto.creditorid, konto.curr,
@@ -57,6 +65,10 @@ public class GBankingLoggingHandler {
 	}
 	
 	public void logRetrivedBookingInfo(UmsLine buchung) {
+		if (!log.isDebugEnabled()) {
+			return;
+		}
+
 		log.info(
 				"Ums: id {}, additional {}, addkey {}, bdate {}, charge_value {}, customerref {}, "
 				+ "endToEndId {}, gvcode {}, instref {}, isCamt {}, isSepa {}, isStorno {}, "

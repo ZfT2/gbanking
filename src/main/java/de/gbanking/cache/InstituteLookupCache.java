@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 
 import de.gbanking.db.DBController;
 import de.gbanking.db.dao.Institute;
@@ -15,7 +16,7 @@ public final class InstituteLookupCache {
 	public record InstituteLookupEntry(String bankName, String bic, int importNumber) {
 	}
 
-	private static volatile Map<String, List<InstituteLookupEntry>> entriesByBlz;
+	private static final AtomicReference<Map<String, List<InstituteLookupEntry>>> ENTRIES_BY_BLZ = new AtomicReference<>();
 
 	private InstituteLookupCache() {
 	}
@@ -40,23 +41,16 @@ public final class InstituteLookupCache {
 	}
 
 	public static void clear() {
-		synchronized (InstituteLookupCache.class) {
-			entriesByBlz = null;
-		}
+		ENTRIES_BY_BLZ.set(null);
 	}
 
 	private static Map<String, List<InstituteLookupEntry>> getEntriesByBlz() {
-		Map<String, List<InstituteLookupEntry>> cache = entriesByBlz;
-		if (cache == null) {
-			synchronized (InstituteLookupCache.class) {
-				cache = entriesByBlz;
-				if (cache == null) {
-					cache = loadEntriesByBlz();
-					entriesByBlz = cache;
-				}
-			}
+		Map<String, List<InstituteLookupEntry>> cache = ENTRIES_BY_BLZ.get();
+		if (cache != null) {
+			return cache;
 		}
-		return cache;
+		Map<String, List<InstituteLookupEntry>> loadedEntries = loadEntriesByBlz();
+		return ENTRIES_BY_BLZ.compareAndExchange(null, loadedEntries) != null ? ENTRIES_BY_BLZ.get() : loadedEntries;
 	}
 
 	private static Map<String, List<InstituteLookupEntry>> loadEntriesByBlz() {
