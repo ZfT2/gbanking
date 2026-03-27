@@ -56,6 +56,7 @@ import de.gbanking.exception.GBankingException;
 import de.gbanking.gui.dto.MoneyTransferForm;
 import de.gbanking.gui.progress.InstituteFileImportProgressBarPanel;
 import de.gbanking.hbci.GBankingHBCICallback;
+import de.gbanking.logging.GBankingLoggingHandler;
 import de.gbanking.mapper.HbciMapper;
 import javafx.application.Platform;
 import javafx.stage.Modality;

@@ -1,4 +1,4 @@
-package de.gbanking;
+package de.gbanking.logging;
 
 import java.util.Arrays;
 
@@ -9,8 +9,6 @@ import org.kapott.hbci.passport.AbstractPinTanPassport;
 import org.kapott.hbci.passport.HBCIPassport;
 import org.kapott.hbci.structures.Konto;
 
-import de.gbanking.security.SensitiveDataMasker;
-
 public class GBankingLoggingHandler {
 	
 	private static Logger log = LogManager.getLogger(GBankingLoggingHandler.class);
@@ -19,7 +17,7 @@ public class GBankingLoggingHandler {
 		return new GBankingLoggingHandler();
 	}
 	
-	void logRetrivedBankAccessInfo(HBCIPassport passport, boolean withPD) {
+	public void logRetrivedBankAccessInfo(HBCIPassport passport, boolean withPD) {
 		if (withPD) {
 			log.info(
 					"Access: InstName: {}, Host: {}, Port: {}, filterType: {}, "
@@ -50,7 +48,7 @@ public class GBankingLoggingHandler {
 		}
 	}
 	
-	void logRetrievedAccountInfo(Konto konto) {
+	public void logRetrievedAccountInfo(Konto konto) {
 		log.info(
 				"Konto: acctype {}, bic {}, blz {}, country {}, creditorid {}, curr {}, customerid {}, iban {}, limit {}, name {}, name2 {}, number {}, subnumber {}, type {}, isSEPAAccount? {}",
 				konto.acctype, konto.bic, konto.blz, konto.country, konto.creditorid, konto.curr,
@@ -58,7 +56,7 @@ public class GBankingLoggingHandler {
 				SensitiveDataMasker.maskAccountNumber(konto.number), SensitiveDataMasker.maskAccountNumber(konto.subnumber), konto.type, konto.isSEPAAccount());
 	}
 	
-	void logRetrivedBookingInfo(UmsLine buchung) {
+	public void logRetrivedBookingInfo(UmsLine buchung) {
 		log.info(
 				"Ums: id {}, additional {}, addkey {}, bdate {}, charge_value {}, customerref {}, "
 				+ "endToEndId {}, gvcode {}, instref {}, isCamt {}, isSepa {}, isStorno {}, "

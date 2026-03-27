@@ -54,6 +54,7 @@ import de.gbanking.db.dao.enu.Source;
 import de.gbanking.file.exp.FileExportXMLBean;
 import de.gbanking.file.imp.FileImportBean;
 import de.gbanking.gui.dto.MoneyTransferForm;
+import de.gbanking.logging.GBankingLoggingHandler;
 import de.gbanking.mapper.HbciMapper;
 
 @Disabled

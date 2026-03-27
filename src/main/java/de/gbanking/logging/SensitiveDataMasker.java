@@ -1,4 +1,4 @@
-package de.gbanking.security;
+package de.gbanking.logging;
 
 public final class SensitiveDataMasker {
 

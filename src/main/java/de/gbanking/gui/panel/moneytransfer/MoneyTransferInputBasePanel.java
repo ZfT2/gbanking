@@ -4,14 +4,14 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
+import de.gbanking.cache.InstituteLookupCache;
+import de.gbanking.cache.InstituteLookupCache.InstituteLookupEntry;
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.MoneyTransfer;
 import de.gbanking.db.dao.Recipient;
 import de.gbanking.db.dao.enu.OrderType;
 import de.gbanking.db.dao.enu.StandingorderMode;
-import de.gbanking.gui.components.BankNameLookupField;
-import de.gbanking.gui.service.InstituteLookupCache;
-import de.gbanking.gui.service.InstituteLookupCache.InstituteLookupEntry;
+import de.gbanking.gui.component.BankNameLookupField;
 import de.gbanking.gui.dto.MoneyTransferForm;
 import de.gbanking.gui.panel.AbstractTitledFormPanel;
 import de.gbanking.gui.util.FormControlUtils;

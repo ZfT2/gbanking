@@ -1,4 +1,4 @@
-package de.gbanking.gui.dialog;
+package de.gbanking.gui.dialog.tenant;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -9,6 +9,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
+import de.gbanking.gui.dialog.DialogWindowSupport;
 import de.gbanking.messages.Messages;
 import de.gbanking.tenant.TenantProfile;
 import de.gbanking.tenant.TenantStore;

@@ -21,7 +21,7 @@ import org.kapott.hbci.passport.AbstractHBCIPassport;
 
 import de.gbanking.db.dao.BankAccess;
 import de.gbanking.gui.dialog.DialogWindowSupport;
-import de.gbanking.gui.dialog.HbciCallbackMessageDialog;
+import de.gbanking.gui.dialog.hbci.HbciCallbackMessageDialog;
 import de.gbanking.messages.Messages;
 
 public class GBankingHBCICallback extends AbstractHBCICallback {

@@ -4,7 +4,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.function.Consumer;
 
-import de.gbanking.gui.components.GBankingTableView;
+import de.gbanking.gui.component.GBankingTableView;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;

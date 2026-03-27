@@ -1,9 +1,9 @@
-package de.gbanking.gui.components;
+package de.gbanking.gui.component;
 
 import java.util.List;
 import java.util.Objects;
 
-import de.gbanking.gui.service.InstituteLookupCache.InstituteLookupEntry;
+import de.gbanking.cache.InstituteLookupCache.InstituteLookupEntry;
 import de.gbanking.gui.util.FormStyleUtils;
 import de.gbanking.gui.util.FormStyleUtils.FieldWidth;
 import javafx.beans.property.ObjectProperty;

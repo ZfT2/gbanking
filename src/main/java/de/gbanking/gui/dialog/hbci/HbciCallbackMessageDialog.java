@@ -1,9 +1,10 @@
-package de.gbanking.gui.dialog;
+package de.gbanking.gui.dialog.hbci;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
+import de.gbanking.gui.dialog.DialogWindowSupport;
 import de.gbanking.messages.Messages;
 import javafx.application.Platform;
 import javafx.geometry.Pos;

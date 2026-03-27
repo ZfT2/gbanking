@@ -1,7 +1,8 @@
-package de.gbanking.gui.dialog;
+package de.gbanking.gui.dialog.tenant;
 
 import java.util.Arrays;
 
+import de.gbanking.gui.dialog.DialogWindowSupport;
 import de.gbanking.messages.Messages;
 import de.gbanking.tenant.TenantProfile;
 import de.gbanking.tenant.TenantStore;

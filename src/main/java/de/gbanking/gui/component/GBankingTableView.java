@@ -1,4 +1,4 @@
-package de.gbanking.gui.components;
+package de.gbanking.gui.component;
 
 import javafx.css.PseudoClass;
 import javafx.scene.control.TableRow;
