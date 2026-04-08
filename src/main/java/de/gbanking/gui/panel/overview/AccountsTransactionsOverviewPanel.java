@@ -34,7 +34,7 @@ public class AccountsTransactionsOverviewPanel extends TransactionsOverviewBaseP
 		accountDetailPanel.setPrefHeight(Region.USE_COMPUTED_SIZE);
 		accountDetailPanel.setMaxWidth(Double.MAX_VALUE);
 
-		transactionDetailPanel = new TransactionDetailPanel();
+		transactionDetailPanel = new TransactionDetailPanel(this);
 		transactionDetailPanel.setMinHeight(Region.USE_PREF_SIZE);
 		transactionDetailPanel.setPrefHeight(Region.USE_COMPUTED_SIZE);
 		transactionDetailPanel.setMaxWidth(Double.MAX_VALUE);

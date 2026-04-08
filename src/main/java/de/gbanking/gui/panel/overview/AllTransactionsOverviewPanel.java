@@ -16,7 +16,7 @@ public class AllTransactionsOverviewPanel extends TransactionsOverviewBasePanel 
 		setPageContext(PageContext.ALL_TRANSACTIONS);
 		log.info("Initializing AllTransactionsOverviewPanel");
 
-		transactionDetailPanel = new TransactionDetailPanel();
+		transactionDetailPanel = new TransactionDetailPanel(this);
 		prepareDetailPanel(transactionDetailPanel);
 
 		transactionListPanel = new TransactionListPanel(this);

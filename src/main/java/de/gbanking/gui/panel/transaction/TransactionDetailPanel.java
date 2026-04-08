@@ -2,13 +2,16 @@ package de.gbanking.gui.panel.transaction;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.Booking;
+import de.gbanking.db.dao.Category;
 import de.gbanking.db.dao.Recipient;
 import de.gbanking.db.dao.enu.BookingType;
 import de.gbanking.db.dao.enu.Source;
 import de.gbanking.gui.panel.BaseBorderPanePanel;
+import de.gbanking.gui.panel.overview.TransactionsOverviewBasePanel;
 import de.gbanking.gui.util.FormStyleUtils;
 import de.gbanking.gui.util.FormStyleUtils.FieldWidth;
 import de.gbanking.util.TypeConverter;
@@ -17,8 +20,10 @@ import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Control;
+import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -28,24 +33,28 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.util.StringConverter;
 
 public class TransactionDetailPanel extends BaseBorderPanePanel {
+
+	private static final List<String> SUPPORTED_CURRENCIES = List.of("EUR", "USD", "CHF", "GBP", "PLN", "CZK", "NOK");
 
 	private enum EditContext {
 		NEW, EDIT, READONLY
 	}
 
+	private final TransactionsOverviewBasePanel parentPanel;
 	private EditContext context = EditContext.READONLY;
 
-	private final TextField dateBookingText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
-	private final TextField dateValueText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
+	private final DatePicker dateBookingPicker = FormStyleUtils.applyWidth(new DatePicker(), FieldWidth.S);
+	private final DatePicker dateValuePicker = FormStyleUtils.applyWidth(new DatePicker(), FieldWidth.S);
 	private final TextArea purposeText = FormStyleUtils.prepareLargeTextArea(new TextArea(), 3);
 	private final TextField amountText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
-	private final TextField currencyText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.XS);
+	private final ComboBox<String> currencyCombo = FormStyleUtils.applyWidth(new ComboBox<>(), FieldWidth.XS);
 	private final ComboBox<BookingType> bookingTypeCombo = FormStyleUtils.applyWidth(new ComboBox<>(), FieldWidth.M);
 	private final ComboBox<Source> bookingSourceCombo = FormStyleUtils.applyWidth(new ComboBox<>(), FieldWidth.M);
 	private final ComboBox<BankAccount> crossAccountCombo = FormStyleUtils.applyWidth(new ComboBox<>(), FieldWidth.M);
-	private final TextField categoryText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.M);
+	private final ComboBox<Category> categoryCombo = FormStyleUtils.applyWidth(new ComboBox<>(), FieldWidth.M);
 
 	private final TextField sepaCustomerRefText = new TextField();
 	private final TextField sepaCreditorIdText = new TextField();
@@ -65,19 +74,25 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 	private final TextField updatedAtText = new TextField();
 
 	private final Button newButton = new Button(getText("UI_BUTTON_NEW_SHORT"));
+	private final Button deleteButton = new Button(getText("UI_BUTTON_DELETE"));
 	private final Button editButton = new Button(getText("UI_BUTTON_EDIT"));
 	private final Button saveButton = new Button(getText("UI_BUTTON_SAVE"));
 
 	private Booking displayedBooking;
+	private BankAccount currentAccount;
 
-	public TransactionDetailPanel() {
+	public TransactionDetailPanel(TransactionsOverviewBasePanel parentPanel) {
+		this.parentPanel = parentPanel;
 		createUI();
 		loadComboValues();
 		enableFields(false);
 
 		newButton.setOnAction(e -> performNew());
+		deleteButton.setOnAction(e -> performDelete());
 		editButton.setOnAction(e -> performEdit());
 		saveButton.setOnAction(e -> performSave());
+		bookingTypeCombo.valueProperty().addListener((observable, oldValue, newValue) -> updateCrossAccountState());
+		updateActionButtons();
 	}
 
 	private void createUI() {
@@ -122,15 +137,15 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 		grid.setVgap(8);
 		grid.setPadding(new Insets(6));
 
-		addFieldAbove(grid, "UI_LABEL_BOOKING_DATE", dateBookingText, 0, 0);
-		addFieldAbove(grid, "UI_LABEL_VALUE_DATE", dateValueText, 1, 0);
+		addFieldAbove(grid, "UI_LABEL_BOOKING_DATE", dateBookingPicker, 0, 0);
+		addFieldAbove(grid, "UI_LABEL_VALUE_DATE", dateValuePicker, 1, 0);
 		addFieldAbove(grid, "UI_LABEL_AMOUNT", amountText, 2, 0);
-		addFieldAbove(grid, "UI_LABEL_CURRENCY", currencyText, 3, 0);
+		addFieldAbove(grid, "UI_LABEL_CURRENCY", currencyCombo, 3, 0);
 
 		addFieldAbove(grid, "UI_LABEL_BOOKING_TYPE", bookingTypeCombo, 0, 1);
 		addFieldAbove(grid, "UI_LABEL_SOURCE", bookingSourceCombo, 1, 1);
 		addFieldAbove(grid, "UI_LABEL_COUNTER_ACCOUNT", crossAccountCombo, 2, 1);
-		addFieldAbove(grid, "UI_LABEL_CATEGORY", categoryText, 3, 1);
+		addFieldAbove(grid, "UI_LABEL_CATEGORY", categoryCombo, 3, 1);
 
 		TitledPane detailsPane = titled(getText("UI_PANEL_TRANSACTION_DETAILS"), grid);
 		TitledPane sepaPane = titled(getText("UI_PANEL_SEPA_INFO"), createSepaGrid());
@@ -180,9 +195,9 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 	}
 
 	private Node createButtonsPane() {
-		VBox buttons = new VBox(8, newButton, editButton, saveButton);
+		VBox buttons = new VBox(8, newButton, deleteButton, editButton, saveButton);
 		buttons.setPadding(new Insets(6));
-		FormStyleUtils.styleButtons(newButton, editButton, saveButton);
+		FormStyleUtils.styleButtons(newButton, deleteButton, editButton, saveButton);
 		return buttons;
 	}
 
@@ -208,30 +223,92 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 	}
 
 	private void loadComboValues() {
+		configureDatePicker(dateBookingPicker);
+		configureDatePicker(dateValuePicker);
+		configureCategoryCombo();
 		bookingTypeCombo.setItems(FXCollections.observableArrayList(BookingType.values()));
-		bookingSourceCombo.setItems(FXCollections.observableArrayList(Source.values()));
-		crossAccountCombo.setItems(FXCollections.observableArrayList(dbController.getAll(BankAccount.class)));
+		currencyCombo.setItems(FXCollections.observableArrayList(SUPPORTED_CURRENCIES));
+		refreshSourceChoices(false);
+		refreshReferenceChoices();
+	}
+
+	private void configureDatePicker(DatePicker datePicker) {
+		datePicker.setEditable(true);
+		datePicker.setConverter(new StringConverter<LocalDate>() {
+			@Override
+			public String toString(LocalDate value) {
+				return TypeConverter.toDateStringLong(value);
+			}
+
+			@Override
+			public LocalDate fromString(String value) {
+				return parseLocalDate(value);
+			}
+		});
+	}
+
+	private void configureCategoryCombo() {
+		categoryCombo.setConverter(new StringConverter<Category>() {
+			@Override
+			public String toString(Category category) {
+				return category != null ? category.getFullName() : "";
+			}
+
+			@Override
+			public Category fromString(String string) {
+				return null;
+			}
+		});
+	}
+
+	private void refreshSourceChoices(boolean manualOnly) {
+		bookingSourceCombo.setItems(FXCollections.observableArrayList(manualOnly ? List.of(Source.MANUELL) : List.of(Source.values())));
+	}
+
+	private void refreshReferenceChoices() {
+		List<BankAccount> accounts = dbController.getAll(BankAccount.class).stream()
+				.filter(account -> currentAccount == null || account.getId() != currentAccount.getId()).toList();
+		crossAccountCombo.setItems(FXCollections.observableArrayList(accounts));
+		categoryCombo.setItems(FXCollections.observableArrayList(dbController.getAll(Category.class)));
 	}
 
 	private void enableFields(boolean enable) {
 		boolean editable = enable && FormStyleUtils.isUserEditable(displayedBooking != null ? displayedBooking.getSource() : null);
 
-		FormStyleUtils.setEditable(editable, dateBookingText, dateValueText, purposeText, amountText, currencyText, bookingTypeCombo, bookingSourceCombo,
-				crossAccountCombo, categoryText, sepaCustomerRefText, sepaCreditorIdText, sepaEndToEndText, sepaMandateText, sepaPersonIdText, sepaPurposeText,
-				sepaTypText, recipientNameText, recipientIbanText, recipientAccountNumberText, recipientBicText, recipientBlzText, recipientBankText);
+		FormStyleUtils.setEditable(editable, dateBookingPicker, dateValuePicker, purposeText, amountText, currencyCombo, bookingTypeCombo, crossAccountCombo,
+				categoryCombo, sepaCustomerRefText, sepaCreditorIdText, sepaEndToEndText, sepaMandateText, sepaPersonIdText, sepaPurposeText, sepaTypText,
+				recipientNameText, recipientIbanText, recipientAccountNumberText, recipientBicText, recipientBlzText, recipientBankText);
+		dateBookingPicker.setEditable(editable);
+		dateValuePicker.setEditable(editable);
+		bookingSourceCombo.setDisable(true);
+		FormStyleUtils.setReadOnlyStyle(true, bookingSourceCombo);
 
 		updatedAtText.setEditable(false);
 		updatedAtText.setDisable(true);
 		FormStyleUtils.setReadOnlyStyle(true, updatedAtText);
+		saveButton.setDisable(!editable);
+		updateCrossAccountState();
 	}
 
 	private void performNew() {
+		if (currentAccount == null) {
+			showWarning("ALERT_ACCOUNT_NO_SELECTION");
+			return;
+		}
+
 		context = EditContext.NEW;
 		displayedBooking = new Booking();
-		enableFields(true);
-		bookingSourceCombo.setValue(Source.MANUELL);
+		displayedBooking.setAccountId(currentAccount.getId());
+		displayedBooking.setSource(Source.MANUELL);
+		refreshReferenceChoices();
+		refreshSourceChoices(true);
 		clearFields();
+		bookingSourceCombo.setValue(Source.MANUELL);
+		dateBookingPicker.setValue(LocalDate.now());
+		currencyCombo.setValue("EUR");
+		bookingSourceCombo.setValue(Source.MANUELL);
 		enableFields(true);
+		updateActionButtons();
 	}
 
 	private void performEdit() {
@@ -249,19 +326,48 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 			newButton.setDisable(true);
 			enableFields(true);
 		}
+		updateActionButtons();
 	}
 
 	private void performSave() {
 		try {
 			updateBookingFromUI();
 			dbController.insertOrUpdate(displayedBooking);
-			enableFields(false);
+			displayedBooking = dbController.getByIdFull(Booking.class, displayedBooking.getId());
 			context = EditContext.READONLY;
 			editButton.setText(getText("UI_BUTTON_EDIT"));
 			newButton.setDisable(false);
+			refreshSourceChoices(false);
+			updatePanelFieldValues(displayedBooking);
+			reloadParentData();
 		} catch (Exception ex) {
 			new Alert(Alert.AlertType.WARNING, ex.getMessage()).showAndWait();
 		}
+	}
+
+	private void performDelete() {
+		if (!canDeleteDisplayedBooking()) {
+			return;
+		}
+
+		Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION, getText("ALERT_BOOKING_DELETE_CONFIRM_TEXT"), ButtonType.OK, ButtonType.CANCEL);
+		confirmAlert.setTitle(getText("ALERT_BOOKING_DELETE_CONFIRM_TITLE"));
+		confirmAlert.setHeaderText(getText("ALERT_BOOKING_DELETE_CONFIRM_HEADER"));
+		if (!ButtonType.OK.equals(confirmAlert.showAndWait().orElse(ButtonType.CANCEL))) {
+			return;
+		}
+
+		dbController.delete(displayedBooking, null);
+		displayedBooking = null;
+		context = EditContext.READONLY;
+		editButton.setText(getText("UI_BUTTON_EDIT"));
+		editButton.setDisable(true);
+		newButton.setDisable(false);
+		clearFields();
+		refreshSourceChoices(false);
+		enableFields(false);
+		updateActionButtons();
+		reloadParentData();
 	}
 
 	private void updateBookingFromUI() {
@@ -269,37 +375,55 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 			displayedBooking = new Booking();
 		}
 
-		displayedBooking.setDateBooking(TypeConverter.toLocalDateFromDateStrShort(dateBookingText.getText()));
-		displayedBooking.setDateValue(TypeConverter.toLocalDateFromDateStrShort(dateValueText.getText()));
-		displayedBooking.setPurpose(purposeText.getText());
-		displayedBooking.setAmount(amountText.getText() == null || amountText.getText().isBlank() ? null : new BigDecimal(amountText.getText()));
-		displayedBooking.setCurrency(currencyText.getText());
-		displayedBooking.setBookingType(bookingTypeCombo.getValue());
-		displayedBooking.setSource(bookingSourceCombo.getValue());
+		LocalDate bookingDate = readDate(dateBookingPicker);
+		LocalDate valueDate = readDate(dateValuePicker);
+		BigDecimal amount = parseAmount(amountText.getText());
+		BookingType bookingType = bookingTypeCombo.getValue();
+		Source source = context == EditContext.NEW ? Source.MANUELL : bookingSourceCombo.getValue();
+
+		validateBookingInput(bookingDate, amount, bookingType, source);
+
+		displayedBooking.setAccountId(currentAccount != null ? currentAccount.getId() : displayedBooking.getAccountId());
+		displayedBooking.setDateBooking(bookingDate);
+		displayedBooking.setDateValue(valueDate);
+		displayedBooking.setDate(valueDate != null ? valueDate : bookingDate);
+		displayedBooking.setPurpose(trimToNull(purposeText.getText()));
+		displayedBooking.setAmount(amount);
+		displayedBooking.setCurrency(currencyCombo.getValue());
+		displayedBooking.setBookingType(bookingType);
+		displayedBooking.setSource(source);
+		displayedBooking.setCategory(categoryCombo.getValue());
 
 		BankAccount cross = crossAccountCombo.getValue();
-		if (cross != null) {
-			displayedBooking.setCrossAccountId(cross.getId());
-		}
+		displayedBooking.setCrossAccountId(isRebookingType(bookingType) && cross != null ? cross.getId() : null);
+		displayedBooking.setRecipient(saveRecipientFromUI());
+		displayedBooking.setRecipientId(displayedBooking.getRecipient() != null ? displayedBooking.getRecipient().getId() : 0);
 
 		displayedBooking.setUpdatedAt(LocalDate.now());
 	}
 
 	public void updatePanelFieldValues(Booking booking) {
 		this.displayedBooking = booking;
+		if (booking != null && (currentAccount == null || currentAccount.getId() != booking.getAccountId())) {
+			currentAccount = dbController.getById(BankAccount.class, booking.getAccountId());
+		}
 
-		dateBookingText.setText(TypeConverter.toDateStringShort(booking.getDateBooking()));
-		dateValueText.setText(TypeConverter.toDateStringShort(booking.getDateValue()));
+		refreshReferenceChoices();
+		refreshSourceChoices(false);
+
+		dateBookingPicker.setValue(booking.getDateBooking());
+		dateValuePicker.setValue(booking.getDateValue());
 		purposeText.setText(booking.getPurpose());
 		amountText.setText(booking.getAmountStr());
-		currencyText.setText(booking.getCurrency());
+		currencyCombo.setValue(booking.getCurrency());
 		bookingTypeCombo.setValue(booking.getBookingType());
 		bookingSourceCombo.setValue(booking.getSource());
-		categoryText.setText(booking.getCategory() != null ? booking.getCategory().toString() : null);
+		selectCategory(booking.getCategory());
 
-		if (booking.getCrossAccountId() > 0) {
+		Integer crossAccountId = booking.getCrossAccountId();
+		if (crossAccountId != null && crossAccountId > 0) {
 			for (BankAccount account : crossAccountCombo.getItems()) {
-				if (account.getId() == booking.getCrossAccountId()) {
+				if (account.getId() == crossAccountId) {
 					crossAccountCombo.setValue(account);
 					break;
 				}
@@ -338,15 +462,18 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 		boolean editable = FormStyleUtils.isUserEditable(booking.getSource());
 		editButton.setDisable(!editable);
 		enableFields(false);
+		updateActionButtons();
 	}
 
 	private void clearFields() {
-		dateBookingText.clear();
-		dateValueText.clear();
+		dateBookingPicker.setValue(null);
+		dateBookingPicker.getEditor().clear();
+		dateValuePicker.setValue(null);
+		dateValuePicker.getEditor().clear();
 		purposeText.clear();
 		amountText.clear();
-		currencyText.clear();
-		categoryText.clear();
+		currencyCombo.setValue(null);
+		categoryCombo.setValue(null);
 
 		sepaCustomerRefText.clear();
 		sepaCreditorIdText.clear();
@@ -365,5 +492,143 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 
 		crossAccountCombo.setValue(null);
 		bookingTypeCombo.setValue(null);
+	}
+
+	public void setCurrentAccount(BankAccount currentAccount) {
+		this.currentAccount = currentAccount;
+		refreshReferenceChoices();
+	}
+
+	private void updateActionButtons() {
+		boolean showDelete = canDeleteDisplayedBooking() && context == EditContext.EDIT;
+		newButton.setManaged(!showDelete);
+		newButton.setVisible(!showDelete);
+		deleteButton.setManaged(showDelete);
+		deleteButton.setVisible(showDelete);
+		deleteButton.setDisable(!showDelete);
+	}
+
+	private boolean canDeleteDisplayedBooking() {
+		return displayedBooking != null && displayedBooking.getId() > 0 && displayedBooking.getSource() == Source.MANUELL;
+	}
+
+	private void validateBookingInput(LocalDate bookingDate, BigDecimal amount, BookingType bookingType, Source source) {
+		if (bookingDate == null || amount == null || bookingType == null || currencyCombo.getValue() == null || trimToNull(purposeText.getText()) == null) {
+			throw new IllegalArgumentException(getText("ALERT_BOOKING_REQUIRED_FIELD_MISSING"));
+		}
+
+		if (amount.signum() < 0 && !isNegativeAmountType(bookingType) || amount.signum() > 0 && !isPositiveAmountType(bookingType)) {
+			throw new IllegalArgumentException(getText("ALERT_BOOKING_TYPE_AMOUNT_MISMATCH"));
+		}
+
+		if (context == EditContext.NEW && source != Source.MANUELL) {
+			throw new IllegalArgumentException(getText("ALERT_BOOKING_SOURCE_MANUAL_ONLY"));
+		}
+
+		if (isRebookingType(bookingType) && crossAccountCombo.getValue() == null) {
+			throw new IllegalArgumentException(getText("ALERT_REBOOKING_CROSS_ACCOUNT_MISSING"));
+		}
+	}
+
+	private Recipient saveRecipientFromUI() {
+		if (trimToNull(recipientNameText.getText()) == null && trimToNull(recipientIbanText.getText()) == null
+				&& trimToNull(recipientAccountNumberText.getText()) == null && trimToNull(recipientBicText.getText()) == null
+				&& trimToNull(recipientBlzText.getText()) == null && trimToNull(recipientBankText.getText()) == null) {
+			return null;
+		}
+
+		Recipient recipient = new Recipient();
+		recipient.setName(trimToNull(recipientNameText.getText()));
+		recipient.setIban(trimToNull(recipientIbanText.getText()));
+		recipient.setAccountNumber(trimToNull(recipientAccountNumberText.getText()));
+		recipient.setBic(trimToNull(recipientBicText.getText()));
+		recipient.setBlz(trimToNull(recipientBlzText.getText()));
+		recipient.setBank(trimToNull(recipientBankText.getText()));
+		recipient.setSource(Source.MANUELL);
+
+		Recipient recipientDb = dbController.find(Recipient.class, recipient);
+		return recipientDb != null ? recipientDb : dbController.insertOrUpdate(recipient);
+	}
+
+	private void reloadParentData() {
+		if (currentAccount != null && parentPanel.getPageContext() == de.gbanking.gui.enu.PageContext.ACCOUNTS_TRANSACTIONS) {
+			parentPanel.getTransactionListPanel().updateModelBooking(dbController.getAllByParent(Booking.class, currentAccount.getId()));
+			parentPanel.getTransactionListPanel().updatePanelBorder(getText("UI_PANEL_TRANSACTIONS") + " - " + currentAccount.getAccountName());
+			return;
+		}
+
+		parentPanel.getTransactionListPanel().reload();
+	}
+
+	private void updateCrossAccountState() {
+		boolean enabled = context != EditContext.READONLY && isRebookingType(bookingTypeCombo.getValue());
+		if (!isRebookingType(bookingTypeCombo.getValue())) {
+			crossAccountCombo.setValue(null);
+		}
+		crossAccountCombo.setDisable(!enabled);
+		FormStyleUtils.setReadOnlyStyle(!enabled, crossAccountCombo);
+	}
+
+	private boolean isRebookingType(BookingType bookingType) {
+		return bookingType == BookingType.REBOOKING_IN || bookingType == BookingType.REBOOKING_OUT;
+	}
+
+	private boolean isNegativeAmountType(BookingType bookingType) {
+		return bookingType == BookingType.REMOVAL || bookingType == BookingType.INTEREST_CHARGE || bookingType == BookingType.REBOOKING_OUT;
+	}
+
+	private boolean isPositiveAmountType(BookingType bookingType) {
+		return bookingType == BookingType.DEPOSIT || bookingType == BookingType.INTEREST || bookingType == BookingType.REBOOKING_IN;
+	}
+
+	private BigDecimal parseAmount(String value) {
+		String trimmedValue = trimToNull(value);
+		if (trimmedValue == null) {
+			return null;
+		}
+		return new BigDecimal(trimmedValue.replace(',', '.'));
+	}
+
+	private LocalDate readDate(DatePicker picker) {
+		if (picker.getValue() != null) {
+			return picker.getValue();
+		}
+		return parseLocalDate(picker.getEditor().getText());
+	}
+
+	private LocalDate parseLocalDate(String value) {
+		String trimmedValue = trimToNull(value);
+		if (trimmedValue == null) {
+			return null;
+		}
+
+		LocalDate parsedDate = TypeConverter.toLocalDateFromDateStr(trimmedValue);
+		if (parsedDate == null) {
+			parsedDate = TypeConverter.toLocalDateFromDateStrShort(trimmedValue);
+		}
+		return parsedDate;
+	}
+
+	private void selectCategory(Category category) {
+		if (category == null) {
+			categoryCombo.setValue(null);
+			return;
+		}
+
+		for (Category availableCategory : categoryCombo.getItems()) {
+			if (availableCategory.getId() == category.getId()) {
+				categoryCombo.setValue(availableCategory);
+				return;
+			}
+		}
+		categoryCombo.setValue(category);
+	}
+
+	private String trimToNull(String value) {
+		return value == null || value.isBlank() ? null : value.trim();
+	}
+
+	private void showWarning(String key) {
+		new Alert(Alert.AlertType.WARNING, getText(key)).showAndWait();
 	}
 }

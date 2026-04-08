@@ -141,6 +141,7 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 		transactionListPanel.updateModelBooking(bookingList);
 		parent.enableAccountDetailPanel();
 		parent.getAccountDetailPanel().updatePanelFieldValues(selectedAccount);
+		parent.getTransactionDetailPanel().setCurrentAccount(selectedAccount);
 	}
 
 	private void handleMoneyTransfersSelection(BankAccount selectedAccount) {
