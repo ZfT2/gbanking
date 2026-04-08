@@ -1,6 +1,7 @@
 package de.gbanking.gui.util;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
@@ -41,6 +42,47 @@ public final class FxTableUtils {
 			cell.setAlignment(Pos.CENTER);
 			cell.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
 			return cell;
+		};
+	}
+
+	public static <S> Callback<TableColumn<S, BigDecimal>, TableCell<S, BigDecimal>> createBigDecimalAmountCellFactory() {
+		return column -> new TableCell<>() {
+
+			private final DecimalFormat format = createGermanDecimalFormat();
+
+			@Override
+			protected void updateItem(BigDecimal item, boolean empty) {
+				super.updateItem(item, empty);
+				getStyleClass().removeAll("amount-positive", "amount-negative", "amount-neutral");
+
+				if (empty || item == null) {
+					setText(null);
+					setGraphic(null);
+					setAlignment(Pos.CENTER_RIGHT);
+					return;
+				}
+
+				setAlignment(Pos.CENTER_RIGHT);
+				setText(format.format(item));
+
+				if (item.signum() > 0) {
+					getStyleClass().add("amount-positive");
+				} else if (item.signum() < 0) {
+					getStyleClass().add("amount-negative");
+				} else {
+					getStyleClass().add("amount-neutral");
+				}
+			}
+		};
+	}
+
+	public static <S> Callback<TableColumn<S, LocalDate>, TableCell<S, LocalDate>> createLocalDateCellFactory() {
+		return column -> new TableCell<>() {
+			@Override
+			protected void updateItem(LocalDate item, boolean empty) {
+				super.updateItem(item, empty);
+				setText(empty || item == null ? null : DateFormatUtils.formatShort(item));
+			}
 		};
 	}
 

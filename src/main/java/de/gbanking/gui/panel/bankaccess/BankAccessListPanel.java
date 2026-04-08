@@ -1,5 +1,6 @@
 package de.gbanking.gui.panel.bankaccess;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.apache.logging.log4j.Level;
@@ -10,7 +11,6 @@ import de.gbanking.db.dao.BankAccess;
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.gui.panel.AbstractFilterableTablePanel;
 import de.gbanking.gui.panel.overview.BankAccessOverviewPanel;
-import de.gbanking.gui.util.DateFormatUtils;
 import de.gbanking.gui.util.FxTableUtils;
 import de.gbanking.gui.util.TableColumnFactory;
 import javafx.collections.FXCollections;
@@ -44,8 +44,8 @@ public class BankAccessListPanel extends AbstractFilterableTablePanel<BankAccess
 				access -> access.getTanProcedure() != null ? access.getTanProcedure().toString() : "", 120);
 		TableColumn<BankAccess, String> urlCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_FINTS_URL"), BankAccess::getHbciURL, 220, 320);
 		TableColumn<BankAccess, String> activeCol = TableColumnFactory.createBooleanAsTextColumn(getText("UI_TABLE_ACTIVE"), BankAccess::isActive, 70);
-		TableColumn<BankAccess, String> updatedCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_UPDATED_AT"),
-				access -> DateFormatUtils.formatShort(access.getUpdatedAt()), 90);
+		TableColumn<BankAccess, LocalDate> updatedCol = TableColumnFactory.createUpdatedAtColumn(getText("UI_TABLE_UPDATED_AT"),
+				BankAccess::getUpdatedAt, 90);
 
 		return List.of(selectedCol, bankCol, userCol, tanCol, urlCol, activeCol, updatedCol);
 	}

@@ -5,7 +5,6 @@ import java.util.List;
 import de.gbanking.db.dao.CategoryRule;
 import de.gbanking.gui.panel.AbstractFilterableTablePanel;
 import de.gbanking.gui.panel.overview.CategoryOverviewPanel;
-import de.gbanking.gui.util.DateFormatUtils;
 import de.gbanking.gui.util.TableColumnFactory;
 import javafx.collections.FXCollections;
 import javafx.scene.control.TableColumn;
@@ -36,8 +35,8 @@ public class CategoryRuleListPanel extends AbstractFilterableTablePanel<Category
 				160, 220);
 		TableColumn<CategoryRule, String> purposeCol = TableColumnFactory.createTextColumn(getText("UI_LABEL_PURPOSE"), CategoryRule::getFilterPurpose, 220,
 				300);
-		TableColumn<CategoryRule, String> updatedCol = TableColumnFactory.createFixedTextColumn(getText("UI_LABEL_UPDATED_AT"),
-				rule -> DateFormatUtils.formatShort(rule.getUpdatedAt()), 90);
+		TableColumn<CategoryRule, java.time.LocalDate> updatedCol = TableColumnFactory.createUpdatedAtColumn(getText("UI_LABEL_UPDATED_AT"),
+				CategoryRule::getUpdatedAt, 90);
 		return List.of(categoryCol, joinTypeCol, recipientCol, purposeCol, updatedCol);
 	}
 

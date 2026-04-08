@@ -34,13 +34,14 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 	private List<TableColumn<MoneyTransfer, ?>> createColumns() {
 		TableColumn<MoneyTransfer, Boolean> selectedCol = FxTableUtils.createSelectionColumn(getText("UI_TABLE_SELECTED"), MoneyTransfer::isSelected,
 				MoneyTransfer::setSelected);
-		TableColumn<MoneyTransfer, String> dateCol = TableColumnFactory.createCalendarDateColumn(getText("UI_TABLE_DATE"), MoneyTransfer::getExecutionDate, 95);
+		TableColumn<MoneyTransfer, java.time.LocalDate> dateCol = TableColumnFactory.createCalendarDateColumn(getText("UI_TABLE_DATE"),
+				MoneyTransfer::getExecutionDate, 95);
 		TableColumn<MoneyTransfer, String> recipientCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_RECIPIENT"),
 				transfer -> transfer.getRecipient() != null ? transfer.getRecipient().getName() : "", 180, 220);
 		TableColumn<MoneyTransfer, String> purposeCol = TableColumnFactory.createWrappedTextColumn(getText("UI_TABLE_PURPOSE"), MoneyTransfer::getPurpose, 260,
 				420);
-		TableColumn<MoneyTransfer, String> amountCol = TableColumnFactory.createAmountColumn(getText("UI_TABLE_AMOUNT"),
-				transfer -> transfer.getAmount() != null ? transfer.getAmount().toString() : "", 110);
+		TableColumn<MoneyTransfer, java.math.BigDecimal> amountCol = TableColumnFactory.createAmountColumn(getText("UI_TABLE_AMOUNT"),
+				MoneyTransfer::getAmount, 110);
 		TableColumn<MoneyTransfer, String> ibanCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_IBAN"),
 				transfer -> transfer.getRecipient() != null ? transfer.getRecipient().getIban() : "", 220, 240);
 		TableColumn<MoneyTransfer, String> bankCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_BANK"),

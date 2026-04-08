@@ -1,5 +1,7 @@
 package de.gbanking.gui.panel.transaction;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 import org.apache.logging.log4j.Level;
@@ -15,6 +17,7 @@ import de.gbanking.gui.panel.overview.TransactionsOverviewBasePanel;
 import de.gbanking.gui.util.DateFormatUtils;
 import de.gbanking.gui.util.FxTableUtils;
 import de.gbanking.gui.util.TableColumnFactory;
+import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.scene.control.TableColumn;
 
@@ -43,13 +46,28 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 
 	private List<TableColumn<Booking, ?>> createColumns() {
 		TableColumn<Booking, Boolean> selectedCol = FxTableUtils.createSelectionColumn(getText("UI_TABLE_SELECTED"), Booking::isSelected, Booking::setSelected);
-		TableColumn<Booking, String> dateCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_DATE"),
-				booking -> DateFormatUtils.formatBookingAndValue(booking.getDateBooking(), booking.getDateValue()), 115);
+		TableColumn<Booking, Booking> dateCol = new TableColumn<>(getText("UI_TABLE_DATE"));
+		dateCol.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue()));
+		dateCol.setCellFactory(column -> new javafx.scene.control.TableCell<>() {
+			@Override
+			protected void updateItem(Booking item, boolean empty) {
+				super.updateItem(item, empty);
+				setText(empty || item == null ? null : DateFormatUtils.formatBookingAndValue(item.getDateBooking(), item.getDateValue()));
+			}
+		});
+		dateCol.setComparator((left, right) -> {
+			int bookingDateCompare = java.util.Comparator.nullsLast(LocalDate::compareTo).compare(left != null ? left.getDateBooking() : null,
+					right != null ? right.getDateBooking() : null);
+			if (bookingDateCompare != 0) {
+				return bookingDateCompare;
+			}
+			return java.util.Comparator.nullsLast(LocalDate::compareTo).compare(left != null ? left.getDateValue() : null,
+					right != null ? right.getDateValue() : null);
+		});
+		FxTableUtils.setFixedWidth(dateCol, 115);
 		TableColumn<Booking, String> purposeCol = TableColumnFactory.createWrappedTextColumn(getText("UI_TABLE_PURPOSE"), Booking::getPurpose, 320, 500);
-		TableColumn<Booking, String> amountCol = TableColumnFactory.createAmountColumn(getText("UI_TABLE_AMOUNT"),
-				booking -> booking.getAmount() != null ? booking.getAmount().toString() : "", 110);
-		TableColumn<Booking, String> balanceCol = TableColumnFactory.createAmountColumn(getText("UI_TABLE_BALANCE"),
-				booking -> booking.getBalance() != null ? booking.getBalance().toString() : "", 110);
+		TableColumn<Booking, BigDecimal> amountCol = TableColumnFactory.createAmountColumn(getText("UI_TABLE_AMOUNT"), Booking::getAmount, 110);
+		TableColumn<Booking, BigDecimal> balanceCol = TableColumnFactory.createAmountColumn(getText("UI_TABLE_BALANCE"), Booking::getBalance, 110);
 		TableColumn<Booking, String> typeCol = TableColumnFactory.createSymbolColumn(getText("UI_TABLE_BOOKING_TYPE"),
 				booking -> booking.getSource() != null ? booking.getSource().getSymbol() : "", 70);
 

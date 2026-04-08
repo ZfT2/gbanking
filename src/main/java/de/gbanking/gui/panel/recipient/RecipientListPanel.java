@@ -8,7 +8,6 @@ import de.gbanking.gui.panel.AbstractFilterableTablePanel;
 import de.gbanking.gui.panel.moneytransfer.MoneyTransferDetailListTabPanel;
 import de.gbanking.gui.panel.moneytransfer.MoneyTransferInputBasePanel;
 import de.gbanking.gui.panel.overview.RecipientOverviewPanel;
-import de.gbanking.gui.util.DateFormatUtils;
 import de.gbanking.gui.util.FxTableUtils;
 import de.gbanking.gui.util.TableColumnFactory;
 import javafx.collections.FXCollections;
@@ -49,8 +48,8 @@ public class RecipientListPanel extends AbstractFilterableTablePanel<Recipient> 
 		TableColumn<Recipient, String> bicCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_BIC"), Recipient::getBic, 110);
 		TableColumn<Recipient, String> blzCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_BLZ"), Recipient::getBlz, 90);
 		TableColumn<Recipient, String> bankCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_BANK"), Recipient::getBank, 150, 180);
-		TableColumn<Recipient, String> updatedCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_UPDATED_AT"),
-				recipient -> DateFormatUtils.formatShort(recipient.getUpdatedAt()), 90);
+		TableColumn<Recipient, java.time.LocalDate> updatedCol = TableColumnFactory.createUpdatedAtColumn(getText("UI_TABLE_UPDATED_AT"),
+				Recipient::getUpdatedAt, 90);
 
 		return List.of(selectedCol, nameCol, ibanCol, accountNoCol, bicCol, blzCol, bankCol, updatedCol);
 	}

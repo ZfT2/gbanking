@@ -1,5 +1,7 @@
 package de.gbanking.gui.panel.account;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 import org.apache.logging.log4j.Level;
@@ -17,7 +19,6 @@ import de.gbanking.gui.panel.overview.CategoryOverviewPanel;
 import de.gbanking.gui.panel.overview.MoneyTransferOverviewPanel;
 import de.gbanking.gui.panel.overview.OverviewBasePanel;
 import de.gbanking.gui.panel.transaction.TransactionListPanel;
-import de.gbanking.gui.util.DateFormatUtils;
 import de.gbanking.gui.util.FxTableUtils;
 import de.gbanking.gui.util.TableColumnFactory;
 import javafx.scene.control.TableColumn;
@@ -79,8 +80,8 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 		TableColumn<BankAccount, Boolean> selectedCol = FxTableUtils.createSelectionColumn(getText("UI_TABLE_SELECTED"), BankAccount::isSelected,
 				BankAccount::setSelected);
 		TableColumn<BankAccount, String> nameCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_ACCOUNT_NAME"), BankAccount::getAccountName, 180, 220);
-		TableColumn<BankAccount, String> updatedCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_UPDATED_AT"),
-				account -> DateFormatUtils.formatShort(account.getUpdatedAt()), 90);
+		TableColumn<BankAccount, LocalDate> updatedCol = TableColumnFactory.createUpdatedAtColumn(getText("UI_TABLE_UPDATED_AT"),
+				BankAccount::getUpdatedAt, 90);
 
 		return List.of(selectedCol, nameCol, updatedCol);
 	}
@@ -93,9 +94,10 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 		TableColumn<BankAccount, String> bankCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_BANK"), BankAccount::getBankName, 140, 170);
 		TableColumn<BankAccount, String> typeCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_ACCOUNT_TYPE"),
 				account -> account.getAccountType() != null ? account.getAccountType().toString() : "", 90);
-		TableColumn<BankAccount, String> balanceCol = TableColumnFactory.createAmountColumn(getText("UI_TABLE_BALANCE"),
-				account -> account.getBalance() != null ? account.getBalance().toString() : "", 110);
-		TableColumn<BankAccount, String> updatedCol = TableColumnFactory.createUpdatedAtColumn(getText("UI_TABLE_UPDATED_AT"), BankAccount::getUpdatedAt, 90);
+		TableColumn<BankAccount, BigDecimal> balanceCol = TableColumnFactory.createAmountColumn(getText("UI_TABLE_BALANCE"),
+				BankAccount::getBalance, 110);
+		TableColumn<BankAccount, LocalDate> updatedCol = TableColumnFactory.createUpdatedAtColumn(getText("UI_TABLE_UPDATED_AT"),
+				BankAccount::getUpdatedAt, 90);
 
 		return List.of(selectedCol, nameCol, ibanCol, bankCol, typeCol, balanceCol, updatedCol);
 	}
