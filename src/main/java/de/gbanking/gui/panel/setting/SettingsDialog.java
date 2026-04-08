@@ -14,12 +14,12 @@ import java.util.stream.Collectors;
 import de.gbanking.db.DbExecutor;
 import de.gbanking.db.dao.Setting;
 import de.gbanking.db.dao.enu.DataType;
+import de.gbanking.gui.dialog.DialogWindowSupport;
 import de.gbanking.messages.Messages;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
@@ -33,7 +33,6 @@ import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -300,21 +299,11 @@ public class SettingsDialog {
 	}
 
 	private void showWarning(String text) {
-		Alert alert = new Alert(Alert.AlertType.WARNING);
-		alert.initOwner(parentWindow);
-		alert.setHeaderText(null);
-		alert.setContentText(text);
-		alert.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
-		alert.showAndWait();
+		DialogWindowSupport.showAlert(parentWindow, javafx.scene.control.Alert.AlertType.WARNING, text);
 	}
 
 	private void showInfo(String text) {
-		Alert alert = new Alert(Alert.AlertType.INFORMATION);
-		alert.initOwner(parentWindow);
-		alert.setHeaderText(null);
-		alert.setContentText(text);
-		alert.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
-		alert.showAndWait();
+		DialogWindowSupport.showAlert(parentWindow, javafx.scene.control.Alert.AlertType.INFORMATION, text);
 	}
 
 	private String getText(String key) {

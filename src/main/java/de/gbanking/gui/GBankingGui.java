@@ -20,6 +20,7 @@ import de.gbanking.db.DBController;
 import de.gbanking.db.DbRuntimeContext;
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.MoneyTransfer;
+import de.gbanking.gui.dialog.DialogWindowSupport;
 import de.gbanking.gui.dialog.tenant.TenantSelectionDialog;
 import de.gbanking.gui.enu.FileType;
 import de.gbanking.gui.enu.PageContext;
@@ -44,7 +45,6 @@ import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
@@ -52,7 +52,6 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.image.Image;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.Region;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
@@ -71,7 +70,6 @@ public class GBankingGui extends Application {
 	private final Map<String, String> optionsMap = new HashMap<>();
 	private final Map<String, OverviewBasePanel> overviewPanelMap = new HashMap<>();
 
-	private String choosenFile;
 	private GBankingBean bean;
 
 	private BorderPane root;
@@ -392,10 +390,7 @@ public class GBankingGui extends Application {
 		};
 		updateTask.setOnSucceeded(event -> overviewPanel.refreshOnShow());
 		updateTask.setOnFailed(event -> log.error("Error updating accounts", updateTask.getException()));
-
-		Thread thread = new Thread(updateTask, "gbanking-hbci-update-accounts");
-		thread.setDaemon(true);
-		thread.start();
+		startBackgroundTask(updateTask, "gbanking-hbci-update-accounts");
 	}
 
 	private void executeTransfers(PinAskDialog pinWindow) {
@@ -439,10 +434,7 @@ public class GBankingGui extends Application {
 			}
 		});
 		transferTask.setOnFailed(event -> log.error("Error executing transfers", transferTask.getException()));
-
-		Thread thread = new Thread(transferTask, "gbanking-hbci-execute-transfers");
-		thread.setDaemon(true);
-		thread.start();
+		startBackgroundTask(transferTask, "gbanking-hbci-execute-transfers");
 	}
 
 	private void showSettingsWindow() {
@@ -458,9 +450,12 @@ public class GBankingGui extends Application {
 	}
 
 	private void processImport() {
-		handleFileChooserDialog(FileType.XML);
+		Path importFile = chooseImportFile(FileType.XML);
+		if (importFile == null) {
+			return;
+		}
 		try {
-			importFile(FileType.XML);
+			importFile(importFile, FileType.XML);
 		} catch (Exception e) {
 			log.error("Import failed", e);
 		}
@@ -479,48 +474,52 @@ public class GBankingGui extends Application {
 			checkedAccounts = modelAccount.getAllAccounts();
 		}
 
-		handleFileChooserDialog(fileType);
+		Path exportFile = chooseExportFile(fileType);
+		if (exportFile == null) {
+			return;
+		}
 
 		try {
-			exportFile(checkedAccounts, fileType);
+			exportFile(exportFile, checkedAccounts, fileType);
 		} catch (Exception e) {
 			log.error("Export failed", e);
 		}
 	}
 
-	private void handleFileChooserDialog(FileType fileType) {
+	private Path chooseImportFile(FileType fileType) {
 		fileChooser.getExtensionFilters().clear();
 		fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(fileType.getDescription(), "*" + fileType.getSuffix()));
-
-		File selectedFile = fileChooser.showOpenDialog(primaryStage);
-
-		if (selectedFile != null) {
-			choosenFile = selectedFile.getAbsolutePath();
-			optionsMap.put(LAST_PATH_SELECTED, selectedFile.getParent());
-		}
+		return resolveSelectedFile(fileChooser.showOpenDialog(primaryStage));
 	}
 
-	private void importFile(FileType fileType) throws Exception {
-		if (choosenFile != null) {
-			FileImportProgressBarPanel progressPanel = new FileImportProgressBarPanel(primaryStage);
-			Stage progressWindow = progressPanel.createNewFileImportProgressBarWindow();
-			progressPanel.startTask(choosenFile, fileType, overviewPanel.getAccountListPanel());
-			progressWindow.show();
-		} else {
-			log.warn("no import file chosen!");
-		}
+	private Path chooseExportFile(FileType fileType) {
+		fileChooser.getExtensionFilters().clear();
+		fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(fileType.getDescription(), "*" + fileType.getSuffix()));
+		return resolveSelectedFile(fileChooser.showSaveDialog(primaryStage));
 	}
 
-	private void exportFile(List<BankAccount> checkedAccounts, FileType fileType) throws Exception {
-		if (choosenFile != null) {
-			FileExportProgressBarPanel progressPanel = new FileExportProgressBarPanel(primaryStage, checkedAccounts);
-
-			Stage progressWindow = progressPanel.createNewFileImportProgressBarWindow();
-			progressPanel.startTask(choosenFile, fileType, overviewPanel.getAccountListPanel());
-			progressWindow.show();
-		} else {
-			log.warn("no export file chosen!");
+	private Path resolveSelectedFile(File selectedFile) {
+		if (selectedFile == null) {
+			return null;
 		}
+
+		optionsMap.put(LAST_PATH_SELECTED, selectedFile.getParent());
+		return selectedFile.toPath();
+	}
+
+	private void importFile(Path chosenFile, FileType fileType) throws Exception {
+		FileImportProgressBarPanel progressPanel = new FileImportProgressBarPanel(primaryStage);
+		Stage progressWindow = progressPanel.createNewFileImportProgressBarWindow();
+		progressPanel.startTask(chosenFile.toString(), fileType, overviewPanel.getAccountListPanel());
+		progressWindow.show();
+	}
+
+	private void exportFile(Path chosenFile, List<BankAccount> checkedAccounts, FileType fileType) throws Exception {
+		FileExportProgressBarPanel progressPanel = new FileExportProgressBarPanel(primaryStage, checkedAccounts);
+
+		Stage progressWindow = progressPanel.createNewFileImportProgressBarWindow();
+		progressPanel.startTask(chosenFile.toString(), fileType, overviewPanel.getAccountListPanel());
+		progressWindow.show();
 	}
 
 	private void shutdownApplication() {
@@ -564,16 +563,10 @@ public class GBankingGui extends Application {
 		root = null;
 		statusLabel = null;
 		versionLabel = null;
-		choosenFile = null;
 	}
 
 	private void showWarning(String text) {
-		Alert alert = new Alert(Alert.AlertType.WARNING);
-		alert.initOwner(primaryStage);
-		alert.setHeaderText(null);
-		alert.setContentText(text);
-		alert.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
-		alert.showAndWait();
+		DialogWindowSupport.showAlert(primaryStage, javafx.scene.control.Alert.AlertType.WARNING, text);
 	}
 
 	private String getText(String key) {
@@ -586,6 +579,12 @@ public class GBankingGui extends Application {
 		} catch (Exception e) {
 			log.error("IOException: {}", e.getMessage());
 		}
+	}
+
+	private void startBackgroundTask(Task<?> task, String threadName) {
+		Thread thread = new Thread(task, threadName);
+		thread.setDaemon(true);
+		thread.start();
 	}
 
 	public static void main(String[] args) {

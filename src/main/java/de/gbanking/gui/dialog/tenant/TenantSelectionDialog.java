@@ -17,7 +17,6 @@ import de.gbanking.tenant.TenantProfile;
 import de.gbanking.tenant.TenantStore;
 import javafx.collections.FXCollections;
 import javafx.geometry.Pos;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
@@ -26,7 +25,6 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.PasswordField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
@@ -112,12 +110,7 @@ public class TenantSelectionDialog {
 	}
 
 	private void showDeleteError(Stage dialog, String message) {
-		Alert alert = new Alert(Alert.AlertType.ERROR);
-		alert.initOwner(parentWindow != null ? parentWindow : dialog);
-		alert.setHeaderText(null);
-		alert.setContentText(message);
-		alert.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
-		alert.showAndWait();
+		DialogWindowSupport.showAlert(parentWindow != null ? parentWindow : dialog, javafx.scene.control.Alert.AlertType.ERROR, message);
 	}
 
 	private String getText(String key) {
@@ -342,12 +335,8 @@ public class TenantSelectionDialog {
 	}
 
 	private boolean confirmDelete(Stage dialog, TenantProfile selectedTenant) {
-		Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION, getText("UI_QUESTION_TENANT_DELETE", selectedTenant.username()), ButtonType.OK,
-				ButtonType.CANCEL);
-		confirmation.initOwner(parentWindow != null ? parentWindow : dialog);
-		confirmation.setHeaderText(null);
-		confirmation.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
-		return confirmation.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
+		return DialogWindowSupport.showConfirmation(parentWindow != null ? parentWindow : dialog, getText("UI_QUESTION_TENANT_DELETE",
+				selectedTenant.username()), ButtonType.OK, ButtonType.CANCEL);
 	}
 
 	private void updateTenantActionState(boolean hasSelection, Button loginButton, Button editButton, Button deleteButton) {

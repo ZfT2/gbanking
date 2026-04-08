@@ -624,6 +624,9 @@ public class GBankingBean extends BaseBean implements Serializable {
 		passport.setCountry("DE");
 
 		BankInfo info = HBCIUtils.getBankInfo(bankAccess.getBlz());
+		if (info == null || info.getPinTanAddress() == null || info.getPinTanAddress().isBlank()) {
+			throw new GBankingException("No FinTS address available for bank code: " + bankAccess.getBlz());
+		}
 		passport.setHost(info.getPinTanAddress());
 		passport.setPort(443);
 
@@ -646,8 +649,8 @@ public class GBankingBean extends BaseBean implements Serializable {
 	public void postRetriveActions(List<BankAccount> accountsList) {
 		for (BankAccount account : accountsList) {
 			adjustRebookings(account);
-			setCategories(account);
 		}
+		applyCategoryRules(accountsList);
 	}
 
 	void adjustRebookings(BankAccount checkedAccount) {
@@ -666,10 +669,22 @@ public class GBankingBean extends BaseBean implements Serializable {
 		}
 	}
 	
+	private void applyCategoryRules(List<BankAccount> checkedAccounts) {
+		if (checkedAccounts == null || checkedAccounts.isEmpty()) {
+			return;
+		}
 
-	private void setCategories(BankAccount checkedAccount) {
-		// TODO Auto-generated method stub
-		
+		Set<Integer> checkedAccountIds = checkedAccounts.stream().map(BankAccount::getId).collect(java.util.stream.Collectors.toSet());
+		for (CategoryRule categoryRule : dbController.getAll(CategoryRule.class)) {
+			if (appliesToAnyCheckedAccount(categoryRule, checkedAccountIds)) {
+				applyCategoryRule(categoryRule);
+			}
+		}
+	}
+
+	private boolean appliesToAnyCheckedAccount(CategoryRule categoryRule, Set<Integer> checkedAccountIds) {
+		Set<Integer> ruleAccountIds = getAllowedAccountIds(categoryRule);
+		return ruleAccountIds.isEmpty() || ruleAccountIds.stream().anyMatch(checkedAccountIds::contains);
 	}
 	
 	void refreshBankAccount(BankAccount bankAccount) {

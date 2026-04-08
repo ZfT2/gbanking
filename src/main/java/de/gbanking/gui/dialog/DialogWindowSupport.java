@@ -9,7 +9,10 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Button;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -51,6 +54,27 @@ public final class DialogWindowSupport {
 
 	public static Scene createScene(Parent root, double width, double height) {
 		return new Scene(root, width, height);
+	}
+
+	public static void showAlert(Window parentWindow, Alert.AlertType alertType, String text) {
+		Alert alert = new Alert(alertType);
+		if (parentWindow != null) {
+			alert.initOwner(parentWindow);
+		}
+		alert.setHeaderText(null);
+		alert.setContentText(text);
+		alert.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
+		alert.showAndWait();
+	}
+
+	public static boolean showConfirmation(Window parentWindow, String text, ButtonType... buttonTypes) {
+		Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION, text, buttonTypes);
+		if (parentWindow != null) {
+			confirmation.initOwner(parentWindow);
+		}
+		confirmation.setHeaderText(null);
+		confirmation.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
+		return confirmation.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
 	}
 
 	public static void setVgrowAlways(Node... nodes) {

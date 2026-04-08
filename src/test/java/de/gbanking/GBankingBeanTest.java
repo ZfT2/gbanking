@@ -311,6 +311,41 @@ class GBankingBeanTest {
 	}
 
 	@Test
+	void testPostRetrieveActions_AppliesMatchingCategoryRules() {
+		BankAccount account = TestData.createSampleAccount(null);
+		account = dbController.insertOrUpdate(account);
+
+		Recipient recipient = new Recipient("Supermarkt Sued", "DE00000000000000003000");
+		recipient.setSource(Source.IMPORT_INITIAL);
+		recipient = dbController.insertOrUpdate(recipient);
+
+		Booking booking = new Booking();
+		booking.setAccountId(account.getId());
+		booking.setDateBooking(LocalDate.of(2025, 10, 20));
+		booking.setDateValue(LocalDate.of(2025, 10, 20));
+		booking.setAmount(BigDecimal.valueOf(-25.00));
+		booking.setPurpose("Wocheneinkauf");
+		booking.setBookingType(BookingType.REMOVAL);
+		booking.setSource(Source.IMPORT_INITIAL);
+		booking.setRecipientId(recipient.getId());
+		booking = dbController.insertOrUpdate(booking);
+
+		Category category = dbController.insertOrUpdate(TestData.createSampleCategory("Lebensmittel"));
+
+		CategoryRule categoryRule = new CategoryRule();
+		categoryRule.setCategory(category);
+		categoryRule.setJoinType(CategoryRule.JoinType.AND);
+		categoryRule.setFilterPurpose("einkauf");
+		dbController.insertOrUpdate(categoryRule);
+
+		account = dbController.getByIdFull(BankAccount.class, account.getId());
+		gBankingBean.postRetriveActions(List.of(account));
+
+		booking = dbController.getByIdFull(Booking.class, booking.getId());
+		assertEquals(category.getId(), booking.getCategory().getId());
+	}
+
+	@Test
 	void testSaveMoneyTransferToDB_WithStandingOrderData_PersistsExtendedFields() {
 		BankAccount account = TestData.createSampleAccount(null);
 		account = dbController.insertOrUpdate(account);
