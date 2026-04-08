@@ -3,15 +3,12 @@ package de.gbanking;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -22,9 +19,6 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.kapott.hbci.GV.HBCIJob;
-import org.kapott.hbci.GV_Result.GVRKUms;
-import org.kapott.hbci.GV_Result.GVRKUms.UmsLine;
-import org.kapott.hbci.GV_Result.GVRSaldoReq;
 import org.kapott.hbci.GV_Result.HBCIJobResult;
 import org.kapott.hbci.manager.BankInfo;
 import org.kapott.hbci.manager.HBCIHandler;
@@ -34,13 +28,11 @@ import org.kapott.hbci.passport.AbstractHBCIPassport;
 import org.kapott.hbci.passport.HBCIPassport;
 import org.kapott.hbci.status.HBCIExecStatus;
 import org.kapott.hbci.structures.Konto;
-import org.kapott.hbci.structures.Value;
 
 import de.gbanking.db.StatementsConfig;
 import de.gbanking.db.dao.BankAccess;
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.Booking;
-import de.gbanking.db.dao.BusinessCase;
 import de.gbanking.db.dao.Category;
 import de.gbanking.db.dao.CategoryRule;
 import de.gbanking.db.dao.MoneyTransfer;
@@ -74,6 +66,8 @@ public class GBankingBean extends BaseBean implements Serializable {
 	private static final HBCIVersion VERSION = HBCIVersion.HBCI_300;
 	
 	private static GBankingLoggingHandler logHandler = GBankingLoggingHandler.getInstance();
+	private final MoneyTransferExecutionService moneyTransferExecutionService = new MoneyTransferExecutionService(this);
+	private final AccountTransactionService accountTransactionService = new AccountTransactionService(this, logHandler);
 	
 	public boolean addNewBankAccess(BankAccess bankAccess) {
 
@@ -168,195 +162,17 @@ public class GBankingBean extends BaseBean implements Serializable {
 	}
 	
 	public boolean retrieveAccountTransactions(BankAccount bankAccount, char[] pin) {
-
-		boolean result = false;
-
-		BankAccess bankAccess = initBankAccess(bankAccount, pin);
-		
-		LocalDate lastBookingDate = getAccountLastBookingDate(bankAccount);
-		
-		GBankingHBCICallback hbciCallback = new GBankingHBCICallback(bankAccess);
-		hbciCallback.startStatusDialog();
-		HBCIPassport passport = initBankConnection(bankAccess, hbciCallback);
-		
-		refreshBankAccount(bankAccount);
-		updatePreviousNewBookings(bankAccount);
-		
-		try (HBCIHandler handle = new HBCIHandler(VERSION.getId(), passport)){
-
-			logHandler.logRetrivedBankAccessInfo(passport, false);
-
-			Konto[] konten = getHbciAccountsFromPassport(passport);
-
-			for (Konto konto : konten) {
-
-				if (hbciKontosMatches(bankAccount, konto)) {
-					logHandler.logRetrievedAccountInfo(konto);
-
-					HBCIJob<GVRSaldoReq> saldoJob = createAndAddHbciJob(handle, "SaldoReq",  Map.of("my", konto));
-
-					HBCIJob<GVRKUms> umsatzJob = null;
-					if (lastBookingDate != null) {
-						umsatzJob = createAndAddHbciJob(handle, "KUmsAllCamt", Map.of("my", konto, "startdate", (java.util.Date.from(lastBookingDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()))));
-					} else {
-						umsatzJob = createAndAddHbciJob(handle, "KUmsAllCamt", Map.of("my", konto));
-					}
-
-					HBCIExecStatus status = handle.execute();
-					result = status.isOK();
-					
-					if (!result) {
-						log.error("HBCI Error, Status: {}", status);
-						hbciCallback.handleFailure(status.getErrorString());
-					}
-
-					readSaldo(saldoJob);
-
-					List<UmsLine> buchungen = readUms(umsatzJob);
-					
-					saveHbciBookingsForAccount(bankAccount, buchungen);
-
-					break;
-				}
-			}
-
-		} catch (Exception e) {
-			hbciCallback.handleException(e);
-			log.error("Error in handling HBCI calls: ", e);
-			result = false;
-		} finally {
-			clearSecret(pin);
-			hbciCallback.finishStatusDialog();
-			passport.close();
-		}
-
-		return result;
+		return accountTransactionService.retrieveAccountTransactions(bankAccount, pin);
 	}
 
-	void saveHbciBookingsForAccount(BankAccount bankAccount, List<UmsLine> buchungen) {
-		List<Booking> newBookingsList = new ArrayList<>();
-		Map<Recipient, Set<Integer>> recipientBookingMap = new HashMap<>();
-
-		for (UmsLine buchung : buchungen) {
-
-			logHandler.logRetrivedBookingInfo(buchung);
-
-			Booking newBooking = HbciMapper.mapUmsLineToBooking(bankAccount.getId(), buchung);
-
-			log.debug("Konto other: {}", buchung.other);
-
-			Recipient recipient = HbciMapper.mapUmsLineKontoToRecipient(buchung.other);
-
-			if (recipient != null) {
-				Recipient recipientDb = dbController.find(Recipient.class, recipient);
-				if (recipientDb == null) {
-					recipientDb = dbController.insertOrUpdate(recipient);
-				}
-				newBooking.setRecipient(recipientDb);
-			}
-
-			newBookingsList.add(newBooking);
-		}
-
-		dbController.insertAccountBookings(newBookingsList);
-		
-		for (Booking booking : newBookingsList) {
-			Recipient recipient = booking.getRecipient();
-			if (recipient != null) {
-				Set<Integer> existingBookingIds = recipientBookingMap.get(recipient);
-				if (existingBookingIds == null) {
-					recipientBookingMap.put(recipient, new HashSet<>(Arrays.asList(booking.getId())));
-				} else {
-					existingBookingIds.add(booking.getId());
-					recipientBookingMap.put(recipient, existingBookingIds);
-				}
-			}
-		}
-		
-		dbController.updateBookingsWithRecipients(recipientBookingMap);
-		
-	}
-
-	private void updatePreviousNewBookings(BankAccount bankAccount) {
-		
-		for (Booking booking : bankAccount.getBookings()) {
-			booking.setSource(booking.getSource().getCorresponding());
-		}
-		
-		dbController.executeSimpleUpdate(Arrays.asList(bankAccount), StatementsConfig.StatementType.UPDATE_BOOKING_SOURCE, Booking.class);
-	}
-
-	private void readSaldo(HBCIJob<GVRSaldoReq> saldoJob) {
-		GVRSaldoReq saldoResult = saldoJob.getJobResult();
-		if (!saldoResult.isOK())
-			log.error("Error in retrieving Saldo: {}", saldoResult);
-
-		Value s = saldoResult.getEntries()[0].ready.value;
-		log.info("Saldo: {}", s);
-	}
-
-	private List<UmsLine> readUms(HBCIJob<GVRKUms> umsatzJob) {
-		GVRKUms umsResult = umsatzJob.getJobResult();
-
-		if (!umsResult.isOK())
-			log.error("Error in retrieving Umsatz: {}", umsResult);
-
-		return umsResult.getFlatData();
-	}
-
-	private boolean hbciKontosMatches(BankAccount bankAccount, Konto konto) {
-		return bankAccount.getIban() != null && bankAccount.getIban().equalsIgnoreCase(konto.iban)
-				|| bankAccount.getNumber() != null && bankAccount.getNumber().equalsIgnoreCase(konto.number);
-	}
-
-	<T extends HBCIJobResult> HBCIJob<T> createAndAddHbciJob(HBCIHandler handle, String jobDescription, Map<String, Object> params) {
-		HBCIJob<T> job = newHbciJob(handle, jobDescription);
-
-		for (Entry<String, Object> param : params.entrySet()) {
-			Object value = param.getValue();
-
-			if (value instanceof String s) {
-				job.setParam(param.getKey(), s);
-			} else if (value instanceof Date d) {
-				job.setParam(param.getKey(), d);
-			} else if (value instanceof Integer i) {
-				job.setParam(param.getKey(), i);
-			} else if (value instanceof Konto k) {
-				job.setParam(param.getKey(), k);
-			} else {
-				if (value == null)
-					log.log(Level.ERROR, () -> getText("HBCI_PARAM_NULL", param.getKey()));
-				else {
-					log.log(Level.ERROR, () -> getText("HBCI_PARAM_UNKNOWN_TYPE", param.getKey(), value.getClass().getName()));
-				}
-			}
-		}
-		job.addToQueue();
-
-		return job;
-	}
-
-	private Konto[] getHbciAccountsFromPassport(HBCIPassport passport) {
-		Konto[] konten = passport.getAccounts();
-		if (konten == null || konten.length == 0) {
-			log.error("No Accounts were found on bank site");
-		} else {
-			log.info("Number of accounts found: {}", konten.length);
-		}
-		return konten;
+	void saveHbciBookingsForAccount(BankAccount bankAccount, List<org.kapott.hbci.GV_Result.GVRKUms.UmsLine> buchungen) {
+		accountTransactionService.saveHbciBookingsForAccount(bankAccount, buchungen);
 	}
 	
 	
 	public List<MoneyTransfer> retrieveOpenTransfers() {
-		
-		List<MoneyTransfer> opnenMoneytransferList = dbController.getAllWithFilter(MoneyTransfer.class, MoneyTransferStatus.NEW);
-		
-//		for (MoneyTransfer moneytransfer : opnenMoneytransferList) {
-//			BankAccount bankAccount = dbController.getById(BankAccount.class, moneytransfer.getAccountId(), false);
-//			result = executeTransfer(moneytransfer, bankAccount);
-//		}
-		
-		return opnenMoneytransferList;
+		List<MoneyTransfer> openMoneytransferList = dbController.getAllWithFilter(MoneyTransfer.class, MoneyTransferStatus.NEW);
+		return openMoneytransferList;
 	}
 	
 	public BankAccount getAccountForOpenMoneytransfers(int accountId) {
@@ -364,69 +180,10 @@ public class GBankingBean extends BaseBean implements Serializable {
 	}
 	
 	public boolean executeTransfer(MoneyTransfer moneyTransfer, BankAccount bankAccount, char[] pin) {
-
-		boolean result = false;
-		BankAccount transferAccount = resolveBankAccountForTransfer(bankAccount);
-
-		if (transferAccount == null || !supportsTransferOrderType(transferAccount, moneyTransfer.getOrderType())) {
-			log.warn("Transfer order type {} is not supported for account {}", moneyTransfer.getOrderType(),
-					transferAccount != null ? transferAccount.getAccountName() : null);
-			moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.ERROR);
-			dbController.insertOrUpdate(moneyTransfer);
-			return false;
-		}
-
-		BankAccess bankAccess = initBankAccess(transferAccount, pin);
-		if (bankAccess == null) {
-			moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.ERROR);
-			dbController.insertOrUpdate(moneyTransfer);
-			return false;
-		}
-		GBankingHBCICallback hbciCallback = new GBankingHBCICallback(bankAccess);
-		hbciCallback.startStatusDialog();
-		HBCIPassport passport = initBankConnection(bankAccess, hbciCallback);
-		
-		try (HBCIHandler handle = createHBCIHandler(VERSION.getId(), passport)) {
-
-			Konto hbciSenderAccount = getSenderAccount(passport, transferAccount); /* passport.getAccounts()[0]; */
-			Konto hbciRecipientAccount = createRecipientAccount(moneyTransfer);
-			HBCIJob<HBCIJobResult> job = createTransferJob(handle, moneyTransfer, hbciSenderAccount, hbciRecipientAccount);
-
-			job.addToQueue();
-			HBCIExecStatus status = handle.execute();
-			HBCIJobResult jobResult = job.getJobResult();
-
-			result = status.isOK() && (jobResult == null || jobResult.isOK());
-			updateMoneyTransferAfterExecution(moneyTransfer, hbciCallback, status, jobResult, result);
-			dbController.insertOrUpdate(moneyTransfer);
-
-		} catch (Exception ex) {
-			hbciCallback.handleException(ex);
-			ex.printStackTrace();
-			throw new GBankingException(getText("EXCEPTION_MONEYTRANSFER_SENDING_ACCOUNT_NOT_FOUND"), ex);
-		} finally {
-			clearSecret(pin);
-			hbciCallback.finishStatusDialog();
-			passport.close();
-		}
-		return result;
+		return moneyTransferExecutionService.executeTransfer(moneyTransfer, bankAccount, pin);
 	}
 	
 	public MoneyTransfer saveMoneyTransferToDB(MoneyTransferForm mtf) {
-		
-		/*
-		 * Recipient recipientForm = mt.getRecipient();
-		 * 
-		 * Recipient recipientDb = dbController.find(Recipient.class, (new
-		 * Recipient(recipientForm.getName(), recipientForm.getIban()))); if
-		 * (recipientDb == null) { recipientDb = new Recipient(recipientForm.getName(),
-		 * recipientForm.getIban(), recipientForm.getBic(), null, null,
-		 * recipientForm.getBank(), Source.MONEYTRANSFER); recipientDb =
-		 * dbController.insertOrUpdate(recipientDb);
-		 * log.info("created new Recipient with id: {}", recipientDb.getId()); }
-		 * 
-		 */
-
 		Recipient recipient = dbController.find(Recipient.class, (new Recipient(mtf.getRecipientName(), mtf.getIban())));
 		if (recipient == null) {
 			recipient = new Recipient(mtf.getRecipientName(), mtf.getIban(), mtf.getBic(), null, null, mtf.getBank(), Source.MONEYTRANSFER);
@@ -609,7 +366,7 @@ public class GBankingBean extends BaseBean implements Serializable {
 
 	HBCIPassport initBankConnection(BankAccess bankAccess, GBankingHBCICallback hbciCallback) {
 		Properties props = new Properties();
-		HBCIUtils.init(props, /* new HBCICallbackSwing() */ hbciCallback);
+		HBCIUtils.init(props, hbciCallback);
 
 		HBCIUtils.setParam("client.passport.PinTan.init", "1");
 
@@ -620,7 +377,7 @@ public class GBankingBean extends BaseBean implements Serializable {
 		else
 			log.warn("Product-Key noch found!");
 
-		HBCIPassport passport = AbstractHBCIPassport.getInstance("PinTanDB", bankAccess.getBlz()); //getInstance("PinTanDB");
+		HBCIPassport passport = AbstractHBCIPassport.getInstance("PinTanDB", bankAccess.getBlz());
 		passport.setCountry("DE");
 
 		BankInfo info = HBCIUtils.getBankInfo(bankAccess.getBlz());
@@ -687,120 +444,12 @@ public class GBankingBean extends BaseBean implements Serializable {
 		return ruleAccountIds.isEmpty() || ruleAccountIds.stream().anyMatch(checkedAccountIds::contains);
 	}
 	
-	void refreshBankAccount(BankAccount bankAccount) {
-		List<Booking> bookingList = dbController.getAllByParent(Booking.class, bankAccount.getId());
-		bankAccount.setBookings(bookingList);
-	}
-	
 	HBCIHandler createHBCIHandler(String versionId, HBCIPassport passport) {
 	    return new HBCIHandler(versionId, passport);
 	}
 
-	private HBCIJob<HBCIJobResult> createTransferJob(HBCIHandler handle, MoneyTransfer moneyTransfer, Konto senderAccount, Konto recipientAccount) {
-		HBCIJob<HBCIJobResult> job = newHbciJob(handle, resolveJobName(moneyTransfer.getOrderType()));
-		job.setParam("src", senderAccount);
-		job.setParam("dst", recipientAccount);
-		job.setParam("btg.value", moneyTransfer.getAmount().toPlainString());
-		job.setParam("btg.curr", "EUR");
-		job.setParam("usage", moneyTransfer.getPurpose());
-
-		switch (moneyTransfer.getOrderType()) {
-		case SCHEDULED_TRANSFER -> job.setParam("date", toUtilDate(moneyTransfer.getExecutionDate()));
-		case STANDING_ORDER -> applyStandingOrderParams(job, moneyTransfer);
-		case TRANSFER, REALTIME_TRANSFER -> {
-			// no-op
-		}
-		default -> throw new GBankingException("Unsupported transfer order type: " + moneyTransfer.getOrderType());
-		}
-
-		return job;
-	}
-
-	private void applyStandingOrderParams(HBCIJob<HBCIJobResult> job, MoneyTransfer moneyTransfer) {
-		if (moneyTransfer.getExecutionDate() == null || moneyTransfer.getExecutionDay() == null || moneyTransfer.getStandingorderMode() == null) {
-			throw new GBankingException(getText("ALERT_MONEYTRANSFER_REQUIRED_FIELD_MISSING"));
-		}
-
-		job.setParam("firstdate", toUtilDate(moneyTransfer.getExecutionDate()));
-		job.setParam("timeunit", "M");
-		job.setParam("turnus", determineStandingOrderTurnus(moneyTransfer.getStandingorderMode()));
-		job.setParam("execday", formatStandingOrderExecutionDay(moneyTransfer.getExecutionDay()));
-	}
-
-	private String resolveJobName(OrderType orderType) {
-		return switch (orderType) {
-		case TRANSFER -> "UebSEPA";
-		case REALTIME_TRANSFER -> "InstUebSEPA";
-		case SCHEDULED_TRANSFER -> "TermUebSEPA";
-		case STANDING_ORDER -> "DauerSEPANew";
-		};
-	}
-
-	private Konto createRecipientAccount(MoneyTransfer moneyTransfer) {
-		Konto hbciRecipientAccount = new Konto();
-		hbciRecipientAccount.iban = moneyTransfer.getRecipient().getIban();
-		hbciRecipientAccount.bic = moneyTransfer.getRecipient().getBic();
-		hbciRecipientAccount.name = moneyTransfer.getRecipient().getName();
-		return hbciRecipientAccount;
-	}
-
-	private Date toUtilDate(LocalDate date) {
-		return date == null ? null : Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant());
-	}
-
-	private String determineStandingOrderTurnus(de.gbanking.db.dao.enu.StandingorderMode standingorderMode) {
-		return switch (standingorderMode) {
-		case MONTHLY -> "1";
-		case BIMONTHLY -> "2";
-		case QUARTERLY -> "3";
-		case SEMI_ANNUALLY -> "6";
-		case ANNUALLY -> "12";
-		};
-	}
-
-	private String formatStandingOrderExecutionDay(Integer executionDay) {
-		if (executionDay == null) {
-			return null;
-		}
-		if (executionDay >= 31) {
-			return "31";
-		}
-		return String.format("%02d", executionDay);
-	}
-
-	BankAccount resolveBankAccountForTransfer(BankAccount bankAccount) {
-		if (bankAccount == null) {
-			return null;
-		}
-
-		if (bankAccount.getId() > 0) {
-			BankAccount accountFromDb = dbController.getByIdFull(BankAccount.class, bankAccount.getId());
-			if (accountFromDb != null) {
-				return accountFromDb;
-			}
-		}
-
-		return bankAccount;
-	}
-
 	boolean supportsTransferOrderType(BankAccount bankAccount, OrderType orderType) {
-		if (bankAccount == null || orderType == null) {
-			return false;
-		}
-
-		List<BusinessCase> allowedBusinessCases = bankAccount.getAllowedBusinessCases();
-		if (allowedBusinessCases == null || allowedBusinessCases.isEmpty()) {
-			return true;
-		}
-
-		Set<String> supportedCases = allowedBusinessCases.stream()
-				.map(BusinessCase::getCaseValue)
-				.filter(value -> value != null && !value.isBlank())
-				.map(String::trim)
-				.map(String::toUpperCase)
-				.collect(java.util.stream.Collectors.toSet());
-
-		return getRequiredBusinessCases(orderType).stream().anyMatch(supportedCases::contains);
+		return moneyTransferExecutionService.supportsTransferOrderType(bankAccount, orderType);
 	}
 
 	private void clearSecret(char[] secret) {
@@ -810,42 +459,12 @@ public class GBankingBean extends BaseBean implements Serializable {
 	}
 
 	@SuppressWarnings("unchecked")
-	private <T extends HBCIJobResult> HBCIJob<T> newHbciJob(HBCIHandler handle, String jobDescription) {
+	<T extends HBCIJobResult> HBCIJob<T> newHbciJob(HBCIHandler handle, String jobDescription) {
 		return handle.newJob(jobDescription);
 	}
 
-	private void updateMoneyTransferAfterExecution(MoneyTransfer moneyTransfer, GBankingHBCICallback hbciCallback, HBCIExecStatus status,
-			HBCIJobResult jobResult, boolean success) {
-		if (!success) {
-			log.error("HBCI Error, Status: {}", status);
-			if (jobResult != null && !jobResult.isOK()) {
-				hbciCallback.handleFailure(jobResult.getJobStatus().toString());
-			}
-			hbciCallback.handleFailure(status.getErrorString());
-			moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.ERROR);
-			return;
-		}
-
-		if (moneyTransfer.getOrderType() == OrderType.TRANSFER || moneyTransfer.getOrderType() == OrderType.REALTIME_TRANSFER) {
-			moneyTransfer.setExecutionDate(LocalDate.now());
-		}
-		moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.SENT);
-	}
-
-	Set<String> getRequiredBusinessCases(OrderType orderType) {
-		return switch (orderType) {
-		case TRANSFER -> Set.of("UEBSEPA", "HKCCS");
-		case REALTIME_TRANSFER -> Set.of("INSTUEBSEPA", "HKIPZ");
-		case SCHEDULED_TRANSFER -> Set.of("TERMUEBSEPA", "HKCSE");
-		case STANDING_ORDER -> Set.of("DAUERSEPANEW", "HKDSE");
-		};
-	}
-
-	
-	/** shortcut methods **/
-	
-	private LocalDate getAccountLastBookingDate(BankAccount bankAccount){
-		return dbController.getSingleResultField(bankAccount, StatementsConfig.StatementType.SELECT_ACCOUNT_LAST_BOOKING_DATE, LocalDate.class);
+	static HBCIVersion getVersion() {
+		return VERSION;
 	}
 
 	public void setup() {
