@@ -133,7 +133,7 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 	private void handleAccountsTransactionsSelection(BankAccount selectedAccount) {
 		log.log(Level.INFO, () -> getText("LOG_ACCOUNT_SELECTED", selectedAccount.getId()));
 
-		List<Booking> bookingList = dbController.getAllByParent(Booking.class, selectedAccount.getId());
+		List<Booking> bookingList = dbController.getAllByParentFull(Booking.class, selectedAccount.getId());
 		AccountsTransactionsOverviewPanel parent = (AccountsTransactionsOverviewPanel) parentPanel;
 		TransactionListPanel transactionListPanel = parent.getTransactionListPanel();
 
@@ -160,6 +160,10 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 
 	public AccountTableModel getModelAccount() {
 		return modelAccount;
+	}
+
+	public BankAccount getSelectedAccount() {
+		return tableView.getSelectionModel().getSelectedItem();
 	}
 
 	private static AccountTableModel createModel() {

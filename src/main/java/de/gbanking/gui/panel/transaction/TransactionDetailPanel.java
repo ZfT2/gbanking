@@ -499,6 +499,28 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 		refreshReferenceChoices();
 	}
 
+	public void startNewManualBooking() {
+		performNew();
+	}
+
+	public void startEditDisplayedBooking() {
+		if (displayedBooking != null) {
+			performEdit();
+		}
+	}
+
+	public void clearDisplayedBooking() {
+		displayedBooking = null;
+		context = EditContext.READONLY;
+		editButton.setText(getText("UI_BUTTON_EDIT"));
+		editButton.setDisable(true);
+		newButton.setDisable(false);
+		clearFields();
+		refreshSourceChoices(false);
+		enableFields(false);
+		updateActionButtons();
+	}
+
 	private void updateActionButtons() {
 		boolean showDelete = canDeleteDisplayedBooking() && context == EditContext.EDIT;
 		newButton.setManaged(!showDelete);
@@ -552,7 +574,7 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 
 	private void reloadParentData() {
 		if (currentAccount != null && parentPanel.getPageContext() == de.gbanking.gui.enu.PageContext.ACCOUNTS_TRANSACTIONS) {
-			parentPanel.getTransactionListPanel().updateModelBooking(dbController.getAllByParent(Booking.class, currentAccount.getId()));
+			parentPanel.getTransactionListPanel().updateModelBooking(dbController.getAllByParentFull(Booking.class, currentAccount.getId()));
 			parentPanel.getTransactionListPanel().updatePanelBorder(getText("UI_PANEL_TRANSACTIONS") + " - " + currentAccount.getAccountName());
 			return;
 		}

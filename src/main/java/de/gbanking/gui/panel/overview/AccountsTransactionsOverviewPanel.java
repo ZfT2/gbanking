@@ -3,6 +3,7 @@ package de.gbanking.gui.panel.overview;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import de.gbanking.db.dao.BankAccount;
 import de.gbanking.gui.enu.PageContext;
 import de.gbanking.gui.panel.account.AccountDetailPanel;
 import de.gbanking.gui.panel.account.AccountListPanel;
@@ -63,6 +64,10 @@ public class AccountsTransactionsOverviewPanel extends TransactionsOverviewBaseP
 
 	public AccountDetailPanel getAccountDetailPanel() {
 		return accountDetailPanel;
+	}
+
+	public BankAccount getSelectedAccount() {
+		return accountListPanel != null ? accountListPanel.getSelectedAccount() : null;
 	}
 
 	public void enableAccountDetailPanel() {

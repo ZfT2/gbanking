@@ -244,11 +244,41 @@ public class GBankingBean extends BaseBean implements Serializable {
 	}
 	
 	public List<Booking> getBookingsForAccount(int accountId){
-		return dbController.getAllByParent(Booking.class, accountId);
+		return dbController.getAllByParentFull(Booking.class, accountId);
 	}
 	
 	public List<Booking> getAllBookings(){
 		return dbController.getAllFull(Booking.class);
+	}
+
+	public int deleteBookingsInBlock(Booking referenceBooking, boolean deleteFromDate) {
+		if (referenceBooking == null || referenceBooking.getAccountId() <= 0 || !isBlockDeleteSource(referenceBooking.getSource())) {
+			return 0;
+		}
+
+		LocalDate referenceDate = getRelevantBookingDate(referenceBooking);
+		if (referenceDate == null) {
+			return 0;
+		}
+
+		List<Booking> bookingsToDelete = dbController.getAllByParentFull(Booking.class, referenceBooking.getAccountId()).stream()
+				.filter(booking -> booking != null && isSameDeletionSourceFamily(referenceBooking.getSource(), booking.getSource()))
+				.filter(booking -> {
+					LocalDate bookingDate = getRelevantBookingDate(booking);
+					if (bookingDate == null) {
+						return false;
+					}
+					return deleteFromDate ? !bookingDate.isBefore(referenceDate) : !bookingDate.isAfter(referenceDate);
+				})
+				.toList();
+
+		int deletedCount = 0;
+		for (Booking booking : bookingsToDelete) {
+			if (dbController.delete(booking, null)) {
+				deletedCount++;
+			}
+		}
+		return deletedCount;
 	}
 	
 	
@@ -345,6 +375,32 @@ public class GBankingBean extends BaseBean implements Serializable {
 			}
 		}
 		return value.toLowerCase().contains(filter.toLowerCase());
+	}
+
+	private boolean isBlockDeleteSource(Source source) {
+		return isOnlineSource(source) || isImportSource(source);
+	}
+
+	private boolean isSameDeletionSourceFamily(Source referenceSource, Source checkedSource) {
+		if (referenceSource == null || checkedSource == null) {
+			return false;
+		}
+		return isOnlineSource(referenceSource) && isOnlineSource(checkedSource) || isImportSource(referenceSource) && isImportSource(checkedSource);
+	}
+
+	private boolean isOnlineSource(Source source) {
+		return source == Source.ONLINE || source == Source.ONLINE_NEW || source == Source.ONLINE_PRENO || source == Source.ONLINE_PRENO_NEW;
+	}
+
+	private boolean isImportSource(Source source) {
+		return source == Source.IMPORT || source == Source.IMPORT_NEW || source == Source.IMPORT_INITIAL || source == Source.IMPORT_INITIAL_NEW;
+	}
+
+	private LocalDate getRelevantBookingDate(Booking booking) {
+		if (booking == null) {
+			return null;
+		}
+		return booking.getDateBooking() != null ? booking.getDateBooking() : booking.getDateValue();
 	}
 
 	BankAccess initBankAccess(BankAccount bankAccount, char[] pin) {

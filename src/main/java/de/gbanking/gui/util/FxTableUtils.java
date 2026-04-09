@@ -11,12 +11,15 @@ import java.util.function.Function;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Pos;
+import javafx.scene.paint.Color;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.cell.CheckBoxTableCell;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
+import javafx.scene.text.Text;
 import javafx.util.Callback;
 
 public final class FxTableUtils {
@@ -49,28 +52,46 @@ public final class FxTableUtils {
 		return column -> new TableCell<>() {
 
 			private final DecimalFormat format = createGermanDecimalFormat();
+			private final Text textNode = createAmountText();
+			private final HBox graphic = createAmountGraphic(textNode);
 
 			@Override
 			protected void updateItem(BigDecimal item, boolean empty) {
 				super.updateItem(item, empty);
 				getStyleClass().removeAll("amount-positive", "amount-negative", "amount-neutral");
+				textNode.getStyleClass().removeAll("amount-positive", "amount-negative", "amount-neutral");
+				setAlignment(Pos.CENTER_RIGHT);
 
 				if (empty || item == null) {
 					setText(null);
 					setGraphic(null);
-					setAlignment(Pos.CENTER_RIGHT);
+					setStyle(null);
 					return;
 				}
 
-				setAlignment(Pos.CENTER_RIGHT);
-				setText(format.format(item));
+				textNode.setText(format.format(item));
+				applyAmountTextStyle(textNode, item);
+				setText(null);
+				setGraphic(graphic);
+				setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
 
 				if (item.signum() > 0) {
 					getStyleClass().add("amount-positive");
+					textNode.getStyleClass().add("amount-positive");
 				} else if (item.signum() < 0) {
 					getStyleClass().add("amount-negative");
+					textNode.getStyleClass().add("amount-negative");
 				} else {
 					getStyleClass().add("amount-neutral");
+					textNode.getStyleClass().add("amount-neutral");
+				}
+			}
+
+			@Override
+			public void updateSelected(boolean selected) {
+				super.updateSelected(selected);
+				if (getItem() != null) {
+					applyAmountTextStyle(textNode, getItem());
 				}
 			}
 		};
@@ -90,35 +111,62 @@ public final class FxTableUtils {
 		return column -> new TableCell<>() {
 
 			private final DecimalFormat format = createGermanDecimalFormat();
+			private final Text textNode = createAmountText();
+			private final HBox graphic = createAmountGraphic(textNode);
 
 			@Override
 			protected void updateItem(String item, boolean empty) {
 				super.updateItem(item, empty);
 				getStyleClass().removeAll("amount-positive", "amount-negative", "amount-neutral");
+				textNode.getStyleClass().removeAll("amount-positive", "amount-negative", "amount-neutral");
+				setAlignment(Pos.CENTER_RIGHT);
 
 				if (empty || item == null || item.isBlank()) {
 					setText(null);
 					setGraphic(null);
-					setAlignment(Pos.CENTER_RIGHT);
+					setStyle(null);
 					return;
 				}
 
-				setAlignment(Pos.CENTER_RIGHT);
-
 				try {
 					BigDecimal value = new BigDecimal(item.replace(",", "."));
-					setText(format.format(value));
+					textNode.setText(format.format(value));
+					applyAmountTextStyle(textNode, value);
+					setText(null);
+					setGraphic(graphic);
+					setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
 
 					if (value.signum() > 0) {
 						getStyleClass().add("amount-positive");
+						textNode.getStyleClass().add("amount-positive");
 					} else if (value.signum() < 0) {
 						getStyleClass().add("amount-negative");
+						textNode.getStyleClass().add("amount-negative");
 					} else {
 						getStyleClass().add("amount-neutral");
+						textNode.getStyleClass().add("amount-neutral");
 					}
 				} catch (NumberFormatException ex) {
-					setText(item);
+					textNode.setText(item);
+					applyAmountTextStyle(textNode, null);
+					setText(null);
+					setGraphic(graphic);
+					setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
 					getStyleClass().add("amount-neutral");
+					textNode.getStyleClass().add("amount-neutral");
+				}
+			}
+
+			@Override
+			public void updateSelected(boolean selected) {
+				super.updateSelected(selected);
+				if (getItem() == null || getItem().isBlank()) {
+					return;
+				}
+				try {
+					applyAmountTextStyle(textNode, new BigDecimal(getItem().replace(",", ".")));
+				} catch (NumberFormatException ex) {
+					applyAmountTextStyle(textNode, null);
 				}
 			}
 		};
@@ -194,5 +242,39 @@ public final class FxTableUtils {
 		SimpleBooleanProperty property = new SimpleBooleanProperty(Boolean.TRUE.equals(getter.apply(rowItem)));
 		property.addListener((obs, oldValue, newValue) -> setter.accept(rowItem, Boolean.TRUE.equals(newValue)));
 		return property;
+	}
+
+	private static Text createAmountText() {
+		Text text = new Text();
+		text.getStyleClass().addAll("amount", "amount-text");
+		text.setStyle("-fx-font-weight: bold;");
+		return text;
+	}
+
+	private static Color resolveAmountColor(BigDecimal value) {
+		if (value == null || value.signum() == 0) {
+			return Color.BLACK;
+		}
+		return value.signum() > 0 ? Color.rgb(0, 100, 0) : Color.RED;
+	}
+
+	private static void applyAmountTextStyle(Text text, BigDecimal value) {
+		Color color = resolveAmountColor(value);
+		text.setFill(color);
+		text.setStyle("-fx-font-weight: bold; -fx-fill: " + toCssColor(color) + ";");
+	}
+
+	private static HBox createAmountGraphic(Text text) {
+		HBox box = new HBox(text);
+		box.setAlignment(Pos.CENTER_RIGHT);
+		box.setMaxWidth(Double.MAX_VALUE);
+		return box;
+	}
+
+	private static String toCssColor(Color color) {
+		return String.format("rgb(%d, %d, %d)",
+				(int) Math.round(color.getRed() * 255),
+				(int) Math.round(color.getGreen() * 255),
+				(int) Math.round(color.getBlue() * 255));
 	}
 }
