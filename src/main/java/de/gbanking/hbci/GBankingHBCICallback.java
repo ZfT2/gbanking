@@ -151,11 +151,39 @@ public class GBankingHBCICallback extends AbstractHBCICallback {
 	}
 
 	private String requestTan(String message, String details) {
+		String chipTan = tryChipTanReader(details);
+		if (chipTan != null && !chipTan.isBlank()) {
+			return chipTan.trim();
+		}
+
 		String tan = statusDialog.requestSecretInput(message, details, messages.getMessage("UI_BUTTON_OK"), messages.getMessage("UI_BUTTON_CANCEL"));
 		if (tan == null || tan.isBlank()) {
 			throw new HBCI_Exception("No TAN entered");
 		}
 		return tan.trim();
+	}
+
+	private String tryChipTanReader(String payload) {
+		if (!ChipTanUsbSupport.isEnabled() || !ChipTanUsbSupport.isChipTanPayload(payload)) {
+			return null;
+		}
+
+		String readerName = ChipTanUsbSupport.getConfiguredReaderName();
+		String resolvedReader = readerName.isBlank() ? messages.getMessage("UI_DIALOG_HBCI_FEEDBACK_CHIPTAN_DEFAULT_READER") : readerName;
+		appendFeedback(List.of(messages.getFormattedMessage("UI_DIALOG_HBCI_FEEDBACK_CHIPTAN_WAIT", resolvedReader)), payload);
+		try {
+			String tan = ChipTanUsbSupport.requestTan(payload);
+			if (tan == null || tan.isBlank()) {
+				appendFeedback(List.of(messages.getMessage("UI_DIALOG_HBCI_FEEDBACK_CHIPTAN_CANCELLED")), payload);
+				return null;
+			}
+			appendFeedback(List.of(messages.getMessage("UI_DIALOG_HBCI_FEEDBACK_CHIPTAN_SUCCESS")), null);
+			return tan;
+		} catch (Exception ex) {
+			log.warn("chipTAN reader TAN acquisition failed, falling back to manual entry", ex);
+			appendFeedback(List.of(messages.getFormattedMessage("UI_DIALOG_HBCI_FEEDBACK_CHIPTAN_FALLBACK", ex.getMessage())), payload);
+			return null;
+		}
 	}
 
 	private String requestSelection(String message, String rawOptions, String emptyOptionsMessageKey) {

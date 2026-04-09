@@ -15,6 +15,7 @@ import de.gbanking.db.DbExecutor;
 import de.gbanking.db.dao.Setting;
 import de.gbanking.db.dao.enu.DataType;
 import de.gbanking.gui.dialog.DialogWindowSupport;
+import de.gbanking.hbci.ChipTanUsbSupport;
 import de.gbanking.messages.Messages;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -50,6 +51,8 @@ public class SettingsDialog {
 	}
 
 	public Stage createWindow() {
+		ChipTanUsbSupport.ensureSettingsExist();
+
 		Stage dialog = new Stage();
 		dialog.initOwner(parentWindow);
 		dialog.initModality(Modality.APPLICATION_MODAL);
@@ -127,6 +130,8 @@ public class SettingsDialog {
 	}
 
 	private List<Setting> loadVisibleSettings() {
+		ChipTanUsbSupport.ensureSettingsExist();
+
 		List<Setting> allSettings = dbExecutor.getAll(Setting.class);
 		if (allSettings == null) {
 			return new ArrayList<>();
@@ -151,6 +156,10 @@ public class SettingsDialog {
 	}
 
 	private Node createEditor(Setting setting) {
+		if (ChipTanUsbSupport.SETTING_READER_NAME.equals(setting.getAttribute())) {
+			return createCardReaderField(setting);
+		}
+
 		DataType dataType = setting.getDataType();
 		if (dataType == null) {
 			return createStringField(setting);
@@ -173,6 +182,31 @@ public class SettingsDialog {
 		field.setMaxWidth(Double.MAX_VALUE);
 		valueSupplierMap.put(setting, field::getText);
 		return field;
+	}
+
+	private javafx.scene.control.ComboBox<String> createCardReaderField(Setting setting) {
+		javafx.scene.control.ComboBox<String> comboBox = new javafx.scene.control.ComboBox<>();
+		comboBox.setEditable(true);
+		comboBox.setDisable(!setting.isEditable());
+		comboBox.setMaxWidth(Double.MAX_VALUE);
+		comboBox.getItems().add("");
+		comboBox.getItems().addAll(ChipTanUsbSupport.getAvailableReaders());
+
+		String value = setting.getValue() != null ? setting.getValue() : "";
+		if (!value.isBlank() && !comboBox.getItems().contains(value)) {
+			comboBox.getItems().add(value);
+		}
+		comboBox.setValue(value);
+
+		valueSupplierMap.put(setting, () -> {
+			String editorValue = comboBox.getEditor().getText();
+			if (editorValue != null) {
+				return editorValue.trim();
+			}
+			String selectedValue = comboBox.getValue();
+			return selectedValue != null ? selectedValue.trim() : "";
+		});
+		return comboBox;
 	}
 
 	private TextField createCharField(Setting setting) {
