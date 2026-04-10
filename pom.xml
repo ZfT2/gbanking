@@ -66,14 +66,30 @@
 
 		<project.build.outputTimestamp>${maven.build.timestamp}</project.build.outputTimestamp>
 
+		<javafx.platform>linux</javafx.platform>
+		
 	</properties>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-base</artifactId>
+			<version>${javafx.version}</version>
+			<classifier>${javafx.platform}</classifier>
+		</dependency>
+
+		<dependency>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-graphics</artifactId>
+			<version>${javafx.version}</version>
+			<classifier>${javafx.platform}</classifier>
+		</dependency>
+
+		<dependency>
+			<groupId>org.openjfx</groupId>
 			<artifactId>javafx-controls</artifactId>
 			<version>${javafx.version}</version>
-			<scope>provided</scope>
+			<classifier>${javafx.platform}</classifier>
 		</dependency>
 
 		<dependency>
@@ -208,29 +224,9 @@
 	<profiles>
 		<profile>
 			<id>windows</id>
-			<dependencies>
-				<dependency>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-base</artifactId>
-					<version>${javafx.version}</version>
-					<classifier>win</classifier>
-					<scope>runtime</scope>
-				</dependency>
-				<dependency>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-graphics</artifactId>
-					<version>${javafx.version}</version>
-					<classifier>win</classifier>
-					<scope>runtime</scope>
-				</dependency>
-				<dependency>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-controls</artifactId>
-					<version>${javafx.version}</version>
-					<classifier>win</classifier>
-					<scope>runtime</scope>
-				</dependency>
-			</dependencies>
+			<properties>
+				<javafx.platform>windows</javafx.platform>
+			</properties>
 			<build>
 				<plugins>
 					<plugin>
@@ -258,29 +254,9 @@
 
 		<profile>
 			<id>linux</id>
-			<dependencies>
-				<dependency>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-base</artifactId>
-					<version>${javafx.version}</version>
-					<classifier>linux</classifier>
-					<scope>runtime</scope>
-				</dependency>
-				<dependency>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-graphics</artifactId>
-					<version>${javafx.version}</version>
-					<classifier>linux</classifier>
-					<scope>runtime</scope>
-				</dependency>
-				<dependency>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-controls</artifactId>
-					<version>${javafx.version}</version>
-					<classifier>linux</classifier>
-					<scope>runtime</scope>
-				</dependency>
-			</dependencies>
+			<properties>
+				<javafx.platform>linux</javafx.platform>
+			</properties>
 			<build>
 				<plugins>
 					<plugin>
@@ -308,29 +284,9 @@
 
 		<profile>
 			<id>mac</id>
-			<dependencies>
-				<dependency>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-base</artifactId>
-					<version>${javafx.version}</version>
-					<classifier>mac</classifier>
-					<scope>runtime</scope>
-				</dependency>
-				<dependency>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-graphics</artifactId>
-					<version>${javafx.version}</version>
-					<classifier>mac</classifier>
-					<scope>runtime</scope>
-				</dependency>
-				<dependency>
-					<groupId>org.openjfx</groupId>
-					<artifactId>javafx-controls</artifactId>
-					<version>${javafx.version}</version>
-					<classifier>mac</classifier>
-					<scope>runtime</scope>
-				</dependency>
-			</dependencies>
+			<properties>
+				<javafx.platform>mac</javafx.platform>
+			</properties>
 			<build>
 				<plugins>
 					<plugin>
