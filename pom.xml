@@ -46,10 +46,10 @@
 		<maven.compiler.release>17</maven.compiler.release>
 
 		<javafx.version>21.0.10</javafx.version>
-		<log4j.version>2.24.3</log4j.version>
+		<log4j.version>2.25.4</log4j.version>
 		<sqlitejdbc.version>3.50.3.0</sqlitejdbc.version>
 		<commonscsv.version>1.14.1</commonscsv.version>
-		<hbci4j.version>4.1.3</hbci4j.version>
+		<hbci4j.version>4.1.8</hbci4j.version>
 		<fp32xmlextract.version>0.1.0</fp32xmlextract.version>
 		
 		<junit.version>5.14.3</junit.version>
