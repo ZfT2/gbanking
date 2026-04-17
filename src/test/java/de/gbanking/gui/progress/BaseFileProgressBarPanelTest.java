@@ -1,6 +1,7 @@
 package de.gbanking.gui.progress;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,8 @@ class BaseFileProgressBarPanelTest {
 		assertEquals(280.0, panel.progressBar.getPrefWidth());
 		assertEquals(48.0, panel.progressLabel.getMinWidth());
 		assertEquals("0 %", panel.progressLabel.getText());
+		assertFalse(panel.closeButton.isVisible());
+		assertFalse(panel.closeButton.isManaged());
 	}
 
 	private static final class TestProgressPanel extends BaseFileProgressBarPanel {

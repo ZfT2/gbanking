@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -44,6 +45,7 @@ public class FileImportBean extends BaseBean {
 
 	private final BaseWorker worker;
 	private double currentProgress = 0.0;
+	private final Map<String, ImportAccountStatistics> importStatisticsByAccount = new LinkedHashMap<>();
 
 	public FileImportBean(BaseWorker worker) {
 		this.worker = worker;
@@ -103,6 +105,7 @@ public class FileImportBean extends BaseBean {
 
 	public void importFileToDatatbase(String importFile) throws ParserConfigurationException, SAXException, IOException {
 
+		importStatisticsByAccount.clear();
 		currentProgress = 0.0;
 		updateWorkerState(1, false, "Konvertiere aus Datei: %s", importFile);
 
@@ -191,6 +194,7 @@ public class FileImportBean extends BaseBean {
 	boolean writeBookingsToDB(Collection<de.zft2.fp3xmlextract.data.BankAccount> bankAccountList) {
 
 		boolean result = false;
+		importStatisticsByAccount.clear();
 
 		updateWorkerState(1, true, "Importiere Buchungen");
 
@@ -205,32 +209,43 @@ public class FileImportBean extends BaseBean {
 			String accountName = bankAccountXml.getNamePP();
 			List<de.zft2.fp3xmlextract.data.Booking> bookingsList = bankAccountXml.getBookings();
 			List<Booking> bookingDaoList = new ArrayList<>();
+			Integer accountId = accountIdMapByAccountname.get(accountName);
+			List<Booking> existingBookings = accountId == null ? List.of() : dbController.getAllByParentFull(Booking.class, accountId);
+			ImportAccountStatistics accountStatistics = importStatisticsByAccount.computeIfAbsent(accountName,
+					key -> new ImportAccountStatistics(accountName, existingBookings.size()));
 
 			updateWorkerStateBookings(importedBookingsCount, "Importiere Buchungen für Konto: %s (Anzahl: %d)", accountName, bookingsList.size());
 
 			for (de.zft2.fp3xmlextract.data.Booking xmlBooking : bookingsList) {
 				Booking bookingDao = DaoMapper.maptoBookingDao(accountName, xmlBooking, accountIdMapByAccountname, crossAccountIdMapByIdentifier,
 						Source.IMPORT_INITIAL);
+				Booking existingBooking = findMatchingBooking(existingBookings, bookingDao);
+				boolean skipped = existingBooking != null;
+				Booking resolvedBooking = skipped ? existingBooking : dbController.insertOrUpdate(bookingDao);
 
-				bookingDao = dbController.insertOrUpdate(bookingDao);
-
-				if (xmlBooking.getCrossBooking() != null && crossBookingMap.get(xmlBooking) == null) {
-					crossBookingMap.put(xmlBooking.getCrossBooking(), bookingDao.getId());
+				if (xmlBooking.getCrossBooking() != null && crossBookingMap.get(xmlBooking) == null && resolvedBooking != null) {
+					crossBookingMap.put(xmlBooking.getCrossBooking(), resolvedBooking.getId());
 				}
 
-				if (crossBookingMap.get(xmlBooking) != null) {
+				if (resolvedBooking != null && crossBookingMap.get(xmlBooking) != null) {
 					Booking crossBookingDao = dbController.getById(Booking.class, crossBookingMap.get(xmlBooking));
-					DaoMapper.setCrossBooking(crossBookingDao, bookingDao.getId());
+					DaoMapper.setCrossBooking(crossBookingDao, resolvedBooking.getId());
 					dbController.insertOrUpdate(crossBookingDao);
-					bookingDao.setCrossBookingId(crossBookingDao.getId());
-					dbController.insertOrUpdate(bookingDao);
+					resolvedBooking.setCrossBookingId(crossBookingDao.getId());
+					dbController.insertOrUpdate(resolvedBooking);
 				}
 
-				bookingDaoList.add(bookingDao);
+				if (skipped) {
+					accountStatistics.incrementSkipped();
+				} else if (resolvedBooking != null) {
+					bookingDaoList.add(resolvedBooking);
+					accountStatistics.incrementAdded();
+				}
 				importedBookingsCount++;
 			}
 
-			log.info("Account: {}: {} Bookings writen to DB", bankAccountXml.getNamePP(), bookingDaoList.size());
+			log.info("Account: {}: {} Bookings writen to DB, {} skipped as duplicates", bankAccountXml.getNamePP(), bookingDaoList.size(),
+					accountStatistics.getSkippedBookings());
 			allBookings.addAll(bookingDaoList);
 		}
 
@@ -243,6 +258,35 @@ public class FileImportBean extends BaseBean {
 		updateWorkerState(99, false, "beende...");
 
 		return result;
+	}
+
+	private Booking findMatchingBooking(Collection<Booking> existingBookings, Booking bookingToMatch) {
+		if (bookingToMatch == null || existingBookings == null) {
+			return null;
+		}
+
+		for (Booking existingBooking : existingBookings) {
+			if (bookingToMatch.equals(existingBooking)) {
+				return existingBooking;
+			}
+		}
+
+		return null;
+	}
+
+	String getImportSummaryText() {
+		if (importStatisticsByAccount.isEmpty()) {
+			return "";
+		}
+
+		StringBuilder summary = new StringBuilder(getText("UI_IMPORT_SUMMARY_HEADER"));
+		for (ImportAccountStatistics statistics : importStatisticsByAccount.values()) {
+			summary.append(System.lineSeparator())
+					.append(getText("UI_IMPORT_SUMMARY_ACCOUNT", statistics.getAccountName(), Integer.toString(statistics.getExistingBookings()),
+							Integer.toString(statistics.getAddedBookings()), Integer.toString(statistics.getSkippedBookings()),
+							Integer.toString(statistics.getTotalBookings())));
+		}
+		return summary.toString();
 	}
 
 	private int writeRecipientsToDB(Collection<Booking> bookingDaoList) {
@@ -300,5 +344,46 @@ public class FileImportBean extends BaseBean {
 		dbController.updateBookingsWithCategories(categoryBookingMap);
 
 		return result;
+	}
+
+	private static final class ImportAccountStatistics {
+
+		private final String accountName;
+		private final int existingBookings;
+		private int addedBookings;
+		private int skippedBookings;
+
+		private ImportAccountStatistics(String accountName, int existingBookings) {
+			this.accountName = accountName;
+			this.existingBookings = existingBookings;
+		}
+
+		private void incrementAdded() {
+			addedBookings++;
+		}
+
+		private void incrementSkipped() {
+			skippedBookings++;
+		}
+
+		private String getAccountName() {
+			return accountName;
+		}
+
+		private int getExistingBookings() {
+			return existingBookings;
+		}
+
+		private int getAddedBookings() {
+			return addedBookings;
+		}
+
+		private int getSkippedBookings() {
+			return skippedBookings;
+		}
+
+		private int getTotalBookings() {
+			return existingBookings + addedBookings;
+		}
 	}
 }

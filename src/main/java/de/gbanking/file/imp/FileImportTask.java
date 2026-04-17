@@ -13,6 +13,7 @@ import de.gbanking.file.BaseFileTask;
 public class FileImportTask extends BaseFileTask {
 
 	private static Logger log = LogManager.getLogger(FileImportTask.class);
+	private String importSummaryText;
 
 	public FileImportTask(String fileName) {
 		super(fileName);
@@ -24,7 +25,12 @@ public class FileImportTask extends BaseFileTask {
 		setWorkerProgress(0);
 		FileImportBean fileImportBean = new FileImportBean(this);
 		fileImportBean.importFile(fileName);
+		importSummaryText = fileImportBean.getImportSummaryText();
 		return null;
+	}
+
+	public String getImportSummaryText() {
+		return importSummaryText;
 	}
 
 }

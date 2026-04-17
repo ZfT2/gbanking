@@ -1,6 +1,7 @@
 package de.gbanking.mapper;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -102,10 +103,10 @@ public class DaoMapper {
 		booking.setAccountId(accountId);
 		booking.setSource(source);
 		booking.setBookingType(getBookingType(xmlBooking));
-		booking.setAmount(xmlBooking.getAmount());
+		booking.setAmount(xmlBooking.getAmount() != null ? xmlBooking.getAmount().setScale(2, RoundingMode.HALF_UP) : null);
 		// booking.setDate(TypeConverter.toLocalDateFromDateStr(xmlBooking.getDate()));
-		booking.setDateBooking(TypeConverter.toLocalDateFromDateStrShort(xmlBooking.getDateBooking()));
-		booking.setDateValue(TypeConverter.toLocalDateFromDateStrShort(xmlBooking.getDateValue()));
+		booking.setDateBooking(TypeConverter.toLocalDateFromDateStrFlexible(xmlBooking.getDateBooking()));
+		booking.setDateValue(TypeConverter.toLocalDateFromDateStrFlexible(xmlBooking.getDateValue()));
 		booking.setPurpose(xmlBooking.getPurpose());
 
 		booking.setSepaCustomerRef(xmlBooking.getSepaCustomerRef());

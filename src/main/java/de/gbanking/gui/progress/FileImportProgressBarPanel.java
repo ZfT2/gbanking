@@ -16,6 +16,17 @@ public class FileImportProgressBarPanel extends BaseFileProgressBarPanel {
 		if (accountListPanel != null) {
 			accountListPanel.refreshModelAccount();
 		}
+		if (task instanceof FileImportTask importTask) {
+			String summaryText = importTask.getImportSummaryText();
+			if (summaryText != null && !summaryText.isBlank()) {
+				taskOutput.appendText(System.lineSeparator() + System.lineSeparator() + summaryText);
+			}
+		}
+	}
+
+	@Override
+	protected boolean keepDialogOpenOnSuccess() {
+		return true;
 	}
 
 	@Override

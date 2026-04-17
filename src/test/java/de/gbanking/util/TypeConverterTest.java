@@ -20,6 +20,8 @@ class TypeConverterTest {
 		assertEquals("10.04.2026", TypeConverter.toDateStringLong(date));
 		assertEquals(date, TypeConverter.toLocalDateFromDateStr("10.04.2026"));
 		assertEquals(date, TypeConverter.toLocalDateFromDateStrShort("10.04.26"));
+		assertEquals(date, TypeConverter.toLocalDateFromDateStrFlexible("10.04.26"));
+		assertEquals(date, TypeConverter.toLocalDateFromDateStrFlexible("10.04.2026"));
 	}
 
 	@Test
@@ -27,6 +29,7 @@ class TypeConverterTest {
 		assertNull(TypeConverter.toLocalDateFromDateStr("2026-04-10"));
 		assertNull(TypeConverter.toLocalDateFromDateStrShort("10/04/26"));
 		assertNull(TypeConverter.toLocalDateFromDateStr(null));
+		assertNull(TypeConverter.toLocalDateFromDateStrFlexible("10/04/2026"));
 	}
 
 	@Test

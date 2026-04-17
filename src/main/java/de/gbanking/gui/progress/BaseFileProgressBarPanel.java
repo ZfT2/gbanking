@@ -3,11 +3,13 @@ package de.gbanking.gui.progress;
 import de.gbanking.file.BaseFileTask;
 import de.gbanking.gui.enu.FileType;
 import de.gbanking.gui.panel.account.AccountListPanel;
+import de.gbanking.messages.Messages;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextArea;
@@ -21,10 +23,13 @@ import javafx.stage.Window;
 
 public abstract class BaseFileProgressBarPanel {
 
+	private static final Messages MESSAGES = Messages.getInstance();
+
 	protected ProgressBar progressBar;
 	protected Label progressLabel;
 	protected Label statusLabel;
 	protected TextArea taskOutput;
+	protected Button closeButton;
 	protected BaseFileTask task;
 	protected final Window parentWindow;
 	protected Stage dialogStage;
@@ -57,17 +62,25 @@ public abstract class BaseFileProgressBarPanel {
 		taskOutput.setEditable(false);
 		taskOutput.setPrefRowCount(12);
 
+		closeButton = new Button(MESSAGES.getMessage("UI_BUTTON_CLOSE"));
+		closeButton.setVisible(false);
+		closeButton.setManaged(false);
+		closeButton.setOnAction(event -> closeDialog());
+
 		HBox progressBox = new HBox(10, progressBar, progressLabel);
 		progressBox.setAlignment(Pos.CENTER_LEFT);
 		progressBox.setMaxWidth(Double.MAX_VALUE);
 		HBox.setHgrow(progressBar, Priority.ALWAYS);
 
 		VBox topBox = new VBox(8, statusLabel, progressBox);
+		HBox buttonBar = new HBox(closeButton);
+		buttonBar.setAlignment(Pos.CENTER_RIGHT);
 
 		BorderPane root = new BorderPane();
 		root.setPadding(new Insets(12));
 		root.setTop(topBox);
 		root.setCenter(taskOutput);
+		root.setBottom(buttonBar);
 
 		dialogStage.setScene(new Scene(root, 520, 320));
 	}
@@ -102,7 +115,11 @@ public abstract class BaseFileProgressBarPanel {
 			switch (newState) {
 			case SUCCEEDED -> {
 				onTaskSucceeded();
-				closeDialog();
+				if (keepDialogOpenOnSuccess()) {
+					showCloseButton();
+				} else {
+					closeDialog();
+				}
 			}
 			case FAILED -> {
 				Throwable ex = task.getException();
@@ -124,6 +141,21 @@ public abstract class BaseFileProgressBarPanel {
 
 	protected void onTaskSucceeded() {
 		// Optional override
+	}
+
+	protected boolean keepDialogOpenOnSuccess() {
+		return false;
+	}
+
+	protected void showCloseButton() {
+		progressBar.progressProperty().unbind();
+		progressBar.setProgress(1d);
+		progressLabel.textProperty().unbind();
+		progressLabel.setText("100 %");
+		closeButton.setVisible(true);
+		closeButton.setManaged(true);
+		closeButton.requestFocus();
+		dialogStage.sizeToScene();
 	}
 
 	protected void closeDialog() {

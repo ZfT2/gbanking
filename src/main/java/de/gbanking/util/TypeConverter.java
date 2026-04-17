@@ -65,6 +65,10 @@ public class TypeConverter {
 		return toLocalDate(DATE_FORMATTER_LONG, date);
 	}
 
+	public static LocalDate toLocalDateFromDateStrFlexible(String date) {
+		return toLocalDate(date, DATE_FORMATTER_SHORT, DATE_FORMATTER_LONG);
+	}
+
 	public static LocalDate toLocalDateFromTimestampStr(String date) {
 		return toLocalDateFromDateStr(date);
 	}
@@ -74,15 +78,24 @@ public class TypeConverter {
 	}
 
 	private static LocalDate toLocalDate(DateTimeFormatter formatter, String date) {
+		return toLocalDate(date, formatter);
+	}
+
+	private static LocalDate toLocalDate(String date, DateTimeFormatter... formatters) {
 		if (date == null) {
 			return null;
 		}
-		try {
-			return LocalDate.from(formatter.parse(date));
-		} catch (Exception e) {
-			log.error("Error parsing Date String to LocalDate: {}", date);
-			return null;
+
+		for (DateTimeFormatter formatter : formatters) {
+			try {
+				return LocalDate.from(formatter.parse(date));
+			} catch (Exception e) {
+				// try next formatter
+			}
 		}
+
+		log.error("Error parsing Date String to LocalDate: {}", date);
+		return null;
 	}
 
 	public static LocalDate toLocalDateFromSqlDate(Date sqlDate) {

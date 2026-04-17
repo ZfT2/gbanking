@@ -2,6 +2,7 @@ package de.gbanking.file.imp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.math.BigDecimal;
@@ -214,6 +215,40 @@ class FileImportBeanTest {
 	}
 
 	@Test
+	void testImportDuplicateBookings_AreSkippedAndSummarized() {
+		de.zft2.fp3xmlextract.data.BankAccount xmlBankAccount = createXmlBankAccount("Girokonto Doubletten", "DE00000000000000000999", "999", "BANKDE00999");
+		de.zft2.fp3xmlextract.data.Booking initialBooking = createXmlBooking("14.10.2025", "14.10.2025", "Bereits da", BigDecimal.valueOf(42.50),
+				"Girokonto Doubletten");
+		xmlBankAccount.setBookings(List.of(initialBooking));
+
+		fileImportBean.writeAccountsToDB(List.of(xmlBankAccount));
+		fileImportBean.writeBookingsToDB(List.of(xmlBankAccount));
+
+		FileImportBean secondImportBean = new FileImportBean(null);
+		de.zft2.fp3xmlextract.data.BankAccount secondImportAccount = createXmlBankAccount("Girokonto Doubletten", "DE00000000000000000999", "999",
+				"BANKDE00999");
+		de.zft2.fp3xmlextract.data.Booking duplicateBooking = createXmlBooking("14.10.2025", "14.10.2025", "Bereits da", BigDecimal.valueOf(42.50),
+				"Girokonto Doubletten");
+		de.zft2.fp3xmlextract.data.Booking newBooking = createXmlBooking("15.10.2025", "15.10.2025", "Neu importiert", BigDecimal.valueOf(84.50),
+				"Girokonto Doubletten");
+		secondImportAccount.setBookings(List.of(duplicateBooking, newBooking));
+
+		secondImportBean.writeAccountsToDB(List.of(secondImportAccount));
+		secondImportBean.writeBookingsToDB(List.of(secondImportAccount));
+
+		List<Booking> dbBookingList = dbController.getAllFull(Booking.class);
+		assertEquals(2, dbBookingList.size());
+
+		String summary = secondImportBean.getImportSummaryText();
+		assertNotNull(summary);
+		assertEquals(1, countOccurrences(summary, "Girokonto Doubletten"));
+		assertTrue(summary.contains("bereits vorhandene Buchungen 1"));
+		assertTrue(summary.contains("neu hinzugefügt 1"));
+		assertTrue(summary.contains("übersprungen 1"));
+		assertTrue(summary.contains("Gesamtzahl 2"));
+	}
+
+	@Test
 	void testImportMinimalFile_Success() throws URISyntaxException {
 
 		fileImportBean.importFile(verifyFileName("MinimalAccount.xml"));
@@ -265,6 +300,25 @@ class FileImportBeanTest {
 
 		return Paths.get(resource.toURI()).toString();
 
+	}
+
+	private de.zft2.fp3xmlextract.data.BankAccount createXmlBankAccount(String accountName, String iban, String number, String bic) {
+		de.zft2.fp3xmlextract.data.BankAccount bankAccount = new de.zft2.fp3xmlextract.data.BankAccount();
+		bankAccount.setBezeichnung(accountName);
+		bankAccount.setNamePP(accountName);
+		bankAccount.setIban(iban);
+		bankAccount.setNumber(number);
+		bankAccount.setBic(bic);
+		bankAccount.setType("Girokonto");
+		return bankAccount;
+	}
+
+	private de.zft2.fp3xmlextract.data.Booking createXmlBooking(String dateBooking, String dateValue, String purpose, BigDecimal amount, String accountName) {
+		return new de.zft2.fp3xmlextract.data.Booking(dateBooking, dateValue, purpose, amount, null, null, accountName);
+	}
+
+	private int countOccurrences(String text, String search) {
+		return text.split(java.util.regex.Pattern.quote(search), -1).length - 1;
 	}
 
 }
