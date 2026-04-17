@@ -13,6 +13,7 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -44,9 +45,12 @@ public abstract class BaseFileProgressBarPanel {
 
 	private void createProgressPanel() {
 		progressBar = new ProgressBar(0);
-		progressBar.setPrefWidth(Double.MAX_VALUE);
+		progressBar.setMinWidth(280);
+		progressBar.setMaxWidth(Double.MAX_VALUE);
+		progressBar.setPrefWidth(280);
 
 		progressLabel = new Label("0 %");
+		progressLabel.setMinWidth(48);
 		statusLabel = new Label();
 
 		taskOutput = new TextArea();
@@ -55,6 +59,8 @@ public abstract class BaseFileProgressBarPanel {
 
 		HBox progressBox = new HBox(10, progressBar, progressLabel);
 		progressBox.setAlignment(Pos.CENTER_LEFT);
+		progressBox.setMaxWidth(Double.MAX_VALUE);
+		HBox.setHgrow(progressBar, Priority.ALWAYS);
 
 		VBox topBox = new VBox(8, statusLabel, progressBox);
 
