@@ -6,7 +6,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
-import de.fp32xmlextract.data.Booking.SepaTyp;
 import de.gbanking.db.SqlFields;
 import de.gbanking.db.StatementsConfig.ResultType;
 import de.gbanking.db.dao.Booking;
@@ -15,6 +14,7 @@ import de.gbanking.db.dao.Recipient;
 import de.gbanking.db.dao.enu.BookingType;
 import de.gbanking.db.dao.enu.Source;
 import de.gbanking.util.TypeConverter;
+import de.zft2.fp3xmlextract.data.Booking.SepaTyp;
 
 public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 

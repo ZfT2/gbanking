@@ -6,15 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
-import java.util.Arrays;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
-import de.fp32xmlextract.data.Booking.SepaTyp;
 import de.gbanking.db.dao.BankAccess;
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.Booking;
@@ -23,6 +22,7 @@ import de.gbanking.db.dao.enu.AccountState;
 import de.gbanking.db.dao.enu.AccountType;
 import de.gbanking.db.dao.enu.BookingType;
 import de.gbanking.db.dao.enu.Source;
+import de.zft2.fp3xmlextract.data.Booking.SepaTyp;
 
 class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 

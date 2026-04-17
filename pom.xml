@@ -37,6 +37,13 @@
 		<tag>HEAD</tag>
 	</scm>
 
+	<repositories>
+		<repository>
+			<id>github</id>
+			<url>https://maven.pkg.github.com/ZfT2/fp3xmlextract</url>
+		</repository>
+	</repositories>
+
 	<properties>
 		<app.name>GBanking</app.name>
 		<app.mainClass>de.gbanking.GBanking</app.mainClass>
@@ -50,8 +57,8 @@
 		<sqlitejdbc.version>3.50.3.0</sqlitejdbc.version>
 		<commonscsv.version>1.14.1</commonscsv.version>
 		<hbci4j.version>4.1.8</hbci4j.version>
-		<fp32xmlextract.version>0.1.0</fp32xmlextract.version>
-		
+		<fp3xmlextract.version>0.3.0</fp3xmlextract.version>
+
 		<junit.version>5.14.3</junit.version>
 		<mockito.version>5.23.0</mockito.version>
 		<mockitoinline.version>5.2.0</mockitoinline.version>
@@ -93,9 +100,9 @@
 		</dependency>
 
 		<dependency>
-			<groupId>de.fp32xmlextract</groupId>
-			<artifactId>fp32xmlextract</artifactId>
-			<version>${fp32xmlextract.version}</version>
+			<groupId>de.zft2</groupId>
+			<artifactId>fp3xmlextract</artifactId>
+			<version>${fp3xmlextract.version}</version>
 		</dependency>
 
 		<dependency>

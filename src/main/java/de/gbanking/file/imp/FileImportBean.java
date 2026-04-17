@@ -17,8 +17,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.xml.sax.SAXException;
 
-import de.fp32xmlextract.convert.BookingProcessor;
-import de.fp32xmlextract.convert.Converter;
 import de.gbanking.BaseBean;
 import de.gbanking.db.dao.BankAccount;
 import de.gbanking.db.dao.Booking;
@@ -28,13 +26,15 @@ import de.gbanking.db.dao.enu.Source;
 import de.gbanking.exception.GBankingException;
 import de.gbanking.gui.BaseWorker;
 import de.gbanking.mapper.DaoMapper;
+import de.zft2.fp3xmlextract.convert.BookingProcessor;
+import de.zft2.fp3xmlextract.convert.Converter;
 
 public class FileImportBean extends BaseBean {
 
 	private static final Logger log = LogManager.getLogger(FileImportBean.class);
 
-	private Collection<de.fp32xmlextract.data.BankAccount> xml2CsvKontoList;
-	private Collection<de.fp32xmlextract.data.Booking> fp32CsvBookingList;
+	private Collection<de.zft2.fp3xmlextract.data.BankAccount> xml2CsvKontoList;
+	private Collection<de.zft2.fp3xmlextract.data.Booking> fp32CsvBookingList;
 
 	private Map<String, Integer> accountIdMapByAccountname;
 	private Map<String, Integer> crossAccountIdMapByIdentifier;
@@ -148,12 +148,12 @@ public class FileImportBean extends BaseBean {
 		}
 	}
 
-	private String resolveFallbackAccountName(Collection<de.fp32xmlextract.data.Booking> bookingList) {
+	private String resolveFallbackAccountName(Collection<de.zft2.fp3xmlextract.data.Booking> bookingList) {
 		if (bookingList == null) {
 			return null;
 		}
 
-		for (de.fp32xmlextract.data.Booking booking : bookingList) {
+		for (de.zft2.fp3xmlextract.data.Booking booking : bookingList) {
 			if (booking != null && booking.getAccountNamePP() != null && !booking.getAccountNamePP().isBlank()) {
 				return booking.getAccountNamePP();
 			}
@@ -162,7 +162,7 @@ public class FileImportBean extends BaseBean {
 		return null;
 	}
 
-	boolean writeAccountsToDB(Collection<de.fp32xmlextract.data.BankAccount> bankAccountList) {
+	boolean writeAccountsToDB(Collection<de.zft2.fp3xmlextract.data.BankAccount> bankAccountList) {
 
 		boolean result = false;
 
@@ -170,7 +170,7 @@ public class FileImportBean extends BaseBean {
 		int importedAccountsCount = 0;
 		updateWorkerState(1, true, "Importiere Konten (Anzahl: %d)", totalAccounts);
 
-		for (de.fp32xmlextract.data.BankAccount bankAccountXml : bankAccountList) {
+		for (de.zft2.fp3xmlextract.data.BankAccount bankAccountXml : bankAccountList) {
 			BankAccount bankAccount = DaoMapper.maptoBankAccountDao(bankAccountXml);
 			if (bankAccountXml.getNamePP() == null) {
 				bankAccountXml.setNamePP(bankAccount.getAccountName());
@@ -188,27 +188,27 @@ public class FileImportBean extends BaseBean {
 		return result;
 	}
 
-	boolean writeBookingsToDB(Collection<de.fp32xmlextract.data.BankAccount> bankAccountList) {
+	boolean writeBookingsToDB(Collection<de.zft2.fp3xmlextract.data.BankAccount> bankAccountList) {
 
 		boolean result = false;
 
 		updateWorkerState(1, true, "Importiere Buchungen");
 
-		Map<de.fp32xmlextract.data.Booking, Integer> crossBookingMap = new HashMap<>();
+		Map<de.zft2.fp3xmlextract.data.Booking, Integer> crossBookingMap = new HashMap<>();
 
 		totalBookings = bankAccountList.stream().flatMap(artifact -> artifact.getBookings().stream()).count();
 		long importedBookingsCount = 0;
 
 		Collection<Booking> allBookings = new ArrayList<>();
 
-		for (de.fp32xmlextract.data.BankAccount bankAccountXml : bankAccountList) {
+		for (de.zft2.fp3xmlextract.data.BankAccount bankAccountXml : bankAccountList) {
 			String accountName = bankAccountXml.getNamePP();
-			List<de.fp32xmlextract.data.Booking> bookingsList = bankAccountXml.getBookings();
+			List<de.zft2.fp3xmlextract.data.Booking> bookingsList = bankAccountXml.getBookings();
 			List<Booking> bookingDaoList = new ArrayList<>();
 
 			updateWorkerStateBookings(importedBookingsCount, "Importiere Buchungen für Konto: %s (Anzahl: %d)", accountName, bookingsList.size());
 
-			for (de.fp32xmlextract.data.Booking xmlBooking : bookingsList) {
+			for (de.zft2.fp3xmlextract.data.Booking xmlBooking : bookingsList) {
 				Booking bookingDao = DaoMapper.maptoBookingDao(accountName, xmlBooking, accountIdMapByAccountname, crossAccountIdMapByIdentifier,
 						Source.IMPORT_INITIAL);
 

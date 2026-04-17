@@ -22,7 +22,7 @@ public class DaoMapper {
 	private DaoMapper() {
 	}
 
-	public static BankAccount maptoBankAccountDao(de.fp32xmlextract.data.BankAccount bankAccountXML) {
+	public static BankAccount maptoBankAccountDao(de.zft2.fp3xmlextract.data.BankAccount bankAccountXML) {
 
 		BankAccount bankAccount = new BankAccount();
 
@@ -72,12 +72,12 @@ public class DaoMapper {
 
 	}
 
-	public static Collection<Booking> maptoBookingDaoList(String accountName, Collection<de.fp32xmlextract.data.Booking> bookingXMLList,
+	public static Collection<Booking> maptoBookingDaoList(String accountName, Collection<de.zft2.fp3xmlextract.data.Booking> bookingXMLList,
 			Map<String, Integer> accountIdMapByAccountName, Map<String, Integer> crossAccountIdMapByIdentifier, Source source) {
 
 		List<Booking> bookingDaoList = new ArrayList<>();
 
-		for (de.fp32xmlextract.data.Booking xmlBooking : bookingXMLList) {
+		for (de.zft2.fp3xmlextract.data.Booking xmlBooking : bookingXMLList) {
 
 			Booking booking = maptoBookingDao(accountName, xmlBooking, accountIdMapByAccountName, crossAccountIdMapByIdentifier, source);
 
@@ -87,7 +87,7 @@ public class DaoMapper {
 		return bookingDaoList;
 	}
 
-	public static Booking maptoBookingDao(String accountName, de.fp32xmlextract.data.Booking xmlBooking, Map<String, Integer> accountIdMapByAccountName,
+	public static Booking maptoBookingDao(String accountName, de.zft2.fp3xmlextract.data.Booking xmlBooking, Map<String, Integer> accountIdMapByAccountName,
 			Map<String, Integer> crossAccountIdMapByIdentifier, Source source) {
 
 		Booking booking = new Booking();
@@ -141,7 +141,7 @@ public class DaoMapper {
 		return booking;
 	}
 
-	private static BookingType getBookingType(de.fp32xmlextract.data.Booking xmlBooking) {
+	private static BookingType getBookingType(de.zft2.fp3xmlextract.data.Booking xmlBooking) {
 		if (xmlBooking.getTyp() != null) {
 			return BookingType.forString(xmlBooking.getTyp().name());
 		} else {
@@ -156,7 +156,7 @@ public class DaoMapper {
 		}
 	}
 
-	private static void mapRecipient(de.fp32xmlextract.data.Booking xmlBooking, Booking booking, Source source) {
+	private static void mapRecipient(de.zft2.fp3xmlextract.data.Booking xmlBooking, Booking booking, Source source) {
 		if (xmlBooking.getCrossReceiverName() != null || xmlBooking.getCrossAccountIBAN() != null || xmlBooking.getCrossAccountNumber() != null) {
 			Recipient recipient = new Recipient();
 			recipient.setName(xmlBooking.getCrossReceiverName());
@@ -170,7 +170,7 @@ public class DaoMapper {
 		}
 	}
 
-	private static void mapCategory(de.fp32xmlextract.data.Booking xmlBooking, Booking booking) {
+	private static void mapCategory(de.zft2.fp3xmlextract.data.Booking xmlBooking, Booking booking) {
 		if (xmlBooking.getCategory() != null) {
 			booking.setCategory(new Category(xmlBooking.getCategory()));
 		}

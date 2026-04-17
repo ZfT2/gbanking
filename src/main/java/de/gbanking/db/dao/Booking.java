@@ -6,8 +6,8 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.Objects;
 
-import de.fp32xmlextract.data.Booking.SepaTyp;
 import de.gbanking.db.dao.enu.BookingType;
+import de.zft2.fp3xmlextract.data.Booking.SepaTyp;
 
 public class Booking extends Dao implements Serializable {
 

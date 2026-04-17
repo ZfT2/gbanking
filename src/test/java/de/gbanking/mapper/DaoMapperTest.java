@@ -15,7 +15,7 @@ class DaoMapperTest {
 
 	@Test
 	void maptoBookingDao_shouldHandleMissingCrossAccountLookupMap() {
-		de.fp32xmlextract.data.Booking xmlBooking = new de.fp32xmlextract.data.Booking("14.10.2025", "14.10.2025", "Testbuchung",
+		de.zft2.fp3xmlextract.data.Booking xmlBooking = new de.zft2.fp3xmlextract.data.Booking("14.10.2025", "14.10.2025", "Testbuchung",
 				BigDecimal.valueOf(25.00), null, null, "Girokonto");
 		xmlBooking.setCrossAccountIBAN("DE00000000000000000099");
 
@@ -27,7 +27,7 @@ class DaoMapperTest {
 
 	@Test
 	void maptoBookingDao_shouldUseFallbackAccountNameWhenBookingHasNoAccountName() {
-		de.fp32xmlextract.data.Booking xmlBooking = new de.fp32xmlextract.data.Booking("14.10.2025", "14.10.2025", "Testbuchung",
+		de.zft2.fp3xmlextract.data.Booking xmlBooking = new de.zft2.fp3xmlextract.data.Booking("14.10.2025", "14.10.2025", "Testbuchung",
 				BigDecimal.valueOf(25.00), null, null, null);
 		xmlBooking.setAccountNamePP(null);
 

@@ -70,7 +70,7 @@ class FileImportBeanTest {
 
 	@Test
 	void testImportRecipients_Success() throws Exception {
-		de.fp32xmlextract.data.BankAccount xmlBankAccount01 = new de.fp32xmlextract.data.BankAccount();
+		de.zft2.fp3xmlextract.data.BankAccount xmlBankAccount01 = new de.zft2.fp3xmlextract.data.BankAccount();
 		xmlBankAccount01.setBezeichnung("Girokonto 01");
 		xmlBankAccount01.setNamePP("Girokonto 01");
 		xmlBankAccount01.setIban("DE00000000000000000001");
@@ -78,7 +78,7 @@ class FileImportBeanTest {
 		xmlBankAccount01.setBic("BANKDE00001");
 		xmlBankAccount01.setType("Girokonto");
 
-		de.fp32xmlextract.data.Booking xmlBookingAccount0101 = new de.fp32xmlextract.data.Booking("14.10.2025", "14.10.2025", "Testbuchung 01",
+		de.zft2.fp3xmlextract.data.Booking xmlBookingAccount0101 = new de.zft2.fp3xmlextract.data.Booking("14.10.2025", "14.10.2025", "Testbuchung 01",
 				BigDecimal.valueOf(200.00), null, null, "Girokonto 01");
 		xmlBookingAccount0101.setCrossReceiverName("Empfänger 01");
 		xmlBookingAccount0101.setCrossAccountIBAN("DE00000000000000000001");
@@ -88,7 +88,7 @@ class FileImportBeanTest {
 		xmlBookingAccount0101.setCrossBankName("Testbank 01");
 		xmlBookingAccount0101.setCrossAccountNamePP(null);
 
-		de.fp32xmlextract.data.Booking xmlBookingAccount0102 = new de.fp32xmlextract.data.Booking("16.10.2025", "16.10.2025", "Testbuchung 02",
+		de.zft2.fp3xmlextract.data.Booking xmlBookingAccount0102 = new de.zft2.fp3xmlextract.data.Booking("16.10.2025", "16.10.2025", "Testbuchung 02",
 				BigDecimal.valueOf(100.00), null, null, "Girokonto 01");
 		xmlBookingAccount0102.setCrossReceiverName("Empfänger 02");
 		xmlBookingAccount0102.setCrossAccountIBAN("DE00000000000000000002");
@@ -98,7 +98,7 @@ class FileImportBeanTest {
 		xmlBookingAccount0102.setCrossBankName("Testbank 02");
 		xmlBookingAccount0102.setCrossAccountNamePP(null);
 
-		de.fp32xmlextract.data.Booking xmlBookingAccount0103 = new de.fp32xmlextract.data.Booking("19.10.2025", "19.10.2025", "Testbuchung 03",
+		de.zft2.fp3xmlextract.data.Booking xmlBookingAccount0103 = new de.zft2.fp3xmlextract.data.Booking("19.10.2025", "19.10.2025", "Testbuchung 03",
 				BigDecimal.valueOf(-50.00), null, null, "Girokonto 01");
 		xmlBookingAccount0103.setCrossReceiverName("Empfänger 02");
 		xmlBookingAccount0103.setCrossAccountIBAN("DE00000000000000000002");
@@ -108,7 +108,7 @@ class FileImportBeanTest {
 		xmlBookingAccount0103.setCrossBankName("Testbank 02");
 		xmlBookingAccount0103.setCrossAccountNamePP(null);
 
-		de.fp32xmlextract.data.Booking xmlBookingAccount0104 = new de.fp32xmlextract.data.Booking("20.10.2025", "20.10.2025", "Testbuchung 04",
+		de.zft2.fp3xmlextract.data.Booking xmlBookingAccount0104 = new de.zft2.fp3xmlextract.data.Booking("20.10.2025", "20.10.2025", "Testbuchung 04",
 				BigDecimal.valueOf(150.00), null, null, "Girokonto 01");
 		xmlBookingAccount0104.setCrossReceiverName("Empfänger 04");
 		xmlBookingAccount0104.setCrossAccountIBAN("DE00000000000000000004");
@@ -120,7 +120,7 @@ class FileImportBeanTest {
 
 		xmlBankAccount01.setBookings(Arrays.asList(xmlBookingAccount0101, xmlBookingAccount0102, xmlBookingAccount0103, xmlBookingAccount0104));
 
-		de.fp32xmlextract.data.BankAccount xmlBankAccount02 = new de.fp32xmlextract.data.BankAccount();
+		de.zft2.fp3xmlextract.data.BankAccount xmlBankAccount02 = new de.zft2.fp3xmlextract.data.BankAccount();
 		xmlBankAccount02.setBezeichnung("Girokonto 02");
 		xmlBankAccount01.setNamePP("Girokonto 02");
 		xmlBankAccount02.setIban("DE00000000000000000002");
@@ -128,7 +128,7 @@ class FileImportBeanTest {
 		xmlBankAccount02.setBic("BANKDE00002");
 		xmlBankAccount02.setType("Girokonto");
 
-		de.fp32xmlextract.data.Booking xmlBookingAccount0201 = new de.fp32xmlextract.data.Booking("14.10.2025", "14.10.2025", "Testbuchung 05",
+		de.zft2.fp3xmlextract.data.Booking xmlBookingAccount0201 = new de.zft2.fp3xmlextract.data.Booking("14.10.2025", "14.10.2025", "Testbuchung 05",
 				BigDecimal.valueOf(400.00), null, null, "Girokonto 02");
 		xmlBookingAccount0201.setCrossReceiverName("Empfänger 03");
 		xmlBookingAccount0201.setCrossAccountIBAN("DE00000000000000000003");
@@ -138,7 +138,7 @@ class FileImportBeanTest {
 		xmlBookingAccount0201.setCrossBankName("Testbank 03");
 		xmlBookingAccount0201.setCrossAccountNamePP(null);
 
-		de.fp32xmlextract.data.Booking xmlBookingAccount0202 = new de.fp32xmlextract.data.Booking("14.10.2025", "14.10.2025", "Testbuchung 06",
+		de.zft2.fp3xmlextract.data.Booking xmlBookingAccount0202 = new de.zft2.fp3xmlextract.data.Booking("14.10.2025", "14.10.2025", "Testbuchung 06",
 				BigDecimal.valueOf(-600.00), null, null, "Girokonto 02");
 		xmlBookingAccount0202.setCrossReceiverName("Empfänger 04");
 		xmlBookingAccount0202.setCrossAccountIBAN("DE00000000000000000004");
@@ -174,7 +174,7 @@ class FileImportBeanTest {
 		List<Recipient> recipientsList = dbController.getAll(Recipient.class);
 		assertEquals(4, recipientsList.size());
 
-		de.fp32xmlextract.data.Booking xmlBookingAccount0203 = new de.fp32xmlextract.data.Booking("14.10.2025", "14.10.2025", "Testbuchung 07",
+		de.zft2.fp3xmlextract.data.Booking xmlBookingAccount0203 = new de.zft2.fp3xmlextract.data.Booking("14.10.2025", "14.10.2025", "Testbuchung 07",
 				BigDecimal.valueOf(-600.00), null, null, "Girokonto 02");
 		xmlBookingAccount0203.setCrossReceiverName("Empfänger 04");
 		xmlBookingAccount0203.setCrossAccountIBAN("DE00000000000000000004");
@@ -184,7 +184,7 @@ class FileImportBeanTest {
 		xmlBookingAccount0203.setCrossBankName("Testbank 04");
 		xmlBookingAccount0203.setCrossAccountNamePP(null);
 
-		de.fp32xmlextract.data.Booking xmlBookingAccount0204 = new de.fp32xmlextract.data.Booking("14.10.2025", "14.10.2025", "Testbuchung 08",
+		de.zft2.fp3xmlextract.data.Booking xmlBookingAccount0204 = new de.zft2.fp3xmlextract.data.Booking("14.10.2025", "14.10.2025", "Testbuchung 08",
 				BigDecimal.valueOf(-600.00), null, null, "Girokonto 02");
 		xmlBookingAccount0204.setCrossReceiverName("Empfänger 05");
 		xmlBookingAccount0204.setCrossAccountIBAN("DE00000000000000000005");
