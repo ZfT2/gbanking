@@ -14,6 +14,7 @@ public class BankAccount extends Dao implements Serializable {
 	private static final long serialVersionUID = 1896883783278517707L;
 
 	private Integer bankAccessId;
+	private Integer parentAccountId;
 	private String accountName;
 	private AccountType accountType;
 	private String currency;
@@ -60,6 +61,14 @@ public class BankAccount extends Dao implements Serializable {
 
 	public void setBankAccessId(Integer bankAccessId) {
 		this.bankAccessId = bankAccessId;
+	}
+
+	public Integer getParentAccountId() {
+		return parentAccountId;
+	}
+
+	public void setParentAccountId(Integer parentAccountId) {
+		this.parentAccountId = parentAccountId;
 	}
 
 	public AccountType getAccountType() {

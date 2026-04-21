@@ -220,8 +220,9 @@ public class FileImportBean extends BaseBean {
 				Booking bookingDao = DaoMapper.maptoBookingDao(accountName, xmlBooking, accountIdMapByAccountname, crossAccountIdMapByIdentifier,
 						Source.IMPORT_INITIAL);
 				Booking existingBooking = findMatchingBooking(existingBookings, bookingDao);
-				boolean skipped = existingBooking != null;
-				Booking resolvedBooking = skipped ? existingBooking : dbController.insertOrUpdate(bookingDao);
+				boolean existing = existingBooking != null;
+				boolean updated = false;
+				Booking resolvedBooking = existing ? existingBooking : dbController.insertOrUpdate(bookingDao);
 
 				if (xmlBooking.getCrossBooking() != null && crossBookingMap.get(xmlBooking) == null && resolvedBooking != null) {
 					crossBookingMap.put(xmlBooking.getCrossBooking(), resolvedBooking.getId());
@@ -233,9 +234,12 @@ public class FileImportBean extends BaseBean {
 					dbController.insertOrUpdate(crossBookingDao);
 					resolvedBooking.setCrossBookingId(crossBookingDao.getId());
 					dbController.insertOrUpdate(resolvedBooking);
+					updated = existing;
 				}
 
-				if (skipped) {
+				if (updated) {
+					accountStatistics.incrementUpdated();
+				} else if (existing) {
 					accountStatistics.incrementSkipped();
 				} else if (resolvedBooking != null) {
 					bookingDaoList.add(resolvedBooking);
@@ -283,8 +287,8 @@ public class FileImportBean extends BaseBean {
 		for (ImportAccountStatistics statistics : importStatisticsByAccount.values()) {
 			summary.append(System.lineSeparator())
 					.append(getText("UI_IMPORT_SUMMARY_ACCOUNT", statistics.getAccountName(), Integer.toString(statistics.getExistingBookings()),
-							Integer.toString(statistics.getAddedBookings()), Integer.toString(statistics.getSkippedBookings()),
-							Integer.toString(statistics.getTotalBookings())));
+							Integer.toString(statistics.getAddedBookings()), Integer.toString(statistics.getUpdatedBookings()),
+							Integer.toString(statistics.getSkippedBookings()), Integer.toString(statistics.getTotalBookings())));
 		}
 		return summary.toString();
 	}
@@ -352,10 +356,15 @@ public class FileImportBean extends BaseBean {
 		private final int existingBookings;
 		private int addedBookings;
 		private int skippedBookings;
+		private int updatedBookings;
 
 		private ImportAccountStatistics(String accountName, int existingBookings) {
 			this.accountName = accountName;
 			this.existingBookings = existingBookings;
+		}
+
+		public void incrementUpdated() {
+			updatedBookings++;
 		}
 
 		private void incrementAdded() {
@@ -380,6 +389,10 @@ public class FileImportBean extends BaseBean {
 
 		private int getSkippedBookings() {
 			return skippedBookings;
+		}
+
+		public int getUpdatedBookings() {
+			return updatedBookings;
 		}
 
 		private int getTotalBookings() {

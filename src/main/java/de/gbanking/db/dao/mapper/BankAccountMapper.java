@@ -18,44 +18,40 @@ import de.gbanking.util.TypeConverter;
 
 public class BankAccountMapper extends AbstractDaoMapper<BankAccount, Void> {
 
-	// private AbstractDaoMapper<?, ?> bookingMapper =
-	// StatementsConfig.getMapperForDaoType(Booking.class);
-
 	@Override
 	public void setParamsFull(BankAccount bankAccount, PreparedStatement ps) throws SQLException {
-		if (bankAccount.getBankAccessId() != null) {
-			ps.setInt(1, bankAccount.getBankAccessId());
-		}
-		if (bankAccount.getAccountName() != null) {
-			ps.setString(2, bankAccount.getAccountName());
-		} else {
-			ps.setString(2, bankAccount.getDefaultAccountName());
-		}
-		ps.setString(3, bankAccount.getCurrency());
-		ps.setString(4, bankAccount.getAccountType().name());
-		ps.setString(5, bankAccount.getSource().name());
-		ps.setString(6, bankAccount.getIban());
-		ps.setString(7, bankAccount.getBic());
-		ps.setString(8, bankAccount.getNumber());
-		ps.setString(9, bankAccount.getSubnumber());
-		ps.setString(10, bankAccount.getBankName());
-		ps.setString(11, bankAccount.getBlz());
-		ps.setInt(12, bankAccount.getHbciAccountType());
-		ps.setString(13, bankAccount.getLimit());
-		ps.setString(14, bankAccount.getCustomerid());
-		ps.setString(15, bankAccount.getOwnerName());
-		ps.setString(16, bankAccount.getOwnerName2());
-		ps.setString(17, bankAccount.getCountry());
-		ps.setString(18, bankAccount.getCreditorid());
-		ps.setBoolean(19, bankAccount.isSEPAAccount());
-		ps.setBoolean(20, bankAccount.isOfflineAccount());
-		ps.setString(21, bankAccount.getAccountState().name());
+		int index = 1;
 
-		if (bankAccount.getBalance() != null)
-			ps.setDouble(22, bankAccount.getBalance().doubleValue());
-		ps.setDate(23, TypeConverter.toSqlDateNow());
+		index = setIntegerNullable(index, bankAccount.getBankAccessId(), ps);
+		index = setIntegerNullable(index, bankAccount.getParentAccountId(), ps);
+		if (bankAccount.getAccountName() != null) {
+			ps.setString(index++, bankAccount.getAccountName());
+		} else {
+			ps.setString(index++, bankAccount.getDefaultAccountName());
+		}
+		ps.setString(index++, bankAccount.getCurrency());
+		ps.setString(index++, bankAccount.getAccountType().name());
+		ps.setString(index++, bankAccount.getSource().name());
+		ps.setString(index++, bankAccount.getIban());
+		ps.setString(index++, bankAccount.getBic());
+		ps.setString(index++, bankAccount.getNumber());
+		ps.setString(index++, bankAccount.getSubnumber());
+		ps.setString(index++, bankAccount.getBankName());
+		ps.setString(index++, bankAccount.getBlz());
+		ps.setInt(index++, bankAccount.getHbciAccountType());
+		ps.setString(index++, bankAccount.getLimit());
+		ps.setString(index++, bankAccount.getCustomerid());
+		ps.setString(index++, bankAccount.getOwnerName());
+		ps.setString(index++, bankAccount.getOwnerName2());
+		ps.setString(index++, bankAccount.getCountry());
+		ps.setString(index++, bankAccount.getCreditorid());
+		ps.setBoolean(index++, bankAccount.isSEPAAccount());
+		ps.setBoolean(index++, bankAccount.isOfflineAccount());
+		ps.setString(index++, bankAccount.getAccountState().name());
+		index = setBigDecimalNullable(index, bankAccount.getBalance(), ps);
+		ps.setDate(index++, TypeConverter.toSqlDateNow());
 		if (bankAccount.getId() > 0)
-			ps.setInt(24, bankAccount.getId());
+			ps.setInt(index, bankAccount.getId());
 	}
 
 	@Override
@@ -94,6 +90,7 @@ public class BankAccountMapper extends AbstractDaoMapper<BankAccount, Void> {
 	@Override
 	public void mapDao(BankAccount account, ResultType resultType, ResultSet rs) throws SQLException {
 		account.setBankAccessId(rs.getInt("bankAccess_id"));
+		account.setParentAccountId(rs.getInt("parentAccount_id"));
 		account.setAccountName(rs.getString(SqlFields.ACCOUNT_ACCOUNTNAME));
 		account.setCurrency(rs.getString("currency"));
 		account.setAccountType(AccountType.valueOf(rs.getString("accountType")));

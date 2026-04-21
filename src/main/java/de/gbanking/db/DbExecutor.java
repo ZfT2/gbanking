@@ -145,9 +145,9 @@ public class DbExecutor extends DbConnectionHandler {
 		mapper.setParamsFull(daoList, ps);
 	}
 
-	public <T extends Dao, V extends Dao> void setStatementParamsUpdateListWithId(Set<Integer> idList, T targetDao, /* Class<V> type, */ PreparedStatement ps)
+	private <T extends Dao> void setStatementParamsUpdateListWithId(Set<Integer> idList, T targetDao, PreparedStatement ps)
 			throws SQLException {
-		AbstractDaoMapper<T, ?> mapper = getMapper(/* type */Dao.class);
+		AbstractDaoMapper<T, ?> mapper = getMapper(Dao.class);
 		mapper.setParamsForeignKeyUpdate(idList, targetDao, ps);
 	}
 
@@ -220,7 +220,7 @@ public class DbExecutor extends DbConnectionHandler {
 			if (dao != null)
 				ps.setInt(1, dao.getId());
 			ResultSet rs = ps.executeQuery();
-			resultMap = new HashMap<>(rs.getFetchSize()); // newHashMap(rs.getFetchSize());
+			resultMap = new HashMap<>(rs.getFetchSize());
 			while (rs.next()) {
 				resultMap.put(rs.getObject(keyName, keyType), rs.getObject(valueName, valueType));
 			}
@@ -320,34 +320,16 @@ public class DbExecutor extends DbConnectionHandler {
 			connection.commit();
 
 			if (needsGeneratedKeys) {
-				try (ResultSet generatedKeys = ps.getGeneratedKeys()) {
-					if (generatedKeys.next()) {
-						entity.setId(generatedKeys.getInt(1));
-					} else {
-						throw new SQLException(messages.getFormattedMessage(SqlErrors.ERROR_DB_NO_ID, entity.getClass().getName()));
-					}
-				}
+				setGeneratedDbIds(entity, ps);
 			} else {
 				log.info("{} for {}, count: {}", mode, entity.getClass().getName(), affectedRows);
 			}
 
 		} catch (SQLException e) {
-			try {
-				connection.rollback();
-			} catch (SQLException rollbackException) {
-				log.error(messages.getFormattedMessage(MessageConstants.ERROR_GENERAL, rollbackException.getMessage()), rollbackException);
-			}
-
+			handleRollback();
 			log.error(messages.getFormattedMessage(mode == SQLMode.UPDATE ? SqlErrors.ERROR_DB_UPDATE : SqlErrors.ERROR_DB_INSERT, entity.getId()), e);
-
 		} finally {
-			if (oldAutoCommit != null) {
-				try {
-					connection.setAutoCommit(oldAutoCommit);
-				} catch (SQLException e) {
-					log.error(messages.getFormattedMessage(MessageConstants.ERROR_GENERAL, e.getMessage()), e);
-				}
-			}
+			handleAutoCommit(oldAutoCommit);
 		}
 
 		return entity;
@@ -368,8 +350,6 @@ public class DbExecutor extends DbConnectionHandler {
 
 			AbstractDaoMapper<T, ?> mapper = getMapper(firstEntity);
 			mapper.setParamsFull(entitySet, ps);
-			//List<V> daoList, Dao mTable, Class<? extends Dao> mapperType, PreparedStatement ps
-			//mapStatementParams(entitySet, null, null, ps);
 
 			ps.executeBatch();
 
@@ -440,8 +420,7 @@ public class DbExecutor extends DbConnectionHandler {
 		List<T> entityListDB = null;
 		
 		ResultSet rs = null;
-		// System.out.println("SQL:" + StatementsConfig.getSqlStatement(type,
-		// statementType));
+
 		try (PreparedStatement ps = connection.prepareStatement(StatementsConfig.getSqlStatement(type, statementType))){
 			
 			if (parentObjectId != null && parentObjectId > 0) {
@@ -477,6 +456,32 @@ public class DbExecutor extends DbConnectionHandler {
 	
 	protected Class<? extends Dao> detectListType(Collection<? extends Dao> list) {
 		return list.iterator().next().getClass();
+	}
+
+	private <T extends Dao> void setGeneratedDbIds(T entity, PreparedStatement ps) throws SQLException {
+		try (ResultSet generatedKeys = ps.getGeneratedKeys()) {
+			if (generatedKeys.next()) {
+				entity.setId(generatedKeys.getInt(1));
+			} else {
+				throw new SQLException(messages.getFormattedMessage(SqlErrors.ERROR_DB_NO_ID, entity.getClass().getName()));
+			}
+		}
+	}
+
+	private void handleRollback() {
+		try {
+			connection.rollback();
+		} catch (SQLException rollbackException) {
+			log.error(messages.getFormattedMessage(MessageConstants.ERROR_GENERAL, rollbackException.getMessage()), rollbackException);
+		}
+	}
+
+	private void handleAutoCommit(Boolean oldAutoCommit) {
+		try {
+			connection.setAutoCommit(oldAutoCommit);
+		} catch (SQLException e) {
+			log.error(messages.getFormattedMessage(MessageConstants.ERROR_GENERAL, e.getMessage()), e);
+		}
 	}
 
 	private <T> T executeSelectSimpleField(String sql, Dao dao, String criteriaParamOptional, String resultField, Class<T> type) {

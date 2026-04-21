@@ -1,5 +1,6 @@
 package de.gbanking.db.dao.mapper;
 
+import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -81,10 +82,6 @@ public abstract class AbstractDaoMapper<T extends Dao, V> {
 
 	void mapDao(T dao, ResultType resultType, ResultSet rs) throws SQLException {
 		throw new GBankingException("mapDao(T dao, ResultType resultType, ResultSet rs): not implemented for type " + this.getClass().getName());
-//		if (dao == null)
-//			return;
-//		dao.setId(rs.getInt("id"));
-//		dao.setUpdatedAt((TypeConverter.toLocalDateFromSqlDate(rs.getDate(SqlFields.DAO_UPDATEDAT))));
 	}
 
 	protected int setIntegerNullable(int index, Integer value, PreparedStatement ps) throws SQLException {
@@ -99,6 +96,10 @@ public abstract class AbstractDaoMapper<T extends Dao, V> {
 
 	protected int setDoubleNullable(int index, Double value, PreparedStatement ps) throws SQLException {
 		return setNullable(index, value, Types.DOUBLE, ps);
+	}
+
+	protected int setBigDecimalNullable(int index, BigDecimal value, PreparedStatement ps) throws SQLException {
+		return setNullable(index, value == null ? null : value.doubleValue(), Types.DOUBLE, ps);
 	}
 
 	protected int setDateNullable(int index, Date value, PreparedStatement ps) throws SQLException {

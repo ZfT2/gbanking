@@ -244,6 +244,7 @@ class FileImportBeanTest {
 		assertEquals(1, countOccurrences(summary, "Girokonto Doubletten"));
 		assertTrue(summary.contains("bereits vorhandene Buchungen 1"));
 		assertTrue(summary.contains("neu hinzugefügt 1"));
+		assertTrue(summary.contains("aktualisiert 0"));
 		assertTrue(summary.contains("übersprungen 1"));
 		assertTrue(summary.contains("Gesamtzahl 2"));
 	}

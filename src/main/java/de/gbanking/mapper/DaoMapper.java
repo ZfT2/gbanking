@@ -104,7 +104,6 @@ public class DaoMapper {
 		booking.setSource(source);
 		booking.setBookingType(getBookingType(xmlBooking));
 		booking.setAmount(xmlBooking.getAmount() != null ? xmlBooking.getAmount().setScale(2, RoundingMode.HALF_UP) : null);
-		// booking.setDate(TypeConverter.toLocalDateFromDateStr(xmlBooking.getDate()));
 		booking.setDateBooking(TypeConverter.toLocalDateFromDateStrFlexible(xmlBooking.getDateBooking()));
 		booking.setDateValue(TypeConverter.toLocalDateFromDateStrFlexible(xmlBooking.getDateValue()));
 		booking.setPurpose(xmlBooking.getPurpose());
@@ -132,8 +131,6 @@ public class DaoMapper {
 		} else {
 			booking.setCrossAccountId(null);
 		}
-
-		// setCrossBooking(booking, crossBookingMap.get(xmlBooking));
 
 		mapRecipient(xmlBooking, booking, source);
 
