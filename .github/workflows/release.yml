@@ -36,6 +36,9 @@ jobs:
                   distribution: temurin
                   java-version: "21"
                   cache: maven
+                  server-id: github
+                  server-username: ${{ github.actor }}
+                  server-password: ${{ secrets.GH_PACKAGES_TOKEN }}
 
             - name: Determine version
               run: |
