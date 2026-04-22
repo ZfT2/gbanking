@@ -27,21 +27,6 @@ jobs:
                       artifact_pattern: target/*-mac.tar.gz
 
         steps:
-            - name: Configure Maven settings.xml
-              run: |
-                  mkdir -p ~/.m2
-                  cat > ~/.m2/settings.xml <<EOF
-                  <settings>
-                    <servers>
-                      <server>
-                        <id>github</id>
-                        <username>${{ github.actor }}</username>
-                        <password>${{ secrets.GH_PACKAGES_TOKEN }}</password>
-                      </server>
-                    </servers>
-                  </settings>
-                  EOF
-
             - name: Checkout
               uses: actions/checkout@v4
 
@@ -52,8 +37,29 @@ jobs:
                   java-version: "21"
                   cache: maven
                   server-id: github
-                  server-username: ${{ github.actor }}
+                  server-username: ZfT2
                   server-password: ${{ secrets.GH_PACKAGES_TOKEN }}
+
+            - name: Configure Maven settings.xml
+              shell: bash
+              run: |
+                mkdir -p ~/.m2
+                cat > ~/.m2/settings.xml <<EOF
+                  <settings>
+                    <servers>
+                      <server>
+                        <id>github</id>
+                        <username>ZfT2</username>
+                        <password>${{ secrets.GH_PACKAGES_TOKEN }}</password>
+                      </server>
+                    </servers>
+                  </settings>
+                EOF
+
+            - name: Debug settings.xml
+              shell: bash
+              run: |
+                 cat ~/.m2/settings.xml
 
             - name: Determine version
               shell: bash
