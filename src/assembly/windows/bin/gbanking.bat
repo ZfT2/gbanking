@@ -18,7 +18,7 @@ if errorlevel 1 (
     echo Die Anwendung wurde fuer Java 21 gebaut und startet moeglicherweise nicht korrekt.
 )
 
-java --module-path "%LIB%" --add-modules javafx.controls -cp "%LIB%\*" de.gbanking.GBanking %*
+java --module-path "%LIB%" --add-modules javafx.controls -cp "%LIB%\*" de.zft2.gbanking.GBanking %*
 set EXIT_CODE=%ERRORLEVEL%
 
 if not "%EXIT_CODE%"=="0" (

@@ -19,4 +19,4 @@ case "$JAVA_VERSION_OUTPUT" in
         ;;
 esac
 
-exec java --module-path "$LIB" --add-modules javafx.controls -cp "$LIB/*" de.gbanking.GBanking "$@"
+exec java --module-path "$LIB" --add-modules javafx.controls -cp "$LIB/*" de.zft2.gbanking.GBanking "$@"

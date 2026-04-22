@@ -46,7 +46,7 @@
 
 	<properties>
 		<app.name>GBanking</app.name>
-		<app.mainClass>de.gbanking.GBanking</app.mainClass>
+		<app.mainClass>de.zft2.gbanking.GBanking</app.mainClass>
 
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 

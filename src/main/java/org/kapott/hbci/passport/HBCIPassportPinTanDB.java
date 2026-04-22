@@ -8,10 +8,10 @@ import org.kapott.hbci.exceptions.HBCI_Exception;
 import org.kapott.hbci.manager.HBCIUtils;
 import org.kapott.hbci.manager.HBCIUtilsInternal;
 
-import de.gbanking.db.DBController;
-import de.gbanking.db.dao.BankAccess;
-import de.gbanking.db.dao.enu.HbciEncodingFilterType;
-import de.gbanking.db.dao.enu.TanProcedure;
+import de.zft2.gbanking.db.DBController;
+import de.zft2.gbanking.db.dao.BankAccess;
+import de.zft2.gbanking.db.dao.enu.HbciEncodingFilterType;
+import de.zft2.gbanking.db.dao.enu.TanProcedure;
 
 /**
  * Implementation of PIN/TAN-Passport, which is persisting the data in database.
