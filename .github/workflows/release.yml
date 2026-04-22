@@ -37,6 +37,52 @@ jobs:
                   java-version: "21"
                   cache: maven
 
+            - name: Determine version
+              run: |
+                  RAW_TAG=${GITHUB_REF_NAME#v}
+
+                  if [[ "$RAW_TAG" == *"+"* ]]; then
+                    BASE_VERSION=${RAW_TAG%%+*}
+                    INCREMENT=${RAW_TAG##*+}
+                  else
+                    BASE_VERSION=$RAW_TAG
+                    INCREMENT="none"
+                  fi
+
+                  # Version Guard
+                  if ! [[ "$BASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                    echo "Invalid version format: $BASE_VERSION"
+                    exit 1
+                  fi
+
+                  IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
+
+                  case $INCREMENT in
+                    patch)
+                      PATCH=$((PATCH + 1))
+                      ;;
+                    minor)
+                      MINOR=$((MINOR + 1))
+                      PATCH=0
+                      ;;
+                    major|Major)
+                      MAJOR=$((MAJOR + 1))
+                      MINOR=0
+                      PATCH=0
+                      ;;
+                    none)
+                      ;;
+                    *)
+                      echo "Invalid increment: $INCREMENT"
+                      exit 1
+                      ;;
+                  esac
+
+                  VERSION="$MAJOR.$MINOR.$PATCH"
+
+                  echo "VERSION=$VERSION" >> $GITHUB_ENV
+                  echo "Computed version: $VERSION"
+
             - name: Build distribution
               run: mvn -B -P${{ matrix.profile }} clean package
 
@@ -64,11 +110,55 @@ jobs:
             - name: Show downloaded files
               run: find dist -type f
 
+            - name: Determine version
+              run: |
+                  RAW_TAG=${GITHUB_REF_NAME#v}
+
+                  if [[ "$RAW_TAG" == *"+"* ]]; then
+                    BASE_VERSION=${RAW_TAG%%+*}
+                    INCREMENT=${RAW_TAG##*+}
+                  else
+                    BASE_VERSION=$RAW_TAG
+                    INCREMENT="none"
+                  fi
+
+                  if ! [[ "$BASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                    echo "Invalid version format: $BASE_VERSION"
+                    exit 1
+                  fi
+
+                  IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
+
+                  case $INCREMENT in
+                    patch)
+                      PATCH=$((PATCH + 1))
+                      ;;
+                    minor)
+                      MINOR=$((MINOR + 1))
+                      PATCH=0
+                      ;;
+                    major|Major)
+                      MAJOR=$((MAJOR + 1))
+                      MINOR=0
+                      PATCH=0
+                      ;;
+                    none)
+                      ;;
+                    *)
+                      echo "Invalid increment: $INCREMENT"
+                      exit 1
+                      ;;
+                  esac
+
+                  VERSION="$MAJOR.$MINOR.$PATCH"
+
+                  echo "VERSION=$VERSION" >> $GITHUB_ENV
+
             - name: Create release and upload assets
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
-                  TAG="${GITHUB_REF_NAME}"
+                  TAG="v${VERSION}"
 
                   gh release create "$TAG" \
                     dist/windows-dist/* \
