@@ -73,8 +73,6 @@
 
 		<project.build.outputTimestamp>${maven.build.timestamp}</project.build.outputTimestamp>
 
-		<javafx.platform>linux</javafx.platform>
-		
 	</properties>
 
 	<dependencies>
@@ -82,21 +80,18 @@
 			<groupId>org.openjfx</groupId>
 			<artifactId>javafx-base</artifactId>
 			<version>${javafx.version}</version>
-			<classifier>${javafx.platform}</classifier>
 		</dependency>
 
 		<dependency>
 			<groupId>org.openjfx</groupId>
 			<artifactId>javafx-graphics</artifactId>
 			<version>${javafx.version}</version>
-			<classifier>${javafx.platform}</classifier>
 		</dependency>
 
 		<dependency>
 			<groupId>org.openjfx</groupId>
 			<artifactId>javafx-controls</artifactId>
 			<version>${javafx.version}</version>
-			<classifier>${javafx.platform}</classifier>
 		</dependency>
 
 		<dependency>

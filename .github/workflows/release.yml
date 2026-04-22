@@ -56,10 +56,8 @@ jobs:
                   </settings>
                 EOF
 
-            - name: Debug settings.xml
-              shell: bash
-              run: |
-                 cat ~/.m2/settings.xml
+            - name: Debug platform
+              run: echo "JavaFX Platform = ${{ matrix.profile }}"
 
             - name: Determine version
               shell: bash
@@ -109,7 +107,7 @@ jobs:
                   echo "Computed version: $VERSION"
 
             - name: Build distribution
-              run: mvn -B -P${{ matrix.profile }} clean package
+              run: mvn -B -P${{ matrix.profile }} clean package -Djavafx.platform=Monocle -Dprism.order=sw
 
             - name: Upload distribution artifact
               uses: actions/upload-artifact@v4
