@@ -9,7 +9,6 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.gui.JavaFxTestSupport;
-import de.zft2.gbanking.gui.util.FormControlUtils;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;

@@ -13,7 +13,6 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import de.zft2.gbanking.db.StatementsConfig;
 import de.zft2.gbanking.db.StatementsConfig.StatementType;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;

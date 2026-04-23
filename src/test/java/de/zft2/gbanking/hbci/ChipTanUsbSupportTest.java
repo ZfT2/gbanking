@@ -17,16 +17,15 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 import org.kapott.hbci.smartcardio.ChipTanCardService;
 import org.kapott.hbci.smartcardio.SmartCardService;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.db.DbExecutor;
 import de.zft2.gbanking.db.dao.Setting;
-import de.zft2.gbanking.hbci.ChipTanUsbSupport;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ChipTanUsbSupportTest {

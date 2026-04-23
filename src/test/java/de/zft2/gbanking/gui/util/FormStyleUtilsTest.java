@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
-import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.gui.util.FormStyleUtils.FieldWidth;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;

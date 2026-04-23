@@ -11,7 +11,6 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import de.zft2.gbanking.db.StatementsConfig;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.Recipient;

@@ -17,8 +17,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
-import de.zft2.gbanking.GBankingBean;
-import de.zft2.gbanking.MoneyTransferExecutionService;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.db.dao.BankAccount;

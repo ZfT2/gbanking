@@ -9,9 +9,6 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import de.zft2.gbanking.db.DbMigrationRunner;
-import de.zft2.gbanking.db.SqlTemplateRepository;
-
 class SqlTemplateRepositoryTest {
 
 	@Test

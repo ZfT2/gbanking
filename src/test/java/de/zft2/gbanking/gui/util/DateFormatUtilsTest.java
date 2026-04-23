@@ -7,8 +7,6 @@ import java.util.Date;
 
 import org.junit.jupiter.api.Test;
 
-import de.zft2.gbanking.gui.util.DateFormatUtils;
-
 class DateFormatUtilsTest {
 
 	@Test

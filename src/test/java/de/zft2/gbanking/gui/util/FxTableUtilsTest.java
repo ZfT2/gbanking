@@ -9,7 +9,6 @@ import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.gui.JavaFxTestSupport;
-import de.zft2.gbanking.gui.util.FxTableUtils;
 import javafx.beans.property.BooleanProperty;
 import javafx.scene.control.Cell;
 import javafx.scene.control.TableCell;

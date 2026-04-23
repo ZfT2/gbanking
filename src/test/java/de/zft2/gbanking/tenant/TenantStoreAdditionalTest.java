@@ -11,9 +11,6 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import de.zft2.gbanking.tenant.TenantProfile;
-import de.zft2.gbanking.tenant.TenantStore;
-
 class TenantStoreAdditionalTest {
 
 	@TempDir

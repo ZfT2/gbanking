@@ -15,7 +15,6 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 import de.zft2.fp3xmlextract.data.Booking.SepaTyp;
-import de.zft2.gbanking.db.StatementsConfig;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;

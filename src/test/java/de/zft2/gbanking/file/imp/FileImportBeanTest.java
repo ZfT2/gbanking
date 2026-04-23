@@ -27,7 +27,6 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.BookingType;
-import de.zft2.gbanking.file.imp.FileImportBean;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FileImportBeanTest {

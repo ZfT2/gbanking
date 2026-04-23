@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.gui.JavaFxTestSupport;
-import de.zft2.gbanking.gui.util.OverviewLayoutHelper;
 import javafx.scene.control.Label;
 import javafx.scene.control.SplitPane;
 import javafx.scene.layout.Priority;

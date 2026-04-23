@@ -12,7 +12,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInstance;
 
-import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.Dao;
 
 /**

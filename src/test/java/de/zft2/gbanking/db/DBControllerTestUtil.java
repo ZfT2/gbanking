@@ -11,9 +11,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
-import de.zft2.gbanking.db.DbConnectionHandler;
-import de.zft2.gbanking.db.DbRuntimeContext;
-
 public class DBControllerTestUtil {
 
 	/**

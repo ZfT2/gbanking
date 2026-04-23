@@ -24,7 +24,6 @@ import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.enu.InstituteStatus;
-import de.zft2.gbanking.file.imp.institute.InstituteFileImportBean;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class InstituteFileImportBeanIntegrationTest {

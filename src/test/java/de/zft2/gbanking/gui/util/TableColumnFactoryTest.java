@@ -10,7 +10,6 @@ import java.util.Date;
 import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.gui.JavaFxTestSupport;
-import de.zft2.gbanking.gui.util.TableColumnFactory;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;

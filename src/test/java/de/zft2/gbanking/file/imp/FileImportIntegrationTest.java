@@ -32,7 +32,6 @@ import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.file.exp.FileExportBean;
 import de.zft2.gbanking.file.exp.FileExportXMLBean;
-import de.zft2.gbanking.file.imp.FileImportBean;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FileImportIntegrationTest {

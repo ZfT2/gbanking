@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.gui.JavaFxTestSupport;
-import de.zft2.gbanking.gui.util.FormFields;
 import de.zft2.gbanking.gui.util.FormStyleUtils.FieldWidth;
 import javafx.collections.FXCollections;
 import javafx.scene.control.ComboBox;

@@ -42,7 +42,6 @@ import org.mockito.Mock;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 
-import de.zft2.gbanking.GBankingBean;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.StatementsConfig;
 import de.zft2.gbanking.db.dao.BankAccess;

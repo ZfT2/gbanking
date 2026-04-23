@@ -23,7 +23,6 @@ import org.kapott.hbci.structures.Konto;
 import org.kapott.hbci.structures.Saldo;
 import org.kapott.hbci.structures.Value;
 
-import de.zft2.gbanking.GBankingBean;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.db.TestData;

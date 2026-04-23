@@ -10,8 +10,6 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import de.zft2.gbanking.util.TypeConverter;
-
 class TypeConverterTest {
 
 	@Test

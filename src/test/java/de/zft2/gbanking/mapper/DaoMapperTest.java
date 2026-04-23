@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.Source;
-import de.zft2.gbanking.mapper.DaoMapper;
 
 class DaoMapperTest {
 

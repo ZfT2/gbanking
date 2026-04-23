@@ -6,8 +6,6 @@ import java.util.Locale;
 
 import org.junit.jupiter.api.Test;
 
-import de.zft2.gbanking.messages.Messages;
-
 class MessagesTest {
 
 	@Test

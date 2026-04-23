@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
+import org.kapott.hbci.exceptions.HBCI_Exception;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -17,10 +18,6 @@ import org.mockito.Mockito;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.dialog.hbci.HbciCallbackMessageDialog;
-import de.zft2.gbanking.hbci.ChipTanUsbSupport;
-import de.zft2.gbanking.hbci.GBankingHBCICallback;
-
-import org.kapott.hbci.exceptions.HBCI_Exception;
 
 class GBankingHBCICallbackTest {
 
