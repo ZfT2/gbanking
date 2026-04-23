@@ -109,10 +109,11 @@ jobs:
             - name: Build distribution
               shell: bash
               run: |
-                mvn -B clean test \
-                -Dtestfx.robot=glass \
-                -Dtestfx.headless=true \
-                -Dprism.order=sw
+                if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+                  xvfb-run mvn -B -P${{ matrix.profile }} clean package
+                else
+                  mvn -B -P${{ matrix.profile }} clean package
+                fi
 
             - name: Upload distribution artifact
               uses: actions/upload-artifact@v4
