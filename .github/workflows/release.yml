@@ -107,7 +107,12 @@ jobs:
                   echo "Computed version: $VERSION"
 
             - name: Build distribution
-              run: mvn -B -P${{ matrix.profile }} clean package -Djavafx.platform=Monocle -Dprism.order=sw
+              run: |
+                mvn -B clean test \
+                -Dtestfx.robot=glass \
+                -Dtestfx.headless=true \
+                -Dprism.order=sw \
+                -Dglass.platform=Monocle
 
             - name: Upload distribution artifact
               uses: actions/upload-artifact@v4
