@@ -107,12 +107,12 @@ jobs:
                   echo "Computed version: $VERSION"
 
             - name: Build distribution
+              shell: bash
               run: |
                 mvn -B clean test \
                 -Dtestfx.robot=glass \
                 -Dtestfx.headless=true \
-                -Dprism.order=sw \
-                -Dglass.platform=Monocle
+                -Dprism.order=sw
 
             - name: Upload distribution artifact
               uses: actions/upload-artifact@v4

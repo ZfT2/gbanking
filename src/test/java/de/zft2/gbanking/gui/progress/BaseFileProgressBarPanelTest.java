@@ -4,19 +4,29 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.concurrent.CountDownLatch;
+
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.file.BaseFileTask;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
 import de.zft2.gbanking.gui.enu.FileType;
 import de.zft2.gbanking.gui.panel.account.AccountListPanel;
-import de.zft2.gbanking.gui.progress.BaseFileProgressBarPanel;
+import javafx.application.Platform;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 class BaseFileProgressBarPanelTest {
+
+	@BeforeAll
+	static void initJavaFx() throws Exception {
+		CountDownLatch latch = new CountDownLatch(1);
+		Platform.startup(latch::countDown);
+		latch.await();
+	}
 
 	@Test
 	void progressPanelShouldKeepPercentageLabelVisibleAndGrowBar() {
