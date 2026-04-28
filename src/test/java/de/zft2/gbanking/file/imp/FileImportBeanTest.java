@@ -250,6 +250,67 @@ class FileImportBeanTest {
 	}
 
 	@Test
+	void testImportRecipients_SecondImportShouldLinkRecipientToNewBooking() {
+		de.zft2.fp3xmlextract.data.BankAccount xmlBankAccount = createXmlBankAccount("Girokonto Recipients", "DE00000000000000000888", "888",
+				"BANKDE00888");
+		de.zft2.fp3xmlextract.data.Booking initialBooking = createXmlBooking("14.10.2025", "14.10.2025", "Erste Buchung", BigDecimal.valueOf(10.00),
+				"Girokonto Recipients");
+		initialBooking.setCrossReceiverName("Empfänger Alt");
+		initialBooking.setCrossAccountIBAN("DE00000000000000000111");
+		initialBooking.setCrossAccountBIC("BANKDE00111");
+		xmlBankAccount.setBookings(List.of(initialBooking));
+
+		fileImportBean.writeAccountsToDB(List.of(xmlBankAccount));
+		fileImportBean.writeBookingsToDB(List.of(xmlBankAccount));
+
+		FileImportBean secondImportBean = new FileImportBean(null);
+		de.zft2.fp3xmlextract.data.BankAccount secondImportAccount = createXmlBankAccount("Girokonto Recipients", "DE00000000000000000888", "888",
+				"BANKDE00888");
+		de.zft2.fp3xmlextract.data.Booking newBooking = createXmlBooking("15.10.2025", "15.10.2025", "Zweite Buchung", BigDecimal.valueOf(20.00),
+				"Girokonto Recipients");
+		newBooking.setCrossReceiverName("Empfänger Neu");
+		newBooking.setCrossAccountIBAN("DE00000000000000000222");
+		newBooking.setCrossAccountBIC("BANKDE00222");
+		secondImportAccount.setBookings(List.of(newBooking));
+
+		secondImportBean.writeAccountsToDB(List.of(secondImportAccount));
+		secondImportBean.writeBookingsToDB(List.of(secondImportAccount));
+
+		List<BankAccount> dbAccountList = dbController.getAllFull(BankAccount.class);
+		BankAccount bankAccount = dbAccountList.stream().filter(account -> "Girokonto Recipients".equals(account.getAccountName())).findFirst().orElseThrow();
+		Booking importedBooking = bankAccount.getBookings().stream().filter(booking -> "Zweite Buchung".equals(booking.getPurpose())).findFirst().orElseThrow();
+
+		assertNotNull(importedBooking.getRecipient());
+		assertEquals("DE00000000000000000222", importedBooking.getRecipient().getIban());
+
+		List<Recipient> recipientsList = dbController.getAll(Recipient.class);
+		assertEquals(2, recipientsList.size());
+	}
+
+	@Test
+	void testSecondXmlImport_DoesNotDuplicateExistingAccount() {
+		de.zft2.fp3xmlextract.data.BankAccount firstImportAccount = createXmlBankAccount("Girokonto Merge", "DE00000000000000000777", "777", "BANKDE00777");
+		firstImportAccount.setBookings(
+				List.of(createXmlBooking("14.10.2025", "14.10.2025", "Erste Buchung", BigDecimal.valueOf(11.00), "Girokonto Merge")));
+
+		fileImportBean.writeAccountsToDB(List.of(firstImportAccount));
+		fileImportBean.writeBookingsToDB(List.of(firstImportAccount));
+
+		FileImportBean secondImportBean = new FileImportBean(null);
+		de.zft2.fp3xmlextract.data.BankAccount secondImportAccount = createXmlBankAccount("Girokonto Merge", " DE00000000000000000777 ", " 777 ",
+				"BANKDE00777");
+		secondImportAccount.setBookings(
+				List.of(createXmlBooking("15.10.2025", "15.10.2025", "Zweite Buchung", BigDecimal.valueOf(22.00), "Girokonto Merge")));
+
+		secondImportBean.writeAccountsToDB(List.of(secondImportAccount));
+		secondImportBean.writeBookingsToDB(List.of(secondImportAccount));
+
+		List<BankAccount> dbAccountList = dbController.getAllFull(BankAccount.class);
+		assertEquals(1, dbAccountList.size());
+		assertEquals(2, dbAccountList.get(0).getBookings().size());
+	}
+
+	@Test
 	void testImportMinimalFile_Success() throws URISyntaxException {
 
 		fileImportBean.importFile(verifyFileName("MinimalAccount.xml"));

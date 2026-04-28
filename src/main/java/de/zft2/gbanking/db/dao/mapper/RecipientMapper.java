@@ -37,10 +37,24 @@ public class RecipientMapper extends AbstractDaoMapper<Recipient, Void> {
 	@Override
 	public void setParamsFind(Recipient recipient, PreparedStatement ps) throws SQLException {
 		ps.setString(1, recipient.getName());
-		ps.setString(2, recipient.getIban());
-		ps.setString(3, recipient.getAccountNumber());
-		ps.setString(4, recipient.getBlz());
-		ps.setString(5, recipient.getBic());
+		ps.setString(2, recipient.getName());
+		ps.setString(3, recipient.getName());
+
+		ps.setString(4, recipient.getIban());
+		ps.setString(5, recipient.getIban());
+		ps.setString(6, recipient.getIban());
+
+		ps.setString(7, recipient.getAccountNumber());
+		ps.setString(8, recipient.getAccountNumber());
+		ps.setString(9, recipient.getAccountNumber());
+
+		ps.setString(10, recipient.getBlz());
+		ps.setString(11, recipient.getBlz());
+		ps.setString(12, recipient.getBlz());
+
+		ps.setString(13, recipient.getBic());
+		ps.setString(14, recipient.getBic());
+		ps.setString(15, recipient.getBic());
 	}
 
 	@Override

@@ -23,6 +23,9 @@ public class StatementsLogicBankAccount extends StatementsLogicDefault<BankAccou
 	
 	@Override
 	public SqlParameter getSqlParameter(BankAccount bC) {
+		if (bC.getId() > 0) {
+			return new SqlParameter(null, null, false, false);
+		}
 		return new SqlParameter(bC.getIban(), bC.getNumber());
 	}
 

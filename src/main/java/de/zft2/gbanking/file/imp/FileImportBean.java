@@ -144,8 +144,9 @@ public class FileImportBean extends BaseBean {
 			accountIdMapByAccountname = dbController.getAccountsIdsByAccountName();
 			crossAccountIdMapByIdentifier = dbController.getCrossAccountsIdsByIbanOrNumber();
 			String fallbackAccountName = resolveFallbackAccountName(fp32CsvBookingList);
-			dbController.insertAccountBookings(DaoMapper.maptoBookingDaoList(fallbackAccountName, fp32CsvBookingList, accountIdMapByAccountname,
-					crossAccountIdMapByIdentifier, Source.IMPORT_INITIAL));
+			Collection<Booking> bookingDaoList = DaoMapper.maptoBookingDaoList(fallbackAccountName, fp32CsvBookingList, accountIdMapByAccountname,
+					crossAccountIdMapByIdentifier, Source.IMPORT_INITIAL);
+			postProcessImportedBookings(persistImportedBookings(bookingDaoList));
 		} else {
 			log.error("xml2CsvKontoList and fp32CsvBookingList are both null!");
 		}
@@ -168,6 +169,8 @@ public class FileImportBean extends BaseBean {
 	boolean writeAccountsToDB(Collection<de.zft2.fp3xmlextract.data.BankAccount> bankAccountList) {
 
 		boolean result = false;
+		Map<String, Integer> accountIdsByName = dbController.getAccountsIdsByAccountName();
+		Map<String, Integer> accountIdsByIdentifier = dbController.getCrossAccountsIdsByIbanOrNumber();
 
 		totalAccounts = bankAccountList.size();
 		int importedAccountsCount = 0;
@@ -175,11 +178,18 @@ public class FileImportBean extends BaseBean {
 
 		for (de.zft2.fp3xmlextract.data.BankAccount bankAccountXml : bankAccountList) {
 			BankAccount bankAccount = DaoMapper.maptoBankAccountDao(bankAccountXml);
+			normalizeBankAccount(bankAccount);
 			if (bankAccountXml.getNamePP() == null) {
 				bankAccountXml.setNamePP(bankAccount.getAccountName());
 			}
+			Integer existingAccountId = resolveExistingAccountId(bankAccount, accountIdsByIdentifier, accountIdsByName);
+			if (existingAccountId != null) {
+				bankAccount.setId(existingAccountId);
+			}
 			updateWorkerStateAccounts(importedAccountsCount++, "Importiere Buchungen für Konto: %s (Anzahl: %d)", bankAccount.getAccountName(), totalAccounts);
-			result = dbController.insertOrUpdate(bankAccount) != null;
+			BankAccount persistedAccount = dbController.insertOrUpdate(bankAccount);
+			result = persistedAccount != null;
+			updateAccountLookupMaps(accountIdsByName, accountIdsByIdentifier, persistedAccount);
 		}
 
 		accountIdMapByAccountname = dbController.getAccountsIdsByAccountName();
@@ -189,6 +199,68 @@ public class FileImportBean extends BaseBean {
 		dbController.printAccountsInDB();
 
 		return result;
+	}
+
+	private void normalizeBankAccount(BankAccount bankAccount) {
+		if (bankAccount == null) {
+			return;
+		}
+
+		bankAccount.setAccountName(normalizeText(bankAccount.getAccountName()));
+		bankAccount.setIban(normalizeText(bankAccount.getIban()));
+		bankAccount.setNumber(normalizeText(bankAccount.getNumber()));
+	}
+
+	private Integer resolveExistingAccountId(BankAccount bankAccount, Map<String, Integer> accountIdsByIdentifier, Map<String, Integer> accountIdsByName) {
+		if (bankAccount == null) {
+			return null;
+		}
+
+		Integer existingAccountId = lookupAccountId(accountIdsByIdentifier, bankAccount.getIban());
+		if (existingAccountId != null) {
+			return existingAccountId;
+		}
+
+		existingAccountId = lookupAccountId(accountIdsByIdentifier, bankAccount.getNumber());
+		if (existingAccountId != null) {
+			return existingAccountId;
+		}
+
+		return lookupAccountId(accountIdsByName, bankAccount.getAccountName());
+	}
+
+	private Integer lookupAccountId(Map<String, Integer> accountIds, String key) {
+		String normalizedKey = normalizeText(key);
+		if (accountIds == null || normalizedKey == null) {
+			return null;
+		}
+		return accountIds.get(normalizedKey);
+	}
+
+	private void updateAccountLookupMaps(Map<String, Integer> accountIdsByName, Map<String, Integer> accountIdsByIdentifier, BankAccount bankAccount) {
+		if (bankAccount == null || bankAccount.getId() <= 0) {
+			return;
+		}
+
+		putIfPresent(accountIdsByName, bankAccount.getAccountName(), bankAccount.getId());
+		putIfPresent(accountIdsByIdentifier, bankAccount.getIban(), bankAccount.getId());
+		putIfPresent(accountIdsByIdentifier, bankAccount.getNumber(), bankAccount.getId());
+	}
+
+	private void putIfPresent(Map<String, Integer> accountIds, String key, Integer id) {
+		String normalizedKey = normalizeText(key);
+		if (accountIds != null && normalizedKey != null && id != null) {
+			accountIds.put(normalizedKey, id);
+		}
+	}
+
+	private String normalizeText(String value) {
+		if (value == null) {
+			return null;
+		}
+
+		String normalizedValue = value.trim();
+		return normalizedValue.isEmpty() ? null : normalizedValue;
 	}
 
 	boolean writeBookingsToDB(Collection<de.zft2.fp3xmlextract.data.BankAccount> bankAccountList) {
@@ -253,15 +325,36 @@ public class FileImportBean extends BaseBean {
 			allBookings.addAll(bookingDaoList);
 		}
 
-		updateWorkerState(1, true, "Importiere Kontakte aus Buchungen");
-		writeRecipientsToDB(allBookings);
-
-		updateWorkerState(1, true, "Importiere Kategorien aus Buchungen");
-		writeCategoriesToDB(allBookings);
+		postProcessImportedBookings(allBookings);
 
 		updateWorkerState(99, false, "beende...");
 
 		return result;
+	}
+
+	private Collection<Booking> persistImportedBookings(Collection<Booking> bookingDaoList) {
+		Collection<Booking> persistedBookings = new ArrayList<>();
+
+		for (Booking booking : bookingDaoList) {
+			Booking persistedBooking = dbController.insertOrUpdate(booking);
+			if (persistedBooking != null) {
+				persistedBookings.add(persistedBooking);
+			}
+		}
+
+		return persistedBookings;
+	}
+
+	private void postProcessImportedBookings(Collection<Booking> importedBookings) {
+		if (importedBookings == null || importedBookings.isEmpty()) {
+			return;
+		}
+
+		updateWorkerState(1, true, "Importiere Kontakte aus Buchungen");
+		writeRecipientsToDB(importedBookings);
+
+		updateWorkerState(1, true, "Importiere Kategorien aus Buchungen");
+		writeCategoriesToDB(importedBookings);
 	}
 
 	private Booking findMatchingBooking(Collection<Booking> existingBookings, Booking bookingToMatch) {
