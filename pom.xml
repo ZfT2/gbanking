@@ -57,7 +57,7 @@
 		<sqlitejdbc.version>3.50.3.0</sqlitejdbc.version>
 		<commonscsv.version>1.14.1</commonscsv.version>
 		<hbci4j.version>4.1.8</hbci4j.version>
-		<fp3xmlextract.version>0.5.0</fp3xmlextract.version>
+		<fp3xmlextract.version>0.5.1</fp3xmlextract.version>
 
 		<junit.version>5.14.3</junit.version>
 		<mockito.version>5.23.0</mockito.version>
