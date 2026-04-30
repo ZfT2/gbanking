@@ -76,6 +76,8 @@ class AccountTransactionServiceTest {
 		existingRecipient.setName("Max Mustermann");
 		existingRecipient.setIban("DE99999999999999999999");
 		existingRecipient.setBic("TESTDEFFXXX");
+		existingRecipient.setBlz("50010517");
+		existingRecipient.setAccountNumber("99887766");
 		existingRecipient.setSource(Source.ONLINE);
 		existingRecipient = DBController.getInstance(tempDir.toString()).insertOrUpdate(existingRecipient);
 

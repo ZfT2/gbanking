@@ -24,8 +24,8 @@ ${SQL_SELECT_ALL_RECIPIENTS_BASE} WHERE id = ? ${SQL_WHERE_RECIPIENT_BY_ID_IF_NO
 [SQL_INSERT_RECIPIENT]
 INSERT INTO recipient (name, iban, bic, accountnumber, blz, bank, source, note, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 
-[SQL_SELECT_ID_RECIPIENT_BY_IBAN]
-SELECT id FROM recipient WHERE iban = ?;
+[SQL_SELECT_ID_RECIPIENT_BY_ARGS]
+SELECT id FROM recipient WHERE
 
 [SQL_UPDATE_RECIPIENT]
 UPDATE recipient SET name = ?, iban = ?, bic = ?, accountnumber = ?, blz = ?, bank = ?, source = ?, note = ?, updatedAt = ? WHERE id = ?;

@@ -151,14 +151,16 @@ public class DbExecutor extends DbConnectionHandler {
 		mapper.setParamsForeignKeyUpdate(idList, targetDao, ps);
 	}
 
-	protected int executeSelectId(String sql, String criteriaParam, String criteriaParamOptional) {
+	protected int executeSelectId(String sql, Map<Object, Integer> criteriaParamMap) {
 
 		int id = -1;
 		try (PreparedStatement psSelect = connection.prepareStatement(sql)) {
 
-			psSelect.setString(1, criteriaParam);
-			if (criteriaParamOptional != null)
-				psSelect.setString(2, criteriaParamOptional);
+			int i = 1;
+			for (Entry<Object, Integer> paramEntry : criteriaParamMap.entrySet()) {
+				psSelect.setObject(i, paramEntry.getKey(), paramEntry.getValue());
+				i++;
+			}
 
 			ResultSet rs = psSelect.executeQuery();
 
@@ -168,7 +170,8 @@ public class DbExecutor extends DbConnectionHandler {
 			rs.close();
 
 		} catch (SQLException e) {
-			log.error(messages.getMessage(SqlErrors.ERROR_DB_SELECT), e);
+			log.error(messages.getMessage(SqlErrors.ERROR_DB_SELECT), sql, e);
+			throw new GBankingException(messages.getMessage(SqlErrors.ERROR_DB_SELECT), e);
 		}
 		return id;
 	}

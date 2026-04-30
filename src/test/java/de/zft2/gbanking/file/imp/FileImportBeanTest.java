@@ -2,6 +2,7 @@ package de.zft2.gbanking.file.imp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
@@ -70,7 +71,7 @@ class FileImportBeanTest {
 	}
 
 	@Test
-	void testImportRecipients_Success() throws Exception {
+	void testImportRecipients_Success() {
 		de.zft2.fp3xmlextract.data.BankAccount xmlBankAccount01 = new de.zft2.fp3xmlextract.data.BankAccount();
 		xmlBankAccount01.setBezeichnung("Girokonto 01");
 		xmlBankAccount01.setNamePP("Girokonto 01");
@@ -354,6 +355,66 @@ class FileImportBeanTest {
 		List<Booking> dbBookingList = dbController.getAllFull(Booking.class);
 		assertEquals(788, dbBookingList.size());
 
+	}
+
+	@Test
+	void testImportRecipient_With_And_WithoutName_File_Success() throws URISyntaxException {
+
+		fileImportBean.importFile(verifyFileName("ExampleTwoAccountsSameRecipient.xml"));
+
+		List<BankAccount> dbAccountList = dbController.getAllFull(BankAccount.class);
+		assertEquals(2, dbAccountList.size());
+
+		List<Booking> dbBookingList = dbController.getAllFull(Booking.class);
+		assertEquals(4, dbBookingList.size());
+
+		List<Recipient> recipientList = dbController.getAll(Recipient.class);
+
+		assertEquals(2, recipientList.size());
+
+		assertEquals("Huebsche Lady", recipientList.get(0).getName());
+		assertEquals("DE18120300001014501510", recipientList.get(0).getIban());
+		assertNull(recipientList.get(0).getAccountNumber());
+		assertEquals("LADENEM1001", recipientList.get(0).getBic());
+		assertNull(recipientList.get(0).getBlz());
+		assertEquals("Deutsche K-Bank Berlin", recipientList.get(0).getBank());
+
+		assertNull(recipientList.get(1).getName());
+		assertEquals("DE18120300001014501510", recipientList.get(1).getIban());
+		assertNull(recipientList.get(1).getAccountNumber());
+		assertNull(recipientList.get(1).getBic());
+		assertNull(recipientList.get(1).getBlz());
+		assertEquals("Deutsche K-Bank Berlin", recipientList.get(1).getBank());
+	}
+
+	@Test
+	void testImportRecipient_With_And_WithoutNameReverseOrder_File_Success() throws URISyntaxException {
+
+		fileImportBean.importFile(verifyFileName("ExampleTwoAccountsSameRecipientReverseOrder.xml"));
+
+		List<BankAccount> dbAccountList = dbController.getAllFull(BankAccount.class);
+		assertEquals(2, dbAccountList.size());
+
+		List<Booking> dbBookingList = dbController.getAllFull(Booking.class);
+		assertEquals(4, dbBookingList.size());
+
+		List<Recipient> recipientList = dbController.getAll(Recipient.class);
+
+		assertEquals(2, recipientList.size());
+
+		assertEquals("Huebsche Lady", recipientList.get(0).getName());
+		assertEquals("DE18120300001014501510", recipientList.get(0).getIban());
+		assertNull(recipientList.get(0).getAccountNumber());
+		assertEquals("LADENEM1001", recipientList.get(0).getBic());
+		assertNull(recipientList.get(0).getBlz());
+		assertEquals("Deutsche K-Bank Berlin", recipientList.get(0).getBank());
+
+		assertNull(recipientList.get(1).getName());
+		assertEquals("DE18120300001014501510", recipientList.get(1).getIban());
+		assertNull(recipientList.get(1).getAccountNumber());
+		assertNull(recipientList.get(1).getBic());
+		assertNull(recipientList.get(1).getBlz());
+		assertEquals("Deutsche K-Bank Berlin", recipientList.get(1).getBank());
 	}
 
 	private String verifyFileName(String inputfileName) throws URISyntaxException {

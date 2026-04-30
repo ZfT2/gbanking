@@ -2,6 +2,7 @@ package de.zft2.gbanking.db.dao.logic;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -66,7 +67,11 @@ public class StatementsLogicDefault<T extends Dao, V> extends DbExecutor impleme
 		SqlParameter sqlParameter = getSqlParameter(entity); // StatementsParameterMapper.getSqlParameter(entity);
 		if (sqlParameter.isIdLookup()) {
 			String sql = StatementsConfig.getSqlStatement(type, statementType);
-			id = executeSelectId(sql, sqlParameter.getParam1(), sqlParameter.getParam2());
+			Map<Object, Integer> paramMap = new LinkedHashMap<>();
+			paramMap.put(sqlParameter.getParam1(), java.sql.Types.VARCHAR);
+			if (sqlParameter.getParam2() != null)
+				paramMap.put(sqlParameter.getParam2(), java.sql.Types.VARCHAR);
+			id = executeSelectId(sql, paramMap);
 		}
 		statementType = id > 0 ? StatementType.UPDATE : StatementType.INSERT;
 
@@ -92,6 +97,20 @@ public class StatementsLogicDefault<T extends Dao, V> extends DbExecutor impleme
 		}
 
 		return entityList;
+	}
+
+	protected boolean addParam(StringBuilder sqlBuilder, Map<Object, Integer> paramMap, String param, String paramValue, int sqlType) {
+		if (!sqlBuilder.toString().endsWith("WHERE")) {
+			sqlBuilder.append(" AND");
+		}
+		if (paramValue != null) {
+			sqlBuilder.append(" " + param + " = ?");
+			paramMap.put(paramValue, sqlType);
+			return true;
+		} else {
+			sqlBuilder.append(" " + param + " is NULL");
+			return false;
+		}
 	}
 
 }
