@@ -32,7 +32,7 @@ final class DbMigrationRunner {
 			markBaselineAsApplied(connection);
 		}
 
-		String appVersion = normalizeVersion(BuildInfo.getVersion());
+		String appVersion = normalizeVersion(BuildInfo.getProgramVersion());
 		List<SqlTemplateRepository.VersionScript> applicableScripts = SqlTemplateRepository.getVersionScripts().stream()
 				.sorted(Comparator.comparing(SqlTemplateRepository.VersionScript::getVersion, DbMigrationRunner::compareVersions)).toList();
 
@@ -54,7 +54,7 @@ final class DbMigrationRunner {
 			return;
 		}
 
-		String appVersion = normalizeVersion(BuildInfo.getVersion());
+		String appVersion = normalizeVersion(BuildInfo.getProgramVersion());
 		upsertHiddenSetting(connection, baselineScript.getSettingKey(), appVersion,
 				"Baseline-DB-Schema initial erstellt mit Version " + baselineScript.getVersion());
 		upsertHiddenSetting(connection, SETTING_SCHEMA_VERSION, baselineScript.getVersion(), "Zuletzt erfolgreich angewendete DB-Schemaversion");
@@ -64,7 +64,7 @@ final class DbMigrationRunner {
 	static void markFreshSchemaAsApplied(Connection connection) throws SQLException {
 		ensureSettingTableExists(connection);
 
-		String appVersion = normalizeVersion(BuildInfo.getVersion());
+		String appVersion = normalizeVersion(BuildInfo.getProgramVersion());
 		List<SqlTemplateRepository.VersionScript> scripts = SqlTemplateRepository.getVersionScripts().stream()
 				.sorted(Comparator.comparing(SqlTemplateRepository.VersionScript::getVersion, DbMigrationRunner::compareVersions)).toList();
 

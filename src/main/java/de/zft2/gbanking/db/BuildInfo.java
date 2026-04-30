@@ -11,7 +11,15 @@ public final class BuildInfo {
 	private BuildInfo() {
 	}
 
-	public static String getVersion() {
+	public static String getJavaVersion() {
+		return System.getProperty("java.version");
+	}
+
+	public static String getJavaFxVersion() {
+		return System.getProperty("javafx.version");
+	}
+
+	public static String getProgramVersion() {
 		Package pkg = BuildInfo.class.getPackage();
 		if (pkg != null && pkg.getImplementationVersion() != null && !pkg.getImplementationVersion().isBlank()) {
 			return pkg.getImplementationVersion();

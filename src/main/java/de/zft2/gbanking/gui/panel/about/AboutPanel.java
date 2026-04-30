@@ -6,7 +6,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import de.zft2.gbanking.SystemInfo;
 import de.zft2.gbanking.db.BuildInfo;
 import de.zft2.gbanking.messages.Messages;
 import javafx.geometry.Insets;
@@ -45,8 +44,8 @@ public class AboutPanel {
 		dialog.setTitle(getText("UI_DIALOG_ABOUT_TITLE"));
 
 		Label descriptionLabel = createWrappedLabel(getText("UI_DIALOG_ABOUT_DESCRIPTION"));
-		Label versionLabel = createWrappedLabel(messages.getFormattedMessage("UI_DIALOG_ABOUT_VERSION", BuildInfo.getVersion()));
-		Label javaVersionLabel = createWrappedLabel(messages.getFormattedMessage("UI_DIALOG_ABOUT_JAVA_VERSION", SystemInfo.javaVersion()));
+		Label versionLabel = createWrappedLabel(messages.getFormattedMessage("UI_DIALOG_ABOUT_VERSION", BuildInfo.getProgramVersion()));
+		Label javaVersionLabel = createWrappedLabel(messages.getFormattedMessage("UI_DIALOG_ABOUT_JAVA_VERSION", BuildInfo.getJavaVersion()));
 		Label disclaimerTitleLabel = createWrappedLabel(getText("UI_DIALOG_ABOUT_DISCLAIMER_TITLE"));
 		Label disclaimerLabel = createWrappedLabel(getText("UI_DIALOG_ABOUT_DISCLAIMER"));
 		Label licenseTitleLabel = createWrappedLabel(getText("UI_DIALOG_ABOUT_LICENSE_TITLE"));

@@ -14,8 +14,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.GBankingBean;
-import de.zft2.gbanking.SystemInfo;
 import de.zft2.gbanking.cache.InstituteLookupCache;
+import de.zft2.gbanking.db.BuildInfo;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DbRuntimeContext;
 import de.zft2.gbanking.db.dao.BankAccount;
@@ -144,10 +144,8 @@ public class GBankingGui extends Application {
 		bottom.setPadding(new Insets(4));
 		bottom.setLeft(statusLabel);
 
-		var javaVersion = SystemInfo.javaVersion();
-		var javafxVersion = SystemInfo.javafxVersion();
-
-		versionLabel = new Label("JavaFX " + javafxVersion + ", running on Java " + javaVersion + ".");
+		versionLabel = new Label(getText("UI_DIALOG_ABOUT_VERSION", BuildInfo.getProgramVersion()) + " (JavaFX " + BuildInfo.getJavaFxVersion()
+				+ "), running on Java " + BuildInfo.getJavaVersion() + ".");
 		bottom.setRight(versionLabel);
 		root.setBottom(bottom);
 
@@ -571,6 +569,10 @@ public class GBankingGui extends Application {
 
 	private String getText(String key) {
 		return Messages.getInstance().getMessage(key);
+	}
+
+	private String getText(String key, String value) {
+		return Messages.getInstance().getFormattedMessage(key, value);
 	}
 
 	private void storeOptionsQuietly() {
