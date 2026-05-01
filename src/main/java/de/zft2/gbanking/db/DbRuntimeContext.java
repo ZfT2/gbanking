@@ -31,6 +31,7 @@ public final class DbRuntimeContext {
 		if (dbDirectory == null || dbDirectory.isBlank()) {
 			return Paths.get(".");
 		}
-		return Paths.get(dbDirectory).normalize();
+		String normalizedDirectory = dbDirectory.trim().replace('\\', '/');
+		return Paths.get(normalizedDirectory).normalize();
 	}
 }

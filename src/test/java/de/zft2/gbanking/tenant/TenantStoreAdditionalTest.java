@@ -6,15 +6,33 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.Optional;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import de.zft2.gbanking.messages.Messages;
 
 class TenantStoreAdditionalTest {
 
 	@TempDir
 	Path tempDir;
+
+	private Locale previousLocale;
+
+	@BeforeEach
+	void setGermanLocale() {
+		previousLocale = Messages.getLocale();
+		Messages.setLocale(Locale.GERMAN);
+	}
+
+	@AfterEach
+	void restoreLocale() {
+		Messages.setLocale(previousLocale);
+	}
 
 	@Test
 	void shouldPersistTenantsAcrossReload() {

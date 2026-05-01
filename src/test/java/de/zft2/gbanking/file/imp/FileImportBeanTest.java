@@ -14,8 +14,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -28,6 +30,7 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.BookingType;
+import de.zft2.gbanking.messages.Messages;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FileImportBeanTest {
@@ -37,6 +40,7 @@ class FileImportBeanTest {
 
 	private DBController dbController;
 	private Path tempDir;
+	private Locale previousLocale;
 
 	@BeforeAll
 	void setupDatabase() throws Exception {
@@ -59,6 +63,8 @@ class FileImportBeanTest {
 
 	@BeforeEach
 	void setUp() throws Exception {
+		previousLocale = Messages.getLocale();
+		Messages.setLocale(Locale.GERMAN);
 		fileImportBean = new FileImportBean(null);
 
 		// Load test XML from resources
@@ -68,6 +74,11 @@ class FileImportBeanTest {
 		// Create temporary export file
 		exportFile = File.createTempFile("export_test_", ".xml");
 		exportFile.deleteOnExit();
+	}
+
+	@AfterEach
+	void restoreLocale() {
+		Messages.setLocale(previousLocale);
 	}
 
 	@Test

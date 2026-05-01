@@ -112,14 +112,14 @@ public class FileImportBean extends BaseBean {
 		updateWorkerState(1, false, "Konvertiere aus Datei: %s", importFile);
 
 		long timeStart = System.currentTimeMillis();
-
-		Converter converter = new Converter();
 		Path importPath = AppPaths.resolveInApplicationDirectory(importFile);
 		String importFilePath = importPath.toString();
 
 		if (!Files.exists(importPath)) {
 			throw new GBankingException("File not found: " + importFile);
 		}
+
+		Converter converter = new Converter();
 
 		if (importFilePath.endsWith("fp3")) {
 			fp32CsvBookingList = converter.convertFp3ToCsvEntries(importFilePath);

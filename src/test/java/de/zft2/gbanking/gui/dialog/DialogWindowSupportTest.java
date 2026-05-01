@@ -5,14 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.concurrent.CountDownLatch;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.gui.JavaFxTestSupport;
-import javafx.application.Platform;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.Priority;
@@ -24,10 +21,9 @@ import javafx.stage.Stage;
 class DialogWindowSupportTest {
 
 	@BeforeAll
-	static void initJavaFx() throws Exception {
-		CountDownLatch latch = new CountDownLatch(1);
-		Platform.startup(latch::countDown);
-		latch.await();
+	static void initJavaFx() {
+		JavaFxTestSupport.runFx(() -> {
+		});
 	}
 
 	@AfterEach

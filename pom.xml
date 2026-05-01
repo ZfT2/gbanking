@@ -216,6 +216,9 @@
 						-Djava.awt.headless=true
 						-Dprism.order=sw
 					</argLine>
+					<systemPropertyVariables>
+						<user.dir>${project.basedir}</user.dir>
+					</systemPropertyVariables>
 				</configuration>
 			</plugin>
 
