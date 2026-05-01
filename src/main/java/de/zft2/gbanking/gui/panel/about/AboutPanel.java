@@ -8,6 +8,7 @@ import java.nio.file.Path;
 
 import de.zft2.gbanking.db.BuildInfo;
 import de.zft2.gbanking.messages.Messages;
+import de.zft2.gbanking.util.AppPaths;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -27,7 +28,7 @@ public class AboutPanel {
 	private static final double DIALOG_WIDTH = 680;
 	private static final double DIALOG_HEIGHT = 700;
 	private static final double LOGO_FIT_WIDTH = 220;
-	private static final Path LICENSE_PATH = Path.of("LICENSE");
+	private static final Path LICENSE_PATH = AppPaths.resolveInApplicationDirectory("LICENSE");
 	private static final String LOGO_RESOURCE = "/logo/GBankingLogo.png";
 
 	private final Window parentWindow;

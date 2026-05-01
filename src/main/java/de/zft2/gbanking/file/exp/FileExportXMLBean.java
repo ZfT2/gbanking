@@ -1,7 +1,8 @@
 package de.zft2.gbanking.file.exp;
 
-import java.io.File;
 import java.math.RoundingMode;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 import javax.xml.XMLConstants;
@@ -27,6 +28,7 @@ import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.BaseWorker;
 import de.zft2.gbanking.util.TypeConverter;
+import de.zft2.gbanking.util.AppPaths;
 
 public class FileExportXMLBean extends FileExportBean {
 
@@ -165,6 +167,16 @@ public class FileExportXMLBean extends FileExportBean {
 	}
 
 	private void saveDocumentToExportFile(String fileName, Document doc) throws TransformerFactoryConfigurationError, TransformerException {
+		Path requestedPath = Path.of(fileName);
+		Path exportPath = AppPaths.resolveInApplicationDirectory(requestedPath);
+		boolean createParentDirectories = requestedPath.getRoot() == null;
+		try {
+			if (createParentDirectories && exportPath.getParent() != null) {
+				Files.createDirectories(exportPath.getParent());
+			}
+		} catch (Exception e) {
+			throw new TransformerException("Could not create export directory for " + exportPath, e);
+		}
 		TransformerFactory transformerFactory = TransformerFactory.newInstance();
 		transformerFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
 		transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
@@ -173,9 +185,9 @@ public class FileExportXMLBean extends FileExportBean {
 		transformer.setOutputProperty(OutputKeys.INDENT, "yes");
 		transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
 		DOMSource source = new DOMSource(doc);
-		StreamResult resultFile = new StreamResult(new File(fileName));
+		StreamResult resultFile = new StreamResult(exportPath.toFile());
 		transformer.transform(source, resultFile);
-		log.info("File saved: {}", fileName);
+		log.info("File saved: {}", exportPath);
 
 		updateWorkerState(99, false, "beende...");
 		// updateWorkerState(100, false, "fertig.");

@@ -21,6 +21,7 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 import de.zft2.gbanking.messages.Messages;
+import de.zft2.gbanking.util.AppPaths;
 
 public class TenantStore {
 
@@ -35,7 +36,7 @@ public class TenantStore {
 	private final Messages messages = Messages.getInstance();
 
 	public TenantStore() {
-		this(Path.of("db"));
+		this(AppPaths.resolveInApplicationDirectory("db"));
 	}
 
 	public TenantStore(Path baseDirectory) {

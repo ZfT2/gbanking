@@ -137,9 +137,11 @@ class FileImportIntegrationTest {
 	// TEST 3: Export invalid path should fail gracefully
 	// ------------------------------------------------------------------------
 	@Test
-	void testExportFile_InvalidPath() {
-		boolean result = fileExportBean.exportFileFromDatatbase(List.of(), "/invalid_path/export.xml"); // .exportFile(List.of(), "/invalid_path/export.xml",
-																										// FileType.XML);
+	void testExportFile_InvalidPath() throws Exception {
+		Path exportTargetDirectory = Files.createDirectory(tempDir.resolve("export_target_directory"));
+		boolean result = fileExportBean.exportFileFromDatatbase(List.of(), exportTargetDirectory.toString()); // .exportFile(List.of(),
+																											// exportTargetDirectory.toString(),
+																											// FileType.XML);
 		assertFalse(result, "Export should fail for invalid output path");
 	}
 

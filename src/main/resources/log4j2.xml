@@ -6,8 +6,8 @@
 				pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n" />
 		</Console>
 		<RollingFile name="RollingFileAppender"
-			fileName="logs/gbanking.log"
-			filePattern="logs/gbanking-%d{yyyy-MM-dd}-%i.log.gz">
+			fileName="${sys:gbanking.baseDir:-.}${sys:file.separator}logs${sys:file.separator}gbanking.log"
+			filePattern="${sys:gbanking.baseDir:-.}${sys:file.separator}logs${sys:file.separator}gbanking-%d{yyyy-MM-dd}-%i.log.gz">
 			<PatternLayout>
 				<Pattern>%d [%t] %p %c - %m%n</Pattern>
 			</PatternLayout>

@@ -30,18 +30,19 @@ import de.zft2.gbanking.db.dao.enu.InstituteStatus;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.gui.BaseWorker;
 import de.zft2.gbanking.util.TypeConverter;
+import de.zft2.gbanking.util.AppPaths;
 
 public class InstituteFileImportBean {
 
 	private static final Logger log = LogManager.getLogger(InstituteFileImportBean.class);
 
 	private static final Path IMPORT_DIR = Paths.get("import");
-	private static final Path ARCHIVE_DIR = Paths.get("import/archive");
+	private static final Path ARCHIVE_DIR = IMPORT_DIR.resolve("archive");
 
 	private final DBController dbController = DBController.getInstance(".");
 	private final BaseWorker worker;
 
-	private String basePath = ".";
+	private Path baseDirectory = AppPaths.getApplicationBaseDirectory();
 	private String importFileName = "fints_institute NEU mit BIC Master.csv";
 	private Charset charset = StandardCharsets.ISO_8859_1;
 
@@ -49,7 +50,7 @@ public class InstituteFileImportBean {
 	 * Constructor for production usage with worker support.
 	 */
 	public InstituteFileImportBean(String basePath, String fileName, Charset charset, BaseWorker worker) {
-		this.basePath = basePath;
+		this.baseDirectory = resolveBaseDirectory(basePath);
 		this.importFileName = fileName;
 		this.charset = charset;
 		this.worker = worker;
@@ -77,12 +78,12 @@ public class InstituteFileImportBean {
 	}
 
 	public void runImport() throws IOException {
-		Path archive = Paths.get(basePath, ARCHIVE_DIR.toString());
+		Path archive = baseDirectory.resolve(ARCHIVE_DIR);
 		if (!Files.exists(archive)) {
 			Files.createDirectories(archive);
 		}
 
-		Path file = Paths.get(basePath, IMPORT_DIR.toString(), importFileName);
+		Path file = baseDirectory.resolve(IMPORT_DIR).resolve(importFileName);
 
 		if (!Files.exists(file)) {
 			log.info("Keine (neue) Bankenliste Datei vorhanden.");
@@ -268,7 +269,14 @@ public class InstituteFileImportBean {
 	}
 
 	private void moveToArchive(Path file) throws IOException {
-		Path target = Paths.get(basePath, ARCHIVE_DIR.resolve(file.getFileName()).toString());
+		Path target = baseDirectory.resolve(ARCHIVE_DIR).resolve(file.getFileName());
 		Files.move(file, target, StandardCopyOption.REPLACE_EXISTING);
+	}
+
+	private Path resolveBaseDirectory(String basePath) {
+		if (basePath == null || basePath.isBlank() || ".".equals(basePath.trim())) {
+			return AppPaths.getApplicationBaseDirectory();
+		}
+		return AppPaths.resolveInApplicationDirectory(basePath);
 	}
 }

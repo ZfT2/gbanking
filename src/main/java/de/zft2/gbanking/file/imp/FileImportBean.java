@@ -1,7 +1,8 @@
 package de.zft2.gbanking.file.imp;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -29,6 +30,7 @@ import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.BaseWorker;
 import de.zft2.gbanking.mapper.DaoMapper;
+import de.zft2.gbanking.util.AppPaths;
 
 public class FileImportBean extends BaseBean {
 
@@ -112,16 +114,18 @@ public class FileImportBean extends BaseBean {
 		long timeStart = System.currentTimeMillis();
 
 		Converter converter = new Converter();
+		Path importPath = AppPaths.resolveInApplicationDirectory(importFile);
+		String importFilePath = importPath.toString();
 
-		if (!new File(importFile).exists()) {
+		if (!Files.exists(importPath)) {
 			throw new GBankingException("File not found: " + importFile);
 		}
 
-		if (importFile.endsWith("fp3")) {
-			fp32CsvBookingList = converter.convertFp3ToCsvEntries(importFile);
+		if (importFilePath.endsWith("fp3")) {
+			fp32CsvBookingList = converter.convertFp3ToCsvEntries(importFilePath);
 		} else {
-			converter.checkAndCorrectInputFile(importFile);
-			xml2CsvKontoList = converter.convertXmlToCsvEntries(importFile);
+			converter.checkAndCorrectInputFile(importFilePath);
+			xml2CsvKontoList = converter.convertXmlToCsvEntries(importFilePath);
 			BookingProcessor bookingProcessor = new BookingProcessor();
 			try {
 				bookingProcessor.generateCrossBookings(xml2CsvKontoList, false, 6);

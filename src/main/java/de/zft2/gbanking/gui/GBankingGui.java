@@ -3,6 +3,7 @@ package de.zft2.gbanking.gui;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -110,8 +111,18 @@ public class GBankingGui extends Application {
 	}
 
 	private void configureFileChooser() {
-		if (optionsMap.get(LAST_PATH_SELECTED) != null) {
-			fileChooser.setInitialDirectory(new File(optionsMap.get(LAST_PATH_SELECTED)));
+		String lastPathSelected = optionsMap.get(LAST_PATH_SELECTED);
+		if (lastPathSelected == null || lastPathSelected.isBlank()) {
+			return;
+		}
+
+		try {
+			Path initialDirectory = Path.of(lastPathSelected);
+			if (Files.isDirectory(initialDirectory)) {
+				fileChooser.setInitialDirectory(initialDirectory.toFile());
+			}
+		} catch (InvalidPathException e) {
+			log.warn("Ignoring invalid stored file chooser directory: {}", lastPathSelected);
 		}
 	}
 

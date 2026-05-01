@@ -2,12 +2,14 @@ package de.zft2.gbanking.gui;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.Properties;
+
+import de.zft2.gbanking.util.AppPaths;
 
 class RestoreHandler {
 
@@ -18,26 +20,25 @@ class RestoreHandler {
 	private RestoreHandler() {
 	}
 
-	public static final String FILE_NAME = "properties/gui.properties";
+	public static final Path FILE_NAME = AppPaths.resolveInApplicationDirectory("properties", "gui.properties");
 
 	public static void storeOptions(Map<String, String> optionsMap) throws IOException {
-		File file = new File(FILE_NAME);
 		Properties p = new Properties();
 
 		putIfPresent(p, DEFAULT_DIR, optionsMap.get("lastPathSelected"));
 		putIfPresent(p, LAST_TENANT_ID, optionsMap.get("lastTenantId"));
 		putIfPresent(p, LANGUAGE, optionsMap.get("language"));
 
-		try (BufferedWriter br = new BufferedWriter(new FileWriter(file))) {
+		Files.createDirectories(FILE_NAME.getParent());
+		try (BufferedWriter br = Files.newBufferedWriter(FILE_NAME, StandardCharsets.UTF_8)) {
 			p.store(br, "GUI Properties of the user app");
 		}
 	}
 
 	public static void restoreOptions(Map<String, String> optionsMap) throws IOException {
-		File optionsFile = new File(FILE_NAME);
-		if (optionsFile.exists()) {
+		if (Files.exists(FILE_NAME)) {
 			Properties p = new Properties();
-			try (BufferedReader br = new BufferedReader(new FileReader(optionsFile))) {
+			try (BufferedReader br = Files.newBufferedReader(FILE_NAME, StandardCharsets.UTF_8)) {
 				p.load(br);
 			}
 

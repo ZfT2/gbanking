@@ -1,10 +1,9 @@
 package de.zft2.gbanking.file.exp;
 
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -21,6 +20,7 @@ import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.exception.ExportException;
 import de.zft2.gbanking.gui.BaseWorker;
 import de.zft2.gbanking.util.TypeConverter;
+import de.zft2.gbanking.util.AppPaths;
 
 public class FileExportCSVBean extends FileExportBean {
 
@@ -99,17 +99,27 @@ public class FileExportCSVBean extends FileExportBean {
 
 	private void saveToExportFile(Set<Object[]> csvLines, String fileName) {
 
-		File file = new File(fileName);
+		Path requestedPath = Path.of(fileName);
+		Path exportPath = AppPaths.resolveInApplicationDirectory(requestedPath);
+		boolean createParentDirectories = requestedPath.getRoot() == null;
 
 		Builder builder = buildHeader();
-		try (BufferedWriter csvWriter = Files.newBufferedWriter(Paths.get(file.getAbsolutePath()));
+		try {
+			if (createParentDirectories && exportPath.getParent() != null) {
+				Files.createDirectories(exportPath.getParent());
+			}
+		} catch (IOException e) {
+			log.error("Error creating export directory for CSV file {}", exportPath, e);
+			return;
+		}
+		try (BufferedWriter csvWriter = Files.newBufferedWriter(exportPath);
 				CSVPrinter csvPrinter = new CSVPrinter(csvWriter, builder.get());) {
 			for (Object[] recordArray : csvLines) {
 				csvPrinter.printRecord(recordArray);
 			}
 			csvPrinter.flush();
 		} catch (IOException e) {
-			log.error("Error writing CSV File {}", file.getName(), e);
+			log.error("Error writing CSV File {}", exportPath.getFileName(), e);
 		}
 		log.info("CSV file was written successfully !!!");
 	}

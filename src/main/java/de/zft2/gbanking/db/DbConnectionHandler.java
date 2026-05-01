@@ -1,6 +1,7 @@
 package de.zft2.gbanking.db;
 
-import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -13,6 +14,7 @@ import org.sqlite.SQLiteConfig;
 
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.messages.Messages;
+import de.zft2.gbanking.util.AppPaths;
 
 class DbConnectionHandler {
 
@@ -40,8 +42,9 @@ class DbConnectionHandler {
     }
 
     public static synchronized DbConnectionHandler getInstance(String dbFilePath) {
-        String path = new File(dbFilePath, "gbanking.db").getAbsolutePath();
-        File dbFile = new File(path);
+        Path dbDirectory = AppPaths.resolveInApplicationDirectory(dbFilePath);
+        Path dbFile = dbDirectory.resolve("gbanking.db").toAbsolutePath().normalize();
+        String path = dbFile.toString();
 
         messages = Messages.getInstance();
         if (isCurrentConnection(path)) {
@@ -51,10 +54,10 @@ class DbConnectionHandler {
         closeCurrentConnection();
         ensureParentDirectoryExists(dbFile);
 
-        if (dbFile.exists()) {
+        if (Files.exists(dbFile)) {
             initDBConnection(path, false);
         } else {
-            log.info("Creating new database: {}", dbFile.getAbsolutePath());
+            log.info("Creating new database: {}", dbFile);
             initDBConnection(path, true);
         }
 
@@ -102,10 +105,14 @@ class DbConnectionHandler {
         }
     }
 
-    private static void ensureParentDirectoryExists(File dbFile) {
-        File parentFile = dbFile.getParentFile();
-        if (parentFile != null && !parentFile.exists() && !parentFile.mkdirs()) {
-            throw new GBankingException("Error in initialisation of database connection: could not create DB directory");
+    private static void ensureParentDirectoryExists(Path dbFile) {
+        try {
+            Path parentDirectory = dbFile.getParent();
+            if (parentDirectory != null) {
+                Files.createDirectories(parentDirectory);
+            }
+        } catch (Exception e) {
+            throw new GBankingException("Error in initialisation of database connection: could not create DB directory", e);
         }
     }
 
