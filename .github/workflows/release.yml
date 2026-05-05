@@ -9,9 +9,73 @@ permissions:
     contents: write
 
 jobs:
+    version:
+        name: Determine version
+        runs-on: ubuntu-latest
+        outputs:
+            version: ${{ steps.version.outputs.version }}
+            next_version: ${{ steps.version.outputs.next_version }}
+
+        steps:
+            - name: Determine version
+              id: version
+              shell: bash
+              run: |
+                  RAW_TAG=${GITHUB_REF_NAME#v}
+
+                  if [[ "$RAW_TAG" == *"+"* ]]; then
+                    BASE_VERSION=${RAW_TAG%%+*}
+                    INCREMENT=${RAW_TAG##*+}
+                  else
+                    BASE_VERSION=$RAW_TAG
+                    INCREMENT="none"
+                  fi
+
+                  if ! [[ "$BASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                    echo "Invalid version format: $BASE_VERSION"
+                    exit 1
+                  fi
+
+                  IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
+
+                  case $INCREMENT in
+                    patch)
+                      PATCH=$((PATCH + 1))
+                      ;;
+                    minor)
+                      MINOR=$((MINOR + 1))
+                      PATCH=0
+                      ;;
+                    major|Major)
+                      MAJOR=$((MAJOR + 1))
+                      MINOR=0
+                      PATCH=0
+                      ;;
+                    none)
+                      ;;
+                    *)
+                      echo "Invalid increment: $INCREMENT"
+                      exit 1
+                      ;;
+                  esac
+
+                  VERSION="$MAJOR.$MINOR.$PATCH"
+                  NEXT_PATCH=$((PATCH + 1))
+                  NEXT_VERSION="$MAJOR.$MINOR.$NEXT_PATCH-SNAPSHOT"
+
+                  echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+                  echo "next_version=$NEXT_VERSION" >> "$GITHUB_OUTPUT"
+                  echo "Computed version: $VERSION"
+                  echo "Next development version: $NEXT_VERSION"
+
     build:
         name: Build ${{ matrix.profile }}
         runs-on: ${{ matrix.os }}
+        needs: version
+        env:
+            MAVEN_USERNAME: ZfT2
+            MAVEN_PASSWORD: ${{ secrets.GH_PACKAGES_TOKEN }}
+            VERSION: ${{ needs.version.outputs.version }}
         strategy:
             fail-fast: false
             matrix:
@@ -36,72 +100,12 @@ jobs:
                   distribution: temurin
                   java-version: "17"
                   cache: maven
-
-            - name: Configure Maven settings.xml
-              shell: bash
-              run: |
-                mkdir -p ~/.m2
-                cat > ~/.m2/settings.xml <<EOF
-                  <settings>
-                    <servers>
-                      <server>
-                        <id>github</id>
-                        <username>ZfT2</username>
-                        <password>${{ secrets.GH_PACKAGES_TOKEN }}</password>
-                      </server>
-                    </servers>
-                  </settings>
-                EOF
+                  server-id: github
+                  server-username: MAVEN_USERNAME
+                  server-password: MAVEN_PASSWORD
 
             - name: Debug platform
               run: echo "JavaFX Platform = ${{ matrix.profile }}"
-
-            - name: Determine version
-              shell: bash
-              run: |
-                  RAW_TAG=${GITHUB_REF_NAME#v}
-
-                  if [[ "$RAW_TAG" == *"+"* ]]; then
-                    BASE_VERSION=${RAW_TAG%%+*}
-                    INCREMENT=${RAW_TAG##*+}
-                  else
-                    BASE_VERSION=$RAW_TAG
-                    INCREMENT="none"
-                  fi
-
-                  # Version Guard
-                  if ! [[ "$BASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-                    echo "Invalid version format: $BASE_VERSION"
-                    exit 1
-                  fi
-
-                  IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
-
-                  case $INCREMENT in
-                    patch)
-                      PATCH=$((PATCH + 1))
-                      ;;
-                    minor)
-                      MINOR=$((MINOR + 1))
-                      PATCH=0
-                      ;;
-                    major|Major)
-                      MAJOR=$((MAJOR + 1))
-                      MINOR=0
-                      PATCH=0
-                      ;;
-                    none)
-                      ;;
-                    *)
-                      echo "Invalid increment: $INCREMENT"
-                      exit 1
-                      ;;
-                  esac
-
-                  VERSION="$MAJOR.$MINOR.$PATCH"
-
-                  echo "VERSION=$VERSION" >> $GITHUB_ENV
-                  echo "Computed version: $VERSION"
 
             - name: Build distribution
               shell: bash
@@ -122,7 +126,12 @@ jobs:
     release:
         name: Create GitHub Release
         runs-on: ubuntu-latest
-        needs: build
+        needs:
+            - build
+            - version
+        env:
+            VERSION: ${{ needs.version.outputs.version }}
+            NEXT_VERSION: ${{ needs.version.outputs.next_version }}
 
         steps:
             - name: Checkout
@@ -135,51 +144,6 @@ jobs:
 
             - name: Show downloaded files
               run: find dist -type f
-
-            - name: Determine version
-              shell: bash
-              run: |
-                  RAW_TAG=${GITHUB_REF_NAME#v}
-
-                  if [[ "$RAW_TAG" == *"+"* ]]; then
-                    BASE_VERSION=${RAW_TAG%%+*}
-                    INCREMENT=${RAW_TAG##*+}
-                  else
-                    BASE_VERSION=$RAW_TAG
-                    INCREMENT="none"
-                  fi
-
-                  if ! [[ "$BASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-                    echo "Invalid version format: $BASE_VERSION"
-                    exit 1
-                  fi
-
-                  IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
-
-                  case $INCREMENT in
-                    patch)
-                      PATCH=$((PATCH + 1))
-                      ;;
-                    minor)
-                      MINOR=$((MINOR + 1))
-                      PATCH=0
-                      ;;
-                    major|Major)
-                      MAJOR=$((MAJOR + 1))
-                      MINOR=0
-                      PATCH=0
-                      ;;
-                    none)
-                      ;;
-                    *)
-                      echo "Invalid increment: $INCREMENT"
-                      exit 1
-                      ;;
-                  esac
-
-                  VERSION="$MAJOR.$MINOR.$PATCH"
-
-                  echo "VERSION=$VERSION" >> $GITHUB_ENV
 
             - name: Create release and upload assets
               env:
@@ -205,11 +169,6 @@ jobs:
             - name: Prepare next development version
               shell: bash
               run: |
-                  IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
-
-                  NEXT_PATCH=$((PATCH + 1))
-                  NEXT_VERSION="$MAJOR.$MINOR.$NEXT_PATCH-SNAPSHOT"
-
                   echo "Next development version: $NEXT_VERSION"
 
                   mvn -B org.codehaus.mojo:versions-maven-plugin:2.18.0:set-property \
