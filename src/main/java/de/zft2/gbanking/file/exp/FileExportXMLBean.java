@@ -4,6 +4,7 @@ import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
@@ -87,7 +88,8 @@ public class FileExportXMLBean extends FileExportBean {
 			addElementTextNode(doc, accountNode, TAG_BANKNAME, account.getBankName());
 			addElementTextNode(doc, accountNode, TAG_WAEHRUNG, account.getCurrency());
 			if (account.getBalance() != null)
-				addElementTextNode(doc, accountNode, TAG_KONTOSTAND, String.format("%.2f", account.getBalance().setScale(2, RoundingMode.HALF_UP)));
+				addElementTextNode(doc, accountNode, TAG_KONTOSTAND,
+						String.format(Locale.GERMANY, "%.2f", account.getBalance().setScale(2, RoundingMode.HALF_UP)));
 
 			Element accountBook = doc.createElement("KONTOBUCH");
 			accountNode.appendChild(accountBook);
