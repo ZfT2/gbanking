@@ -1,5 +1,7 @@
 package de.zft2.gbanking.gui.progress;
 
+import java.util.Locale;
+
 import de.zft2.gbanking.file.BaseFileTask;
 import de.zft2.gbanking.gui.enu.FileType;
 import de.zft2.gbanking.gui.panel.account.AccountListPanel;
@@ -99,7 +101,7 @@ public abstract class BaseFileProgressBarPanel {
 			if (progress < 0) {
 				return "0 %";
 			}
-			return String.format("%.0f %%", progress * 100.0);
+			return String.format(Locale.ROOT, "%.0f %%", progress * 100.0);
 		}, task.progressProperty()));
 
 		statusLabel.textProperty().unbind();

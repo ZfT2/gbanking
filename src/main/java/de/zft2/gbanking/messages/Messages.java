@@ -19,9 +19,11 @@ public class Messages {
 	private static ResourceBundle messageBundle;
 	private static Locale currentLocale;
 
-	public static Messages getInstance() {
+	public static synchronized Messages getInstance() {
 		if (messages == null) {
-			setLocale(resolveSupportedLocale(Locale.getDefault()));
+			if (messageBundle == null) {
+				setLocale(resolveSupportedLocale(Locale.getDefault()));
+			}
 			messages = new Messages();
 		}
 		return messages;
@@ -79,7 +81,7 @@ public class Messages {
 	
 	private String getFormatted(String key, Object... params) {
 		try {
-			return MessageFormat.format(messageBundle.getString(key), params);
+			return new MessageFormat(messageBundle.getString(key), getLocale()).format(params);
 		} catch (Exception e) {
 			log.error("could not create message for key: {} : {}", key, params);
 		}

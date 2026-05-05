@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 import org.apache.logging.log4j.Level;
@@ -360,7 +361,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	}
 
 	private String toCssColor(Color color) {
-		return String.format("rgb(%d, %d, %d)",
+		return String.format(Locale.ROOT, "rgb(%d, %d, %d)",
 				(int) Math.round(color.getRed() * 255),
 				(int) Math.round(color.getGreen() * 255),
 				(int) Math.round(color.getBlue() * 255));

@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.Locale;
 import java.util.Objects;
 
 import de.zft2.fp3xmlextract.data.Booking.SepaTyp;
@@ -73,7 +74,7 @@ public class Booking extends Dao implements Serializable {
 	}
 
 	public String getAmountStr() {
-		return String.format("%.2f", amount.setScale(2, RoundingMode.DOWN));
+		return String.format(Locale.GERMANY, "%.2f", amount.setScale(2, RoundingMode.DOWN));
 	}
 
 	public int getAccountId() {

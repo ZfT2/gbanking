@@ -1,6 +1,7 @@
 package de.zft2.gbanking.gui.dialog.hbci;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -94,7 +95,7 @@ public class HbciCallbackMessageDialog {
 		runOnFxThread(() -> {
 			getOrCreateDialog();
 			progressBar.setProgress(boundedProgress);
-			progressLabel.setText(String.format("%.0f %%", boundedProgress * 100.0d));
+			progressLabel.setText(String.format(Locale.ROOT, "%.0f %%", boundedProgress * 100.0d));
 		});
 	}
 

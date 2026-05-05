@@ -272,7 +272,7 @@ public final class FxTableUtils {
 	}
 
 	private static String toCssColor(Color color) {
-		return String.format("rgb(%d, %d, %d)",
+		return String.format(Locale.ROOT, "rgb(%d, %d, %d)",
 				(int) Math.round(color.getRed() * 255),
 				(int) Math.round(color.getGreen() * 255),
 				(int) Math.round(color.getBlue() * 255));

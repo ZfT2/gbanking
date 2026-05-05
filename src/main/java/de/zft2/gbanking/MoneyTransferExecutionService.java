@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -154,7 +155,7 @@ class MoneyTransferExecutionService extends BaseBean {
 		if (executionDay >= 31) {
 			return "31";
 		}
-		return String.format("%02d", executionDay);
+		return String.format(Locale.ROOT, "%02d", executionDay);
 	}
 
 	private BankAccount resolveBankAccountForTransfer(BankAccount bankAccount) {
