@@ -24,7 +24,7 @@ public enum Source implements IdType {
 	AUTO_ADJUSTING_NEW(GROUP_AUTO, "Ausgleichsbuchung", "A", true, 12),
 	AUTO_PRENO_NEW(GROUP_AUTO, "autom. vorgemerkt", "V", true, 13),
 	MANUELL_NEW(GROUP_MANUELL, "manuelle Anlage", "M", true, 14),
-	MONEYTRANSFER_NEW(GROUP_MANUELL, "Zahlungsauftrag", "Z", true, 15),
+	MONEYTRANSFER_NEW(GROUP_MONEYTRANSFER, "Zahlungsauftrag", "Z", true, 15),
 	IMPORT_NEW(GROUP_IMPORT, "Datenimport", "I", true, 16),
 	IMPORT_INITIAL_NEW(GROUP_IMPORT, "Datenimport (initial)", "B", true, 17);
 

@@ -5,9 +5,9 @@ import de.zft2.gbanking.db.enu.IdType;
 public enum CategoryRuleType implements IdType {
 	
 	AMOUNT("Zuweisung nach Betrag", 1),
-	PURPOSE_CONTAINS_STRING("Zuweisung nach Text im Verwendungszweck", 1),
-	PURPOSE_CONTAINS_REGEX("Zuweisung nach RegEx im Verwendungszweck", 2),
-	COMBINED("kombinierte Zuweisung", 3);
+	PURPOSE_CONTAINS_STRING("Zuweisung nach Text im Verwendungszweck", 2),
+	PURPOSE_CONTAINS_REGEX("Zuweisung nach RegEx im Verwendungszweck", 3),
+	COMBINED("kombinierte Zuweisung", 4);
 
 	private final String description;
 	private int dbStateId;

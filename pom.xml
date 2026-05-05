@@ -258,6 +258,7 @@
 				<configuration>
 					<workingDirectory>${project.build.directory}/test-working</workingDirectory>
 					<argLine>
+						-javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar
 						-Djava.awt.headless=true
 						-Dprism.order=sw
 					</argLine>

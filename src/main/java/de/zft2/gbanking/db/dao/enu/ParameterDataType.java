@@ -15,8 +15,8 @@ public enum ParameterDataType implements IdType {
 		this.dbStateId = dbStateId;
 	}
 
-	public static InstituteStatus forInt(int intValue) {
-		return IdType.forId(InstituteStatus.class, intValue);
+	public static ParameterDataType forInt(int intValue) {
+		return IdType.forId(ParameterDataType.class, intValue);
 	}
 
 	public static ParameterDataType forString(String strValue) {
