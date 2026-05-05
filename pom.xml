@@ -67,6 +67,7 @@
 		<maven.compiler.plugin.version>3.15.0</maven.compiler.plugin.version>
 		<maven.jar.plugin.version>3.4.2</maven.jar.plugin.version>
 		<maven.assembly.plugin.version>3.7.1</maven.assembly.plugin.version>
+		<maven.resources.plugin.version>3.3.1</maven.resources.plugin.version>
 		<maven.versions.plugin.version>2.18.0</maven.versions.plugin.version>
 		<maven.enforcer.plugin.version>3.5.0</maven.enforcer.plugin.version>
 		<maven.javafx.plugin.version>0.0.8</maven.javafx.plugin.version>
@@ -209,16 +210,54 @@
 
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-resources-plugin</artifactId>
+				<version>${maven.resources.plugin.version}</version>
+				<executions>
+					<execution>
+						<id>copy-fp3xmlextract-test-properties</id>
+						<phase>process-test-resources</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.directory}/test-working/properties</outputDirectory>
+							<resources>
+								<resource>
+									<directory>src/test/resources/fp3xmlextract-properties</directory>
+									<filtering>false</filtering>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+					<execution>
+						<id>copy-test-resources-to-working-directory</id>
+						<phase>process-test-resources</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.directory}/test-working/src/test/resources</outputDirectory>
+							<resources>
+								<resource>
+									<directory>src/test/resources</directory>
+									<filtering>false</filtering>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>${maven.surefire.plugin.version}</version>
 				<configuration>
+					<workingDirectory>${project.build.directory}/test-working</workingDirectory>
 					<argLine>
 						-Djava.awt.headless=true
 						-Dprism.order=sw
 					</argLine>
-					<systemPropertyVariables>
-						<user.dir>${project.basedir}</user.dir>
-					</systemPropertyVariables>
 				</configuration>
 			</plugin>
 
