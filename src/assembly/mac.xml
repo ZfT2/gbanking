@@ -30,6 +30,7 @@
 			<directory>src/assembly/mac/bin</directory>
 			<outputDirectory>/bin</outputDirectory>
 			<fileMode>0755</fileMode>
+			<lineEnding>unix</lineEnding>
 		</fileSet>
 	</fileSets>
 

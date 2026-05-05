@@ -29,6 +29,7 @@
 		<fileSet>
 			<directory>src/assembly/windows/bin</directory>
 			<outputDirectory>/bin</outputDirectory>
+			<lineEnding>dos</lineEnding>
 		</fileSet>
 	</fileSets>
 

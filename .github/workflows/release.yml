@@ -30,15 +30,12 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v4
 
-            - name: Set up Java 21
+            - name: Set up Java 17
               uses: actions/setup-java@v4
               with:
                   distribution: temurin
-                  java-version: "21"
+                  java-version: "17"
                   cache: maven
-                  server-id: github
-                  server-username: ZfT2
-                  server-password: ${{ secrets.GH_PACKAGES_TOKEN }}
 
             - name: Configure Maven settings.xml
               shell: bash
@@ -198,11 +195,11 @@ jobs:
                     --target "$GITHUB_SHA" \
                     --notes-file CHANGELOG.md
 
-            - name: Set up Java 21
+            - name: Set up Java 17
               uses: actions/setup-java@v4
               with:
                   distribution: temurin
-                  java-version: "21"
+                  java-version: "17"
                   cache: maven
 
             - name: Prepare next development version
@@ -215,7 +212,7 @@ jobs:
 
                   echo "Next development version: $NEXT_VERSION"
 
-                  mvn -B versions:set-property \
+                  mvn -B org.codehaus.mojo:versions-maven-plugin:2.18.0:set-property \
                     -Dproperty=revision \
                     -DnewVersion="$NEXT_VERSION" \
                     -DgenerateBackupPoms=false

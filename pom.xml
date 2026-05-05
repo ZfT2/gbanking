@@ -70,9 +70,6 @@
 		<maven.jar.plugin.version>3.4.2</maven.jar.plugin.version>
 		<maven.assembly.plugin.version>3.7.1</maven.assembly.plugin.version>
 		<maven.resources.plugin.version>3.3.1</maven.resources.plugin.version>
-		<maven.versions.plugin.version>2.18.0</maven.versions.plugin.version>
-		<maven.enforcer.plugin.version>3.5.0</maven.enforcer.plugin.version>
-		<maven.javafx.plugin.version>0.0.8</maven.javafx.plugin.version>
 		<maven.surefire.plugin.version>3.5.5</maven.surefire.plugin.version>
 
 		<project.build.outputTimestamp>${maven.build.timestamp}</project.build.outputTimestamp>
@@ -263,20 +260,6 @@
 				</configuration>
 			</plugin>
 
-			<plugin>
-				<groupId>org.openjfx</groupId>
-				<artifactId>javafx-maven-plugin</artifactId>
-				<version>${maven.javafx.plugin.version}</version>
-				<configuration>
-					<mainClass>${app.mainClass}</mainClass>
-				</configuration>
-			</plugin>
-
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>versions-maven-plugin</artifactId>
-				<version>${maven.versions.plugin.version}</version>
-			</plugin>
 		</plugins>
 	</build>
 
@@ -363,26 +346,6 @@
 									<descriptors>
 										<descriptor>src/assembly/mac.xml</descriptor>
 									</descriptors>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-enforcer-plugin</artifactId>
-						<version>${maven.enforcer.plugin.version}</version>
-						<executions>
-							<execution>
-								<id>enforce-java</id>
-								<goals>
-									<goal>enforce</goal>
-								</goals>
-								<configuration>
-									<rules>
-										<requireJavaVersion>
-											<version>[17,)</version>
-										</requireJavaVersion>
-									</rules>
 								</configuration>
 							</execution>
 						</executions>
