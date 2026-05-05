@@ -110,9 +110,9 @@ jobs:
               shell: bash
               run: |
                 if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-                  xvfb-run mvn -B -P${{ matrix.profile }} clean package
+                  xvfb-run mvn -B -Drevision="${VERSION}" -P${{ matrix.profile }} clean package
                 else
-                  mvn -B -P${{ matrix.profile }} clean package
+                  mvn -B -Drevision="${VERSION}" -P${{ matrix.profile }} clean package
                 fi
 
             - name: Upload distribution artifact
@@ -195,4 +195,38 @@ jobs:
                     dist/linux-dist/* \
                     dist/mac-dist/* \
                     --title "$TAG" \
+                    --target "$GITHUB_SHA" \
                     --notes-file CHANGELOG.md
+
+            - name: Set up Java 21
+              uses: actions/setup-java@v4
+              with:
+                  distribution: temurin
+                  java-version: "21"
+                  cache: maven
+
+            - name: Prepare next development version
+              shell: bash
+              run: |
+                  IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+
+                  NEXT_PATCH=$((PATCH + 1))
+                  NEXT_VERSION="$MAJOR.$MINOR.$NEXT_PATCH-SNAPSHOT"
+
+                  echo "Next development version: $NEXT_VERSION"
+
+                  mvn -B versions:set-property \
+                    -Dproperty=revision \
+                    -DnewVersion="$NEXT_VERSION" \
+                    -DgenerateBackupPoms=false
+
+                  if git diff --quiet -- pom.xml; then
+                    echo "No version changes"
+                    exit 0
+                  fi
+
+                  git config user.name "github-actions"
+                  git config user.email "actions@github.com"
+
+                  git commit -am "chore: next development version $NEXT_VERSION"
+                  git push origin HEAD:main
