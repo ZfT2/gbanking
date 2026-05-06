@@ -51,6 +51,11 @@ class AccountTransactionService extends BaseBean {
 		boolean result = false;
 
 		BankAccess bankAccess = hbciSupport.initBankAccess(bankAccount, pin);
+		if (bankAccess == null) {
+			clearSecret(pin);
+			return false;
+		}
+
 		LocalDate lastBookingDate = getAccountLastBookingDate(bankAccount);
 
 		GBankingHBCICallback hbciCallback = new GBankingHBCICallback(bankAccess);

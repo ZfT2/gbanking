@@ -403,16 +403,34 @@ public class GBankingBean extends BaseBean implements Serializable {
 	}
 
 	BankAccess initBankAccess(BankAccount bankAccount, char[] pin) {
-		BankAccess bankAccess;
-		if (bankAccount.getBankAccessId() <= 0) {
-			log.warn("No BankAccess configured for Account {}, IBAN: {} / Nr.: {}", bankAccount.getAccountName(),
-					bankAccount.getIban(), bankAccount.getNumber());
+		if (!hasConfiguredBankAccess(bankAccount)) {
 			return null;
-		} else {
-			bankAccess = dbController.getBankAccessById(bankAccount.getBankAccessId());
-			bankAccess.setPin(pin);
 		}
+
+		BankAccess bankAccess = dbController.getBankAccessById(bankAccount.getBankAccessId());
+		if (bankAccess == null) {
+			log.warn("Configured BankAccess {} not found for Account {}, IBAN: {} / Nr.: {}", bankAccount.getBankAccessId(),
+					bankAccount.getAccountName(), bankAccount.getIban(), bankAccount.getNumber());
+			return null;
+		}
+
+		bankAccess.setPin(pin);
 		return bankAccess;
+	}
+
+	public boolean hasConfiguredBankAccess(BankAccount bankAccount) {
+		if (bankAccount == null) {
+			log.warn("No BankAccount provided for BankAccess check");
+			return false;
+		}
+
+		if (bankAccount.getBankAccessId() > 0) {
+			return true;
+		}
+
+		log.warn("No BankAccess configured for Account {}, IBAN: {} / Nr.: {}", bankAccount.getAccountName(), bankAccount.getIban(),
+				bankAccount.getNumber());
+		return false;
 	}
 	
 	HBCIPassport initBankConnection(BankAccess bankAccess) {

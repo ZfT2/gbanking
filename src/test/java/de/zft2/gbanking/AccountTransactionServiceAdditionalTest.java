@@ -177,6 +177,22 @@ class AccountTransactionServiceAdditionalTest {
 	}
 
 	@Test
+	void retrieveAccountTransactions_shouldReturnFalseAndClearPinWhenBankAccessIsMissing() {
+		GBankingBean hbciSupport = mock(GBankingBean.class);
+		AccountTransactionService service = new AccountTransactionService(hbciSupport, mock(GBankingLoggingHandler.class));
+		BankAccount bankAccount = TestData.createSampleAccount(null);
+		char[] pin = "1234".toCharArray();
+
+		when(hbciSupport.initBankAccess(bankAccount, pin)).thenReturn(null);
+
+		boolean result = service.retrieveAccountTransactions(bankAccount, pin);
+
+		assertFalse(result);
+		assertArrayEquals(new char[] { '\0', '\0', '\0', '\0' }, pin);
+		verify(hbciSupport, never()).initBankConnection(any(BankAccess.class), any(GBankingHBCICallback.class));
+	}
+
+	@Test
 	void retrieveAccountTransactions_shouldExecuteMatchingJobsPersistBookingsAndClearPin() {
 		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount bankAccount = TestData.createSampleAccount(null);

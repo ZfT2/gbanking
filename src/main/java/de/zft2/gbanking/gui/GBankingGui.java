@@ -373,6 +373,12 @@ public class GBankingGui extends Application {
 			return;
 		}
 
+		List<BankAccount> accountsWithoutBankAccess = checkedAccounts.stream().filter(account -> !bean.hasConfiguredBankAccess(account)).toList();
+		if (!accountsWithoutBankAccess.isEmpty()) {
+			showWarning(getText("ALERT_ACCOUNT_BANK_ACCESS_MISSING", formatAccountNames(accountsWithoutBankAccess)));
+			return;
+		}
+
 		Map<BankAccount, char[]> pinMap = new LinkedHashMap<>();
 		for (BankAccount bankAccount : checkedAccounts) {
 			pinWindow.setBankInfo(bankAccount.getBlz(), bankAccount.getBankName());
@@ -576,6 +582,20 @@ public class GBankingGui extends Application {
 
 	private void showWarning(String text) {
 		DialogWindowSupport.showAlert(primaryStage, javafx.scene.control.Alert.AlertType.WARNING, text);
+	}
+
+	private String formatAccountNames(List<BankAccount> bankAccounts) {
+		return String.join(", ", bankAccounts.stream().map(this::formatAccountName).toList());
+	}
+
+	private String formatAccountName(BankAccount bankAccount) {
+		if (bankAccount.getAccountName() != null && !bankAccount.getAccountName().isBlank()) {
+			return bankAccount.getAccountName();
+		}
+		if (bankAccount.getIban() != null && !bankAccount.getIban().isBlank()) {
+			return bankAccount.getIban();
+		}
+		return bankAccount.getNumber() != null && !bankAccount.getNumber().isBlank() ? bankAccount.getNumber() : "?";
 	}
 
 	private String getText(String key) {
