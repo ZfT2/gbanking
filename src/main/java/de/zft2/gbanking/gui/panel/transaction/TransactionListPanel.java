@@ -32,9 +32,11 @@ import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
+import javafx.scene.control.TableCell;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 
@@ -47,7 +49,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	private final DecimalFormat amountFormat = FxTableUtils.createGermanDecimalFormat();
 	private TableColumn<Booking, Boolean> selectedCol;
 	private TableColumn<Booking, Booking> dateCol;
-	private TableColumn<Booking, String> purposeCol;
+	private TableColumn<Booking, Booking> purposeCol;
 	private TableColumn<Booking, BigDecimal> amountCol;
 
 	public TransactionListPanel(TransactionsOverviewBasePanel parent) {
@@ -121,7 +123,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 					right != null ? right.getDateValue() : null);
 		});
 		FxTableUtils.setFixedWidth(dateCol, 115);
-		purposeCol = TableColumnFactory.createWrappedTextColumn(getText("UI_TABLE_PURPOSE"), Booking::getPurpose, 320, 500);
+		purposeCol = createPurposeColumn();
 		amountCol = TableColumnFactory.createAmountColumn(getText("UI_TABLE_AMOUNT"), Booking::getAmount, 110);
 		TableColumn<Booking, Booking> balanceCol = new TableColumn<>(getText("UI_TABLE_BALANCE"));
 		balanceCol.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue()));
@@ -190,8 +192,66 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 			return true;
 		}
 
-		return contains(booking.getPurpose(), filter) || contains(booking.getCurrency(), filter) || matchesNumbers(booking, filter)
-				|| matchesSymbols(booking, filter) || contains(booking.getCrossAccountName(), filter) || contains(booking.getAccountName(), filter);
+		return contains(booking.getPurpose(), filter) || contains(getRecipientName(booking), filter) || contains(booking.getCurrency(), filter)
+				|| matchesNumbers(booking, filter) || matchesSymbols(booking, filter) || contains(booking.getCrossAccountName(), filter)
+				|| contains(booking.getAccountName(), filter);
+	}
+
+	private TableColumn<Booking, Booking> createPurposeColumn() {
+		TableColumn<Booking, Booking> column = new TableColumn<>(getText("UI_TABLE_PURPOSE"));
+		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue()));
+		column.setCellFactory(this::createPurposeCell);
+		FxTableUtils.setPreferredWidth(column, 320, 500);
+		return column;
+	}
+
+	private TableCell<Booking, Booking> createPurposeCell(TableColumn<Booking, Booking> column) {
+		return new TableCell<>() {
+			private final Label recipientLabel = new Label();
+			private final Label purposeLabel = new Label();
+			private final VBox graphic = new VBox(2, recipientLabel, purposeLabel);
+
+			{
+				recipientLabel.setStyle("-fx-font-weight: bold;");
+				recipientLabel.setWrapText(true);
+				purposeLabel.setWrapText(true);
+				recipientLabel.maxWidthProperty().bind(column.widthProperty().subtract(16));
+				purposeLabel.maxWidthProperty().bind(column.widthProperty().subtract(16));
+				setContentDisplay(javafx.scene.control.ContentDisplay.GRAPHIC_ONLY);
+				setAlignment(Pos.CENTER_LEFT);
+			}
+
+			@Override
+			protected void updateItem(Booking booking, boolean empty) {
+				super.updateItem(booking, empty);
+				String recipientName = empty || booking == null ? null : trimToNull(getRecipientName(booking));
+				String purpose = empty || booking == null ? null : trimToNull(booking.getPurpose());
+
+				if (recipientName == null && purpose == null) {
+					setGraphic(null);
+					return;
+				}
+
+				recipientLabel.setText(recipientName);
+				recipientLabel.setVisible(recipientName != null);
+				recipientLabel.setManaged(recipientName != null);
+				purposeLabel.setText(purpose);
+				purposeLabel.setVisible(purpose != null);
+				purposeLabel.setManaged(purpose != null);
+				setGraphic(graphic);
+			}
+		};
+	}
+
+	private String getRecipientName(Booking booking) {
+		return booking.getRecipient() != null ? booking.getRecipient().getName() : null;
+	}
+
+	private String trimToNull(String value) {
+		if (value == null || value.isBlank()) {
+			return null;
+		}
+		return value.trim();
 	}
 
 	private boolean matchesNumbers(Booking booking, String filter) {
