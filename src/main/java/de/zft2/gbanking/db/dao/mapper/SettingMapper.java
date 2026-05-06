@@ -33,7 +33,7 @@ public class SettingMapper extends AbstractDaoMapper<Setting, Void> {
 	public void mapDao(Setting setting, ResultType resultType, ResultSet rs) throws SQLException {
 		setting.setAttribute(rs.getString("attribute"));
 		setting.setValue(rs.getString("value"));
-		setting.setDataType((DataType) DataType.forInt(rs.getInt("dataType")));
+		setting.setDataType(DataType.forInt(rs.getInt("dataType")));
 		setting.setEditable(rs.getBoolean("editable"));
 		setting.setVisible(rs.getBoolean("visible"));
 		setting.setComment(rs.getString("comment"));

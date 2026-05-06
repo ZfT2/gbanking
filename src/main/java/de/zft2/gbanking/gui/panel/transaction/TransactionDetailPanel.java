@@ -37,6 +37,7 @@ import javafx.util.StringConverter;
 
 public class TransactionDetailPanel extends BaseBorderPanePanel {
 
+	private static final String UI_BUTTON_EDIT = "UI_BUTTON_EDIT";
 	private static final List<String> SUPPORTED_CURRENCIES = List.of("EUR", "USD", "CHF", "GBP", "PLN", "CZK", "NOK");
 
 	private enum EditContext {
@@ -75,7 +76,7 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 
 	private final Button newButton = new Button(getText("UI_BUTTON_NEW_SHORT"));
 	private final Button deleteButton = new Button(getText("UI_BUTTON_DELETE"));
-	private final Button editButton = new Button(getText("UI_BUTTON_EDIT"));
+	private final Button editButton = new Button(getText(UI_BUTTON_EDIT));
 	private final Button saveButton = new Button(getText("UI_BUTTON_SAVE"));
 
 	private Booking displayedBooking;
@@ -317,7 +318,7 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 		}
 		if (context == EditContext.EDIT || context == EditContext.NEW) {
 			context = EditContext.READONLY;
-			editButton.setText(getText("UI_BUTTON_EDIT"));
+			editButton.setText(getText(UI_BUTTON_EDIT));
 			newButton.setDisable(false);
 			enableFields(false);
 		} else {
@@ -335,7 +336,7 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 			dbController.insertOrUpdate(displayedBooking);
 			displayedBooking = dbController.getByIdFull(Booking.class, displayedBooking.getId());
 			context = EditContext.READONLY;
-			editButton.setText(getText("UI_BUTTON_EDIT"));
+			editButton.setText(getText(UI_BUTTON_EDIT));
 			newButton.setDisable(false);
 			refreshSourceChoices(false);
 			updatePanelFieldValues(displayedBooking);
@@ -360,7 +361,7 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 		dbController.delete(displayedBooking, null);
 		displayedBooking = null;
 		context = EditContext.READONLY;
-		editButton.setText(getText("UI_BUTTON_EDIT"));
+		editButton.setText(getText(UI_BUTTON_EDIT));
 		editButton.setDisable(true);
 		newButton.setDisable(false);
 		clearFields();
@@ -512,7 +513,7 @@ public class TransactionDetailPanel extends BaseBorderPanePanel {
 	public void clearDisplayedBooking() {
 		displayedBooking = null;
 		context = EditContext.READONLY;
-		editButton.setText(getText("UI_BUTTON_EDIT"));
+		editButton.setText(getText(UI_BUTTON_EDIT));
 		editButton.setDisable(true);
 		newButton.setDisable(false);
 		clearFields();

@@ -20,8 +20,9 @@ class DbDdlSetup {
 		try (Statement stmt = DbConnectionHandler.getConnection().createStatement()) {
 			for (String statement : SqlTemplateRepository.getBaselineStatements()) {
 				sql = statement;
-				stmt.executeUpdate(sql);
+				stmt.addBatch(sql);
 			}
+			stmt.executeBatch();
 		} catch (SQLException se) {
 			log.error("Couldn't handle DB-Query (SETUP), SQL: {}", sql, se);
 			result = false;

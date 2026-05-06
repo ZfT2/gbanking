@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -18,10 +19,12 @@ import java.util.TreeSet;
 import java.util.jar.JarFile;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
 
 public final class SqlTemplateRepository {
 
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\$\\{([A-Z0-9_]+)}");
+    private static final String RESOURCE_SEPARATOR = "/";
     private static final TemplateBundle DML = loadBundle(listSqlResources("sql/dml", false));
     private static final VersionedTemplateBundle DDL = loadVersionedBundle("sql/ddl");
 
@@ -52,18 +55,9 @@ public final class SqlTemplateRepository {
         List<String> resources = listSqlResources(directory, true);
         TemplateBundle bundle = loadBundle(resources);
 
-        TreeMap<String, List<String>> baselineStatementsByVersion = new TreeMap<String, List<String>>(new java.util.Comparator<String>() {
-            @Override
-            public int compare(String left, String right) {
-                return DbMigrationRunner.compareVersions(left, right);
-            }
-        });
-        TreeMap<String, List<String>> migrationStatementsByVersion = new TreeMap<String, List<String>>(new java.util.Comparator<String>() {
-            @Override
-            public int compare(String left, String right) {
-                return DbMigrationRunner.compareVersions(left, right);
-            }
-        });
+		Comparator<String> versionComparator = (left, right) -> (DbMigrationRunner.compareVersions(left, right));
+		TreeMap<String, List<String>> baselineStatementsByVersion = new TreeMap<>(versionComparator);
+		TreeMap<String, List<String>> migrationStatementsByVersion = new TreeMap<>(versionComparator);
 
         for (String resource : resources) {
             String version = extractVersion(directory, resource);
@@ -83,12 +77,11 @@ public final class SqlTemplateRepository {
     }
 
     private static String extractVersion(String rootDirectory, String resource) {
-        String relativePath = resource.substring((rootDirectory + "/").length());
-        int slashIndex = relativePath.indexOf('/');
-        if (slashIndex < 0) {
+        Path relativePath = Path.of(rootDirectory).relativize(Path.of(resource));
+        if (relativePath.getNameCount() < 2) {
             throw new IllegalStateException("DDL resource must be inside a version directory: " + resource);
         }
-        return relativePath.substring(0, slashIndex);
+        return relativePath.getName(0).toString();
     }
 
     private static TemplateBundle loadBundle(List<String> resources) {
@@ -146,12 +139,12 @@ public final class SqlTemplateRepository {
 
     private static void collectFromJar(Path jarPath, String directory, boolean recursive, TreeSet<String> resources)
             throws IOException {
-        String prefix = directory.endsWith("/") ? directory : directory + "/";
+        String prefix = directory.endsWith(RESOURCE_SEPARATOR) ? directory : directory + RESOURCE_SEPARATOR;
         try (JarFile jarFile = new JarFile(jarPath.toFile())) {
             jarFile.stream()
-                    .map(entry -> entry.getName())
+                    .map(ZipEntry::getName)
                     .filter(name -> name.startsWith(prefix) && name.endsWith(".sql"))
-                    .filter(name -> recursive || !name.substring(prefix.length()).contains("/"))
+                    .filter(name -> recursive || !name.substring(prefix.length()).contains(RESOURCE_SEPARATOR))
                     .forEach(resources::add);
         }
     }
@@ -161,72 +154,10 @@ public final class SqlTemplateRepository {
         try (InputStream in = getRequiredResource(resource);
                 BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
 
-            String currentKey = null;
-            StringBuilder currentValue = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String trimmed = line.trim();
-                if (trimmed.isEmpty() || trimmed.startsWith("#") || trimmed.startsWith("--")) {
-                    if (currentKey != null && trimmed.isEmpty()) {
-                        currentValue.append(System.lineSeparator());
-                    }
-                    continue;
-                }
-                if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-                    if (currentKey != null) {
-                        storeEntry(resource, currentKey, currentValue, rawValues, resourceByKey, keyOrder);
-                    }
-                    currentKey = trimmed.substring(1, trimmed.length() - 1).trim();
-                    currentValue = new StringBuilder();
-                    continue;
-                }
-                if (";".equals(trimmed)) {
-                    if (currentKey != null) {
-                        storeEntry(resource, currentKey, currentValue, rawValues, resourceByKey, keyOrder);
-                        currentKey = null;
-                        currentValue = new StringBuilder();
-                    }
-                    continue;
-                }
-
-                if (currentKey == null) {
-                    throw new IllegalStateException("SQL content found outside a [KEY] block in " + resource + ": " + line);
-                }
-
-                if (trimmed.endsWith(";")) {
-                    currentValue.append(stripStatementTerminator(line)).append(System.lineSeparator());
-                    storeEntry(resource, currentKey, currentValue, rawValues, resourceByKey, keyOrder);
-                    currentKey = null;
-                    currentValue = new StringBuilder();
-                    continue;
-                }
-
-                currentValue.append(line).append(System.lineSeparator());
-            }
-            if (currentKey != null) {
-                storeEntry(resource, currentKey, currentValue, rawValues, resourceByKey, keyOrder);
-            }
+            new SqlEntryParser(resource, rawValues, resourceByKey, keyOrder).parse(reader);
         } catch (IOException e) {
             throw new IllegalStateException("Could not read SQL resource: " + resource, e);
         }
-    }
-
-    private static String stripStatementTerminator(String line) {
-        int semicolonIndex = line.lastIndexOf(';');
-        return semicolonIndex < 0 ? line : line.substring(0, semicolonIndex);
-    }
-
-    private static void storeEntry(String resource, String key, StringBuilder currentValue, Map<String, String> rawValues,
-            Map<String, String> resourceByKey, List<String> keyOrder) {
-        if (key == null) {
-            throw new IllegalStateException("Found SQL terminator without key in " + resource);
-        }
-        if (rawValues.containsKey(key)) {
-            throw new IllegalStateException("Duplicate SQL key '" + key + "' in resource " + resource);
-        }
-        rawValues.put(key, trimTrailingWhitespace(currentValue.toString()));
-        resourceByKey.put(key, resource);
-        keyOrder.add(key);
     }
 
     private static String resolveValue(String key, Map<String, String> rawValues, Map<String, String> resolvedValues,
@@ -257,24 +188,108 @@ public final class SqlTemplateRepository {
         return resolved.toString();
     }
 
-    private static String trimTrailingWhitespace(String value) {
-        return value.replaceFirst("\\s+$", "");
+    private static final class SqlEntryParser {
+
+        private final String resource;
+        private final Map<String, String> rawValues;
+        private final Map<String, String> resourceByKey;
+        private final List<String> keyOrder;
+        private String currentKey;
+        private StringBuilder currentValue = new StringBuilder();
+
+        private SqlEntryParser(String resource, Map<String, String> rawValues, Map<String, String> resourceByKey,
+                List<String> keyOrder) {
+            this.resource = resource;
+            this.rawValues = rawValues;
+            this.resourceByKey = resourceByKey;
+            this.keyOrder = keyOrder;
+        }
+
+        private void parse(BufferedReader reader) throws IOException {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                parseLine(line);
+            }
+            storePendingEntry();
+        }
+
+        private void parseLine(String line) {
+            String trimmed = line.trim();
+            if (isIgnoredLine(trimmed)) {
+                appendEntrySeparator(trimmed);
+            } else if (isKeyHeader(trimmed)) {
+                startEntry(trimmed);
+            } else if (";".equals(trimmed)) {
+                storePendingEntry();
+            } else {
+                appendSqlLine(line, trimmed);
+            }
+        }
+
+        private void appendEntrySeparator(String trimmed) {
+            if (currentKey != null && trimmed.isEmpty()) {
+                currentValue.append(System.lineSeparator());
+            }
+        }
+
+        private void startEntry(String trimmed) {
+            storePendingEntry();
+            currentKey = trimmed.substring(1, trimmed.length() - 1).trim();
+            currentValue = new StringBuilder();
+        }
+
+        private void appendSqlLine(String line, String trimmed) {
+            if (currentKey == null) {
+                throw new IllegalStateException("SQL content found outside a [KEY] block in " + resource + ": " + line);
+            }
+            currentValue.append(trimmed.endsWith(";") ? stripStatementTerminator(line) : line).append(System.lineSeparator());
+            if (trimmed.endsWith(";")) {
+                storePendingEntry();
+            }
+        }
+
+        private void storePendingEntry() {
+            if (currentKey != null) {
+                storeEntry(resource, currentKey, currentValue, rawValues, resourceByKey, keyOrder);
+                currentKey = null;
+                currentValue = new StringBuilder();
+            }
+        }
+
+        private static boolean isIgnoredLine(String trimmed) {
+            return trimmed.isEmpty() || trimmed.startsWith("#") || trimmed.startsWith("--");
+        }
+
+        private static boolean isKeyHeader(String trimmed) {
+            return trimmed.startsWith("[") && trimmed.endsWith("]");
+        }
+
+		private static String stripStatementTerminator(String line) {
+			int semicolonIndex = line.lastIndexOf(';');
+			return semicolonIndex < 0 ? line : line.substring(0, semicolonIndex);
+		}
+
+		private static void storeEntry(String resource, String key, StringBuilder currentValue, Map<String, String> rawValues,
+				Map<String, String> resourceByKey, List<String> keyOrder) {
+			if (key == null) {
+				throw new IllegalStateException("Found SQL terminator without key in " + resource);
+			}
+			if (rawValues.containsKey(key)) {
+				throw new IllegalStateException("Duplicate SQL key '" + key + "' in resource " + resource);
+			}
+			rawValues.put(key, trimTrailingWhitespace(currentValue.toString()));
+			resourceByKey.put(key, resource);
+			keyOrder.add(key);
+		}
+
+		private static String trimTrailingWhitespace(String value) {
+			return value.replaceFirst("\\s+$", "");
+		}
     }
 
     private enum StatementMode {
         BASELINE,
         MIGRATION
-    }
-
-    private static boolean isExecutableBaselineStatement(String key) {
-        return key.startsWith("SQL_FOREIGN_KEY_")
-                || key.startsWith("SQL_SETUP_CREATE_")
-                || key.startsWith("SQL_SETUP_VIEW_")
-                || key.startsWith("SQL_SETUP_INSERT_");
-    }
-
-    private static boolean isExecutableMigrationStatement(String key) {
-        return key.startsWith("SQL_MIGRATION_");
     }
 
     private static InputStream getRequiredResource(String resource) {
@@ -285,9 +300,7 @@ public final class SqlTemplateRepository {
         return in;
     }
 
-    static final class VersionScript {
-        private final String version;
-        private final List<String> statements;
+	record VersionScript(String version, List<String> statements) {
 
         VersionScript(String version, List<String> statements) {
             this.version = version;
@@ -345,6 +358,15 @@ public final class SqlTemplateRepository {
             }
             return statements;
         }
+
+		private static boolean isExecutableBaselineStatement(String key) {
+			return key.startsWith("SQL_FOREIGN_KEY_") || key.startsWith("SQL_SETUP_CREATE_") || key.startsWith("SQL_SETUP_VIEW_")
+					|| key.startsWith("SQL_SETUP_INSERT_");
+		}
+
+		private static boolean isExecutableMigrationStatement(String key) {
+			return key.startsWith("SQL_MIGRATION_");
+		}
     }
 
     private static final class VersionedTemplateBundle extends TemplateBundle {

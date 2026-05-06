@@ -28,8 +28,8 @@ import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.BaseWorker;
-import de.zft2.gbanking.util.TypeConverter;
 import de.zft2.gbanking.util.AppPaths;
+import de.zft2.gbanking.util.TypeConverter;
 
 public class FileExportXMLBean extends FileExportBean {
 
@@ -51,8 +51,6 @@ public class FileExportXMLBean extends FileExportBean {
 		} catch (ParserConfigurationException | TransformerException e) {
 			result = false;
 			log.error("Error exporting file: ", new GBankingException(e.getMessage(), true));
-			;
-			// throw new ExportException(e.getMessage());
 		}
 
 		return result;
@@ -68,8 +66,6 @@ public class FileExportXMLBean extends FileExportBean {
 		doc.appendChild(rootElement);
 
 		totalAccounts = accountList.size();
-		// totalBookings = accountList.stream().flatMap(bankAccount ->
-		// bankAccount.getBookings().stream()).count();
 		int exportedAccountsCount = 0;
 		updateWorkerState(1, true, "Exportiere Konten (Anzahl: %d)", totalAccounts);
 
@@ -94,7 +90,6 @@ public class FileExportXMLBean extends FileExportBean {
 			Element accountBook = doc.createElement("KONTOBUCH");
 			accountNode.appendChild(accountBook);
 
-			// updateWorkerState(1, true, "Exportiere Buchungen");
 			long exportedBookingsCount = 0;
 
 			List<Booking> bookingList = dbController.getAllByParentFull(Booking.class, account.getId());
@@ -182,7 +177,6 @@ public class FileExportXMLBean extends FileExportBean {
 		TransformerFactory transformerFactory = TransformerFactory.newInstance();
 		transformerFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
 		transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-		// transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
 		Transformer transformer = transformerFactory.newTransformer();
 		transformer.setOutputProperty(OutputKeys.INDENT, "yes");
 		transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
@@ -192,7 +186,6 @@ public class FileExportXMLBean extends FileExportBean {
 		log.info("File saved: {}", exportPath);
 
 		updateWorkerState(99, false, "beende...");
-		// updateWorkerState(100, false, "fertig.");
 	}
 
 }

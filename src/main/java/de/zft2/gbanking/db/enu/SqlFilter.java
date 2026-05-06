@@ -23,10 +23,6 @@ public enum SqlFilter implements StateType {
 		return sql;
 	}
 
-	public void setSql(String sql) {
-		this.sql = sql;
-	}
-
 	@Override
 	public final String toString() {
 		return translation;

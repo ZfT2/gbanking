@@ -34,7 +34,7 @@ public class Booking extends Dao implements Serializable {
 	private BigDecimal balance;
 	private BookingType bookingType;
 	private Integer crossAccountId;
-	private Recipient recipient;
+	private transient Recipient recipient;
 	private Category category;
 	private String accountName;
 	private String crossAccountName;

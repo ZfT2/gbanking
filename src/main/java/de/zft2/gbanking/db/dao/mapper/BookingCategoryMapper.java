@@ -25,7 +25,7 @@ public class BookingCategoryMapper extends AbstractDaoMapper<BookingCategory, Vo
 	public void mapDao(BookingCategory bookingCategory, ResultType resultType, ResultSet rs) throws SQLException {
 		bookingCategory.setmTableId(rs.getInt("booking_id"));
 		bookingCategory.setnTableId(rs.getInt("category_id"));
-		bookingCategory.setCategoryRuleMode((CategoryRuleMode) CategoryRuleMode.forInt(rs.getInt("categoryRuleMode")));
+		bookingCategory.setCategoryRuleMode(CategoryRuleMode.forInt(rs.getInt("categoryRuleMode")));
 	}
 
 }

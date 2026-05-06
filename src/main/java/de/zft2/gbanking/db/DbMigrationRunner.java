@@ -12,6 +12,9 @@ import org.apache.logging.log4j.Logger;
 
 final class DbMigrationRunner {
 
+	private static final String LAST_STARTED_APP_VERSION = "Zuletzt gestartete Anwendungsversion";
+	private static final String LAST_USED_SCHEMAVERSION_SUCCESS = "Zuletzt erfolgreich angewendete DB-Schemaversion";
+	private static final String VERSION_0_0_0 = "0.0.0";
 	private static final Logger log = LogManager.getLogger(DbMigrationRunner.class);
 	private static final String SETTING_SCHEMA_VERSION = "db.schema.version";
 	private static final String SETTING_LAST_APP_VERSION = "app.version.lastStarted";
@@ -43,7 +46,7 @@ final class DbMigrationRunner {
 			applyMigration(connection, script, appVersion);
 		}
 
-		upsertHiddenSetting(connection, SETTING_LAST_APP_VERSION, appVersion, "Zuletzt gestartete Anwendungsversion");
+		upsertHiddenSetting(connection, SETTING_LAST_APP_VERSION, appVersion, LAST_STARTED_APP_VERSION);
 	}
 
 	static void markBaselineAsApplied(Connection connection) throws SQLException {
@@ -57,8 +60,8 @@ final class DbMigrationRunner {
 		String appVersion = normalizeVersion(BuildInfo.getProgramVersion());
 		upsertHiddenSetting(connection, baselineScript.getSettingKey(), appVersion,
 				"Baseline-DB-Schema initial erstellt mit Version " + baselineScript.getVersion());
-		upsertHiddenSetting(connection, SETTING_SCHEMA_VERSION, baselineScript.getVersion(), "Zuletzt erfolgreich angewendete DB-Schemaversion");
-		upsertHiddenSetting(connection, SETTING_LAST_APP_VERSION, appVersion, "Zuletzt gestartete Anwendungsversion");
+		upsertHiddenSetting(connection, SETTING_SCHEMA_VERSION, baselineScript.getVersion(), LAST_USED_SCHEMAVERSION_SUCCESS);
+		upsertHiddenSetting(connection, SETTING_LAST_APP_VERSION, appVersion, LAST_STARTED_APP_VERSION);
 	}
 
 	static void markFreshSchemaAsApplied(Connection connection) throws SQLException {
@@ -72,9 +75,9 @@ final class DbMigrationRunner {
 			upsertHiddenSetting(connection, script.getSettingKey(), appVersion, "DB-Schema bereits im Initialzustand enthalten: " + script.getVersion());
 		}
 
-		String schemaVersion = scripts.isEmpty() ? "0.0.0" : scripts.get(scripts.size() - 1).getVersion();
-		upsertHiddenSetting(connection, SETTING_SCHEMA_VERSION, schemaVersion, "Zuletzt erfolgreich angewendete DB-Schemaversion");
-		upsertHiddenSetting(connection, SETTING_LAST_APP_VERSION, appVersion, "Zuletzt gestartete Anwendungsversion");
+		String schemaVersion = scripts.isEmpty() ? VERSION_0_0_0 : scripts.get(scripts.size() - 1).getVersion();
+		upsertHiddenSetting(connection, SETTING_SCHEMA_VERSION, schemaVersion, LAST_USED_SCHEMAVERSION_SUCCESS);
+		upsertHiddenSetting(connection, SETTING_LAST_APP_VERSION, appVersion, LAST_STARTED_APP_VERSION);
 	}
 
 	private static boolean hasLegacySchema(Connection connection) throws SQLException {
@@ -111,7 +114,7 @@ final class DbMigrationRunner {
 				}
 			}
 			upsertHiddenSetting(connection, script.getSettingKey(), appVersion, "Automatisch angewendete DB-Migration " + script.getVersion());
-			upsertHiddenSetting(connection, SETTING_SCHEMA_VERSION, script.getVersion(), "Zuletzt erfolgreich angewendete DB-Schemaversion");
+			upsertHiddenSetting(connection, SETTING_SCHEMA_VERSION, script.getVersion(), LAST_USED_SCHEMAVERSION_SUCCESS);
 			connection.commit();
 			log.info("Applied DB migration {}", script.getResource());
 		} catch (SQLException ex) {
@@ -171,9 +174,9 @@ final class DbMigrationRunner {
 
 	private static String normalizeVersion(String version) {
 		if (version == null || version.isBlank()) {
-			return "0.0.0";
+			return VERSION_0_0_0;
 		}
 		String numericPart = version.trim().split("-", 2)[0];
-		return numericPart.isBlank() ? "0.0.0" : numericPart;
+		return numericPart.isBlank() ? VERSION_0_0_0 : numericPart;
 	}
 }

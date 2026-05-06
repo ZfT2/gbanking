@@ -64,28 +64,29 @@ class AccountTransactionService extends BaseBean {
 
 			logHandler.logRetrivedBankAccessInfo(passport, false);
 
+			Konto kontoMatched = null;
 			for (Konto konto : getHbciAccountsFromPassport(passport)) {
-				if (!hbciKontosMatches(bankAccount, konto)) {
-					continue;
+				if (hbciKontosMatches(bankAccount, konto)) {
+					kontoMatched = konto;
+					break;
 				}
-
-				logHandler.logRetrievedAccountInfo(konto);
-
-				HBCIJob<GVRSaldoReq> saldoJob = createAndAddHbciJob(handle, "SaldoReq", Map.of("my", konto));
-				HBCIJob<GVRKUms> umsatzJob = createUmsatzJob(handle, konto, lastBookingDate);
-
-				HBCIExecStatus status = handle.execute();
-				result = status.isOK();
-
-				if (!result) {
-					log.error("HBCI Error, Status: {}", status);
-					hbciCallback.handleFailure(status.getErrorString());
-				}
-
-				readSaldo(saldoJob);
-				saveHbciBookingsForAccount(bankAccount, readUms(umsatzJob));
-				break;
 			}
+
+			logHandler.logRetrievedAccountInfo(kontoMatched);
+
+			HBCIJob<GVRSaldoReq> saldoJob = createAndAddHbciJob(handle, "SaldoReq", Map.of("my", kontoMatched));
+			HBCIJob<GVRKUms> umsatzJob = createUmsatzJob(handle, kontoMatched, lastBookingDate);
+
+			HBCIExecStatus status = handle.execute();
+			result = status.isOK();
+
+			if (!result) {
+				log.error("HBCI Error, Status: {}", status);
+				hbciCallback.handleFailure(status.getErrorString());
+			}
+
+			readSaldo(saldoJob);
+			saveHbciBookingsForAccount(bankAccount, readUms(umsatzJob));
 
 		} catch (Exception e) {
 			hbciCallback.handleException(e);

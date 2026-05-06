@@ -292,37 +292,7 @@ public class FileImportBean extends BaseBean {
 
 			updateWorkerStateBookings(importedBookingsCount, "Importiere Buchungen für Konto: %s (Anzahl: %d)", accountName, bookingsList.size());
 
-			for (de.zft2.fp3xmlextract.data.Booking xmlBooking : bookingsList) {
-				Booking bookingDao = DaoMapper.maptoBookingDao(accountName, xmlBooking, accountIdMapByAccountname, crossAccountIdMapByIdentifier,
-						Source.IMPORT_INITIAL);
-				Booking existingBooking = findMatchingBooking(existingBookings, bookingDao);
-				boolean existing = existingBooking != null;
-				boolean updated = false;
-				Booking resolvedBooking = existing ? existingBooking : dbController.insertOrUpdate(bookingDao);
-
-				if (xmlBooking.getCrossBooking() != null && crossBookingMap.get(xmlBooking) == null && resolvedBooking != null) {
-					crossBookingMap.put(xmlBooking.getCrossBooking(), resolvedBooking.getId());
-				}
-
-				if (resolvedBooking != null && crossBookingMap.get(xmlBooking) != null) {
-					Booking crossBookingDao = dbController.getById(Booking.class, crossBookingMap.get(xmlBooking));
-					DaoMapper.setCrossBooking(crossBookingDao, resolvedBooking.getId());
-					dbController.insertOrUpdate(crossBookingDao);
-					resolvedBooking.setCrossBookingId(crossBookingDao.getId());
-					dbController.insertOrUpdate(resolvedBooking);
-					updated = existing;
-				}
-
-				if (updated) {
-					accountStatistics.incrementUpdated();
-				} else if (existing) {
-					accountStatistics.incrementSkipped();
-				} else if (resolvedBooking != null) {
-					bookingDaoList.add(resolvedBooking);
-					accountStatistics.incrementAdded();
-				}
-				importedBookingsCount++;
-			}
+			importedBookingsCount = writeBookingsForAccount(crossBookingMap, accountName, bookingsList, bookingDaoList, existingBookings, accountStatistics);
 
 			log.info("Account: {}: {} Bookings writen to DB, {} skipped as duplicates", bankAccountXml.getNamePP(), bookingDaoList.size(),
 					accountStatistics.getSkippedBookings());
@@ -334,6 +304,45 @@ public class FileImportBean extends BaseBean {
 		updateWorkerState(99, false, "beende...");
 
 		return result;
+	}
+
+	private long writeBookingsForAccount(Map<de.zft2.fp3xmlextract.data.Booking, Integer> crossBookingMap, String accountName,
+			List<de.zft2.fp3xmlextract.data.Booking> bookingsList, List<Booking> bookingDaoList, List<Booking> existingBookings,
+			ImportAccountStatistics accountStatistics) {
+
+		int importedBookingsCount = 0;
+		for (de.zft2.fp3xmlextract.data.Booking xmlBooking : bookingsList) {
+			Booking bookingDao = DaoMapper.maptoBookingDao(accountName, xmlBooking, accountIdMapByAccountname, crossAccountIdMapByIdentifier,
+					Source.IMPORT_INITIAL);
+			Booking existingBooking = findMatchingBooking(existingBookings, bookingDao);
+			boolean existing = existingBooking != null;
+			boolean updated = false;
+			Booking resolvedBooking = existing ? existingBooking : dbController.insertOrUpdate(bookingDao);
+
+			if (xmlBooking.getCrossBooking() != null && crossBookingMap.get(xmlBooking) == null && resolvedBooking != null) {
+				crossBookingMap.put(xmlBooking.getCrossBooking(), resolvedBooking.getId());
+			}
+
+			if (resolvedBooking != null && crossBookingMap.get(xmlBooking) != null) {
+				Booking crossBookingDao = dbController.getById(Booking.class, crossBookingMap.get(xmlBooking));
+				DaoMapper.setCrossBooking(crossBookingDao, resolvedBooking.getId());
+				dbController.insertOrUpdate(crossBookingDao);
+				resolvedBooking.setCrossBookingId(crossBookingDao.getId());
+				dbController.insertOrUpdate(resolvedBooking);
+				updated = existing;
+			}
+
+			if (updated) {
+				accountStatistics.incrementUpdated();
+			} else if (existing) {
+				accountStatistics.incrementSkipped();
+			} else if (resolvedBooking != null) {
+				bookingDaoList.add(resolvedBooking);
+				accountStatistics.incrementAdded();
+			}
+			importedBookingsCount++;
+		}
+		return importedBookingsCount;
 	}
 
 	private Collection<Booking> persistImportedBookings(Collection<Booking> bookingDaoList) {

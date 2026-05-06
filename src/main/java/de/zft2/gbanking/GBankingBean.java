@@ -66,8 +66,8 @@ public class GBankingBean extends BaseBean implements Serializable {
 	private static final HBCIVersion VERSION = HBCIVersion.HBCI_300;
 	
 	private static GBankingLoggingHandler logHandler = GBankingLoggingHandler.getInstance();
-	private final MoneyTransferExecutionService moneyTransferExecutionService = new MoneyTransferExecutionService(this);
-	private final AccountTransactionService accountTransactionService = new AccountTransactionService(this, logHandler);
+	private final transient MoneyTransferExecutionService moneyTransferExecutionService = new MoneyTransferExecutionService(this);
+	private final transient AccountTransactionService accountTransactionService = new AccountTransactionService(this, logHandler);
 	
 	public boolean addNewBankAccess(BankAccess bankAccess) {
 
@@ -171,8 +171,7 @@ public class GBankingBean extends BaseBean implements Serializable {
 	
 	
 	public List<MoneyTransfer> retrieveOpenTransfers() {
-		List<MoneyTransfer> openMoneytransferList = dbController.getAllWithFilter(MoneyTransfer.class, MoneyTransferStatus.NEW);
-		return openMoneytransferList;
+		return dbController.getAllWithFilter(MoneyTransfer.class, MoneyTransferStatus.NEW);
 	}
 	
 	public BankAccount getAccountForOpenMoneytransfers(int accountId) {

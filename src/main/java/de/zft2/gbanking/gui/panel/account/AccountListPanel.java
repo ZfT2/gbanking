@@ -52,7 +52,7 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 		setPanelTitleByKey("UI_PANEL_ACCOUNT");
 		onSelection(this::handleSelection);
 		tableView.setOnMouseClicked(event -> {
-			BankAccount selectedAccount = (BankAccount) tableView.getSelectionModel().getSelectedItem();
+			BankAccount selectedAccount = tableView.getSelectionModel().getSelectedItem();
 			if (selectedAccount != null) {
 				handleSelection(selectedAccount);
 			}

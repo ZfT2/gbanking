@@ -9,7 +9,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 import de.zft2.gbanking.db.DbExecutor;
 import de.zft2.gbanking.db.dao.Setting;
@@ -41,6 +40,7 @@ import javafx.stage.Window;
 
 public class SettingsDialog {
 
+	private static final String FX_FONT_WEIGHT_BOLD = "-fx-font-weight: bold;";
 	private final Window parentWindow;
 	private final DbExecutor dbExecutor;
 	private final Map<Setting, Supplier<String>> valueSupplierMap = new LinkedHashMap<>();
@@ -120,9 +120,9 @@ public class SettingsDialog {
 		Label attributeHeader = new Label(getText("UI_LABEL_SETTING_ATTRIBUTE"));
 		Label valueHeader = new Label(getText("UI_LABEL_SETTING_VALUE"));
 
-		propertyHeader.setStyle("-fx-font-weight: bold;");
-		attributeHeader.setStyle("-fx-font-weight: bold;");
-		valueHeader.setStyle("-fx-font-weight: bold;");
+		propertyHeader.setStyle(FX_FONT_WEIGHT_BOLD);
+		attributeHeader.setStyle(FX_FONT_WEIGHT_BOLD);
+		valueHeader.setStyle(FX_FONT_WEIGHT_BOLD);
 
 		grid.add(propertyHeader, 0, 0);
 		grid.add(attributeHeader, 1, 0);
@@ -137,8 +137,7 @@ public class SettingsDialog {
 			return new ArrayList<>();
 		}
 
-		return allSettings.stream().filter(Setting::isVisible).sorted(Comparator.comparing(Setting::getAttribute, String.CASE_INSENSITIVE_ORDER))
-				.collect(Collectors.toList());
+		return allSettings.stream().filter(Setting::isVisible).sorted(Comparator.comparing(Setting::getAttribute, String.CASE_INSENSITIVE_ORDER)).toList();
 	}
 
 	private void addSettingRow(GridPane grid, Setting setting, int row) {
@@ -214,7 +213,7 @@ public class SettingsDialog {
 		field.setDisable(!setting.isEditable());
 		field.setMaxWidth(120);
 
-		field.setTextFormatter(new TextFormatter<String>(change -> change.getControlNewText().length() <= 1 ? change : null));
+		field.setTextFormatter(new TextFormatter<>(change -> change.getControlNewText().length() <= 1 ? change : null));
 
 		valueSupplierMap.put(setting, field::getText);
 		return field;
@@ -225,7 +224,7 @@ public class SettingsDialog {
 		field.setDisable(!setting.isEditable());
 		field.setMaxWidth(180);
 
-		field.setTextFormatter(new TextFormatter<String>(change -> change.getControlNewText().matches("-?\\d*") ? change : null));
+		field.setTextFormatter(new TextFormatter<>(change -> change.getControlNewText().matches("-?\\d*") ? change : null));
 
 		valueSupplierMap.put(setting, field::getText);
 		return field;
@@ -236,7 +235,7 @@ public class SettingsDialog {
 		field.setDisable(!setting.isEditable());
 		field.setMaxWidth(180);
 
-		field.setTextFormatter(new TextFormatter<String>(change -> change.getControlNewText().matches("-?\\d*([\\.,]\\d*)?") ? change : null));
+		field.setTextFormatter(new TextFormatter<>(change -> change.getControlNewText().matches("-?\\d*([\\.,]\\d*)?") ? change : null));
 
 		valueSupplierMap.put(setting, field::getText);
 		return field;
