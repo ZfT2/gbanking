@@ -48,13 +48,15 @@ commit_category() {
 
 format_commit_subject() {
   local subject="$1"
+  local conventional_commit_regex='^([[:alpha:]]+)(\([^)]+\))?(!)?:[[:space:]]*(.+)$'
 
-  if [[ "$subject" =~ ^([[:alpha:]]+)(\([^)]+\))?(!)?:[[:space:]]*(.+)$ ]]; then
-    local type="${BASH_REMATCH[1],,}"
-    local scope="${BASH_REMATCH[2]}"
-    local breaking="${BASH_REMATCH[3]}"
-    local message="${BASH_REMATCH[4]}"
+  if [[ "$subject" =~ $conventional_commit_regex ]]; then
+    local type="${BASH_REMATCH[1]:-}"
+    local scope="${BASH_REMATCH[2]:-}"
+    local breaking="${BASH_REMATCH[3]:-}"
+    local message="${BASH_REMATCH[4]:-}"
     local category
+    type="${type,,}"
     category="$(commit_category "$type" "$breaking")"
 
     if [[ -n "$scope" ]]; then
@@ -70,9 +72,10 @@ format_commit_subject() {
 
 should_skip_commit() {
   local subject="$1"
+  local version_bump_regex='^chore(\([^)]*\))?:[[:space:]]+(next|prepare)[[:space:]]+development[[:space:]]+version[[:space:]]'
+  local changelog_update_regex='^chore(\([^)]*\))?:[[:space:]]+update[[:space:]]+changelog'
 
-  [[ "$subject" =~ ^chore(\([^)]*\))?:[[:space:]]+(next|prepare)[[:space:]]+development[[:space:]]+version[[:space:]] ]] \
-    || [[ "$subject" =~ ^chore(\([^)]*\))?:[[:space:]]+update[[:space:]]+changelog ]]
+  [[ "$subject" =~ $version_bump_regex ]] || [[ "$subject" =~ $changelog_update_regex ]]
 }
 
 write_release_notes() {
