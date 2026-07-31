@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-07-31
+
+### Other
+- inital commit
+- Initial commit
+
 ## [0.14.6] - 2026-07-29
 
 ### Added
@@ -452,7 +458,3 @@ All notable changes to this project will be documented in this file.
 - refactoring, cleanup
 - cleanup unused code
 
-## [0.1.0] - 2026-03-13
-
-### Added
-- Initial public release
