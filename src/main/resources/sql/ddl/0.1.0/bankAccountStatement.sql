@@ -1,0 +1,27 @@
+[SQL_SETUP_CREATE_BANKACCOUNTSTATEMENT]
+CREATE TABLE IF NOT EXISTS bankAccountStatement (
+  id INTEGER PRIMARY KEY,
+  account_id INTEGER NOT NULL,
+  accountName TEXT,
+  fileName TEXT NOT NULL,
+  format TEXT,
+  retrievedAt TEXT,
+  statementDate TEXT,
+  startDate TEXT,
+  endDate TEXT,
+  year INTEGER,
+  number INTEGER,
+  size INTEGER,
+  iban TEXT,
+  bic TEXT,
+  sourceJob TEXT,
+  receiptAvailable INTEGER NOT NULL DEFAULT 0,
+  receipt BLOB,
+  acknowledged INTEGER NOT NULL DEFAULT 0,
+  acknowledgedAt TEXT,
+  updatedAt TEXT NOT NULL,
+  FOREIGN KEY(account_id) REFERENCES bankAccount(id) ON DELETE CASCADE,
+  UNIQUE(fileName));
+
+[SQL_SETUP_CREATE_INDEX_BANKACCOUNTSTATEMENT_ACCOUNT]
+CREATE INDEX IF NOT EXISTS idx_bankaccountstatement_account ON bankAccountStatement (account_id, statementDate, retrievedAt);

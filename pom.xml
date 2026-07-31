@@ -1,0 +1,403 @@
+<project xmlns="https://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="https://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="https://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<groupId>de</groupId>
+	<artifactId>gbanking</artifactId>
+	<version>${revision}</version>
+	<packaging>jar</packaging>
+
+	<name>GBanking</name>
+	<description>Desktop-Banking-Anwendung auf Basis von JavaFX</description>
+	<url>https://github.com/ZfT2/gbanking</url>
+
+	<licenses>
+		<license>
+			<name>GNU General Public License v3.0</name>
+			<url>https://www.gnu.org/licenses/gpl-3.0.html</url>
+			<distribution>repo</distribution>
+			<comments>See LICENSE file in the project root directory.</comments>
+		</license>
+	</licenses>
+
+	<developers>
+		<developer>
+			<id>ZfT2</id>
+			<name>Georg</name>
+			<url>https://github.com/ZfT2</url>
+		</developer>
+	</developers>
+
+	<scm>
+		<connection>scm:git:https://github.com/ZfT2/gbanking.git</connection>
+		<developerConnection>scm:git:ssh://git@github.com/ZfT2/gbanking.git</developerConnection>
+		<url>https://github.com/ZfT2/gbanking</url>
+		<tag>HEAD</tag>
+	</scm>
+
+	<repositories>
+		<repository>
+			<id>github</id>
+			<url>https://maven.pkg.github.com/ZfT2/fp3xmlextract</url>
+		</repository>
+	</repositories>
+
+	<properties>
+		<app.name>GBanking</app.name>
+		<app.mainClass>de.zft2.gbanking.GBanking</app.mainClass>
+
+		<revision>0.14.7-SNAPSHOT</revision>
+
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+		<maven.compiler.release>17</maven.compiler.release>
+
+		<javafx.version>21.0.11</javafx.version>
+		<log4j.version>2.26.0</log4j.version>
+		<sqlitejdbc.version>3.53.1.0</sqlitejdbc.version>
+		<commonscsv.version>1.14.1</commonscsv.version>
+		<hbci4j.version>4.1.10</hbci4j.version>
+		<fp3xmlextract.version>0.7.2</fp3xmlextract.version>
+		<bookingcore.version>0.2.3</bookingcore.version>
+
+		<junit.version>5.14.4</junit.version>
+		<mockito.version>5.23.0</mockito.version>
+		<xmlunit.version>2.11.0</xmlunit.version>
+
+		<maven.compiler.plugin.version>3.15.0</maven.compiler.plugin.version>
+		<maven.jar.plugin.version>3.5.0</maven.jar.plugin.version>
+		<maven.assembly.plugin.version>3.8.0</maven.assembly.plugin.version>
+		<maven.resources.plugin.version>3.5.0</maven.resources.plugin.version>
+		<maven.surefire.plugin.version>3.5.6</maven.surefire.plugin.version>
+		<maven.enforcer.plugin.version>3.6.3</maven.enforcer.plugin.version>
+
+		<project.build.outputTimestamp>${maven.build.timestamp}</project.build.outputTimestamp>
+
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-base</artifactId>
+			<version>${javafx.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-graphics</artifactId>
+			<version>${javafx.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-controls</artifactId>
+			<version>${javafx.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>de.zft2</groupId>
+			<artifactId>fp3xmlextract</artifactId>
+			<version>${fp3xmlextract.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>de.zft2</groupId>
+			<artifactId>booking-core</artifactId>
+			<version>${bookingcore.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-api</artifactId>
+			<version>${log4j.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-core</artifactId>
+			<version>${log4j.version}</version>
+			<scope>runtime</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-csv</artifactId>
+			<version>${commonscsv.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.xerial</groupId>
+			<artifactId>sqlite-jdbc</artifactId>
+			<version>${sqlitejdbc.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.github.hbci4j</groupId>
+			<artifactId>hbci4j-core</artifactId>
+			<version>${hbci4j.version}</version>
+		</dependency>
+
+		<!-- Test Dependencies-->
+
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-api</artifactId>
+			<version>${junit.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-core</artifactId>
+			<version>${mockito.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-junit-jupiter</artifactId>
+			<version>${mockito.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.xmlunit</groupId>
+			<artifactId>xmlunit-core</artifactId>
+			<version>${xmlunit.version}</version>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>false</filtering>
+				<excludes>
+					<exclude>build-info.properties</exclude>
+				</excludes>
+			</resource>
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>true</filtering>
+				<includes>
+					<include>build-info.properties</include>
+				</includes>
+			</resource>
+		</resources>
+
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>${maven.compiler.plugin.version}</version>
+				<configuration>
+					<release>${maven.compiler.release}</release>
+					<proc>none</proc>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>${maven.jar.plugin.version}</version>
+				<configuration>
+					<archive>
+						<manifest>
+							<mainClass>${app.mainClass}</mainClass>
+						</manifest>
+						<manifestEntries>
+							<Implementation-Version>${project.version}</Implementation-Version>
+						</manifestEntries>
+					</archive>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-resources-plugin</artifactId>
+				<version>${maven.resources.plugin.version}</version>
+				<configuration>
+					<encoding>${project.build.sourceEncoding}</encoding>
+					<propertiesEncoding>${project.build.sourceEncoding}</propertiesEncoding>
+				</configuration>
+				<executions>
+					<execution>
+						<id>copy-fp3xmlextract-test-properties</id>
+						<phase>process-test-resources</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.directory}/test-working/properties/import</outputDirectory>
+							<resources>
+								<resource>
+									<directory>src/test/resources/fp3xmlextract-properties</directory>
+									<filtering>false</filtering>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+					<execution>
+						<id>copy-test-resources-to-working-directory</id>
+						<phase>process-test-resources</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.directory}/test-working/src/test/resources</outputDirectory>
+							<resources>
+								<resource>
+									<directory>src/test/resources</directory>
+									<filtering>false</filtering>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>${maven.surefire.plugin.version}</version>
+				<configuration>
+					<workingDirectory>${project.build.directory}/test-working</workingDirectory>
+					<argLine>
+						-javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar
+						-Djava.awt.headless=true
+						-Dprism.order=sw
+					</argLine>
+				</configuration>
+			</plugin>
+
+		</plugins>
+	</build>
+
+	<profiles>
+		<profile>
+			<id>release-check</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-enforcer-plugin</artifactId>
+						<version>${maven.enforcer.plugin.version}</version>
+						<executions>
+							<execution>
+								<id>no-snapshots-in-release-build</id>
+								<phase>validate</phase>
+								<goals>
+									<goal>enforce</goal>
+								</goals>
+								<configuration>
+									<rules>
+										<requireReleaseVersion />
+										<requireReleaseDeps>
+											<onlyWhenRelease>false</onlyWhenRelease>
+											<searchTransitive>true</searchTransitive>
+										</requireReleaseDeps>
+									</rules>
+									<fail>true</fail>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<profile>
+			<id>windows</id>
+			<properties>
+				<javafx.platform>windows</javafx.platform>
+			</properties>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-assembly-plugin</artifactId>
+						<version>${maven.assembly.plugin.version}</version>
+						<executions>
+							<execution>
+								<id>dist-windows</id>
+								<phase>package</phase>
+								<goals>
+									<goal>single</goal>
+								</goals>
+								<configuration>
+									<descriptors>
+										<descriptor>src/assembly/windows.xml</descriptor>
+									</descriptors>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<profile>
+			<id>linux</id>
+			<properties>
+				<javafx.platform>linux</javafx.platform>
+			</properties>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-assembly-plugin</artifactId>
+						<version>${maven.assembly.plugin.version}</version>
+						<executions>
+							<execution>
+								<id>dist-linux</id>
+								<phase>package</phase>
+								<goals>
+									<goal>single</goal>
+								</goals>
+								<configuration>
+									<descriptors>
+										<descriptor>src/assembly/linux.xml</descriptor>
+									</descriptors>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<profile>
+			<id>mac</id>
+			<properties>
+				<javafx.platform>mac</javafx.platform>
+			</properties>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-assembly-plugin</artifactId>
+						<version>${maven.assembly.plugin.version}</version>
+						<executions>
+							<execution>
+								<id>dist-mac</id>
+								<phase>package</phase>
+								<goals>
+									<goal>single</goal>
+								</goals>
+								<configuration>
+									<descriptors>
+										<descriptor>src/assembly/mac.xml</descriptor>
+									</descriptors>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
+</project>

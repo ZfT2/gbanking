@@ -1,0 +1,697 @@
+<?xml version="1.0" encoding="utf-8"?>
+<preparedreport>
+	<previewpages>
+		<page0>
+			<b1 t="0">
+				<m1 u="" />
+				<m2 u="" />
+				<m3 u="Datum:" />
+				<m4 u="Konto:" />
+				<m5 u="IBAN:" />
+				<m6 u="Bank:" />
+				<m7 u="23.08.2024" />
+				<m8 u="Vertragssparen - 2000510044" />
+				<m9 u="DE09120300002000510044" />
+				<m10 u="Deutsche Kbank H-Stadt" />
+				<m11 u="1 von 2" />
+				<m12 u="Zeitraum:" />
+				<m13 u="Keine Einschränkung" />
+				<m14 u="Kontoinhaber:" />
+				<m15 u="BIC:" />
+				<m16 u="BYLADEM1001" />
+				<m17 u="Blatt:" />
+				<m18 u="MAX MUSTERMANN" />
+				<m19 u="Kontoumsätze" />
+			</b1>
+			<b5 t="129">
+				<m37 u="" />
+				<m38 u="591,52" />
+				<m39 u="Zahlungseingänge" />
+				<m40 u="Zahlungsausgänge" />
+				<m41 u="4,23" />
+				<m42 u="Alter Kontostand" />
+				<m43 u="0,00" />
+				<m44 u="Neuer Kontostand" />
+				<m45 u="587,29" />
+				<m46 u="EUR:" />
+				<m47 u="EUR:" />
+				<m48 u="EUR:" />
+				<m49 u="EUR:" />
+				<m50 u="" />
+				<m51 u="Anzahl Eingänge:" />
+				<m52 u="Anzahl Ausgänge:" />
+				<m53 u="12" />
+				<m54 u="5" />
+			</b5>
+			<b4 t="189">
+				<m30 u="Name&#10;Verwendungszweck" />
+				<m31 u="Kategorie&#10;  IBAN/BIC" />
+				<m32 u="Saldo&#10;EUR" />
+				<m33 u="Betrag&#10;EUR" />
+				<m34 u="Datum&#10;Valuta" />
+				<m35 u="" />
+				<m36 u="" />
+			</b4>
+			<TfrxNullBand Height="1009,13451" Left="0" Top="0"
+				Width="680,3154" l="0" t="0" />
+			<b2 t="217" h="44">
+				<m20 h="44" Color="14869218" u="" />
+				<m21 h="44" u="ZINSEN" />
+				<m22 h="44" u="" />
+				<m23 h="44" u="587,29" />
+				<m24 h="44" u="8,97" />
+				<m25 h="44" u="" />
+				<m26 h="44" u="" />
+				<m27 h="44" u="25.07.2024" />
+				<m28 u="Kto 2000510044&#10;Blz 12030000" />
+			</b2>
+			<b2 t="261" h="44">
+				<m20 h="44" Color="16777215" u="" />
+				<m21 h="44" u="ZINSEN" />
+				<m22 h="44" u="" />
+				<m23 h="44" u="578,32" />
+				<m24 h="44" u="8,83" />
+				<m25 h="44" u="" />
+				<m26 h="44" u="" />
+				<m27 h="44" u="25.07.2023" />
+				<m28 u="Kto 2000510044&#10;Blz 12030000" />
+			</b2>
+			<b2 t="305" h="44">
+				<m20 h="44" Color="14869218" u="" />
+				<m21 h="44" u="ZINSEN" />
+				<m22 h="44" u="" />
+				<m23 h="44" u="569,49" />
+				<m24 h="44" u="8,69" />
+				<m25 h="44" u="" />
+				<m26 h="44" u="" />
+				<m27 h="44" u="25.07.2022" />
+				<m28 u="Kto 2000510044&#10;Blz 12030000" />
+			</b2>
+			<b2 t="349" h="44">
+				<m20 h="44" Color="16777215" u="" />
+				<m21 h="44" u="ZINSEN" />
+				<m22 h="44" u="" />
+				<m23 h="44" u="560,80" />
+				<m24 h="44" u="8,56" />
+				<m25 h="44" u="" />
+				<m26 h="44" u="" />
+				<m27 h="44" u="26.07.2021&#10;25.07." />
+				<m28 u="Kto 2000510044&#10;Blz 12030000" />
+			</b2>
+			<b2 t="393" h="44">
+				<m20 h="44" Color="14869218" u="" />
+				<m21 h="44" u="ZINSEN" />
+				<m22 h="44" u="" />
+				<m23 h="44" u="552,24" />
+				<m24 h="44" u="8,44" />
+				<m25 h="44" u="" />
+				<m26 h="44" u="" />
+				<m27 h="44" u="27.07.2020&#10;25.07." />
+				<m28 u="Kto 2000510044&#10;Blz 12030000" />
+			</b2>
+			<b2 t="437" h="44">
+				<m20 h="44" Color="16777215" u="" />
+				<m21 h="44" u="ZINSEN" />
+				<m22 h="44" u="" />
+				<m23 h="44" u="543,80" />
+				<m24 h="44" u="8,29" />
+				<m25 h="44" u="" />
+				<m26 h="44" u="" />
+				<m27 h="44" u="25.07.2019" />
+				<m28 u="Kto 2000510044&#10;Blz 12030000" />
+			</b2>
+			<b2 t="481" h="44">
+				<m20 h="44" Color="14869218" u="" />
+				<m21 h="44" u="ZINSEN" />
+				<m22 h="44" u="" />
+				<m23 h="44" u="535,51" />
+				<m24 h="44" u="8,17" />
+				<m25 h="44" u="" />
+				<m26 h="44" u="" />
+				<m27 h="44" u="25.07.2018" />
+				<m28 u="Kto 2000510044&#10;Blz 12030000" />
+			</b2>
+			<b2 t="525" h="44">
+				<m20 h="44" Color="16777215" u="" />
+				<m21 h="44" u="ZINSEN" />
+				<m22 h="44" u="" />
+				<m23 h="44" u="527,34" />
+				<m24 h="44" u="8,04" />
+				<m25 h="44" u="" />
+				<m26 h="44" u="" />
+				<m27 h="44" u="25.07.2017" />
+				<m28 u="Kto 2000510044&#10;Blz 12030000" />
+			</b2>
+			<b2 t="569" h="44">
+				<m20 h="44" Color="14869218" u="" />
+				<m21 h="44" u="ZINSEN" />
+				<m22 h="44" u="" />
+				<m23 h="44" u="519,30" />
+				<m24 h="44" u="7,94" />
+				<m25 h="44" u="" />
+				<m26 h="44" u="" />
+				<m27 h="44" u="25.07.2016" />
+				<m28 u="Kto 2000510044&#10;Blz 12030000" />
+			</b2>
+			<b2 t="613" h="44">
+				<m20 h="44" Color="16777215" u="" />
+				<m21 h="44" u="KIRCHENSTEUER" />
+				<m22 h="44" u="" />
+				<m23 h="44" u="511,36" />
+				<m24 h="44" u="-0,17" />
+				<m25 h="44" u="" />
+				<m26 h="44" u="" />
+				<m27 h="44" u="27.07.2015&#10;25.07." />
+				<m28 u="Kto 9000299520&#10;Blz 12030000" />
+			</b2>
+			<b2 t="657" h="44">
+				<m20 h="44" Color="14869218" u="" />
+				<m21 h="44" u="SOLIDARITAETSZUSCHLAG" />
+				<m22 h="44" u="" />
+				<m23 h="44" u="511,53" />
+				<m24 h="44" u="-0,10" />
+				<m25 h="44" u="" />
+				<m26 h="44" u="" />
+				<m27 h="44" u="27.07.2015&#10;25.07." />
+				<m28 u="Kto 9000299512&#10;Blz 12030000" />
+			</b2>
+			<b2 t="701" h="44">
+				<m20 h="44" Color="16777215" u="" />
+				<m21 h="44" u="KAPITALERTRAGSTEUER" />
+				<m22 h="44" u="" />
+				<m23 h="44" u="511,63" />
+				<m24 h="44" u="-1,92" />
+				<m25 h="44" u="" />
+				<m26 h="44" u="" />
+				<m27 h="44" u="27.07.2015&#10;25.07." />
+				<m28 u="Kto 9000299504&#10;Blz 12030000" />
+			</b2>
+			<b2 t="745" h="44">
+				<m20 h="44" Color="14869218" u="" />
+				<m21 h="44" u="ZINSEN" />
+				<m22 h="44" u="" />
+				<m23 h="44" u="513,55" />
+				<m24 h="44" u="7,84" />
+				<m25 h="44" u="" />
+				<m26 h="44" u="" />
+				<m27 h="44" u="27.07.2015&#10;25.07." />
+				<m28 u="Kto 9000921164&#10;Blz 12030000" />
+			</b2>
+			<b2 t="789" h="44">
+				<m20 h="44" Color="16777215" u="" />
+				<m21 h="44" u="SOLIDARITAETSZUSCHLAG" />
+				<m22 h="44" u="" />
+				<m23 h="44" u="505,71" />
+				<m24 h="44" u="-0,10" />
+				<m25 h="44" u="" />
+				<m26 h="44" u="" />
+				<m27 h="44" u="25.07.2014" />
+				<m28 u="Kto 9000299512&#10;Blz 12030000" />
+			</b2>
+			<b2 t="833" h="44">
+				<m20 h="44" Color="14869218" u="" />
+				<m21 h="44" u="KAPITALERTRAGSTEUER" />
+				<m22 h="44" u="" />
+				<m23 h="44" u="505,81" />
+				<m24 h="44" u="-1,94" />
+				<m25 h="44" u="" />
+				<m26 h="44" u="" />
+				<m27 h="44" u="25.07.2014" />
+				<m28 u="Kto 9000299504&#10;Blz 12030000" />
+			</b2>
+			<b2 t="877" h="44">
+				<m20 h="44" Color="16777215" u="" />
+				<m21 h="44" u="ZINSEN" />
+				<m22 h="44" u="" />
+				<m23 h="44" u="507,75" />
+				<m24 h="44" u="7,75" />
+				<m25 h="44" u="" />
+				<m26 h="44" u="" />
+				<m27 h="44" u="25.07.2014" />
+				<m28 u="Kto 9000921164&#10;Blz 12030000" />
+			</b2>
+			<b2 t="921" h="44">
+				<m20 h="44" Color="14869218" u="" />
+				<m21 h="44" u="Mustermann, Max&#10;SONST.GUTSCHRIFT" />
+				<m22 h="44" u="" />
+				<m23 h="44" u="500,00" />
+				<m24 h="44" u="500,00" />
+				<m25 h="44" u="" />
+				<m26 h="44" u="" />
+				<m27 h="44" u="25.07.2013" />
+				<m28 u="Kto 18884058&#10;Blz 12030000" />
+			</b2>
+			<b6 t="965">
+				<m55 u="" />
+			</b6>
+			<b3 t="993,13451">
+				<m29 u="moneyplex für Windows | Linux | macOS" />
+			</b3>
+		</page0>
+		<page0>
+			<b1 t="0">
+				<m1 u="" />
+				<m2 u="" />
+				<m3 u="Datum:" />
+				<m4 u="Konto:" />
+				<m5 u="IBAN:" />
+				<m6 u="Bank:" />
+				<m7 u="23.08.2024" />
+				<m8 u="Vertragssparen - 2000510044" />
+				<m9 u="DE09120300002000510044" />
+				<m10 u="Deutsche Kbank H-Stadt" />
+				<m11 u="2 von 2" />
+				<m12 u="Zeitraum:" />
+				<m13 u="Keine Einschränkung" />
+				<m14 u="Kontoinhaber:" />
+				<m15 u="BIC:" />
+				<m16 u="BYLADEM1001" />
+				<m17 u="Blatt:" />
+				<m18 u="MAX MUSTERMANN" />
+				<m19 u="Kontoumsätze" />
+			</b1>
+			<b4 t="129">
+				<m30 u="Name&#10;Verwendungszweck" />
+				<m31 u="Kategorie&#10;  IBAN/BIC" />
+				<m32 u="Saldo&#10;EUR" />
+				<m33 u="Betrag&#10;EUR" />
+				<m34 u="Datum&#10;Valuta" />
+				<m35 u="" />
+				<m36 u="" />
+			</b4>
+			<b2 t="157" h="44">
+				<m20 h="44" Color="16777215" u="" />
+				<m21 h="44" u="Eröffnungsbuchung" />
+				<m22 h="44" u="" />
+				<m23 h="44" u="0,00" />
+				<m24 h="44" u="0,00" />
+				<m25 h="44" u="" />
+				<m26 h="44" u="" />
+				<m27 h="44" u="24.07.2013" />
+				<m28 u="Kto &#10;Blz " />
+			</b2>
+			<b6 t="201">
+				<m55 u="" />
+			</b6>
+			<b3 t="993,13451">
+				<m29 u="moneyplex für Windows | Linux | macOS" />
+			</b3>
+		</page0>
+	</previewpages>
+	<logicalpagenumbers>
+		<page n="1" t="2" />
+		<page n="2" t="2" />
+	</logicalpagenumbers>
+	<outline />
+	<report>
+		<TfrxReport DotMatrixReport="0"
+			PreviewOptions.OutlineVisible="0" PreviewOptions.OutlineWidth="120"
+			ReportOptions.Name="" />
+	</report>
+	<sourcepages>
+		<TfrxReportPage PaperWidth="210" PaperHeight="297"
+			PaperSize="9" LeftMargin="20" RightMargin="10" TopMargin="10"
+			BottomMargin="20" ColumnWidth="0" ColumnPositions.Text=""
+			Duplex="dmSimplex" HGuides.Text="" VGuides.Text=""
+			OnBeforePrint="Page1OnBeforePrint">
+			<TfrxPageHeader Name="PageHeader" Height="129"
+				Left="0" Top="18" Width="680,3154"
+				OnBeforePrint="PageHeaderOnBeforePrint">
+				<TfrxMemoView Name="Memo40" Left="444" Top="28"
+					Width="200" Height="92" ShowHint="0" Frame.Typ="15"
+					Frame.Width="0,1" Memo.Text="" Text="" />
+				<TfrxMemoView Name="Memo35" Left="-4" Top="28"
+					Width="440" Height="92" ShowHint="0" Font.Color="0"
+					Font.Height="-19" Font.Name="Arial" Font.Style="1" Frame.Typ="15"
+					Frame.Width="0,1" Memo.Text="" ParentFont="0" Text="" />
+				<TfrxMemoView Name="Memo15" Left="448" Top="36"
+					Width="52" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="1"
+					Frame.Width="0,1" Memo.Text="Datum:" ParentFont="0" Text="Datum:" />
+				<TfrxMemoView Name="Memo16" Left="0" Top="76"
+					Width="76" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="1"
+					Frame.Width="0,1" Memo.Text="Konto:" ParentFont="0" Text="Konto:" />
+				<TfrxMemoView Name="Memo17" Left="0" Top="56"
+					Width="96" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="1"
+					Frame.Width="0,1" Memo.Text="IBAN:" ParentFont="0" Text="IBAN:" />
+				<TfrxMemoView Name="Memo18" Left="236" Top="56"
+					Width="48" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="1"
+					Frame.Width="0,1" Memo.Text="Bank:" ParentFont="0" Text="Bank:" />
+				<TfrxMemoView Name="Memo19" Left="504" Top="36"
+					Width="136" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Frame.Width="0,1"
+					HAlign="haRight" Memo.Text="[DATE]" ParentFont="0" Text="[DATE]" />
+				<TfrxMemoView Name="Memo20" Left="84" Top="76"
+					Width="148" Height="36" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Frame.Width="0,1"
+					Memo.Text="[Bez]" ParentFont="0" Text="[Bez]" />
+				<TfrxMemoView Name="Memo21" Left="84" Top="56"
+					Width="148" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Frame.Width="0,1"
+					Memo.Text="[Iban]" ParentFont="0" Text="[Iban]" />
+				<TfrxMemoView Name="Memo22" Left="268" Top="56"
+					Width="160" Height="56" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Frame.Width="0,1"
+					Memo.Text="[Bank]" ParentFont="0" Text="[Bank]" />
+				<TfrxMemoView Name="Memo23" Left="504" Top="56"
+					Width="136" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Frame.Width="0,1"
+					HAlign="haRight" Memo.Text="[PAGE#] von [TOTALPAGES]"
+					ParentFont="0" Text="[PAGE#] von [TOTALPAGES]" />
+				<TfrxMemoView Name="Memo24" Left="448" Top="76"
+					Width="64" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="1"
+					Memo.Text="Zeitraum:" ParentFont="0" Text="Zeitraum:" />
+				<TfrxMemoView Name="Memo28" Left="504" Top="76"
+					Width="136" Height="36" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" HAlign="haRight"
+					Memo.Text="[Zeitraum]" ParentFont="0" Text="[Zeitraum]" />
+				<TfrxMemoView Name="Memo29" Left="0" Top="36"
+					Width="92" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="1"
+					Frame.Width="0,1" Memo.Text="Kontoinhaber:" ParentFont="0"
+					Text="Kontoinhaber:" />
+				<TfrxMemoView Name="Memo30" Left="236" Top="36"
+					Width="32" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="1"
+					Frame.Width="0,1" Memo.Text="BIC:" ParentFont="0" Text="BIC:" />
+				<TfrxMemoView Name="Memo31" Left="268" Top="36"
+					Width="160" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Frame.Width="0,1"
+					Memo.Text="[Bic]" ParentFont="0" Text="[Bic]" />
+				<TfrxMemoView Name="Memo32" Left="448" Top="56"
+					Width="52" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="1"
+					Memo.Text="Blatt:" ParentFont="0" Text="Blatt:" />
+				<TfrxMemoView Name="Memo33" Left="84" Top="36"
+					Width="148" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Frame.Width="0,1"
+					Memo.Text="[Name]" ParentFont="0" WordWrap="0" Text="[Name]" />
+				<TfrxMemoView Name="Memo34" Left="-4" Top="0"
+					Width="648" Height="24" ShowHint="0" Font.Color="0"
+					Font.Height="-19" Font.Name="Arial" Font.Style="1"
+					Memo.Text="Kontoumsätze" ParentFont="0" Text="Kontoumsätze" />
+			</TfrxPageHeader>
+			<TfrxMasterData Name="MasterData" Height="32" Left="0"
+				Top="340" Width="680,3154" OnBeforePrint="MasterDataOnBeforePrint"
+				Columns="1" ColumnWidth="200" ColumnGap="20" DataSetName="frDataSet"
+				PrintIfDetailEmpty="1" RowCount="0" Stretched="1">
+				<TfrxMemoView Name="ColoredMemo" Left="-4" Top="0"
+					Width="648" Height="16" ShowHint="0" StretchMode="smMaxHeight"
+					Color="-16777194" Memo.Text="" Text="" />
+				<TfrxMemoView Name="Memo4" Left="68" Top="0"
+					Width="204" Height="16" ShowHint="0" StretchMode="smMaxHeight"
+					Font.Color="0" Font.Height="-11" Font.Name="Arial"
+					Frame.Width="0,1"
+					Memo.Text="[Trim(&#60;frDataSet.&#34;Name&#34;&#62;)]"
+					ParentFont="0" Text="[Trim(&#60;frDataSet.&#34;Name&#34;&#62;)]" />
+				<TfrxMemoView Name="MKategorie" Left="271" Top="0"
+					Width="176" Height="16" ShowHint="0" StretchMode="smMaxHeight"
+					Font.Color="0" Font.Height="-11" Font.Name="Arial" Font.Style="2"
+					Frame.Width="0,1" Memo.Text="[frDataSet.&#34;Kategorie&#34;]"
+					ParentFont="0" Text="[frDataSet.&#34;Kategorie&#34;]" />
+				<TfrxMemoView Name="MEinnahme" Left="544" Top="0"
+					Width="96" Height="16" ShowHint="0" StretchMode="smMaxHeight"
+					DisplayFormat.DecimalSeparator="." DisplayFormat.FormatStr="%s"
+					Font.Color="0" Font.Height="-11" Font.Name="Arial"
+					Frame.Width="0,1" HAlign="haRight"
+					Memo.Text="[frDataSet.&#34;Saldo&#34; #s%s]" ParentFont="0"
+					Text="[frDataSet.&#34;Saldo&#34; #s%s]" />
+				<TfrxMemoView Name="MAusgabe" Left="448" Top="0"
+					Width="96" Height="16" ShowHint="0" StretchMode="smMaxHeight"
+					DisplayFormat.DecimalSeparator="." DisplayFormat.FormatStr="%2,2n"
+					DisplayFormat.Kind="fkNumeric" Font.Color="0" Font.Height="-11"
+					Font.Name="Arial" Frame.Width="0,1" HAlign="haRight"
+					Memo.Text="[frDataSet.&#34;Betrag&#34; #n%2,2n]" ParentFont="0"
+					Text="[frDataSet.&#34;Betrag&#34; #n%2,2n]" />
+				<TfrxMemoView Name="LeftBorder" Left="-4" Top="0"
+					Width="4" Height="16" ShowHint="0" StretchMode="smMaxHeight"
+					DisplayFormat.FormatStr="dd.mm.yyyy"
+					DisplayFormat.Kind="fkDateTime" Font.Color="0" Font.Height="-11"
+					Font.Name="Arial" Frame.Typ="1" Frame.Width="0,1" Memo.Text=""
+					ParentFont="0" Text="" />
+				<TfrxMemoView Name="Memo51" Left="640" Top="0"
+					Width="4" Height="16" ShowHint="0" StretchMode="smMaxHeight"
+					DisplayFormat.FormatStr="dd.mm.yyyy"
+					DisplayFormat.Kind="fkDateTime" Font.Color="0" Font.Height="-11"
+					Font.Name="Arial" Frame.Typ="2" Frame.Width="0,1" Memo.Text=""
+					ParentFont="0" Text="" />
+				<TfrxMemoView Name="Memo2" Left="0" Top="0" Width="68"
+					Height="16" ShowHint="0" StretchMode="smMaxHeight" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Frame.Width="0,1"
+					Memo.Text="[frDataSet.&#34;Datum&#34;]" ParentFont="0"
+					Text="[frDataSet.&#34;Datum&#34;]" />
+				<TfrxMemoView Name="MIban" ShiftMode="smWhenOverlapped"
+					Left="280" Top="16" Width="168" Height="28" ShowHint="0"
+					StretchMode="smMaxHeight" Font.Color="0" Font.Height="-11"
+					Font.Name="Arial" Frame.Width="0,1"
+					Memo.Text="[frDataSet.&#34;Iban&#34;]&#10;[frDataSet.&#34;Bic&#34;]"
+					ParentFont="0"
+					Text="[frDataSet.&#34;Iban&#34;]&#10;[frDataSet.&#34;Bic&#34;]" />
+			</TfrxMasterData>
+			<TfrxPageFooter Name="PageFooterBand" Height="16"
+				Left="0" Top="498" Width="680,3154">
+				<TfrxMemoView Name="Memo25" Left="-4" Top="0"
+					Width="648" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="2" Frame.Typ="4"
+					Frame.Width="0,1" HAlign="haCenter"
+					Memo.Text="moneyplex für Windows | Linux | macOS" ParentFont="0"
+					Text="moneyplex für Windows | Linux | macOS" />
+			</TfrxPageFooter>
+			<TfrxChild Name="MasterHeader" Height="28" Left="0"
+				Top="253" Width="680,3154">
+				<TfrxMemoView Name="Memo3" Left="68" Top="0"
+					Width="204" Height="28" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="1" Frame.Typ="12"
+					Frame.Width="0,1" Memo.Text="Name&#10;Verwendungszweck"
+					ParentFont="0" Text="Name&#10;Verwendungszweck" />
+				<TfrxMemoView Name="Memo5" Left="272" Top="0"
+					Width="176" Height="28" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="1" Frame.Typ="12"
+					Frame.Width="0,1" Memo.Text="Kategorie&#10;  IBAN/BIC"
+					ParentFont="0" Text="Kategorie&#10;  IBAN/BIC" />
+				<TfrxMemoView Name="Memo13" Left="544" Top="0"
+					Width="96" Height="28" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="1" Frame.Typ="12"
+					Frame.Width="0,1" HAlign="haRight" Memo.Text="Saldo&#10;[Waehrung]"
+					ParentFont="0" Text="Saldo&#10;[Waehrung]" />
+				<TfrxMemoView Name="Memo7" Left="448" Top="0"
+					Width="96" Height="28" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="1" Frame.Typ="12"
+					Frame.Width="0,1" HAlign="haRight"
+					Memo.Text="Betrag&#10;[Waehrung]" ParentFont="0"
+					Text="Betrag&#10;[Waehrung]" />
+				<TfrxMemoView Name="Memo1" Left="0" Top="0" Width="68"
+					Height="28" ShowHint="0" Font.Color="0" Font.Height="-11"
+					Font.Name="Arial" Font.Style="1" Frame.Typ="12" Frame.Width="0,1"
+					Memo.Text="Datum&#10;Valuta" ParentFont="0" Text="Datum&#10;Valuta" />
+				<TfrxMemoView Name="Memo10" Left="-4" Top="0" Width="4"
+					Height="28" ShowHint="0" Font.Color="0" Font.Height="-11"
+					Font.Name="Arial" Font.Style="1" Frame.Typ="13" Frame.Width="0,1"
+					Memo.Text="" ParentFont="0" Text="" />
+				<TfrxMemoView Name="Memo52" Left="640" Top="0"
+					Width="4" Height="28" ShowHint="0" Font.Color="0" Font.Height="-11"
+					Font.Name="Arial" Font.Style="1" Frame.Typ="14" Frame.Width="0,1"
+					Memo.Text="" ParentFont="0" Text="" />
+			</TfrxChild>
+			<TfrxChild Name="Overview" Height="60" Left="0" Top="170"
+				Width="680,3154">
+				<TfrxMemoView Name="Memo47" Left="-4" Top="0"
+					Width="440" Height="52" ShowHint="0" Frame.Typ="15"
+					Frame.Width="0,1" Memo.Text="" Text="" />
+				<TfrxMemoView Name="Memo9" Left="364" Top="8"
+					Width="68" Height="16" ShowHint="0"
+					DisplayFormat.DecimalSeparator="," DisplayFormat.FormatStr="%2.2n"
+					DisplayFormat.Kind="fkNumeric" Font.Color="0" Font.Height="-11"
+					Font.Name="Arial" Frame.Width="0,1" HAlign="haRight"
+					Memo.Text="[TotalEinnahmen]" ParentFont="0" Text="[TotalEinnahmen]" />
+				<TfrxMemoView Name="Memo36" Left="236" Top="8"
+					Width="108" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="1"
+					Frame.Width="0,1" Memo.Text="Zahlungseingänge" ParentFont="0"
+					Text="Zahlungseingänge" />
+				<TfrxMemoView Name="Memo37" Left="236" Top="28"
+					Width="112" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="1"
+					Frame.Width="0,1" Memo.Text="Zahlungsausgänge" ParentFont="0"
+					Text="Zahlungsausgänge" />
+				<TfrxMemoView Name="Memo38" Left="364" Top="28"
+					Width="68" Height="16" ShowHint="0"
+					DisplayFormat.DecimalSeparator="," DisplayFormat.FormatStr="%2.2n"
+					DisplayFormat.Kind="fkNumeric" Font.Color="0" Font.Height="-11"
+					Font.Name="Arial" Frame.Width="0,1" HAlign="haRight"
+					Memo.Text="[TotalAusgaben]" ParentFont="0" Text="[TotalAusgaben]" />
+				<TfrxMemoView Name="Memo42" Left="0" Top="8"
+					Width="104" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="1"
+					Frame.Width="0,1" Memo.Text="Alter Kontostand" ParentFont="0"
+					Text="Alter Kontostand" />
+				<TfrxMemoView Name="Memo43" Left="132" Top="8"
+					Width="68" Height="16" ShowHint="0"
+					DisplayFormat.DecimalSeparator="," Font.Color="0" Font.Height="-11"
+					Font.Name="Arial" Frame.Width="0,1" HAlign="haRight"
+					Memo.Text="[SaldoBeg]" ParentFont="0" Text="[SaldoBeg]" />
+				<TfrxMemoView Name="Memo44" Left="0" Top="28"
+					Width="104" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="1"
+					Frame.Width="0,1" Memo.Text="Neuer Kontostand" ParentFont="0"
+					Text="Neuer Kontostand" />
+				<TfrxMemoView Name="Memo45" Left="132" Top="28"
+					Width="68" Height="16" ShowHint="0"
+					DisplayFormat.DecimalSeparator="," Font.Color="0" Font.Height="-11"
+					Font.Name="Arial" Frame.Width="0,1" HAlign="haRight"
+					Memo.Text="[SaldoEnd]" ParentFont="0" Text="[SaldoEnd]" />
+				<TfrxMemoView Name="Memo41" Left="104" Top="8"
+					Width="43" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="1"
+					Frame.Width="0,1" Memo.Text="[Waehrung]:" ParentFont="0"
+					Text="[Waehrung]:" />
+				<TfrxMemoView Name="Memo48" Left="344" Top="8"
+					Width="50" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="1"
+					Frame.Width="0,1" Memo.Text="[Waehrung]:" ParentFont="0"
+					Text="[Waehrung]:" />
+				<TfrxMemoView Name="Memo49" Left="344" Top="28"
+					Width="50" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="1"
+					Frame.Width="0,1" Memo.Text="[Waehrung]:" ParentFont="0"
+					Text="[Waehrung]:" />
+				<TfrxMemoView Name="Memo50" Left="104" Top="28"
+					Width="46" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="1"
+					Frame.Width="0,1" Memo.Text="[Waehrung]:" ParentFont="0"
+					Text="[Waehrung]:" />
+				<TfrxMemoView Name="Memo54" Left="444" Top="0"
+					Width="200" Height="52" ShowHint="0" Frame.Typ="15"
+					Frame.Width="0,1" Memo.Text="" Text="" />
+				<TfrxMemoView Name="Memo55" Left="448" Top="8"
+					Width="116" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="1"
+					Frame.Width="0,1" Memo.Text="Anzahl Eingänge:" ParentFont="0"
+					Text="Anzahl Eingänge:" />
+				<TfrxMemoView Name="Memo57" Left="448" Top="28"
+					Width="116" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Font.Style="1"
+					Frame.Width="0,1" Memo.Text="Anzahl Ausgänge:" ParentFont="0"
+					Text="Anzahl Ausgänge:" />
+				<TfrxMemoView Name="Memo58" Left="568" Top="8"
+					Width="72" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Frame.Width="0,1"
+					HAlign="haRight" Memo.Text="[CountEinnahmen]" ParentFont="0"
+					Text="[CountEinnahmen]" />
+				<TfrxMemoView Name="Memo59" Left="568" Top="28"
+					Width="72" Height="16" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Frame.Width="0,1"
+					HAlign="haRight" Memo.Text="[CountAusgaben]" ParentFont="0"
+					Text="[CountAusgaben]" />
+			</TfrxChild>
+			<TfrxColumnFooter Name="ColumnFooter" Height="1"
+				Left="0" Top="476" Width="680,3154">
+				<TfrxMemoView Name="Memo39" Left="-4" Top="0"
+					Width="648" Height="1" ShowHint="0" Font.Color="0"
+					Font.Height="-13" Font.Name="Arial" Font.Style="1" Frame.Typ="4"
+					Frame.Width="0,1" Memo.Text="" ParentFont="0" Text="" />
+			</TfrxColumnFooter>
+			<TfrxDetailData Name="DetailData" Height="12" Left="0"
+				Top="404" Width="680,3154"
+				OnBeforePrint="MAusgabeSplittOnBeforePrint" Columns="1"
+				ColumnWidth="200" ColumnGap="20" DataSetName="frDataSetDetail"
+				RowCount="0">
+				<TfrxMemoView Name="ColoredMemoDetail" Left="-4"
+					Top="0" Width="648" Height="12" ShowHint="0" Font.Color="0"
+					Font.Height="-11" Font.Name="Arial" Frame.Typ="3" Frame.Width="0,1"
+					Memo.Text="" ParentFont="0" Text="" />
+				<TfrxMemoView Name="Memo14" Left="68" Top="0"
+					Width="204" Height="12" ShowHint="0" Font.Color="0"
+					Font.Height="-8" Font.Name="Arial" Font.Style="2"
+					Memo.Text="[frDataSetDetail.&#34;Zweck&#34;]" ParentFont="0"
+					Text="[frDataSetDetail.&#34;Zweck&#34;]" />
+				<TfrxMemoView Name="MSplittKategorie" Left="271"
+					Top="0" Width="176" Height="12" ShowHint="0" Font.Color="0"
+					Font.Height="-8" Font.Name="Arial" Font.Style="2"
+					Memo.Text="[frDataSetDetail.&#34;Kategorie&#34;]" ParentFont="0"
+					Text="[frDataSetDetail.&#34;Kategorie&#34;]" />
+				<TfrxMemoView Name="MAusgabeSplitt" Left="448" Top="0"
+					Width="96" Height="12" OnBeforePrint="MAusgabeSplittOnBeforePrint"
+					ShowHint="0" DisplayFormat.DecimalSeparator=","
+					DisplayFormat.FormatStr="%g" DisplayFormat.Kind="fkNumeric"
+					Font.Color="0" Font.Height="-8" Font.Name="Arial" Font.Style="2"
+					HAlign="haRight"
+					Memo.Text="[frDataSetDetail.&#34;Betrag&#34; #n%2,2n]"
+					ParentFont="0" Text="[frDataSetDetail.&#34;Betrag&#34; #n%2,2n]" />
+			</TfrxDetailData>
+		</TfrxReportPage>
+	</sourcepages>
+	<dictionary>
+		<b1 name="Page0.PageHeader" />
+		<b2 name="Page0.MasterData" />
+		<b3 name="Page0.PageFooterBand" />
+		<b4 name="Page0.MasterHeader" />
+		<b5 name="Page0.Overview" />
+		<b6 name="Page0.ColumnFooter" />
+		<b7 name="Page0.DetailData" />
+		<m1 name="Page0.Memo40" />
+		<m10 name="Page0.Memo22" />
+		<m11 name="Page0.Memo23" />
+		<m12 name="Page0.Memo24" />
+		<m13 name="Page0.Memo28" />
+		<m14 name="Page0.Memo29" />
+		<m15 name="Page0.Memo30" />
+		<m16 name="Page0.Memo31" />
+		<m17 name="Page0.Memo32" />
+		<m18 name="Page0.Memo33" />
+		<m19 name="Page0.Memo34" />
+		<m2 name="Page0.Memo35" />
+		<m20 name="Page0.ColoredMemo" />
+		<m21 name="Page0.Memo4" />
+		<m22 name="Page0.MKategorie" />
+		<m23 name="Page0.MEinnahme" />
+		<m24 name="Page0.MAusgabe" />
+		<m25 name="Page0.LeftBorder" />
+		<m26 name="Page0.Memo51" />
+		<m27 name="Page0.Memo2" />
+		<m28 name="Page0.MIban" />
+		<m29 name="Page0.Memo25" />
+		<m3 name="Page0.Memo15" />
+		<m30 name="Page0.Memo3" />
+		<m31 name="Page0.Memo5" />
+		<m32 name="Page0.Memo13" />
+		<m33 name="Page0.Memo7" />
+		<m34 name="Page0.Memo1" />
+		<m35 name="Page0.Memo10" />
+		<m36 name="Page0.Memo52" />
+		<m37 name="Page0.Memo47" />
+		<m38 name="Page0.Memo9" />
+		<m39 name="Page0.Memo36" />
+		<m4 name="Page0.Memo16" />
+		<m40 name="Page0.Memo37" />
+		<m41 name="Page0.Memo38" />
+		<m42 name="Page0.Memo42" />
+		<m43 name="Page0.Memo43" />
+		<m44 name="Page0.Memo44" />
+		<m45 name="Page0.Memo45" />
+		<m46 name="Page0.Memo41" />
+		<m47 name="Page0.Memo48" />
+		<m48 name="Page0.Memo49" />
+		<m49 name="Page0.Memo50" />
+		<m5 name="Page0.Memo17" />
+		<m50 name="Page0.Memo54" />
+		<m51 name="Page0.Memo55" />
+		<m52 name="Page0.Memo57" />
+		<m53 name="Page0.Memo58" />
+		<m54 name="Page0.Memo59" />
+		<m55 name="Page0.Memo39" />
+		<m56 name="Page0.ColoredMemoDetail" />
+		<m57 name="Page0.Memo14" />
+		<m58 name="Page0.MSplittKategorie" />
+		<m59 name="Page0.MAusgabeSplitt" />
+		<m6 name="Page0.Memo18" />
+		<m7 name="Page0.Memo19" />
+		<m8 name="Page0.Memo20" />
+		<m9 name="Page0.Memo21" />
+	</dictionary>
+	<picturecache />
+</preparedreport>

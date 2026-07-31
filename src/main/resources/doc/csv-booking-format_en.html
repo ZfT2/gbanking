@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>GBanking CSV Format for Transactions</title>
+	<link rel="stylesheet" href="gbanking-doc.css">
+</head>
+<body id="top">
+	<a class="skip-link" href="#content">Skip to content</a>
+	<div class="page">
+		<nav class="topbar" aria-label="Document navigation">
+			<p><a href="manual_en.html">Back to the manual</a></p>
+			<p><strong>Language:</strong> <a href="csv-booking-format.html" lang="de">Deutsch</a> | English</p>
+		</nav>
+
+		<header class="hero">
+			<h1>CSV Format for Transactions</h1>
+			<p>Field reference and examples for reliably exchanging transaction data with GBanking.</p>
+		</header>
+
+		<div class="content-layout">
+			<nav class="toc" aria-labelledby="toc-title">
+				<h2 id="toc-title">Contents</h2>
+				<ol>
+					<li><a href="#basics">Basics</a></li>
+					<li><a href="#required">Required fields</a></li>
+					<li><a href="#optional">Optional fields</a></li>
+					<li><a href="#address-book">Effect on the address book</a></li>
+					<li><a href="#complete">Complete example</a></li>
+					<li><a href="#minimal">Minimal example</a></li>
+					<li><a href="#tips">Practical tips</a></li>
+				</ol>
+			</nav>
+
+			<main id="content">
+				<section id="basics">
+					<h2>1. Basics</h2>
+					<p>The file is UTF-8 encoded and uses a semicolon as separator. The first row contains field names. Additional columns unknown to GBanking are not required; known columns may appear in any order.</p>
+					<ul>
+						<li>Amounts may use comma or dot as decimal separator. Grouped values such as <code>1.234,56</code> and <code>1,234.56</code> are also recognised.</li>
+						<li>Dates are accepted as <code>DD.MM.YY</code>, <code>DD.MM.YYYY</code> or ISO date <code>YYYY-MM-DD</code>.</li>
+						<li>Whitespace at the beginning and end of a field is removed.</li>
+					</ul>
+					<p class="back-to-top"><a href="#top">Back to top</a></p>
+				</section>
+
+				<section id="required">
+					<h2>2. Required fields</h2>
+					<div class="table-wrap">
+						<table>
+							<thead><tr><th>Field</th><th>Description</th></tr></thead>
+							<tbody>
+								<tr><td><code>BUCHUNGSDATUM</code></td><td>Transaction booking date; every data row must contain a value.</td></tr>
+								<tr><td><code>BETRAG</code></td><td>Transaction amount. Negative values are expenses; positive values are income.</td></tr>
+								<tr><td><code>VERWENDUNGSZWECK</code></td><td>Transaction purpose text; every data row must contain a value.</td></tr>
+								<tr><td><code>KONTO_IBAN</code>, <code>KONTO_NR</code> or <code>KONTO_NAME</code></td><td>At least one of these columns is required when import is not started from an account context menu.</td></tr>
+							</tbody>
+						</table>
+					</div>
+					<p class="back-to-top"><a href="#top">Back to top</a></p>
+				</section>
+
+				<section id="optional">
+					<h2>3. Optional fields</h2>
+					<div class="table-wrap">
+						<table>
+							<thead><tr><th>Field</th><th>Description</th></tr></thead>
+							<tbody>
+								<tr><td><code>KONTO_NAME</code></td><td>Account name. Used for matching or retained for a newly created import account.</td></tr>
+								<tr><td><code>KONTO_IBAN</code></td><td>IBAN of the user's account.</td></tr>
+								<tr><td><code>KONTO_NR</code></td><td>Account number of the user's account.</td></tr>
+								<tr><td><code>KONTO_BANK</code>, <code>KONTO_BIC</code></td><td>Bank name and BIC of the user's account.</td></tr>
+								<tr><td><code>WERTSTELLUNG</code></td><td>Value date.</td></tr>
+								<tr><td><code>WAEHRUNG</code></td><td>Currency. If empty, GBanking uses <code>EUR</code>.</td></tr>
+								<tr><td><code>EMPFAENGER_NAME</code>, <code>EMPFAENGER_IBAN</code>, <code>EMPFAENGER_BIC</code></td><td>Name, IBAN and BIC of the recipient or payer.</td></tr>
+								<tr><td><code>EMPFAENGER_KONTONR</code>, <code>EMPFAENGER_BLZ</code>, <code>EMPFAENGER_BANK</code></td><td>Alternative account number, bank code and bank name of the recipient or payer.</td></tr>
+								<tr><td><code>BUCHUNGSTYP</code></td><td>Technical type such as <code>DEPOSIT</code>, <code>REMOVAL</code>, <code>REBOOKING_IN</code> or <code>REBOOKING_OUT</code>. If omitted, it is derived from the amount's sign.</td></tr>
+								<tr><td><code>KATEGORIE</code></td><td>Category path or category name.</td></tr>
+								<tr><td><code>SEPA_CUSTOMER_REF</code>, <code>SEPA_CREDITOR_ID</code>, <code>SEPA_END_TO_END</code>, <code>SEPA_MANDATE</code>, <code>SEPA_PERSON_ID</code>, <code>SEPA_PURPOSE</code>, <code>SEPA_TYPE</code></td><td>Optional SEPA details.</td></tr>
+							</tbody>
+						</table>
+					</div>
+					<p class="back-to-top"><a href="#top">Back to top</a></p>
+				</section>
+
+				<section id="address-book">
+					<h2>4. Effect on the address book</h2>
+					<p>GBanking creates or enriches an address-book contact from the <code>EMPFAENGER_*</code> fields. It uses the same <a href="manual_en.html#recipients">recipient logic described in the manual</a>: existing contacts are found mainly by IBAN or account number, compatible data is reused and unused duplicates may be updated.</p>
+					<p>If an imported contact has no bank name, GBanking may obtain it from the BIC, bank code or the bank code embedded in a German IBAN. Different known bank names are not merged without verification. Contacts already linked to historical online/import transactions or payment orders remain protected.</p>
+					<div class="tip"><strong>Recommendation:</strong> Include the IBAN as well as the name whenever possible. It provides the most reliable matching and avoids unnecessary duplicates.</div>
+					<p class="back-to-top"><a href="#top">Back to top</a></p>
+				</section>
+
+				<section id="complete">
+					<h2>5. Example: complete file</h2>
+					<pre>KONTO_NAME;KONTO_IBAN;KONTO_NR;KONTO_BANK;KONTO_BIC;BUCHUNGSDATUM;WERTSTELLUNG;BETRAG;WAEHRUNG;VERWENDUNGSZWECK;EMPFAENGER_NAME;EMPFAENGER_IBAN;EMPFAENGER_BIC;EMPFAENGER_KONTONR;EMPFAENGER_BLZ;EMPFAENGER_BANK;BUCHUNGSTYP;KATEGORIE;SEPA_CUSTOMER_REF;SEPA_CREDITOR_ID;SEPA_END_TO_END;SEPA_MANDATE;SEPA_PERSON_ID;SEPA_PURPOSE;SEPA_TYPE
+Checking account;DE11111111111111111111;11111111;Test bank;TESTDEFF;10.04.2026;11.04.2026;-49.90;EUR;Grocery shopping;Supermarket Ltd.;DE99999999999999999999;BANKDEFFXXX;;;;REMOVAL;Household/Groceries;;;E2E-123;;;;</pre>
+					<p class="back-to-top"><a href="#top">Back to top</a></p>
+				</section>
+
+				<section id="minimal">
+					<h2>6. Example: minimal file for account-context import</h2>
+					<p>When import is started from an account context menu, account matching fields may be omitted. If the file still contains account fields, they must match the selected account.</p>
+					<pre>BUCHUNGSDATUM;BETRAG;VERWENDUNGSZWECK
+10.04.2026;25.00;Cash deposit</pre>
+					<p class="back-to-top"><a href="#top">Back to top</a></p>
+				</section>
+
+				<section id="tips">
+					<h2>7. Practical tips</h2>
+					<ul>
+						<li>Export a few existing transactions as CSV when you need a reliable template containing every field name.</li>
+						<li>When using a spreadsheet application, explicitly open and save the file as UTF-8 with semicolon separators.</li>
+						<li>Check signs, date formats and account matching with a small test file first.</li>
+						<li>CSV files are not protected by tenant encryption. Delete or encrypt confidential exchange files after use.</li>
+					</ul>
+					<p class="back-to-top"><a href="#top">Back to top</a></p>
+				</section>
+			</main>
+		</div>
+
+		<footer class="footer">GBanking – CSV format reference</footer>
+	</div>
+</body>
+</html>

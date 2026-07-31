@@ -1,0 +1,151 @@
+Bankleitzahl;Merkmal;Bezeichnung;PLZ;Ort;Kurzbezeichnung;PAN;BIC;Prüfzifferberechnungsmethode;Datensatznummer;Änderungskennzeichen;Bankleitzahllöschung;Nachfolge-Bankleitzahl
+10000000;1;Bundesbank;10591;Berlin;BBk Berlin;20100;MARKDEF1100;09;011380;U;0;00000000
+10010010;1;Postbank Ndl der Deutsche Bank;10559;Berlin;Postbank Ndl Deutsche Bank;10010;PBNKDEFFXXX;24;000538;U;0;00000000
+10010123;1;OLINDA Zweigniederlassung Deutschland;10245;Berlin;Olinda, Berlin;;QNTODEB2XXX;09;057478;U;0;00000000
+10010178;1;Revolut Bank, Zweigniederlassung Deutschland;10117;Berlin;Revolut Bank, Berlin;;REVODEB2XXX;09;057801;U;0;00000000
+10010200;1;Treezor, Berlin;10785;Berlin;Treezor Berlin;53144;TRZODEB2XXX;09;057742;U;0;00000000
+10010300;1;Klarna Bank German Branch;10115;Berlin;Klarna Bank, Berlin;;KLRNDEBEXXX;09;057482;U;0;00000000
+10010424;1;Aareal Bank;10666;Berlin;Aareal Bank;26910;AARBDE5W100;09;004795;U;0;00000000
+10010500;1;Noelse Pay;10719;Berlin;Noelse Pay, Berlin;;AFOPDEB2XXX;09;057532;U;0;00000000
+10010700;1;Financiere des Paiements Electroniques NL Deutschland;10719;Berlin;FPE Deutschland;;FPEGDEB2XXX;09;057719;U;0;00000000
+10011001;1;N26 Bank;10179;Berlin;N26 Bank Berlin;;NTSBDEB1XXX;09;056796;U;0;00000000
+10012345;1;Trade Republic Bank;10119;Berlin;Trade Republic Bank, Berlin;;TRBKDEBBXXX;09;057880;U;0;00000000
+10014000;1;Swan Zweigniederlassung Deutschland;10178;Berlin;Swan Zndl Deutschland;;SWNBDEBBXXX;09;057732;U;0;00000000
+10014001;1;Swan Zweigniederlassung Deutschland (Geschäftsfeld);10178;Berlin;Swan Zndl Deutschland;;SWNBDEBBXXX;09;057733;U;0;00000000
+10017997;1;Holvi Payment Services Zweigniederlassung Deutschland;10967;Berlin;Holvi - Berlin;;HOLVDEB1XXX;09;057364;U;0;00000000
+10018000;1;Finom Payments Zweigniederlassung Deutschland;10115;Berlin;Finom Payments;;FNOMDEB2XXX;09;057823;U;0;00000000
+10019000;1;Adyen, German Branch;10117;Berlin;Adyen Deutschland, Berlin;;ADYBDEB2XXX;09;057856;U;0;00000000
+10020200;1;BHF-BANK;10117;Berlin;BHF-BANK Berlin;25155;BHFBDEFF100;60;004794;U;0;00000000
+10020500;1;SozialBank;10178;Berlin;SozialBank Berlin;25013;BFSWDE33BER;09;000530;U;0;00000000
+10020510;1;SozialBank;10178;Berlin;SozialBank Berlin;;BFSWDE33BER;09;056659;U;0;00000000
+10020520;1;SozialBank;10178;Berlin;SozialBank Berlin;;BFSWDE33BER;09;056662;U;0;00000000
+10020890;1;UniCredit Bank - HypoVereinsbank;10117;Berlin;UniCredit Bank-HypoVereinbk;22014;HYVEDEMM488;99;039785;U;0;00000000
+10020890;2;UniCredit Bank - HypoVereinsbank;14776;Brandenburg an der Havel;UniCredit Bank-HypoVereinbk;22014;HYVEDEMM488;99;049746;U;0;00000000
+10020890;2;UniCredit Bank - HypoVereinsbank;15711;Königs Wusterhausen;UniCredit Bank-HypoVereinbk;22014;HYVEDEMM488;99;049747;U;0;00000000
+10030400;1;ABK Allgemeine Beamten Bank;10117;Berlin;ABK Bank Berlin;25686;ABKBDEB1XXX;09;044427;M;0;00000000
+10030500;1;M.M. Warburg & Co (vormals Bankhaus Löbbecke);20095;Hamburg;M.M. Warburg (Löbbecke);26225;LOEBDEBBXXX;09;043961;U;0;00000000
+10033300;1;Openbank Deutschland;41061;Mönchengladbach;Openbank;29411;SCFBDE33XXX;09;055979;M;0;00000000
+10040000;1;Commerzbank, Filiale Berlin 1;10891;Berlin;Commerzbank Fil. Berlin 1;24100;COBADEBBXXX;13;024463;U;0;00000000
+10040005;1;Commerzbank, Filiale Berlin 3;10891;Berlin;Commerzbank Fil. Berlin 3;24001;COBADEBBXXX;13;056713;U;0;00000000
+10040010;1;Commerzbank, CC SP;10877;Berlin;Commerzbank CC SP, Berlin;;COBADEFFXXX;09;056240;U;0;00000000
+10040048;1;Commerzbank GF-B48;10891;Berlin;Commerzbank BER GF-B48;24148;COBADEFFXXX;13;055618;U;0;00000000
+10040060;1;Commerzbank Gf 160;10891;Berlin;Commerzbank Gf 160 Berlin;24101;COBADEFFXXX;09;052880;U;0;00000000
+10040061;1;Commerzbank Gf 161;10891;Berlin;Commerzbank Gf 161 Berlin;24102;COBADEFFXXX;09;052894;U;0;00000000
+10040062;1;Commerzbank CC;10783;Berlin;Commerzbank CC Berlin;;COBADEFFXXX;09;055826;U;0;00000000
+10040063;1;Commerzbank CC;10783;Berlin;Commerzbank CC Berlin;;COBADEFFXXX;09;055827;U;0;00000000
+10040085;1;Commerzbank, Gf Web-K;10877;Berlin;Commerzbank Gf WK, Berlin;;COBADEFFXXX;13;056368;U;0;00000000
+10045050;1;Commerzbank Service-BZ;10785;Berlin;Commerzbank Service-BZ;;COBADEFFXXX;13;050927;U;0;00000000
+10050000;1;BSK 1818 - Berliner Sparkasse;10889;Berlin;BSK 1818-Berliner Sparkasse;51000;BELADEBEXXX;B8;002745;U;0;00000000
+10050020;1;S-Kreditpartner, Berlin;10715;Berlin;S-Kreditpartner, Berlin;51002;SKPADEB1XXX;B8;055974;U;0;00000000
+10050500;1;LBS Landesbausparkasse NordOst;10405;Berlin;LBS NordOst;;LBSODEB1BLN;09;046141;U;0;00000000
+10050999;1;DekaBank;60040;Frankfurt am Main;DekaBank;;DGZFDEFFBER;09;004788;U;0;00000000
+10060198;1;Pax-Bank;14005;Berlin;Pax-Bank Berlin;61335;GENODED1PA6;06;047622;U;1;37060193
+10061006;1;Bank für Kirche und Diakonie - KD-Bank Gf Sonder-BLZ;10117;Berlin;KD-Bank Berlin;;GENODED1KDB;09;055270;U;0;00000000
+10070000;1;Deutsche Bank;10883;Berlin;Deutsche Bank;27060;DEUTDEBBXXX;63;004787;U;0;00000000
+10070000;2;Deutsche Bank Gf P2;10883;Berlin;Deutsche Bank;27703;;63;055917;U;0;00000000
+10070000;2;Deutsche Bank Gf P2;10883;Berlin;Deutsche Bank;27700;;63;056400;U;0;00000000
+10070024;1;Deutsche Bank;10883;Berlin;Deutsche Bank;21060;DEUTDEDBBER;63;049758;U;0;00000000
+10070024;2;Deutsche Bank;10883;Berlin;Deutsche Bank;21700;;63;056401;U;0;00000000
+10070024;2;Deutsche Bank;10883;Berlin;Deutsche Bank;21703;;63;055916;U;0;00000000
+10070100;1;Deutsche Bank;10883;Berlin;Deutsche Bank;27701;DEUTDEBB101;63;053102;U;0;00000000
+10070124;1;Deutsche Bank;10883;Berlin;Deutsche Bank;21701;DEUTDEDB101;63;053103;U;0;00000000
+10070324;1;Postbank/DSL Ndl der Deutsche Bank;10117;Berlin;Postbank Ndl Deutsche Bank;21397;DEUTDEDBP30;63;057585;U;0;00000000
+10070397;1;Postbank/DSL Ndl der Deutsche Bank;10117;Berlin;Postbank Ndl Deutsche Bank;27397;DEUTDEBBP30;63;057584;U;0;00000000
+10070398;1;Postbank/DSL Ndl der Deutsche Bank;12105;Berlin;Postbank Ndl Deutsche Bank;27398;DEUTDEBBP31;63;057586;U;0;00000000
+10070399;1;Postbank/DSL Ndl der Deutsche Bank;13125;Berlin;Postbank Ndl Deutsche Bank;27399;DEUTDEBBP32;63;057587;U;0;00000000
+10070848;1;Deutsche Bank;10623;Berlin;Deutsche Bank;21848;DEUTDEDB110;63;055502;U;0;00000000
+10071324;1;Postbank/DSL Ndl der Deutsche Bank;12105;Berlin;Postbank Ndl Deutsche Bank;21398;DEUTDEDBP31;63;057602;U;0;00000000
+10072324;1;Postbank/DSL Ndl der Deutsche Bank;13125;Berlin;Postbank Ndl Deutsche Bank;21399;DEUTDEDBP32;63;057588;U;0;00000000
+10077777;1;norisbank;10625;Berlin;norisbank;21431;NORSDE51XXX;63;053532;U;0;00000000
+10080000;1;Commerzbank vormals Dresdner Bank Filiale Berlin I;10877;Berlin;Commerzbank Fil I Berlin;28100;DRESDEFF100;76;024465;U;0;00000000
+10080005;1;Commerzbank vormals Dresdner Bank Zw A;10623;Berlin;Commerzbank Berlin Zw A;;DRESDEFFI26;76;046513;U;0;00000000
+10080006;1;Commerzbank vormals Dresdner Bank Zw B;10623;Berlin;Commerzbank Berlin Zw B;;DRESDEFFXXX;76;046514;U;0;00000000
+10080055;1;Commerzbank vormals Dresdner Bank Zw 55;10623;Berlin;Commerzbank Zw 55 Berlin;28101;DRESDEFF112;76;053527;U;0;00000000
+10080057;1;Commerzbank vormals Dresdner Bank Gf ZW 57;10877;Berlin;Commerzbk ZW 57 Berlin;28103;DRESDEFF114;76;053520;U;0;00000000
+10080085;1;Commerzbank vormals Dresdner Bank Gf PCC DCC-ITGK 3;10877;Berlin;Commerzbank ITKG3 Berlin;;DRESDEFFI53;09;054940;U;0;00000000
+10080086;1;Commerzbank vormals Dresdner Bank, PCC DCC-ITGK 4;10877;Berlin;Commerzbank ITGK4 Berlin;;DRESDEFFI71;09;055157;U;0;00000000
+10080087;1;Commerzbank vormals Dresdner Bank, PCC DCC-ITGK 5;10877;Berlin;Commerzbank ITGK5 Berlin;;DRESDEFFI72;09;055158;U;0;00000000
+10080088;1;Commerzbank vormals Dresdner Bank IBLZ;10623;Berlin;Commerzbank IBLZ Berlin;;DRESDEFFXXX;76;044595;U;0;00000000
+10080089;1;Commerzbank vormals Dresdner Bank, PCC DCC-ITGK 6;10877;Berlin;Commerzbank ITGK6 Berlin;;DRESDEFFI73;09;055159;U;0;00000000
+10080900;1;Commerzbank vormals Dresdner Bank Filiale Berlin III;10877;Berlin;Commerzbk Fil III Berlin;28109;DRESDEFF199;76;000534;U;0;00000000
+10089260;1;Commerzbank vormals Dresdner Bank ITGK;10877;Berlin;Commerzbank ITGK Berlin;;DRESDEFFI14;09;050474;U;0;00000000
+10089999;1;Commerzbank vormals Dresdner Bank ITGK 2;10117;Berlin;Commerzbank ITGK 2 Berlin;;DRESDEFFI99;09;052938;U;0;00000000
+10090000;1;Berliner Volksbank;10892;Berlin;Berliner VB Berlin;91001;BEVODEBBXXX;06;023299;U;0;00000000
+10090000;2;Berliner Volksbank;14547;Beelitz;Berliner Volksbank Beelitz;91001;;06;045734;U;0;00000000
+10090000;2;Berliner Volksbank (Gf P2);10892;Berlin;Berliner VB Berlin;81001;;06;053669;U;0;00000000
+10090000;2;Berliner Volksbank;16321;Bernau bei Berlin;Berliner VB Bernau;91001;;06;046058;U;0;00000000
+10090000;2;Berliner Volksbank;16225;Eberswalde;Berliner VB Eberswalde;91001;;06;051684;U;0;00000000
+10090000;2;Berliner Volksbank;14612;Falkensee;Berliner VB Falkensee;91001;;06;056636;U;0;00000000
+10090000;2;Berliner Volksbank;16775;Gransee;Berliner VB Gransee;91001;;06;047021;U;0;00000000
+10090000;2;Berliner Volksbank;14979;Großbeeren;Berliner VB Großbeeren;91001;;06;044952;U;0;00000000
+10090000;2;Berliner Volksbank;15757;Halbe;Berliner VB Halbe;91001;;06;046047;U;0;00000000
+10090000;2;Berliner Volksbank;16761;Hennigsdorf;Berliner VB Hennigsdorf;91001;;06;048909;U;0;00000000
+10090000;2;Berliner Volksbank;15711;Königs Wusterhausen;Berliner VB Königs Wusterhs;91001;;06;044951;U;0;00000000
+10090000;2;Berliner Volksbank;16866;Kyritz;Berliner VB Kyritz;91001;;06;047009;U;0;00000000
+10090000;2;Berliner Volksbank;16816;Neuruppin;Berliner VB Neuruppin;91001;;06;044970;U;0;00000000
+10090000;2;Berliner Volksbank;16515;Oranienburg;Berliner VB Oranienburg;91001;;06;044974;U;0;00000000
+10090000;2;Volksbank Potsdam Zndl d Berliner Volksbank;14467;Potsdam;Volksbank Potsdam;91001;;06;044983;U;0;00000000
+10090000;2;Berliner Volksbank;15344;Strausberg;Berliner VB Strausberg;91001;;06;045010;U;0;00000000
+10090000;2;Berliner Volksbank;14929;Treuenbrietzen;Berliner VB Treuenbrietzen;91001;;06;046045;U;0;00000000
+10090000;2;Berliner Volksbank;16909;Wittstock/Dosse;Berliner VB Wittstock;91001;;06;047010;U;0;00000000
+10090000;2;Berliner Volksbank;16792;Zehdenick;Berliner VB Zehdenick;91001;;06;045019;U;0;00000000
+10090300;1;Bank für Schiffahrt (BFS) Fil d Ostfr VB Leer;13353;Berlin;Bk f Schiffahrt BFS Berlin;;GENODEF1BSB;09;021629;U;1;00000000
+10090900;1;PSD Bank Berlin-Brandenburg -alt-;12154;Berlin;PSD Bank Berlin -alt-;91008;GENODEF1P01;91;024464;U;0;00000000
+10090900;2;PSD Bank Berlin-Brandenburg (Gf P2);12154;Berlin;PSD Bank Berlin;81008;;91;057333;U;0;00000000
+10110300;1;Westend Bank;60599;Frankfurt am Main;Westend Bank;26240;MACODEB1XXX;09;000536;U;0;00000000
+10110400;1;Investitionsbank Berlin;10702;Berlin;Investitionsbank Berlin;;IBBBDEBBXXX;09;000537;U;0;00000000
+10110600;1;Quirin Privatbank;10711;Berlin;Quirin Privatbank Berlin;25207;QUBKDEBBXXX;17;049702;U;0;00000000
+10120100;1;Weberbank;10893;Berlin;Weberbank;51012;WELADED1WBB;94;013621;U;0;00000000
+10130600;1;Isbank Fil Berlin;13353;Berlin;Isbank Berlin;29835;ISBKDEFXXXX;06;043850;U;0;00000000
+10130800;1;flatexDEGIRO Bank;60312;Frankfurt am Main;flatex Bank, Frankfurt;25185;BIWBDE33XXX;01;050620;U;0;00000000
+10220500;1;Lloyds Bank;10178;Berlin;Lloyds Bank;;BOFSDEB1XXX;00;056412;U;0;00000000
+10220600;1;Sydbank Filiale Berlin;24937;Flensburg;Sydbank Berlin;;SYBKDE22BER;19;056217;U;0;00000000
+10310600;1;Tradegate Berlin;10711;Berlin;Tradegate Berlin;25257;TRDADEB1PBK;09;055068;U;0;00000000
+10310666;1;Tradegate, GF DIR;10711;Berlin;Tradegate GF DIR;;TRDADEBBDIR;09;057661;U;0;00000000
+10320700;1;MANGOPAY German Branch;10719;Berlin;MANGOPAY BERLIN;;MPAYDEB2XXX;09;057854;U;0;00000000
+11010100;1;Solaris;10997;Berlin;Solaris;;SOBKDEBBXXX;09;056731;U;0;00000000
+11010101;1;Solaris;10997;Berlin;Solaris GF (S);;SOBKDEB2XXX;09;057373;U;0;00000000
+11010111;1;Solaris;10997;Berlin;Solaris Gf (PNTA);;PNTADEBBXXX;09;057650;U;0;00000000
+12016836;1;KfW Kreditanstalt für Wiederaufbau;10117;Berlin;KfW Berlin;;KFWIDEFF100;09;045444;U;0;00000000
+12030000;1;Deutsche Kreditbank Berlin;10117;Berlin;Deutsche Kreditbank Berlin;51011;BYLADEM1001;00;046023;U;0;00000000
+12030000;2;Deutsche Kreditbank (Gf P2);10117;Berlin;Deutsche Kreditbank (Gf P2);51100;;00;055781;U;0;00000000
+12030000;2;Deutsche Kreditbank;09111;Chemnitz;Deutsche Kreditbk Chemnitz;51011;;00;049243;U;0;00000000
+12030000;2;Deutsche Kreditbank;03046;Cottbus;Deutsche Kreditbank Cottbus;51011;;00;049251;U;0;00000000
+12030000;2;Deutsche Kreditbank;01069;Dresden;Deutsche Kreditbank Dresden;51011;;00;049245;U;0;00000000
+12030000;2;Deutsche Kreditbank;99084;Erfurt;Deutsche Kreditbank Erfurt;51011;;00;049248;U;0;00000000
+12030000;2;Deutsche Kreditbank;15230;Frankfurt (Oder);Deutsche Kreditbank Ff/Oder;51011;;00;049252;U;0;00000000
+12030000;2;Deutsche Kreditbank;07545;Gera;Deutsche Kreditbank Gera;51011;;00;049247;U;0;00000000
+12030000;2;Deutsche Kreditbank;06122;Halle (Saale);Deutsche Kreditbank Halle;51011;;00;049249;U;0;00000000
+12030000;2;Deutsche Kreditbank;04109;Leipzig;Deutsche Kreditbank Leipzig;51011;;00;049244;U;0;00000000
+12030000;2;Deutsche Kreditbank;39104;Magdeburg;Deutsche Kreditbk Magdeburg;51011;;00;049250;U;0;00000000
+12030000;2;Deutsche Kreditbank;17034;Neubrandenburg;Deutsche Kreditbk Neubrandb;51011;;00;049254;U;0;00000000
+12030000;2;Deutsche Kreditbank;14471;Potsdam;Deutsche Kreditbank Potsdam;51011;;00;049253;U;0;00000000
+12030000;2;Deutsche Kreditbank;18057;Rostock;Deutsche Kreditbank Rostock;51011;;00;049256;U;0;00000000
+12030000;2;Deutsche Kreditbank;19053;Schwerin;Deutsche Kreditbk Schwerin;51011;;00;049255;U;0;00000000
+12030000;2;Deutsche Kreditbank;98527;Suhl;Deutsche Kreditbank Suhl;51011;;00;049246;U;0;00000000
+12030030;1;Deutsche Kreditbank (Gf WP);10117;Berlin;Deutsche Kreditbank (Gf WP);;BYLADEM1001;00;058560;A;0;00000000
+12030900;1;Merck Finck A Quintet Private Bank;10719;Berlin;Merck Finck;26249;MEFIDEMM100;10;047484;U;0;00000000
+12040000;1;Commerzbank Filiale Berlin 2;10891;Berlin;Commerzbank Fil. Berlin 2;24120;COBADEBB120;13;044795;U;0;00000000
+12050555;1;ZVA Norddeutsche Landesbank Gf SA;30151;Hannover;ZVA NORD LB Gf SA;;NOLADE21DVS;09;047224;U;0;00000000
+12060000;1;DZ BANK;10001;Berlin;DZ BANK;;GENODEFF120;09;044802;U;0;00000000
+12070000;1;Deutsche Bank;14405;Potsdam;Deutsche Bank;27704;DEUTDEBB160;63;044796;U;0;00000000
+12070000;2;Deutsche Bank;16278;Angermünde;Deutsche Bank;27704;DEUTDEBB171;63;048454;U;0;00000000
+12070000;2;Deutsche Bank;16259;Bad Freienwalde (Oder);Deutsche Bank;27704;DEUTDEBB172;63;046146;U;0;00000000
+12070000;2;Deutsche Bank;10883;Berlin;Deutsche Bank;27704;;63;046160;U;0;00000000
+12070000;2;Deutsche Bank;16311;Bernau bei Berlin;Deutsche Bank;27704;DEUTDEBB122;63;046147;U;0;00000000
+12070000;2;Deutsche Bank;14776;Brandenburg an der Havel;Deutsche Bank;27704;DEUTDEBB161;63;046148;U;0;00000000
+12070000;2;Deutsche Bank;03046;Cottbus;Deutsche Bank;27704;DEUTDEBB180;63;046149;U;0;00000000
+12070000;2;Deutsche Bank;16225;Eberswalde;Deutsche Bank;27704;DEUTDEBB173;63;046150;U;0;00000000
+12070000;2;Deutsche Bank;15873;Eisenhüttenstadt;Deutsche Bank;27704;DEUTDEBB174;63;046151;U;0;00000000
+12070000;2;Deutsche Bank;14612;Falkensee;Deutsche Bank;27704;DEUTDEBB162;63;048455;U;0;00000000
+12070000;2;Deutsche Bank;03232;Finsterwalde;Deutsche Bank;27704;DEUTDEBB182;63;046152;U;0;00000000
+12070000;2;Deutsche Bank;03149;Forst (Lausitz);Deutsche Bank;27704;DEUTDEBB181;63;048456;U;0;00000000
+12070000;2;Deutsche Bank;15203;Frankfurt (Oder);Deutsche Bank;27704;DEUTDEBB170;63;046153;U;0;00000000
+12070000;2;Deutsche Bank;15501;Fürstenwalde/Spree;Deutsche Bank;27704;DEUTDEBB175;63;046154;U;0;00000000
+12070000;2;Deutsche Bank;03161;Guben;Deutsche Bank;27704;DEUTDEBB183;63;046168;U;0;00000000
+12070000;2;Deutsche Bank;16761;Hennigsdorf;Deutsche Bank;27704;DEUTDEBB125;63;048457;U;0;00000000
+12070000;2;Deutsche Bank;14902;Jüterbog;Deutsche Bank;27704;DEUTDEBB187;63;046155;U;0;00000000
+12070000;2;Deutsche Bank;15711;Königs Wusterhausen;Deutsche Bank;27704;DEUTDEBB121;63;046156;U;0;00000000
+12070000;2;Deutsche Bank;16856;Kyritz;Deutsche Bank;27704;DEUTDEBB163;63;046157;U;0;00000000
+12070000;2;Deutsche Bank;14943;Luckenwalde;Deutsche Bank;27704;DEUTDEBB188;63;048458;U;0;00000000
+12070000;2;Deutsche Bank;14974;Ludwigsfelde;Deutsche Bank;27704;DEUTDEBB164;63;048459;U;0;00000000

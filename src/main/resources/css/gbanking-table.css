@@ -1,0 +1,200 @@
+.root {
+    -gb-border-light: #e2e2e2;
+    -gb-border-panel: #e8e8e8;
+    -gb-text-muted: #444;
+    -gb-text-prenotification: #707070;
+    -gb-bg-readonly: #f8f8f8;
+    -gb-amount-positive: rgb(0, 100, 0);
+    -gb-amount-negative: red;
+    -gb-button-top: #f4e6a2;
+    -gb-button-bottom: #ead57a;
+    -gb-button-border: #d0bb63;
+    -gb-button-hover-top: #f7ebba;
+    -gb-button-hover-bottom: #efdc8f;
+    -gb-button-pressed-top: #e3d07a;
+    -gb-button-pressed-bottom: #d7c268;
+}
+
+/* Tables */
+.table-row-cell:striped-white {
+    -fx-background-color: white;
+}
+
+.table-row-cell:striped-light {
+    -fx-background-color: rgb(240, 245, 250);
+}
+
+.table-row-cell:selected {
+    -fx-background-color: -fx-selection-bar;
+}
+
+.table-row-cell:selected .table-cell > .text {
+    -fx-fill: -fx-selection-bar-text;
+}
+
+/* Amount columns */
+.table-cell.amount-positive,
+.table-row-cell:selected .table-cell.amount-positive {
+    -fx-text-fill: -gb-amount-positive;
+    -fx-font-weight: bold;
+}
+
+.table-row-cell:selected .table-cell.amount-positive .text {
+    -fx-fill: -gb-amount-positive;
+}
+
+.table-cell.amount-negative,
+.table-row-cell:selected .table-cell.amount-negative {
+    -fx-text-fill: -gb-amount-negative;
+    -fx-font-weight: bold;
+}
+
+.table-row-cell:selected .table-cell.amount-negative .text {
+    -fx-fill: -gb-amount-negative;
+}
+
+.table-cell.amount-neutral,
+.table-row-cell:selected .table-cell.amount-neutral {
+    -fx-text-fill: -fx-text-inner-color;
+    -fx-font-weight: bold;
+}
+
+.table-row-cell:selected .table-cell.amount-neutral .text {
+    -fx-fill: -fx-text-inner-color;
+}
+
+.table-cell.amount-muted,
+.table-row-cell:selected .table-cell.amount-muted {
+    -fx-text-fill: -gb-text-prenotification;
+    -fx-font-weight: bold;
+}
+
+.table-row-cell:selected .table-cell.amount-muted .text {
+    -fx-fill: -gb-text-prenotification;
+}
+
+/* Category analysis */
+.category-analysis-chart .default-color0.chart-bar {
+    -fx-bar-fill: derive(-gb-amount-positive, 45%);
+    -fx-border-color: transparent rgba(255, 255, 255, 0.85) transparent transparent;
+    -fx-border-width: 0 1 0 0;
+}
+
+.category-analysis-chart .default-color1.chart-bar {
+    -fx-bar-fill: derive(-gb-amount-negative, 30%);
+}
+
+.category-analysis-chart .default-color0.chart-legend-item-symbol {
+    -fx-background-color: derive(-gb-amount-positive, 45%);
+}
+
+.category-analysis-chart .default-color1.chart-legend-item-symbol {
+    -fx-background-color: derive(-gb-amount-negative, 30%);
+}
+
+.table-cell.amount {
+    -fx-font-family: "Consolas", "Courier New", monospace;
+}
+
+.table-view {
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+    -fx-border-color: -gb-border-light;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: linear-gradient(to bottom, #f8f8f8, #efefef);
+}
+
+.table-view .column-header {
+    -fx-background-color: transparent;
+}
+
+.table-view .column-header .label {
+    -fx-font-weight: bold;
+    -fx-text-fill: -gb-text-muted;
+}
+
+.table-cell {
+    -fx-padding: 6 8 6 8;
+}
+
+.table-row-cell {
+    -fx-cell-size: 30px;
+}
+
+.table-row-cell.booking-prenotification .table-cell,
+.table-row-cell.booking-prenotification .label {
+    -fx-text-fill: -gb-text-prenotification;
+}
+
+.table-row-cell.booking-prenotification .text {
+    -fx-fill: -gb-text-prenotification;
+}
+
+/* Form panels */
+.gbanking-form-panel {
+    -fx-background-color: linear-gradient(to bottom, #ffffff, #fdfdfb);
+    -fx-background-radius: 6;
+    -fx-padding: 10 12 10 12;
+    -fx-border-color: -gb-border-panel;
+    -fx-border-radius: 6;
+}
+
+.gbanking-form-titled-pane > .title {
+    -fx-background-color: linear-gradient(to bottom, #f8f8f8, #eeeeee);
+    -fx-font-weight: bold;
+}
+
+.gbanking-form-grid {
+    -fx-background-color: transparent;
+    -fx-hgap: 12;
+    -fx-vgap: 8;
+}
+
+.gbanking-form-label {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -gb-text-muted;
+}
+
+.gbanking-form-field-box {
+    -fx-spacing: 2;
+}
+
+.gbanking-button-bar {
+    -fx-padding: 10 0 0 0;
+}
+
+/* Buttons */
+.gbanking-form-button {
+    -fx-background-color: linear-gradient(to bottom, -gb-button-top, -gb-button-bottom);
+    -fx-background-radius: 4;
+    -fx-border-color: -gb-button-border;
+    -fx-border-radius: 4;
+    -fx-font-weight: bold;
+}
+
+.gbanking-form-button:hover {
+    -fx-background-color: linear-gradient(to bottom, -gb-button-hover-top, -gb-button-hover-bottom);
+}
+
+.gbanking-form-button:pressed {
+    -fx-background-color: linear-gradient(to bottom, -gb-button-pressed-top, -gb-button-pressed-bottom);
+}
+
+.gbanking-form-button:disabled {
+    -fx-opacity: 0.75;
+}
+
+.list-cell:unavailable {
+    -fx-text-fill: -gb-text-prenotification;
+}
+
+/* Readonly controls */
+.gbanking-readonly-control {
+    -fx-background-color: -gb-bg-readonly;
+    -fx-opacity: 1.0;
+}

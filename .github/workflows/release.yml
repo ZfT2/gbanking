@@ -1,0 +1,240 @@
+name: Release
+
+on:
+    push:
+        tags:
+            - "v*"
+
+permissions:
+    contents: write
+
+concurrency:
+    group: release-${{ github.event.repository.default_branch }}
+    cancel-in-progress: false
+
+jobs:
+    version:
+        name: Determine version
+        runs-on: ubuntu-latest
+        outputs:
+            version: ${{ steps.version.outputs.version }}
+            next_version: ${{ steps.version.outputs.next_version }}
+
+        steps:
+            - name: Determine version
+              id: version
+              shell: bash
+              run: |
+                  RAW_TAG=${GITHUB_REF_NAME#v}
+
+                  if [[ "$RAW_TAG" == *"+"* ]]; then
+                    BASE_VERSION=${RAW_TAG%%+*}
+                    INCREMENT=${RAW_TAG##*+}
+                  else
+                    BASE_VERSION=$RAW_TAG
+                    INCREMENT="none"
+                  fi
+
+                  if ! [[ "$BASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                    echo "Invalid version format: $BASE_VERSION"
+                    exit 1
+                  fi
+
+                  IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
+
+                  case $INCREMENT in
+                    patch)
+                      PATCH=$((PATCH + 1))
+                      ;;
+                    minor)
+                      MINOR=$((MINOR + 1))
+                      PATCH=0
+                      ;;
+                    major|Major)
+                      MAJOR=$((MAJOR + 1))
+                      MINOR=0
+                      PATCH=0
+                      ;;
+                    none)
+                      ;;
+                    *)
+                      echo "Invalid increment: $INCREMENT"
+                      exit 1
+                      ;;
+                  esac
+
+                  VERSION="$MAJOR.$MINOR.$PATCH"
+                  NEXT_PATCH=$((PATCH + 1))
+                  NEXT_VERSION="$MAJOR.$MINOR.$NEXT_PATCH-SNAPSHOT"
+
+                  echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+                  echo "next_version=$NEXT_VERSION" >> "$GITHUB_OUTPUT"
+                  echo "Computed version: $VERSION"
+                  echo "Next development version: $NEXT_VERSION"
+
+    build:
+        name: Build ${{ matrix.profile }}
+        runs-on: ${{ matrix.os }}
+        needs: version
+        env:
+            MAVEN_USERNAME: ZfT2
+            MAVEN_PASSWORD: ${{ secrets.GH_PACKAGES_TOKEN }}
+            VERSION: ${{ needs.version.outputs.version }}
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - os: windows-latest
+                      profile: windows
+                      artifact_pattern: target/*-windows.zip
+                    - os: ubuntu-latest
+                      profile: linux
+                      artifact_pattern: target/*-linux.zip
+                    - os: macos-latest
+                      profile: mac
+                      artifact_pattern: target/*-mac.zip
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v6
+
+            - name: Set up Java 17
+              uses: actions/setup-java@v5
+              with:
+                  distribution: temurin
+                  java-version: "17"
+                  cache: maven
+                  server-id: github
+                  server-username: MAVEN_USERNAME
+                  server-password: MAVEN_PASSWORD
+
+            - name: Debug platform
+              run: echo "JavaFX Platform = ${{ matrix.profile }}"
+
+            - name: Build distribution
+              shell: bash
+              run: |
+                if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+                  xvfb-run mvn -B -Drevision="${VERSION}" -P${{ matrix.profile }},release-check clean package
+                else
+                  mvn -B -Drevision="${VERSION}" -P${{ matrix.profile }},release-check clean package
+                fi
+
+            - name: Upload distribution artifact
+              uses: actions/upload-artifact@v6
+              with:
+                  name: ${{ matrix.profile }}-dist
+                  path: ${{ matrix.artifact_pattern }}
+                  if-no-files-found: error
+
+    release:
+        name: Create GitHub Release
+        runs-on: ubuntu-latest
+        needs:
+            - build
+            - version
+        env:
+            VERSION: ${{ needs.version.outputs.version }}
+            NEXT_VERSION: ${{ needs.version.outputs.next_version }}
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
+
+            - name: Generate release notes
+              shell: bash
+              run: |
+                  bash .github/scripts/update-changelog.sh
+
+            - name: Download all build artifacts
+              uses: actions/download-artifact@v7
+              with:
+                  path: dist
+
+            - name: Show downloaded files
+              run: find dist -type f
+
+            - name: Create checksums
+              shell: bash
+              run: |
+                  find dist -type f -name "*.zip" -print0 \
+                    | sort -z \
+                    | while IFS= read -r -d '' file; do
+                        hash="$(sha256sum "$file" | awk '{print $1}')"
+                        printf '%s  %s\n' "$hash" "$(basename "$file")"
+                      done > SHA256SUMS
+
+            - name: Sign checksums
+              shell: bash
+              env:
+                  RELEASE_SIGNING_PRIVATE_KEY_B64: ${{ secrets.RELEASE_SIGNING_PRIVATE_KEY_B64 }}
+              run: |
+                  if [[ -z "${RELEASE_SIGNING_PRIVATE_KEY_B64:-}" ]]; then
+                    echo "::error::Missing RELEASE_SIGNING_PRIVATE_KEY_B64 secret for signing update checksums"
+                    exit 1
+                  fi
+
+                  printf '%s' "$RELEASE_SIGNING_PRIVATE_KEY_B64" | base64 --decode > release-signing-private-key.pem
+                  openssl dgst -sha256 -sign release-signing-private-key.pem -out SHA256SUMS.sig SHA256SUMS
+                  rm -f release-signing-private-key.pem
+
+            - name: Create release and upload assets
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  TAG="v${VERSION}"
+
+                  gh release create "$TAG" \
+                    dist/windows-dist/* \
+                    dist/linux-dist/* \
+                    dist/mac-dist/* \
+                    SHA256SUMS \
+                    SHA256SUMS.sig \
+                    --title "$TAG" \
+                    --target "$GITHUB_SHA" \
+                    --notes-file release-notes.md
+
+            - name: Persist generated release notes
+              shell: bash
+              run: cp release-notes.md "$RUNNER_TEMP/release-notes.md"
+
+            - name: Set up Java 17
+              uses: actions/setup-java@v5
+              with:
+                  distribution: temurin
+                  java-version: "17"
+                  cache: maven
+
+            - name: Checkout default branch for next development version
+              uses: actions/checkout@v6
+              with:
+                  ref: ${{ github.event.repository.default_branch }}
+                  fetch-depth: 0
+
+            - name: Prepare next development version
+              shell: bash
+              run: |
+                  echo "Next development version: $NEXT_VERSION"
+                  git pull --ff-only origin "${{ github.event.repository.default_branch }}"
+
+                  cp "$RUNNER_TEMP/release-notes.md" release-notes.md
+                  USE_EXISTING_RELEASE_NOTES=true bash .github/scripts/update-changelog.sh
+
+                  mvn -B org.codehaus.mojo:versions-maven-plugin:2.18.0:set-property \
+                    -Dproperty=revision \
+                    -DnewVersion="$NEXT_VERSION" \
+                    -DgenerateBackupPoms=false
+
+                  if git diff --quiet -- pom.xml CHANGELOG.md; then
+                    echo "No version or changelog changes"
+                    exit 0
+                  fi
+
+                  git config user.name "github-actions"
+                  git config user.email "actions@github.com"
+
+                  git add pom.xml CHANGELOG.md
+                  git commit -m "chore(release): prepare next development version $NEXT_VERSION"
+                  git push origin HEAD:${{ github.event.repository.default_branch }}

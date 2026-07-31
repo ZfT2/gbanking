@@ -1,0 +1,28 @@
+#!/bin/sh
+
+changed_poms=$(git diff --cached --name-only --diff-filter=ACMR -- 'pom.xml' '*/pom.xml')
+
+if [ -z "$changed_poms" ]; then
+	exit 0
+fi
+
+failed=0
+
+for file in $changed_poms; do
+	matches=$(git show ":$file" | grep -n 'SNAPSHOT' \
+		| grep -v -E '^[0-9]+:[[:space:]]*<revision>[^<]*SNAPSHOT[^<]*</revision>[[:space:]]*$' \
+		|| true)
+	if [ -n "$matches" ]; then
+		echo "Commit abgebrochen: nicht erlaubte SNAPSHOT-Version in $file gefunden."
+		echo "$matches" | sed 's/^/  /'
+		failed=1
+	fi
+done
+
+if [ "$failed" -ne 0 ]; then
+	echo
+	echo "Erlaubt ist nur die eigene Projektversion als <revision>...-SNAPSHOT</revision>."
+	echo "Entferne SNAPSHOT aus Dependency-/Plugin-/Property-Versionen in den gestagten POM-Dateien."
+fi
+
+exit "$failed"

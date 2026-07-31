@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="de">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>GBanking Handbuch</title>
+	<link rel="stylesheet" href="gbanking-doc.css">
+</head>
+<body id="top">
+	<a class="skip-link" href="#inhalt">Direkt zum Inhalt</a>
+	<div class="page">
+		<nav class="topbar" aria-label="Dokumentnavigation">
+			<p><strong>Sprache:</strong> Deutsch | <a href="manual_en.html" lang="en">English</a></p>
+			<p><strong>Ergänzung:</strong> <a href="csv-booking-format.html">CSV-Format für Umsätze</a></p>
+		</nav>
+
+		<header class="hero">
+			<h1>GBanking Handbuch</h1>
+			<p>Ein verständlicher Wegweiser durch Konten, Umsätze, Kontakte, Zahlungsaufträge, Auswertungen und die sichere Ablage Ihrer Daten.</p>
+		</header>
+
+		<div class="content-layout">
+			<nav class="toc" aria-labelledby="toc-title">
+				<h2 id="toc-title">Inhaltsverzeichnis</h2>
+				<ol>
+					<li><a href="#ueberblick">Überblick</a></li>
+					<li><a href="#start">Start und Mandanten</a></li>
+					<li><a href="#verschluesselung">Verschlüsselung und Risiken</a></li>
+					<li><a href="#navigation">Bedienung und Navigation</a></li>
+					<li><a href="#bankzugaenge">Bankzugänge und PayPal</a></li>
+					<li><a href="#konten">Konten</a></li>
+					<li><a href="#umsaetze">Umsätze</a></li>
+					<li><a href="#kontoauszuege">Kontoauszüge und Banknachrichten</a></li>
+					<li><a href="#empfaenger">Adressbuch und Empfängerlogik</a></li>
+					<li><a href="#kategorien">Kategorien und Regeln</a></li>
+					<li><a href="#auftraege">Zahlungsaufträge</a></li>
+					<li><a href="#offene-aktionen">Offene Aktionen</a></li>
+					<li><a href="#umbuchungen">Umbuchungen</a></li>
+					<li><a href="#import-export">Import und Export</a></li>
+					<li><a href="#auswertung">Auswertung</a></li>
+					<li><a href="#bankverzeichnis">Bankverzeichnis</a></li>
+					<li><a href="#einstellungen">Einstellungen</a></li>
+					<li><a href="#wartung">Sicherung, Update und Diagnose</a></li>
+					<li><a href="#tastatur">Tastaturkürzel</a></li>
+				</ol>
+			</nav>
+
+			<main id="inhalt">
+				<section id="ueberblick">
+					<h2>1. Überblick</h2>
+					<p class="lead">GBanking ist eine Desktop-Anwendung zur Verwaltung von Bankkonten, Umsätzen, Empfängern, Kategorien und Zahlungsaufträgen. Online-Banking erfolgt über FinTS/HBCI; PayPal-Konten können über die PayPal-Schnittstelle angebunden werden.</p>
+					<div class="card-grid">
+						<div class="card"><h3>Informieren</h3><p>Kontostände, Umsätze, Kontoauszüge und Banknachrichten gesammelt einsehen.</p></div>
+						<div class="card"><h3>Ordnen</h3><p>Umsätze filtern, kategorisieren, aufteilen, markieren und als Umbuchungen verbinden.</p></div>
+						<div class="card"><h3>Bezahlen</h3><p>Unterstützte Überweisungen und Daueraufträge vorbereiten und kontrolliert an die Bank senden.</p></div>
+						<div class="card"><h3>Auswerten</h3><p>Einnahmen, Ausgaben, Saldoverlauf und Kategorien für frei wählbare Konten und Zeiträume vergleichen.</p></div>
+					</div>
+					<div class="note"><strong>Abhängig von Ihrer Bank:</strong> GBanking aktiviert Online-Funktionen nur, wenn Bank und Konto den jeweiligen FinTS-Geschäftsvorfall melden. Deshalb können einzelne Schaltflächen oder Auftragsarten deaktiviert sein.</div>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="start">
+					<h2>2. Start und Mandanten</h2>
+					<p>Ein <strong>Mandant</strong> ist ein abgeschlossener Datenbestand, vergleichbar mit einem eigenen Benutzerkonto in GBanking. Beim Start wählen Sie Sprache und Mandant und melden sich mit dessen Passwort an.</p>
+					<ul>
+						<li><strong>Neu:</strong> Legt einen Mandanten mit Benutzername und Passwort an.</li>
+						<li><strong>Bearbeiten:</strong> Ändert Benutzername oder Passwort. Für eine Passwortänderung ist das bisherige Passwort nötig.</li>
+						<li><strong>Löschen:</strong> Entfernt den Mandanten und seine Daten nach Passwortprüfung unwiderruflich.</li>
+						<li><strong>Demo:</strong> Erstellt einen frischen Beispieldatenbestand. Eine vorhandene Demo wird nach Rückfrage zurückgesetzt.</li>
+						<li><strong>Datei &gt; Mandant wechseln:</strong> Schließt den aktuellen Datenbestand sauber und kehrt zur Anmeldung zurück.</li>
+					</ul>
+					<p>Standardmäßig liegen die Mandantendaten unter <code>data/tenant/&lt;UUID&gt;</code>. Darin befinden sich Datenbank, Sicherungen und Kontoauszüge. Ein konfiguriertes gemeinsames Datenverzeichnis wird exklusiv gesperrt, damit nicht zwei laufende GBanking-Instanzen gleichzeitig schreiben.</p>
+					<div class="warning"><strong>Netzwerk und Cloud:</strong> Ein Netzlaufwerk muss Dateisperren zuverlässig unterstützen. Cloud-Synchronisationsordner bieten diese Garantie meist nicht. Beenden Sie GBanking auf dem ersten Rechner und warten Sie die vollständige Synchronisierung ab, bevor Sie den Datenbestand auf einem anderen Rechner öffnen.</div>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="verschluesselung">
+					<h2>3. Verschlüsselung der Daten und verbleibende Risiken</h2>
+					<h3>Wie der Schutz aufgebaut ist</h3>
+					<p>GBanking erzeugt für jeden Mandanten einen zufälligen 256-Bit-Datenschlüssel. Mit diesem Schlüssel werden die Daten in <strong>AES-256-GCM</strong>-Containern verschlüsselt. GCM schützt nicht nur vor dem Lesen, sondern erkennt auch ein falsches Passwort oder eine nachträgliche Veränderung der verschlüsselten Datei.</p>
+					<p>Das Mandantenpasswort verschlüsselt nicht jede Datei direkt. Stattdessen wird daraus mit <strong>PBKDF2-HMAC-SHA-256</strong>, einem zufälligen Salt und derzeit 210.000 Wiederholungen ein Schlüssel abgeleitet, der den eigentlichen Datenschlüssel schützt. Zufällige Nonces werden für Schlüssel und Inhalt getrennt erzeugt. In <code>tenants.properties</code> stehen Benutzername und die für die Entschlüsselung nötigen Metadaten, aber weder Passwort noch unverschlüsselter Datenschlüssel.</p>
+					<div class="table-wrap">
+						<table>
+							<thead><tr><th>Bereich</th><th>Im Ruhezustand</th><th>Während GBanking läuft</th></tr></thead>
+							<tbody>
+								<tr><td>Datenbank</td><td>Nach ordentlichem Beenden als <code>gbanking.db.enc</code> verschlüsselt.</td><td>Als lesbare <code>gbanking.db</code> geöffnet, weil SQLite damit arbeiten muss.</td></tr>
+								<tr><td>Sicherungen</td><td><code>*.gbbackup</code> enthält Datenbank und Kontoauszüge in einem vollständig verschlüsselten Container.</td><td>Wird beim Erstellen direkt in den verschlüsselten Container geschrieben.</td></tr>
+								<tr><td>Kontoauszüge</td><td>Wahlweise lesbar oder als <code>*.enc</code> verschlüsselt; ein Umschalten verarbeitet auch vorhandene Dateien.</td><td>Ein verschlüsselter Auszug wird zum Öffnen vorübergehend lokal entschlüsselt.</td></tr>
+							</tbody>
+						</table>
+					</div>
+					<p>Beim Anmelden wird die Datenbank zunächst in eine temporäre Datei entschlüsselt, geprüft und atomar als Arbeitsdatenbank bereitgestellt. Beim Mandantenwechsel oder Beenden schließt GBanking SQLite, entfernt Nebendateien, verschlüsselt und prüft das Ergebnis, ersetzt die verschlüsselte Datenbank atomar und löscht anschließend die Arbeitsdatenbank. Der Datenschlüssel wird beim Schließen der Sitzung im Arbeitsspeicher bestmöglich überschrieben.</p>
+					<p>Bei einem vom Standard <code>./data</code> abweichenden Datenverzeichnis liegt die lesbare Arbeitsdatenbank lokal unter <code>work/tenant/&lt;UUID&gt;/db</code>; die verschlüsselte Datenbank bleibt im gewählten Datenverzeichnis. Temporär geöffnete Kontoauszüge liegen unter <code>work/tenant/&lt;UUID&gt;/accountStatements</code> und werden beim Mandantenwechsel, Beenden und nächsten Anmelden bereinigt.</p>
+					<h3>Passwortänderung</h3>
+					<p>Bei einer Passwortänderung bleibt der zufällige Datenschlüssel gleich. GBanking verpackt ihn mit dem neuen Passwort neu und aktualisiert die verschlüsselte Datenbank, die verwalteten Sicherungen und verschlüsselte Kontoauszüge. Die großen Inhalte müssen dadurch nicht vollständig neu verschlüsselt werden.</p>
+					<h3>Was die Verschlüsselung nicht verhindern kann</h3>
+					<ul>
+						<li><strong>Laufende Sitzung:</strong> Wer während der Anmeldung Zugriff auf den Rechner, den Benutzeraccount, den Arbeitsspeicher oder die lesbare Arbeitsdatenbank hat, kann Daten möglicherweise einsehen. Die Verschlüsselung ersetzt daher keinen Betriebssystemschutz.</li>
+						<li><strong>Absturz oder Stromausfall:</strong> Die lesbare Datenbank und SQLite-Nebendateien können zurückbleiben. GBanking erkennt und prüft einen solchen Wiederherstellungsstand beim nächsten Start, kann aber zwischenzeitlichen Fremdzugriff nicht verhindern.</li>
+						<li><strong>Kontoauszüge:</strong> Ihre Einzelverschlüsselung ist optional. Auch verschlüsselte Auszüge existieren beim Öffnen kurzzeitig als lesbare Arbeitskopie; nach einem harten Absturz kann die Bereinigung erst beim nächsten Anmelden erfolgen.</li>
+						<li><strong>Dateien außerhalb des Mandanten:</strong> Exporte, ursprüngliche Importdateien, Logdateien, Diagnosepakete, Umgebungs- und GUI-Einstellungen sowie das öffentliche Bankverzeichnis werden von der Mandantenverschlüsselung nicht automatisch geschützt.</li>
+						<li><strong>Passwortstärke:</strong> Technisch wird derzeit nur ein nicht leeres Passwort verlangt. Ein Angreifer mit einer Dateikopie kann schwache Passwörter offline ausprobieren; die Schlüsselableitung verlangsamt, verhindert dies aber nicht.</li>
+						<li><strong>Externe Sicherungskopien:</strong> Beim Passwortwechsel werden nur Container in den von GBanking verwalteten Mandantenordnern aktualisiert. Zuvor herauskopierte Sicherungen bleiben mit dem damaligen Passwort zugänglich.</li>
+						<li><strong>Löschen:</strong> Dateien werden normal gelöscht, nicht sicher überschrieben. SSDs, Dateisystem-Snapshots, Papierkorb-, Backup- oder Cloud-Versionen können ältere Klartext- oder verschlüsselte Stände behalten.</li>
+						<li><strong>Passwortverlust:</strong> Es gibt keinen Hintertür- oder Wiederherstellungsschlüssel. Ohne passendes Passwort lässt sich der Datenschlüssel nicht regulär öffnen.</li>
+					</ul>
+					<div class="tip"><strong>Empfehlung:</strong> Verwenden Sie ein langes, einzigartiges Mandantenpasswort, sperren und verschlüsseln Sie zusätzlich das Betriebssystemlaufwerk, aktivieren Sie bei Bedarf die Kontoauszugsverschlüsselung und behandeln Sie Exporte, Logs, Diagnosepakete und externe Sicherungen wie vertrauliche Finanzunterlagen.</div>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="navigation">
+					<h2>4. Bedienung und Navigation</h2>
+					<p>Die Hauptbereiche öffnen Sie über <strong>Bearbeiten</strong>. Tabellen besitzen ein Suchfeld; die Suche berücksichtigt die wichtigsten sichtbaren Inhalte. Kontrollkästchen in der ersten Spalte markieren mehrere Konten, Umsätze, Kontakte oder Aufträge für gemeinsame Aktionen. Das Kontrollkästchen im Tabellenkopf wählt alle sichtbaren Zeilen aus oder ab.</p>
+					<ul>
+						<li><strong>Konten/Umsätze:</strong> Kontobezogene Arbeitsansicht mit Umsätzen und Kontoauszügen.</li>
+						<li><strong>Alle Konten / Alle Umsätze:</strong> Konten- beziehungsweise mandantenweite Gesamtsicht.</li>
+						<li><strong>Aufträge, Kategorien, Adressbuch, Bankzugänge, Bankverzeichnis:</strong> Pflege der jeweiligen Daten.</li>
+						<li><strong>Ansicht &gt; Aktualisieren:</strong> Liest die aktuelle Ansicht neu ein. <strong>Nur Online-Konten anzeigen</strong> blendet Offline-Konten in Kontolisten aus.</li>
+					</ul>
+					<p>Viele Tabellen bieten zusätzliche Befehle per Rechtsklick. Spaltenbreiten, Sortierung, Fenstergröße, Trennlinien und aktive Register werden für den nächsten Start gespeichert.</p>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="bankzugaenge">
+					<h2>5. Bankzugänge und PayPal</h2>
+					<p>Unter <strong>Bearbeiten &gt; Bankzugänge</strong> richten Sie den Zugang zu einer Bank oder zu PayPal ein. Ein FinTS/HBCI-Zugang enthält unter anderem Bankleitzahl, Benutzerkennung, FinTS-Adresse, Version und TAN-Verfahren. Beim Einrichten oder Aktualisieren fragt GBanking die Bankparameter (BPD), Benutzerparameter (UPD) und zugehörigen Konten ab.</p>
+					<ul>
+						<li><strong>BPD/UPD aktualisieren:</strong> Liest Fähigkeiten und Kontoinformationen neu ein.</li>
+						<li><strong>BPD/UPD anzeigen:</strong> Zeigt die von der Bank gelieferten technischen Angaben.</li>
+						<li><strong>Banknachrichten:</strong> Ruft Nachrichten eines FinTS-Zugangs ab und zeigt Text, Typ, Datum und weitere Angaben.</li>
+						<li><strong>PayPal:</strong> Verwendet API-Benutzername, API-Passwort, API-Signatur und E-Mail-Adresse. Damit können PayPal-Konto und PayPal-Umsätze abgerufen werden; FinTS-Aufträge und Banknachrichten gelten dafür nicht.</li>
+					</ul>
+					<p>PIN und TAN werden bei Bedarf in Dialogen abgefragt. Das angebotene Verfahren hängt von den Bankdaten ab, zum Beispiel App-Freigabe, pushTAN, photoTAN oder chipTAN USB. Ein Kartenleser für chipTAN USB kann in den Einstellungen gewählt werden.</p>
+					<div class="warning"><strong>Vor Freigabe prüfen:</strong> Vergleichen Sie Betrag, Empfänger und die Anzeige Ihres TAN-Geräts oder Ihrer Banking-App. GBanking zeigt auch eine von der Bank verlangte Empfängerprüfung vor der Zahlungsfreigabe an.</div>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="konten">
+					<h2>6. Konten</h2>
+					<p>In <strong>Konten/Umsätze</strong> wählen Sie links ein Konto; rechts erscheinen Kontodetails, Umsätze und Kontoauszüge. <strong>Alle Konten</strong> bietet eine mandantenweite Liste mit vollständiger Detailpflege.</p>
+					<ul>
+						<li>Online-Konten entstehen normalerweise beim Einrichten oder Aktualisieren eines Bankzugangs.</li>
+						<li>Offline-Konten können manuell angelegt werden, etwa für Bargeld oder Konten ohne Online-Zugang.</li>
+						<li>Kontobezeichnung, Kontoart, Währung und Status lassen sich pflegen; bei verknüpften Online-Konten warnt GBanking vor manuellen Änderungen.</li>
+						<li>Der Status <strong>aktiv</strong>, <strong>inaktiv</strong> oder <strong>für Auswertungen ignorieren</strong> steuert Verwendung und Auswertung.</li>
+						<li><strong>Konto-Kennungen</strong> zeigt die von der Bank gelieferten technischen Kontozuordnungen.</li>
+						<li>Der letzte Abruf zeigt Zeitpunkt, Ergebnis beziehungsweise Fehler und die Anzahl neuer sowie vorgemerkter Umsätze.</li>
+					</ul>
+					<p>Markieren Sie die gewünschten Online-Konten und wählen Sie <strong>Ausführen &gt; Umsätze abrufen</strong>. GBanking holt Saldo und Umsätze nur für Konten, deren Zugang und Bank dies unterstützen.</p>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="umsaetze">
+					<h2>7. Umsätze</h2>
+					<p>Die Umsatzliste zeigt unter anderem Datum, Empfänger/Zahler, Verwendungszweck, Kategorie, Typ und Betrag. Vorgemerkte Umsätze werden optisch zurückhaltender dargestellt. Über Filter können Sie nach Text, Zeitraum, Betrag und weiteren Eigenschaften suchen.</p>
+					<h3>Details und manuelle Pflege</h3>
+					<ul>
+						<li>Online- und Importumsätze bleiben als historischer Bankdatensatz grundsätzlich unverändert; Notiz und Markierung <strong>Zu prüfen</strong> können separat gepflegt werden.</li>
+						<li>Manuelle Buchungen können über das Kontextmenü neu angelegt, bearbeitet und gelöscht werden.</li>
+						<li>Eine Buchung kann in mehrere <strong>Splittbuchungen</strong> mit eigenen Beträgen, Kategorien und Gegenkonten aufgeteilt werden. Summe und noch offene Differenz werden angezeigt. Bereits zugeordnete Umbuchungen sind vom Splitten ausgenommen.</li>
+						<li>Ausgewählte Umsätze lassen sich einer Kategorie zuordnen, von einer Kategorie lösen oder erneut durch alle passenden Regeln kategorisieren.</li>
+						<li>Ein bestehender Umsatz kann als Vorlage für Überweisung, Terminüberweisung oder Dauerauftrag verwendet werden; der Betrag wird dabei positiv übernommen.</li>
+					</ul>
+					<p>Das Kontextmenü kann außerdem einzelne Buchungen oder Datumsbereiche löschen, Verknüpfungen zwischen Umbuchungen aufheben sowie kontobezogen importieren und exportieren.</p>
+					<div class="warning"><strong>Online-Umsätze löschen:</strong> Ältere Umsätze werden von Banken häufig nur für einen begrenzten Zeitraum bereitgestellt. Ein gelöschter Datensatz kann deshalb möglicherweise nicht erneut abgerufen werden.</div>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="kontoauszuege">
+					<h2>8. Kontoauszüge und Banknachrichten</h2>
+					<p>Im Register <strong>Kontoauszüge</strong> können Auszüge für das ausgewählte Konto abgerufen, in der Liste geprüft und mit dem zugehörigen Standardprogramm geöffnet werden. Die Anzeige umfasst Zeitraum, Auszugsnummer, Format, Datei, Größe, Abrufdatum und Quittungsstatus.</p>
+					<p>Einige Banken verlangen Empfangsquittungen. Diese können gezielt gesendet oder zusammen mit anderen Aufgaben unter <strong>Offene Aufträge</strong> ausgeführt werden. Abruf und Quittung stehen nur zur Verfügung, wenn die Bank sie unterstützt.</p>
+					<p><strong>Banknachrichten</strong> befinden sich als eigenes Register im Bereich Bankzugänge. Dort können FinTS-Nachrichten abgerufen und im Detail gelesen werden.</p>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="empfaenger">
+					<h2>9. Adressbuch und aktuelle Empfängerlogik</h2>
+					<p>Das Adressbuch enthält sowohl Zahlungsempfänger als auch Zahler aus eingehenden Umsätzen. Kontakte entstehen manuell, durch Umsatzimporte und Online-Abrufe sowie beim Speichern eines Zahlungsauftrags. Ein Kontakt kann Name, IBAN, BIC, Kontonummer, BLZ, Bank und eine Notiz enthalten.</p>
+					<h3>Kontakte finden und verwenden</h3>
+					<ul>
+						<li>Die Suche berücksichtigt Name, IBAN, Bank, BIC, Kontonummer und BLZ.</li>
+						<li>In Auftragsformularen wählen Sie einen Kontakt aus der Adressbuchliste. Häufig in Zahlungsaufträgen verwendete Kontakte stehen zuerst; bei gleicher Nutzung wird nach Name sortiert.</li>
+						<li>Ein manuell gespeicherter Kontakt benötigt mindestens einen Namen und entweder IBAN oder Kontonummer.</li>
+					</ul>
+					<h3>Wie GBanking Dubletten vermeidet</h3>
+					<p>GBanking vergleicht zuerst IBAN beziehungsweise Kontonummer. Groß- und Kleinschreibung der IBAN spielt keine Rolle. Passen auch die übrigen bekannten Angaben zusammen, wird der vorhandene Kontakt wiederverwendet. Ein noch nirgends verwendeter Kontakt mit gleicher Kontokennung kann durch die vollständigeren neuen Angaben aktualisiert werden, statt eine Dublette anzulegen.</p>
+					<p>Importdaten dürfen eine fehlende Bankbezeichnung ergänzen. Bei deutschen IBANs kann GBanking die Bank über die enthaltene BLZ aus dem Bankverzeichnis ermitteln. Eine besser lesbare Schreibweise wie „Max Mustermann“ kann eine reine Großschreibung ersetzen, ohne einen neuen Kontakt anzulegen. Zwei ausdrücklich unterschiedliche bekannte Bankbezeichnungen bleiben dagegen getrennte Kontakte, damit keine möglicherweise falschen Daten zusammengeführt werden.</p>
+					<h3>Historische Daten bleiben unverändert</h3>
+					<p>Ist ein Kontakt bereits mit einem Online-/Importumsatz oder Zahlungsauftrag verbunden, werden seine Identitätsdaten geschützt. Dadurch zeigt ein alter Umsatz weiterhin genau den damals zugeordneten Empfänger. Solche Kontakte können im Adressbuch nicht gelöscht und in ihren Kerndaten nicht frei verändert werden.</p>
+					<p>Wird der Empfänger einer <strong>manuellen</strong> Buchung geändert, gilt: Ist der bisherige Kontakt nur mit manuellen Buchungen verbunden, darf er aktualisiert werden. Ist er zusätzlich historisch geschützt, legt GBanking einen neuen Kontakt an und ordnet nur die manuelle Buchung neu zu. Online- oder importierte Buchungen werden nicht umgehängt.</p>
+					<h3>Standard-Kontakt</h3>
+					<p>Mehrere Kontakte können dieselbe IBAN oder Kontonummer besitzen, etwa nach einer Namensänderung. Mit <strong>Standard für diese IBAN/Kontonr.</strong> bestimmen Sie den bevorzugten Kontakt. Pro Kontokennung kann nur ein Standard gesetzt sein; beim Wechsel fragt GBanking nach.</p>
+					<p>Beim Kreditkartenimport kann GBanking eine im Verwendungszweck erkannte IBAN einem Kontakt zuordnen. Es nimmt zuerst den Standard-Kontakt. Ohne Standard entscheidet danach die jüngste Verwendung in Umsatz oder Auftrag, anschließend der zuletzt aktualisierte beziehungsweise neueste Kontakt.</p>
+					<div class="note"><strong>Einfaches Beispiel:</strong> Ein älterer Online-Umsatz bleibt mit „MUSTERFIRMA GMBH“ verbunden. Kommt später dieselbe IBAN mit der besser lesbaren Schreibweise „Musterfirma GmbH“, kann GBanking die Darstellung verbessern. Ändern sich jedoch echte Identitätsmerkmale, wird für neue manuelle Daten ein eigener Kontakt verwendet, statt die Historie umzuschreiben.</div>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="kategorien">
+					<h2>10. Kategorien und Regeln</h2>
+					<p>Kategorien können hierarchisch aufgebaut werden, zum Beispiel <em>Haushalt / Lebensmittel</em>. Im Register <strong>Kategorie-Regeln</strong> legen Sie automatische Zuordnungen an.</p>
+					<ul>
+						<li>Regeln können für das aktuelle Konto, ausgewählte Konten oder alle Konten gelten.</li>
+						<li>Mögliche Bedingungen sind Zeitraum, Betragsbereich, Empfängername, IBAN, Kontonummer und Verwendungszweck.</li>
+						<li>Textbedingungen können als einfacher Suchtext oder regulärer Ausdruck verwendet werden.</li>
+						<li>Bei <strong>Alle Bedingungen</strong> muss jede Angabe passen; bei <strong>Eine Bedingung</strong> genügt ein Treffer.</li>
+					</ul>
+					<p>Regeln werden bei der Verarbeitung neuer Umsätze berücksichtigt und können über <strong>Kategorisierung anwenden</strong> erneut auf vorhandene Umsätze angewendet werden. Eine manuelle Kategoriezuordnung lässt sich ebenfalls setzen oder entfernen.</p>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="auftraege">
+					<h2>11. Zahlungsaufträge</h2>
+					<p>Unter <strong>Aufträge</strong> stehen Register für SEPA-Überweisungen, Terminüberweisungen, Daueraufträge und Auslandsüberweisungen bereit. Im Überweisungsregister kann die Bank zusätzlich Echtzeit- oder Eilüberweisungen anbieten. GBanking aktiviert nur die vom ausgewählten Konto unterstützten Arten.</p>
+					<ol>
+						<li>Auftraggeberkonto und Auftragsart wählen.</li>
+						<li>Kontakt aus dem Adressbuch übernehmen oder Empfängerdaten eingeben. Bei deutschen Kontodaten ergänzt GBanking Bankname/BIC und kann aus Kontonummer plus BLZ eine IBAN vorschlagen.</li>
+						<li>Betrag, Währung, Verwendungszweck und bei Bedarf Termin, Rhythmus oder Auslandsangaben erfassen.</li>
+						<li><strong>Speichern</strong> legt den Auftrag zunächst lokal an.</li>
+						<li><strong>Ausführen &gt; Aufträge ausführen</strong> sendet die markierten neuen oder geänderten Aufträge nach PIN-/TAN-Freigabe an die Bank.</li>
+					</ol>
+					<p>Terminüberweisungs- und Dauerauftragsbestände werden über <strong>Ausführen &gt; Auftragsbestand</strong> abgerufen. Unterstützt die Bank Änderungen oder Löschungen, werden diese zunächst vorgemerkt und erst mit <strong>Aufträge ausführen</strong> gesendet. Die Löschvormerkung kann vorher zurückgenommen werden.</p>
+					<p>Jede Auftragsart besitzt eine aktive Liste und ein <strong>Archiv</strong>. Frühere, ersetzte, gelöschte oder nicht mehr im Bankbestand gefundene Fassungen bleiben nachvollziehbar. Das Kontextmenü zeigt das technische Ausführungsprotokoll und ermöglicht den CSV-Import.</p>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="offene-aktionen">
+					<h2>12. Offene Aktionen gesammelt ausführen</h2>
+					<p><strong>Bearbeiten &gt; Offene Aufträge</strong> bündelt anstehende Online-Arbeiten. Dazu gehören Umsatzabrufe, Überweisungen, offene Terminüberweisungen und Daueraufträge, Bestandsabrufe, Kontoauszüge und ausstehende Auszugsquittungen.</p>
+					<p>Markieren Sie nur die gewünschten Zeilen und wählen Sie <strong>Ausführen &gt; Ausgewählte Aktionen ausführen</strong>. GBanking gruppiert Zugriffe je Bankzugang, fragt benötigte PINs ab und zeigt danach für jede Aktionsart Erfolg, Fehler, Abbruch oder Überspringen an.</p>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="umbuchungen">
+					<h2>13. Umbuchungen</h2>
+					<p>Eine Umbuchung ist ein Geldfluss zwischen zwei eigenen Konten. GBanking kann passende Gegenbuchungen anhand von Betrag, Datum und Gegenkonto verbinden. Verbundene Umbuchungen werden in der Auswertung neutral behandelt, damit eine interne Verschiebung nicht als Einnahme und Ausgabe erscheint.</p>
+					<ul>
+						<li><strong>Ausführen &gt; Umbuchungen zuordnen:</strong> Sucht und verbindet vorhandene Gegenbuchungen.</li>
+						<li><strong>Ausführen &gt; Umbuchungen erstellen:</strong> Ergänzt nach Auswahl fehlende Gegenbuchungen auf dem Zielkonto.</li>
+						<li><strong>Umbuchungsverknüpfung aufheben:</strong> Trennt eine falsche Zuordnung über das Umsatz-Kontextmenü.</li>
+					</ul>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="import-export">
+					<h2>14. Import und Export</h2>
+					<div class="table-wrap">
+						<table>
+							<thead><tr><th>Daten</th><th>Import</th><th>Export</th></tr></thead>
+							<tbody>
+								<tr><td>Umsätze</td><td>CSV, FP3 (Moneyplex), MT940, XML (Moneyplex)</td><td>CSV, FP3, MT940, XML</td></tr>
+								<tr><td>Zahlungsaufträge</td><td>GBanking-CSV</td><td>GBanking-CSV</td></tr>
+								<tr><td>Kreditkartenumsätze</td><td>Spezieller CSV-Import in ein ausgewähltes Kreditkartenkonto</td><td>Über normalen Umsatzexport</td></tr>
+							</tbody>
+						</table>
+					</div>
+					<p>Ein Import über <strong>Datei</strong> ordnet Umsätze anhand der Kontodaten zu. Starten Sie ihn über das Kontextmenü eines Kontos oder Umsatzes, ist das Zielkonto bereits vorgegeben. Neue, noch unbekannte Importkonten und Kontakte können aus den Dateidaten angelegt werden; erkannte Dubletten werden nicht nochmals gespeichert.</p>
+					<p>Beim Export wählen Sie die Konten über ihre Kontrollkästchen. Formate, die nur ein Konto abbilden können, verlangen genau ein Zielkonto. CSV-Dateien enthalten zusätzlich Kontobezeichnung, IBAN und Kontonummer. Die vollständige Feldliste und Beispiele finden Sie in der <a href="csv-booking-format.html">CSV-Formatbeschreibung</a>.</p>
+					<div class="warning"><strong>Vertrauliche Dateien:</strong> Importquellen und Exporte liegen außerhalb der Mandantenverschlüsselung. Speichern und übertragen Sie diese Dateien entsprechend geschützt.</div>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="auswertung">
+					<h2>15. Auswertung</h2>
+					<p>Unter <strong>Auswertung &gt; Salden</strong> wählen Sie alle Konten, aktive Konten, Online-Konten oder eine eigene Auswahl. Als Zeitraum stehen aktueller Monat, letzte 30 Tage, letzte drei Monate, aktuelles Jahr, letzte 365 Tage, gesamter Zeitraum, „seit Datum“ und ein freier Von-bis-Bereich zur Verfügung.</p>
+					<p>Die Kennzahlen zeigen Anzahl der Konten und Buchungen, Einnahmen, Ausgaben, Nettofluss, Umsatzvolumen, Saldoänderung sowie neutrale Umbuchungen. Ein Liniendiagramm stellt den Saldoverlauf dar; ein Kreisdiagramm verteilt Einnahmen und Ausgaben auf Kategorien.</p>
+					<p>Unter <strong>Auswertung &gt; Kategorien</strong> stehen dieselbe Konto- und Zeitraumsauswahl sowie ein gestapeltes Balkendiagramm für Einnahmen und Ausgaben je Kategorie zur Verfügung. Beim Überfahren eines Kategorienamens oder Balkens zeigt ein Tooltip beide Beträge. Eine standardmäßig aktivierte Option blendet Kategorien ohne Umsatz im gewählten Zeitraum aus. Konten mit dem Status <strong>für Auswertungen ignorieren</strong> werden in beiden Ansichten entsprechend behandelt. Die Auswahl wird je Ansicht separat für den Mandanten gespeichert.</p>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="bankverzeichnis">
+					<h2>16. Bankverzeichnis</h2>
+					<p>Das Bankverzeichnis enthält öffentlich verfügbare Institutsdaten wie Bankname, Kurzbezeichnung, BIC, BLZ, Ort, Status und Gültigkeitsangaben. Die Suche hilft beim Prüfen von Bankdaten; GBanking nutzt das Verzeichnis außerdem, um Banknamen und BIC/BLZ bei Kontakten und Aufträgen zu ergänzen.</p>
+					<p>Die Daten stammen aus mitgelieferten Institutsdateien und sind unabhängig von Ihren persönlichen Mandantendaten. Ist das Verzeichnis nicht verfügbar, kann GBanking nach Warnung mit eingeschränkter Bankdatensuche fortfahren.</p>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="einstellungen">
+					<h2>17. Einstellungen</h2>
+					<ul>
+						<li><strong>Programmeinstellungen:</strong> Sichtbare technische Werte, unter anderem Protokollierung, chipTAN-USB-Leser und die optionale Verschlüsselung von Kontoauszugsdateien.</li>
+						<li><strong>Mustererkennungen:</strong> Suchtexte und reguläre Ausdrücke für besondere Buchungsarten, Stornos und kontoabhängige Ausschlüsse. Änderungen sollten nur vorgenommen werden, wenn die Musterwirkung bekannt ist.</li>
+						<li><strong>Umgebungsspezifische Einstellungen:</strong> Datenverzeichnis, Verzeichnis für Import-Properties sowie getrennte zuletzt verwendete Import- und Exportverzeichnisse.</li>
+					</ul>
+					<p>Mandantenbezogene Einstellungen werden in der Datenbank geführt und mit den Import-Properties synchronisiert. Installationslokale Werte liegen in <code>properties/env.properties</code>; reine Fenster- und Layoutwerte in <code>properties/gui.properties</code>. Beim Umschalten der Kontoauszugsverschlüsselung werden bereits gespeicherte Auszüge entsprechend ver- oder entschlüsselt.</p>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="wartung">
+					<h2>18. Sicherung, Wiederherstellung, Update und Diagnose</h2>
+					<h3>Sicherungen</h3>
+					<p>Vor dem Öffnen einer bestehenden Datenbank erzeugt GBanking eine verschlüsselte Start-Sicherung und prüft turnusmäßig eine wöchentliche, zweimonatliche und jährliche Sicherung. <strong>Datei &gt; Sicherung erstellen</strong> legt zusätzlich eine manuelle <code>*.gbbackup</code> an. Die Sicherung umfasst Datenbank und Kontoauszüge.</p>
+					<p><strong>Datei &gt; Sicherung wiederherstellen</strong> ersetzt den aktuellen Mandantenstand nach Bestätigung. Vorher wird automatisch ein Wiederherstellungspunkt des aktuellen Stands angelegt. Danach werden Datenbank und Kontoauszüge aus der gewählten Sicherung geprüft und ausgetauscht.</p>
+					<h3>Update</h3>
+					<p><strong>Über &gt; Auf Updates prüfen</strong> sucht nach einer neueren GBanking-Version. In einer entpackten Release-Distribution mit <code>bin</code>- und <code>lib</code>-Verzeichnis kann die Anwendung das passende Paket herunterladen, Prüfsumme und Signatur kontrollieren, den Installer starten und GBanking dafür beenden.</p>
+					<h3>Protokolle und Diagnose</h3>
+					<p><strong>Über &gt; Logordner öffnen</strong> öffnet die lokalen Protokolle. <strong>Diagnosepaket erzeugen</strong> sammelt relevante Diagnose- und Logdaten in einem ZIP-Archiv. Vertrauliche Kennungen werden soweit vorgesehen maskiert; prüfen Sie den Inhalt trotzdem vor einer Weitergabe.</p>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="tastatur">
+					<h2>19. Tastaturkürzel</h2>
+					<div class="table-wrap">
+						<table>
+							<thead><tr><th>Taste</th><th>Funktion</th></tr></thead>
+							<tbody>
+								<tr><td><kbd>F1</kbd></td><td>Handbuch öffnen</td></tr>
+								<tr><td><kbd>F5</kbd></td><td>Aktuelle Ansicht neu laden</td></tr>
+								<tr><td><kbd>Strg/Cmd</kbd> + <kbd>F</kbd></td><td>Suchfeld der aktuellen Tabelle fokussieren</td></tr>
+								<tr><td><kbd>Strg/Cmd</kbd> + <kbd>S</kbd></td><td>Aktuelles Formular speichern</td></tr>
+								<tr><td><kbd>Esc</kbd></td><td>Formularbearbeitung abbrechen</td></tr>
+								<tr><td><kbd>Strg/Cmd</kbd> + <kbd>,</kbd></td><td>Einstellungen öffnen</td></tr>
+								<tr><td><kbd>Strg/Cmd</kbd> + <kbd>Q</kbd></td><td>GBanking beenden</td></tr>
+							</tbody>
+						</table>
+					</div>
+					<div class="note"><strong>Grundregel:</strong> Prüfen Sie Online-Aufträge, Empfängerdaten und Beträge immer sorgfältig, bevor Sie eine Bankfreigabe bestätigen.</div>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+			</main>
+		</div>
+
+		<footer class="footer">GBanking – integriertes Benutzerhandbuch</footer>
+	</div>
+</body>
+</html>

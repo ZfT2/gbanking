@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<KONTEN>
+	<KONTO>
+		<BEZEICHNUNG>Testkonto</BEZEICHNUNG>
+		<KONTOART>Tagesgeld</KONTOART>
+		<KONTOBUCH>
+			<BUCHUNG>
+				<DATUM>31.03.23</DATUM>
+				<EMPFAENGER />
+				<ZWECK>Eröffnungsbuchung</ZWECK>
+				<BETRAG>0,00</BETRAG>
+				<WAEHRUNG>EUR</WAEHRUNG>
+				<QUELLE>0</QUELLE>
+			</BUCHUNG>
+			<BUCHUNG>
+				<DATUM>31.03.23</DATUM>
+				<VALUTA>31.03.23</VALUTA>
+				<EMPFAENGER>
+					<NAME>Max Mustermann</NAME>
+					<IBAN>DE98765432109876543210</IBAN>
+					<BIC>BYLADEM1001</BIC>
+					<BANKNAME>Deutsche Kreditbank Berlin</BANKNAME>
+				</EMPFAENGER>
+				<ZWECK>EndtoEnd: NOTPROVIDED Test Vwz.</ZWECK>
+				<BETRAG>2000,00</BETRAG>
+				<WAEHRUNG>EUR</WAEHRUNG>
+				<QUELLE>0</QUELLE>
+			</BUCHUNG>
+		</KONTOBUCH>
+	</KONTO>
+</KONTEN>

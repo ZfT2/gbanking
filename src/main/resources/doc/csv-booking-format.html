@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="de">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>GBanking CSV-Format für Umsätze</title>
+	<link rel="stylesheet" href="gbanking-doc.css">
+</head>
+<body id="top">
+	<a class="skip-link" href="#inhalt">Direkt zum Inhalt</a>
+	<div class="page">
+		<nav class="topbar" aria-label="Dokumentnavigation">
+			<p><a href="manual_de.html">Zurück zum Handbuch</a></p>
+			<p><strong>Sprache:</strong> Deutsch | <a href="csv-booking-format_en.html" lang="en">English</a></p>
+		</nav>
+
+		<header class="hero">
+			<h1>CSV-Format für Umsätze</h1>
+			<p>Feldbeschreibung und Beispiele für den zuverlässigen Austausch von Umsatzdaten mit GBanking.</p>
+		</header>
+
+		<div class="content-layout">
+			<nav class="toc" aria-labelledby="toc-title">
+				<h2 id="toc-title">Inhaltsverzeichnis</h2>
+				<ol>
+					<li><a href="#grundlagen">Grundlagen</a></li>
+					<li><a href="#pflichtfelder">Pflichtfelder</a></li>
+					<li><a href="#optionale-felder">Optionale Felder</a></li>
+					<li><a href="#adressbuch">Auswirkung auf das Adressbuch</a></li>
+					<li><a href="#vollstaendig">Vollständiges Beispiel</a></li>
+					<li><a href="#minimal">Minimales Beispiel</a></li>
+					<li><a href="#hinweise">Praktische Hinweise</a></li>
+				</ol>
+			</nav>
+
+			<main id="inhalt">
+				<section id="grundlagen">
+					<h2>1. Grundlagen</h2>
+					<p>Die Datei ist UTF-8-codiert und verwendet ein Semikolon als Trennzeichen. Die erste Zeile enthält die Feldnamen. Zusätzliche, GBanking unbekannte Spalten werden nicht benötigt; die Reihenfolge der bekannten Spalten ist frei.</p>
+					<ul>
+						<li>Beträge dürfen Komma oder Punkt als Dezimaltrenner enthalten. Auch gruppierte Werte wie <code>1.234,56</code> und <code>1,234.56</code> werden erkannt.</li>
+						<li>Datumswerte werden als <code>TT.MM.JJ</code>, <code>TT.MM.JJJJ</code> oder ISO-Datum <code>JJJJ-MM-TT</code> akzeptiert.</li>
+						<li>Leerräume am Anfang und Ende eines Feldes werden entfernt.</li>
+					</ul>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="pflichtfelder">
+					<h2>2. Pflichtfelder</h2>
+					<div class="table-wrap">
+						<table>
+							<thead><tr><th>Feld</th><th>Beschreibung</th></tr></thead>
+							<tbody>
+								<tr><td><code>BUCHUNGSDATUM</code></td><td>Buchungsdatum des Umsatzes; muss in jeder Datenzeile gefüllt sein.</td></tr>
+								<tr><td><code>BETRAG</code></td><td>Betrag des Umsatzes. Negative Werte sind Ausgaben, positive Werte Einnahmen.</td></tr>
+								<tr><td><code>VERWENDUNGSZWECK</code></td><td>Text zur Buchung; muss in jeder Datenzeile gefüllt sein.</td></tr>
+								<tr><td><code>KONTO_IBAN</code>, <code>KONTO_NR</code> oder <code>KONTO_NAME</code></td><td>Mindestens eine dieser Spalten ist erforderlich, wenn der Import nicht über das Kontextmenü eines Kontos gestartet wird.</td></tr>
+							</tbody>
+						</table>
+					</div>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="optionale-felder">
+					<h2>3. Optionale Felder</h2>
+					<div class="table-wrap">
+						<table>
+							<thead><tr><th>Feld</th><th>Beschreibung</th></tr></thead>
+							<tbody>
+								<tr><td><code>KONTO_NAME</code></td><td>Kontobezeichnung. Sie dient der Zuordnung oder wird für ein neu angelegtes Importkonto übernommen.</td></tr>
+								<tr><td><code>KONTO_IBAN</code></td><td>IBAN des eigenen Kontos.</td></tr>
+								<tr><td><code>KONTO_NR</code></td><td>Kontonummer des eigenen Kontos.</td></tr>
+								<tr><td><code>KONTO_BANK</code>, <code>KONTO_BIC</code></td><td>Bankname und BIC des eigenen Kontos.</td></tr>
+								<tr><td><code>WERTSTELLUNG</code></td><td>Valuta- beziehungsweise Wertstellungsdatum.</td></tr>
+								<tr><td><code>WAEHRUNG</code></td><td>Währung. Ist das Feld leer, verwendet GBanking <code>EUR</code>.</td></tr>
+								<tr><td><code>EMPFAENGER_NAME</code>, <code>EMPFAENGER_IBAN</code>, <code>EMPFAENGER_BIC</code></td><td>Name, IBAN und BIC des Empfängers beziehungsweise Zahlers.</td></tr>
+								<tr><td><code>EMPFAENGER_KONTONR</code>, <code>EMPFAENGER_BLZ</code>, <code>EMPFAENGER_BANK</code></td><td>Alternative Kontonummer, Bankleitzahl und Bankname des Empfängers beziehungsweise Zahlers.</td></tr>
+								<tr><td><code>BUCHUNGSTYP</code></td><td>Technischer Typ, zum Beispiel <code>DEPOSIT</code>, <code>REMOVAL</code>, <code>REBOOKING_IN</code> oder <code>REBOOKING_OUT</code>. Ohne Angabe wird er aus dem Vorzeichen des Betrags bestimmt.</td></tr>
+								<tr><td><code>KATEGORIE</code></td><td>Kategoriepfad oder Kategoriename.</td></tr>
+								<tr><td><code>SEPA_CUSTOMER_REF</code>, <code>SEPA_CREDITOR_ID</code>, <code>SEPA_END_TO_END</code>, <code>SEPA_MANDATE</code>, <code>SEPA_PERSON_ID</code>, <code>SEPA_PURPOSE</code>, <code>SEPA_TYPE</code></td><td>Optionale SEPA-Zusatzinformationen.</td></tr>
+							</tbody>
+						</table>
+					</div>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="adressbuch">
+					<h2>4. Auswirkung auf das Adressbuch</h2>
+					<p>Aus den <code>EMPFAENGER_*</code>-Feldern erzeugt oder ergänzt GBanking einen Adressbuchkontakt. Dabei gilt dieselbe <a href="manual_de.html#empfaenger">Empfängerlogik wie im Handbuch</a>: Vorhandene Kontakte werden vor allem über IBAN oder Kontonummer gesucht, kompatible Daten wiederverwendet und unbenutzte Dubletten gegebenenfalls aktualisiert.</p>
+					<p>Fehlt bei einem Importkontakt der Bankname, kann GBanking ihn über BIC, BLZ oder die BLZ innerhalb einer deutschen IBAN aus dem Bankverzeichnis ergänzen. Unterschiedliche bekannte Banknamen werden nicht ungeprüft zusammengeführt. Bereits mit historischen Online-/Importumsätzen oder Zahlungsaufträgen verbundene Kontakte bleiben geschützt.</p>
+					<div class="tip"><strong>Empfehlung:</strong> Geben Sie neben dem Namen möglichst die IBAN an. Sie ist die verlässlichste Grundlage für die Zuordnung und vermeidet unnötige Dubletten.</div>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="vollstaendig">
+					<h2>5. Beispiel: vollständige Datei</h2>
+					<pre>KONTO_NAME;KONTO_IBAN;KONTO_NR;KONTO_BANK;KONTO_BIC;BUCHUNGSDATUM;WERTSTELLUNG;BETRAG;WAEHRUNG;VERWENDUNGSZWECK;EMPFAENGER_NAME;EMPFAENGER_IBAN;EMPFAENGER_BIC;EMPFAENGER_KONTONR;EMPFAENGER_BLZ;EMPFAENGER_BANK;BUCHUNGSTYP;KATEGORIE;SEPA_CUSTOMER_REF;SEPA_CREDITOR_ID;SEPA_END_TO_END;SEPA_MANDATE;SEPA_PERSON_ID;SEPA_PURPOSE;SEPA_TYPE
+Girokonto;DE11111111111111111111;11111111;Testbank;TESTDEFF;10.04.2026;11.04.2026;-49,90;EUR;Einkauf Supermarkt;Supermarkt GmbH;DE99999999999999999999;BANKDEFFXXX;;;;REMOVAL;Haushalt/Lebensmittel;;;E2E-123;;;;</pre>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="minimal">
+					<h2>6. Beispiel: minimale Datei für Konto-Kontextimport</h2>
+					<p>Wird der Import über das Kontextmenü eines Kontos gestartet, darf die Kontozuordnung entfallen. Enthält die Datei trotzdem Kontofelder, müssen sie zum ausgewählten Konto passen.</p>
+					<pre>BUCHUNGSDATUM;BETRAG;VERWENDUNGSZWECK
+10.04.2026;25.00;Bareinzahlung</pre>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="hinweise">
+					<h2>7. Praktische Hinweise</h2>
+					<ul>
+						<li>Exportieren Sie einige vorhandene Umsätze als CSV, wenn Sie eine sichere Vorlage mit allen Feldnamen benötigen.</li>
+						<li>Öffnen und speichern Sie die Datei in einer Tabellenkalkulation ausdrücklich als UTF-8 und mit Semikolon als Trennzeichen.</li>
+						<li>Prüfen Sie Vorzeichen, Datumsformat und Kontozuordnung zunächst mit einer kleinen Testdatei.</li>
+						<li>CSV-Dateien sind nicht durch die Mandantenverschlüsselung geschützt. Löschen oder verschlüsseln Sie vertrauliche Austauschdateien nach der Verwendung.</li>
+					</ul>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+			</main>
+		</div>
+
+		<footer class="footer">GBanking – CSV-Formatbeschreibung</footer>
+	</div>
+</body>
+</html>

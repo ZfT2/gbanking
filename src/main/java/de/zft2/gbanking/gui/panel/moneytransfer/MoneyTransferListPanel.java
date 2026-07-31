@@ -1,0 +1,222 @@
+package de.zft2.gbanking.gui.panel.moneytransfer;
+
+import java.io.File;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import de.zft2.gbanking.db.dao.BankAccount;
+import de.zft2.gbanking.db.dao.MoneyTransfer;
+import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
+import de.zft2.gbanking.db.dao.Recipient;
+import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
+import de.zft2.gbanking.db.dao.enu.OrderType;
+import de.zft2.gbanking.gui.EnvironmentOptions;
+import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
+import de.zft2.gbanking.gui.dialog.MoneyTransferProtocolDialog;
+import de.zft2.gbanking.gui.enu.ExportType;
+import de.zft2.gbanking.gui.enu.FileType;
+import de.zft2.gbanking.gui.panel.AbstractFilterableTablePanel;
+import de.zft2.gbanking.gui.progress.MoneyTransferCsvImportProgressBarPanel;
+import de.zft2.gbanking.gui.util.FileChooserDirectorySupport;
+import de.zft2.gbanking.gui.util.FxTableUtils;
+import de.zft2.gbanking.gui.util.TableColumnFactory;
+import javafx.collections.FXCollections;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.TableColumn;
+import javafx.stage.FileChooser;
+
+public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTransfer> {
+
+	private static final Logger log = LogManager.getLogger(MoneyTransferListPanel.class);
+	private static final double RECIPIENT_COLUMN_MIN_WIDTH = 120;
+	private static final double RECIPIENT_COLUMN_PREF_WIDTH = 220;
+	private static final double PURPOSE_COLUMN_MIN_WIDTH = 140;
+	private static final double PURPOSE_COLUMN_PREF_WIDTH = 420;
+	private static final double AMOUNT_COLUMN_MIN_WIDTH = 110;
+	private static final double AMOUNT_COLUMN_PREF_WIDTH = 120;
+
+	private final MoneyTransferDetailListTabPanel parentPanel;
+	private final OrderType orderType;
+	private final boolean archive;
+
+	public MoneyTransferListPanel(OrderType orderType, MoneyTransferDetailListTabPanel parent, boolean archive) {
+		super(FXCollections.observableArrayList());
+		this.parentPanel = parent;
+		this.orderType = orderType;
+		this.archive = archive;
+		createInnerMoneyTransfersListPanel();
+	}
+
+	private void createInnerMoneyTransfersListPanel() {
+		setPanelTitle("");
+		setColumns(createColumns());
+		configureTableLayout("moneyTransfers." + orderType.name() + "." + (archive ? "archive" : "active"));
+		configureContextMenu();
+		tableView.setFixedCellSize(60);
+		onSelection(this::handleSelection);
+		reload();
+	}
+
+	private List<TableColumn<MoneyTransfer, ?>> createColumns() {
+		TableColumn<MoneyTransfer, Boolean> selectedCol = createSelectAllSelectionColumn(
+				transfer -> transfer.isSelected(), (transfer, selected) -> transfer.setSelected(selected));
+		TableColumn<MoneyTransfer, java.time.LocalDate> dateCol = TableColumnFactory.createCalendarDateColumn(getText("UI_TABLE_DATE"),
+				MoneyTransfer::getExecutionDate, 95);
+		TableColumn<MoneyTransfer, String> recipientCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_RECIPIENT"),
+				transfer -> transfer.getRecipient() != null ? transfer.getRecipient().getName() : "", RECIPIENT_COLUMN_MIN_WIDTH,
+				RECIPIENT_COLUMN_PREF_WIDTH);
+		TableColumn<MoneyTransfer, String> purposeCol = TableColumnFactory.createWrappedTextColumn(getText("UI_TABLE_PURPOSE"), MoneyTransfer::getPurpose,
+				PURPOSE_COLUMN_MIN_WIDTH, PURPOSE_COLUMN_PREF_WIDTH);
+		TableColumn<MoneyTransfer, java.math.BigDecimal> amountCol = TableColumnFactory.createAmountColumn(getText("UI_TABLE_AMOUNT"),
+				MoneyTransfer::getAmount);
+		FxTableUtils.setPreferredWidth(amountCol, AMOUNT_COLUMN_MIN_WIDTH, AMOUNT_COLUMN_PREF_WIDTH);
+		TableColumn<MoneyTransfer, String> ibanCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_IBAN"),
+				transfer -> transfer.getRecipient() != null ? transfer.getRecipient().getIban() : "", 220, 240);
+		TableColumn<MoneyTransfer, String> bankCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_BANK"),
+				transfer -> transfer.getRecipient() != null ? transfer.getRecipient().getBank() : "", 150, 180);
+		TableColumn<MoneyTransfer, String> statusCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_STATUS"),
+				transfer -> transfer.getMoneytransferStatus() != null ? transfer.getMoneytransferStatus().toString() : "", 120);
+
+		return List.of(selectedCol, dateCol, recipientCol, purposeCol, amountCol, ibanCol, bankCol, statusCol);
+	}
+
+	private void configureContextMenu() {
+		ContextMenu contextMenu = createContextMenu();
+		installRowContextMenu(contextMenu, this::handleSelection);
+		if (archive && orderType == OrderType.TRANSFER) {
+			tableView.setContextMenu(contextMenu);
+		}
+	}
+
+	private void handleSelection(MoneyTransfer selected) {
+		Recipient recipient = dbController.getByIdFull(Recipient.class, selected.getRecipientId());
+		selected.setRecipient(recipient);
+		parentPanel.getMoneyTransferInputPanel().updatePanelFieldValues(selected);
+	}
+
+	private ContextMenu createContextMenu() {
+		MenuItem showProtocolItem = new MenuItem(getText("UI_MENU_MONEYTRANSFER_PROTOCOL_SHOW"));
+		showProtocolItem.setOnAction(event -> showSelectedProtocol());
+
+		ContextMenu contextMenu = new ContextMenu(showProtocolItem);
+		MenuItem importCsvItem = createImportCsvItem();
+		if (importCsvItem != null) {
+			contextMenu.getItems().add(importCsvItem);
+		}
+
+		contextMenu.setOnShowing(event -> {
+			showProtocolItem.setDisable(getSelectedMoneyTransfer() == null);
+			if (importCsvItem != null) {
+				importCsvItem.setDisable(parentPanel.getSelectedAccount() == null);
+			}
+		});
+		return contextMenu;
+	}
+
+	private MenuItem createImportCsvItem() {
+		if (!archive || orderType != OrderType.TRANSFER) {
+			return null;
+		}
+
+		MenuItem importCsvItem = new MenuItem(getText("UI_MENU_MONEYTRANSFER_IMPORT_CSV"));
+		importCsvItem.setOnAction(event -> importCsvForSelectedAccount());
+		return importCsvItem;
+	}
+
+	private void importCsvForSelectedAccount() {
+		BankAccount selectedAccount = parentPanel.getSelectedAccount();
+		if (selectedAccount == null) {
+			showWarning(getText("ERROR_MONEYTRANSFER_IMPORT_NO_ACCOUNT_SELECTED"));
+			return;
+		}
+
+		Path importFile = chooseCsvImportFile();
+		if (importFile == null) {
+			return;
+		}
+
+		try {
+			MoneyTransferCsvImportProgressBarPanel progressPanel = new MoneyTransferCsvImportProgressBarPanel(getTableWindow(), selectedAccount,
+					parentPanel::reloadListPanels);
+			var progressWindow = progressPanel.createNewFileImportProgressBarWindow();
+			progressPanel.startTask(importFile.toString(), ExportType.MONEYTRANSFERS_CSV, null);
+			progressWindow.show();
+		} catch (Exception e) {
+			log.error("Money transfer CSV import failed", e);
+			showWarning(e.getMessage());
+		}
+	}
+
+	private Path chooseCsvImportFile() {
+		FileChooser fileChooser = new FileChooser();
+		FileChooserDirectorySupport.configure(fileChooser, EnvironmentOptions.DEFAULT_DIR_IMPORT);
+		fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(FileType.CSV.getDescription(), "*" + FileType.CSV.getSuffix()));
+		File selectedFile = fileChooser.showOpenDialog(getTableWindow());
+		return FileChooserDirectorySupport.remember(selectedFile, EnvironmentOptions.DEFAULT_DIR_IMPORT);
+	}
+
+	private void showWarning(String text) {
+		DialogWindowSupport.showAlert(getTableWindow(), Alert.AlertType.WARNING, text);
+	}
+
+	private void showSelectedProtocol() {
+		MoneyTransfer selected = getSelectedMoneyTransfer();
+		if (selected == null) {
+			return;
+		}
+
+		List<MoneyTransferProtocol> protocols = dbController.getAllByParent(MoneyTransferProtocol.class, selected.getId());
+		new MoneyTransferProtocolDialog().show(getTableWindow(), selected, protocols);
+	}
+
+	@Override
+	protected boolean matchesFilter(MoneyTransfer transfer, String filter) {
+		String recipientName = transfer.getRecipient() != null ? transfer.getRecipient().getName() : "";
+		String iban = transfer.getRecipient() != null ? transfer.getRecipient().getIban() : "";
+		String bank = transfer.getRecipient() != null ? transfer.getRecipient().getBank() : "";
+		String status = transfer.getMoneytransferStatus() != null ? transfer.getMoneytransferStatus().toString() : "";
+
+		return matchesAny(filter, recipientName, transfer.getPurpose(), iban, bank, status);
+	}
+
+	public void updateModelMoneytransfer(List<MoneyTransfer> orderList) {
+		replaceItems(filterByOrderTypeAndArchive(orderList));
+	}
+
+	public void updatePanelBorder(String borderTitle) {
+		setPanelTitle(borderTitle);
+	}
+
+	public void reload() {
+		if (parentPanel.getSelectedAccount() == null) {
+			replaceItems(List.of());
+			return;
+		}
+		updateModelMoneytransfer(dbController.getAllByParent(MoneyTransfer.class, parentPanel.getSelectedAccount().getId()));
+	}
+
+	public void refresh() {
+		reload();
+	}
+
+	private List<MoneyTransfer> filterByOrderTypeAndArchive(List<MoneyTransfer> orderList) {
+		OrderType effectiveOrderType = orderType == OrderType.TRANSFER ? parentPanel.getMoneyTransferInputPanel().getOrderType() : orderType;
+		Set<Integer> pendingChangePredecessorIds = orderList.stream()
+				.filter(transfer -> transfer.getMoneytransferStatus() == MoneyTransferStatus.CHANGED)
+				.map(transfer -> transfer.getHistoryorderId()).filter(historyOrderId -> historyOrderId != null).collect(Collectors.toSet());
+		return orderList.stream().filter(transfer -> transfer.getOrderType() == effectiveOrderType)
+				.filter(transfer -> !pendingChangePredecessorIds.contains(transfer.getId()))
+				.filter(transfer -> transfer.getMoneytransferStatus().isArchiveStatus() == archive).toList();
+	}
+
+	private MoneyTransfer getSelectedMoneyTransfer() {
+		return getSelectedItem();
+	}
+}
