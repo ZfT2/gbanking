@@ -10,14 +10,20 @@ import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Category;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.Source;
-import de.zft2.gbanking.gui.GBankingContext;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.gui.enu.PageContext;
+import de.zft2.gbanking.gui.GuiContext;
 import de.zft2.gbanking.gui.panel.overview.AccountsTransactionsOverviewPanel;
 import de.zft2.gbanking.gui.panel.overview.TransactionsOverviewBasePanel;
 import de.zft2.gbanking.gui.util.BookingFileActionSupport;
 import de.zft2.gbanking.gui.util.DateFormatUtils;
+import de.zft2.gbanking.service.account.AccountTransactionService;
+import de.zft2.gbanking.service.BankingCapabilityService;
+import de.zft2.gbanking.service.booking.BookingCategoryService;
+import de.zft2.gbanking.service.booking.BookingService;
+import de.zft2.gbanking.service.booking.BookingSplitService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import javafx.collections.ObservableList;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
@@ -29,6 +35,12 @@ import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.layout.Region;
 
 class TransactionListPanelContextMenu extends ContextMenu implements BaseMessagesBean {
+
+	private final BankingCapabilityService bankingCapabilityService;
+	private final BookingService bookingService;
+	private final BookingCategoryService bookingCategoryService;
+	private final BookingSplitService bookingSplitService;
+	private final AccountTransactionService accountTransactionService;
 
 	private TransactionListPanel panelTransactionList;
 	private TransactionsOverviewBasePanel parentPanel;
@@ -53,6 +65,19 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 	MenuItem exportXmlItem = new MenuItem(getText("UI_MENU_FILE_XML"));
 
 	TransactionListPanelContextMenu(TransactionListPanel parentPanelTransactionList) {
+		this(parentPanelTransactionList, ServiceRegistry.getService(BankingCapabilityService.class), ServiceRegistry.getService(BookingService.class),
+				ServiceRegistry.getService(BookingCategoryService.class), ServiceRegistry.getService(BookingSplitService.class),
+				ServiceRegistry.getService(AccountTransactionService.class));
+	}
+
+	TransactionListPanelContextMenu(TransactionListPanel parentPanelTransactionList, BankingCapabilityService bankingCapabilityService,
+			BookingService bookingService, BookingCategoryService bookingCategoryService, BookingSplitService bookingSplitService,
+			AccountTransactionService accountTransactionService) {
+		this.bankingCapabilityService = bankingCapabilityService;
+		this.bookingService = bookingService;
+		this.bookingCategoryService = bookingCategoryService;
+		this.bookingSplitService = bookingSplitService;
+		this.accountTransactionService = accountTransactionService;
 		this.panelTransactionList = parentPanelTransactionList;
 		this.parentPanel = parentPanelTransactionList.parentPanel;
 		this.masterData = parentPanelTransactionList.getMasterData();
@@ -86,8 +111,8 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 		exportMt940Item.setOnAction(event -> handleExportBookings(ExportType.BOOKINGS_MT940));
 		exportXmlItem.setOnAction(event -> handleExportBookings(ExportType.BOOKINGS_XML));
 
-		this.getItems().addAll(newManualItem, editManualItem, deleteBookingItem, deleteFromDateItem, deleteUntilDateItem,
-				categoryMenu, releaseRebookingLinksItem, new SeparatorMenuItem(), useAsTemplateMenu, new SeparatorMenuItem(), importMenu, exportMenu);
+		this.getItems().addAll(newManualItem, editManualItem, deleteBookingItem, deleteFromDateItem, deleteUntilDateItem, categoryMenu,
+				releaseRebookingLinksItem, new SeparatorMenuItem(), useAsTemplateMenu, new SeparatorMenuItem(), importMenu, exportMenu);
 
 		this.setOnShowing(event -> updateContextMenuState(useAsTemplateMenu, categoryMenu, importMenu, exportMenu));
 	}
@@ -144,7 +169,7 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 		useAsTemplateMenu.setDisable(!canUseTemplate);
 		for (MenuItem templateItem : useAsTemplateMenu.getItems()) {
 			OrderType orderType = (OrderType) templateItem.getProperties().get(OrderType.class);
-			templateItem.setDisable(!canUseTemplate || orderType == null || !bean.supportsTransferOrderType(contextAccount, orderType));
+			templateItem.setDisable(!canUseTemplate || orderType == null || !bankingCapabilityService.supportsTransferOrderType(contextAccount, orderType));
 		}
 		importMenu.setDisable(contextAccount == null);
 		exportMenu.setDisable(contextAccount == null);
@@ -179,7 +204,7 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 			return;
 		}
 
-		bean.deleteBooking(selectedBooking);
+		bookingSplitService.deleteBookingWithSplits(selectedBooking);
 		reloadAfterDeletion();
 	}
 
@@ -197,7 +222,7 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 			return;
 		}
 
-		bean.deleteBookingsInBlock(selectedBooking, deleteFromDate);
+		bookingService.deleteBookingsInBlock(selectedBooking, deleteFromDate);
 		reloadAfterDeletion();
 	}
 
@@ -214,7 +239,7 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 		}
 
 		boolean overwriteExistingCategories = choice.get() == ButtonType.YES;
-		int updatedBookingCount = bean.applyCategoryRulesToBookings(List.copyOf(masterData), overwriteExistingCategories);
+		int updatedBookingCount = bookingCategoryService.applyCategoryRulesToBookings(List.copyOf(masterData), overwriteExistingCategories);
 		reloadAfterCategoryRuleApplication();
 		DialogWindowSupport.showAlert(panelTransactionList.getTableWindow(), javafx.scene.control.Alert.AlertType.INFORMATION,
 				getText("ALERT_BOOKING_CATEGORY_RULES_APPLY_RESULT", updatedBookingCount));
@@ -239,7 +264,7 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 		}
 
 		Integer selectedBookingId = Optional.ofNullable(getSelectedBooking()).map(Booking::getId).orElse(null);
-		int updatedBookingCount = bean.assignCategoryToBookings(selectedCategory.get(), actionBookings);
+		int updatedBookingCount = bookingCategoryService.assignCategoryToBookings(selectedCategory.get(), actionBookings);
 		reloadAfterCategoryRuleApplication();
 		panelTransactionList.selectBookingById(selectedBookingId);
 		DialogWindowSupport.showAlert(panelTransactionList.getTableWindow(), Alert.AlertType.INFORMATION,
@@ -260,7 +285,7 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 		}
 
 		Integer selectedBookingId = Optional.ofNullable(getSelectedBooking()).map(Booking::getId).orElse(null);
-		int updatedBookingCount = bean.clearCategoryFromBookings(categorizedBookings);
+		int updatedBookingCount = bookingCategoryService.clearCategoryFromBookings(categorizedBookings);
 		reloadAfterCategoryRuleApplication();
 		panelTransactionList.selectBookingById(selectedBookingId);
 		DialogWindowSupport.showAlert(panelTransactionList.getTableWindow(), Alert.AlertType.INFORMATION,
@@ -279,7 +304,7 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 			return;
 		}
 
-		int updatedBookings = bean.releaseRebookingLinks(linkedBookings);
+		int updatedBookings = accountTransactionService.releaseRebookingLinks(linkedBookings);
 		reloadAfterRebookingLinkRelease();
 		DialogWindowSupport.showAlert(panelTransactionList.getTableWindow(), javafx.scene.control.Alert.AlertType.INFORMATION,
 				getText("ALERT_BOOKING_RELEASE_REBOOKING_RESULT", updatedBookings));
@@ -302,8 +327,7 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 
 	private Optional<CategoryOption> resolvePreselectedCategoryOption(List<CategoryOption> categoryOptions, List<Booking> actionBookings) {
 		int selectedCategoryId = resolveSingleSelectedCategoryId(actionBookings);
-		return selectedCategoryId > 0
-				? categoryOptions.stream().filter(option -> option.category().getId() == selectedCategoryId).findFirst()
+		return selectedCategoryId > 0 ? categoryOptions.stream().filter(option -> option.category().getId() == selectedCategoryId).findFirst()
 				: Optional.empty();
 	}
 
@@ -346,14 +370,14 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 		panelTransactionList.reload();
 		BankAccount currentAccount = currentContextAccount();
 		if (currentAccount != null && parentPanel.getPageContext() == PageContext.ACCOUNTS_TRANSACTIONS) {
-			panelTransactionList.updateModelBooking(bean.getBookingsForAccount(currentAccount.getId()));
+			panelTransactionList.updateModelBooking(bookingService.getBookingsForAccount(currentAccount.getId()));
 		}
 	}
 
 	private void reloadAfterCategoryRuleApplication() {
 		BankAccount contextAccount = currentContextAccount();
 		if (contextAccount != null && parentPanel.getPageContext() == PageContext.ACCOUNTS_TRANSACTIONS) {
-			panelTransactionList.updateModelBooking(bean.getBookingsForAccount(contextAccount.getId()));
+			panelTransactionList.updateModelBooking(bookingService.getBookingsForAccount(contextAccount.getId()));
 			return;
 		}
 		panelTransactionList.reload();
@@ -370,7 +394,7 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 			return;
 		}
 		panelTransactionList.handleBookingSelection(selectedBooking);
-		GBankingContext.useBookingAsMoneyTransferTemplate(selectedBooking, orderType);
+		GuiContext.useBookingAsMoneyTransferTemplate(selectedBooking, orderType);
 	}
 
 	private void handleExportBookings(ExportType exportType) {
@@ -387,7 +411,7 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 	private void refreshAfterImport(BankAccount contextAccount) {
 		if (parentPanel instanceof AccountsTransactionsOverviewPanel accountsPanel) {
 			accountsPanel.getAccountListPanel().reload();
-			panelTransactionList.updateModelBooking(bean.getBookingsForAccount(contextAccount.getId()));
+			panelTransactionList.updateModelBooking(bookingService.getBookingsForAccount(contextAccount.getId()));
 			panelTransactionList.updatePanelBorder(getText("UI_PANEL_TRANSACTIONS") + " - " + contextAccount.getAccountName());
 			return;
 		}

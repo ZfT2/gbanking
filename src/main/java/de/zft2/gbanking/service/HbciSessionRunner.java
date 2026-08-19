@@ -17,15 +17,13 @@ public final class HbciSessionRunner {
 
 	private static final Object HBCI_RUNTIME_LOCK = new Object();
 
-	private final BankAccessService hbciSupport;
 	private final Function<BankAccess, GBankingHBCICallback> callbackFactory;
 
-	public HbciSessionRunner(BankAccessService hbciSupport) {
-		this(hbciSupport, bankAccess -> new GBankingHBCICallback(bankAccess));
+	public HbciSessionRunner() {
+		this(bankAccess -> new GBankingHBCICallback(bankAccess));
 	}
 
-	HbciSessionRunner(BankAccessService hbciSupport, Function<BankAccess, GBankingHBCICallback> callbackFactory) {
-		this.hbciSupport = hbciSupport;
+	HbciSessionRunner(Function<BankAccess, GBankingHBCICallback> callbackFactory) {
 		this.callbackFactory = callbackFactory;
 	}
 
@@ -42,6 +40,7 @@ public final class HbciSessionRunner {
 
 		try {
 			resetHbciThreadContextIfInitialized();
+			BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 			passport = hbciSupport.initBankConnection(bankAccess, hbciCallback);
 			try (HBCIHandler handle = hbciSupport.createHBCIHandler(BaseMessagesDb.getVersion().getId(), passport)) {
 				return operation.execute(new HbciSession(hbciCallback, passport, handle));
@@ -57,7 +56,8 @@ public final class HbciSessionRunner {
 				}
 			} finally {
 				resetHbciThreadContextIfInitialized();
-				BankMessageService.saveInstitutionMessages(bankAccess, hbciCallback.drainInstitutionMessages());
+				ServiceRegistry.getService(BankMessageService.class).saveInstitutionMessages(bankAccess,
+						hbciCallback.drainInstitutionMessages());
 				hbciCallback.finishStatusDialog();
 			}
 		}

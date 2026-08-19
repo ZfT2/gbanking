@@ -9,16 +9,16 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.enu.BankAccessType;
 import de.zft2.gbanking.db.dao.enu.TanProcedure;
 import de.zft2.gbanking.gui.BackgroundActionCoordinator;
-import de.zft2.gbanking.gui.GBankingContext;
-import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.enu.ButtonContext;
+import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.panel.BasePanel;
 import de.zft2.gbanking.gui.panel.overview.BankAccessOverviewPanel;
 import de.zft2.gbanking.gui.util.FxTableUtils;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
 import de.zft2.gbanking.paypal.PaypalSupport;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
@@ -172,7 +172,7 @@ public class BankAccessDialogHolder extends BasePanel {
 		Task<Boolean> task = new Task<>() {
 			@Override
 			protected Boolean call() {
-				return GBankingContext.getBankAccessService().addNewBankAccess(bankAccess);
+				return ServiceRegistry.getService(BankAccessService.class).addNewBankAccess(bankAccess);
 			}
 		};
 		task.setOnSucceeded(event -> {
@@ -258,7 +258,7 @@ public class BankAccessDialogHolder extends BasePanel {
 			List<BankAccount> selectedAccounts = accountItems.stream().filter(BankAccount::isSelected).toList();
 			bankAccess.setAccounts(new ArrayList<>(selectedAccounts));
 
-			BankAccessService bankAccessService = GBankingContext.getBankAccessService();
+			BankAccessService bankAccessService = ServiceRegistry.getService(BankAccessService.class);
 			if (bankAccessService.saveBankAccessAccountsToDB(bankAccess)) {
 				overviewPanel.getBankAccessListPanel().refreshModelBankAccess();
 				dialog.close();
@@ -329,7 +329,7 @@ public class BankAccessDialogHolder extends BasePanel {
 			return;
 		}
 
-		BankAccessService bankAccessService = GBankingContext.getBankAccessService();
+		BankAccessService bankAccessService = ServiceRegistry.getService(BankAccessService.class);
 		if (bankAccessService.deleteBankAccessFromDB(currentBankAccess)) {
 			currentBankAccess = null;
 			overviewPanel.setCurrentBankAccess(null);

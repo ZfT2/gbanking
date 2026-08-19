@@ -9,11 +9,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.BaseMessages;
-import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.BankAccountIdentifier;
 import de.zft2.gbanking.db.dao.enu.AccountIdentifierType;
+import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.service.importproperties.ImportPropertiesSynchronizationService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert.AlertType;
@@ -101,7 +102,7 @@ public class AccountIdentifiersDialog implements BaseMessages {
 		}
 		try {
 			dbController.replaceBankAccountIdentifiers(bankAccountId, identifiers);
-			new ImportPropertiesSynchronizationService().synchronize();
+			ServiceRegistry.getService(ImportPropertiesSynchronizationService.class).synchronize();
 			dialog.close();
 		} catch (RuntimeException exception) {
 			log.error("Could not save account identifiers for account id {}", bankAccountId, exception);

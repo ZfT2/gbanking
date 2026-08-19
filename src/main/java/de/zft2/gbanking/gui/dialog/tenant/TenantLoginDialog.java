@@ -9,18 +9,19 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.cache.InstituteLookupCache;
-import de.zft2.gbanking.demo.DemoDataInstaller;
-import de.zft2.gbanking.demo.DemoTenantService;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DbRuntimeContext;
+import de.zft2.gbanking.demo.DemoDataInstaller;
+import de.zft2.gbanking.demo.DemoTenantManager;
 import de.zft2.gbanking.gui.BaseGui;
+import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.EnvironmentOptions;
 import de.zft2.gbanking.gui.GBankingGui;
-import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.progress.TenantDatabaseLifecycleProgressBarPanel;
 import de.zft2.gbanking.logging.SensitiveDataMasker;
 import de.zft2.gbanking.messages.Messages;
 import de.zft2.gbanking.service.importproperties.ImportPropertiesSynchronizationService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.tenant.TenantFileEncryptionContext;
 import de.zft2.gbanking.tenant.TenantLock;
 import de.zft2.gbanking.tenant.TenantProfile;
@@ -93,7 +94,7 @@ public class TenantLoginDialog implements BaseGui {
 
 	private void initializeImportProperties() {
 		try {
-			new ImportPropertiesSynchronizationService().initializeAndSynchronize();
+			ServiceRegistry.getService(ImportPropertiesSynchronizationService.class).initializeAndSynchronize();
 		} catch (RuntimeException exception) {
 			log.error("Could not initialize booking recognition properties", exception);
 			showWarning(gui.getStage(), getText("ALERT_PATTERN_SETTINGS_SYNC_FAILED"));
@@ -122,7 +123,7 @@ public class TenantLoginDialog implements BaseGui {
 
 	private void removeDemoTenant(TenantStore tenantStore, RuntimeException originalFailure) {
 		try {
-			new DemoTenantService(tenantStore).removeDemoTenant();
+			new DemoTenantManager(tenantStore).removeDemoTenant();
 		} catch (RuntimeException cleanupFailure) {
 			if (originalFailure != null) {
 				originalFailure.addSuppressed(cleanupFailure);

@@ -11,7 +11,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import de.zft2.gbanking.BaseMessagesDb;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
@@ -19,11 +18,13 @@ import de.zft2.gbanking.db.dao.BookingAdditionalDetails;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.HbciSessionRunner;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.account.AccountTransactionRetrievalResult;
 import de.zft2.gbanking.service.account.AccountTransactionService;
 
-public class PaypalAccountTransactionService implements BaseMessagesDb {
+public class PaypalAccountTransactionService extends AbstractDbService {
 
 	private static final int RETRIEVAL_OVERLAP_DAYS = 1;
 	private static final int MAX_HISTORY_YEARS = 3;
@@ -31,8 +32,8 @@ public class PaypalAccountTransactionService implements BaseMessagesDb {
 	private final PaypalSoapClient client;
 	private final AccountTransactionService accountTransactionService;
 
-	public PaypalAccountTransactionService(AccountTransactionService accountTransactionService) {
-		this(new PaypalSoapClient(), accountTransactionService);
+	public PaypalAccountTransactionService() {
+		this(new PaypalSoapClient(), ServiceRegistry.getService(AccountTransactionService.class));
 	}
 
 	PaypalAccountTransactionService(PaypalSoapClient client, AccountTransactionService accountTransactionService) {

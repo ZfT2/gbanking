@@ -20,12 +20,12 @@ import org.kapott.hbci.GV_Result.HBCIJobResult;
 import org.kapott.hbci.manager.HBCIHandler;
 import org.kapott.hbci.structures.Konto;
 
+import de.zft2.gbanking.db.dao.enu.OrderType;
+import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.dao.MoneyTransfer;
-import de.zft2.gbanking.db.dao.enu.OrderType;
-import de.zft2.gbanking.service.GBankingBean;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
+import de.zft2.gbanking.service.ServiceRegistry;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MoneyTransferExecutionServicePurposeCodeTest {
@@ -51,16 +51,17 @@ class MoneyTransferExecutionServicePurposeCodeTest {
 
 	@Test
 	void createTransferJob_shouldForwardPurposeCodeToHbciJob() throws Exception {
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), hbciSupport);
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		HBCIHandler handle = mock(HBCIHandler.class);
 		@SuppressWarnings("unchecked")
 		HBCIJob<HBCIJobResult> job = mock(HBCIJob.class);
 		when(hbciSupport.newHbciJob(handle, "UebSEPA")).thenReturn(job);
 		MoneyTransfer moneyTransfer = createMoneyTransfer();
 
-		invokePrivate(service, "createTransferJob", new Class<?>[] { HBCIHandler.class, MoneyTransfer.class, Konto.class, Konto.class }, handle,
-				moneyTransfer, new Konto(), new Konto());
+		invokePrivate(service, "createTransferJob", new Class<?>[] { HBCIHandler.class, MoneyTransfer.class, Konto.class, Konto.class }, handle, moneyTransfer,
+				new Konto(), new Konto());
 
 		verify(job).setParam("usage", "Rechnung 4711");
 		verify(job).setParam("purposecode", "GDDS");

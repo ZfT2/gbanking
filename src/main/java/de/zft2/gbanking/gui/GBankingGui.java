@@ -29,8 +29,9 @@ import de.zft2.gbanking.concurrent.CancellationSupport;
 import de.zft2.gbanking.db.BuildInfo;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
-import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.enu.OrderType;
+import de.zft2.gbanking.db.dao.MoneyTransfer;
+import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.gui.BackgroundActionCoordinator.ActionScope;
 import de.zft2.gbanking.gui.BackgroundActionCoordinator.QuiesceMode;
 import de.zft2.gbanking.gui.BackgroundActionCoordinator.QuiesceResult;
@@ -53,22 +54,26 @@ import de.zft2.gbanking.gui.progress.FileExportProgressBarPanel;
 import de.zft2.gbanking.gui.progress.FileImportProgressBarPanel;
 import de.zft2.gbanking.gui.progress.MoneyTransferCsvImportProgressBarPanel;
 import de.zft2.gbanking.gui.util.FileChooserDirectorySupport;
-import de.zft2.gbanking.logging.DiagnosticPackageService;
+import de.zft2.gbanking.logging.DiagnosticPackageCreator;
 import de.zft2.gbanking.logging.LoggingSettings;
 import de.zft2.gbanking.messages.Messages;
-import de.zft2.gbanking.service.GBankingBean;
 import de.zft2.gbanking.service.account.AccountTransactionRetrievalResult;
-import de.zft2.gbanking.service.action.OpenActionsExecutionService;
-import de.zft2.gbanking.service.action.OpenActionsExecutionService.ActionExecution;
-import de.zft2.gbanking.service.action.OpenActionsExecutionService.ActionStatus;
-import de.zft2.gbanking.service.action.OpenActionsExecutionService.ActionType;
-import de.zft2.gbanking.service.action.OpenActionsExecutionService.ExecutionSummary;
+import de.zft2.gbanking.service.account.AccountTransactionService;
+import de.zft2.gbanking.service.action.OpenActionsExecutionUtil;
+import de.zft2.gbanking.service.action.OpenActionsExecutionUtil.ActionExecution;
+import de.zft2.gbanking.service.action.OpenActionsExecutionUtil.ActionStatus;
+import de.zft2.gbanking.service.action.OpenActionsExecutionUtil.ActionType;
+import de.zft2.gbanking.service.action.OpenActionsExecutionUtil.ExecutionSummary;
 import de.zft2.gbanking.service.action.OpenActionsSelection;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
+import de.zft2.gbanking.service.BankingCapabilityService;
+import de.zft2.gbanking.service.GBankingService;
+import de.zft2.gbanking.service.moneytransfer.MoneyTransferService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.update.PreparedUpdate;
 import de.zft2.gbanking.update.UpdateProgressListener;
 import de.zft2.gbanking.update.UpdateRelease;
-import de.zft2.gbanking.update.UpdateService;
+import de.zft2.gbanking.update.UpdateManager;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -105,13 +110,16 @@ public class GBankingGui extends Application implements BaseGui {
 	static final PageContext START_PAGE = PageContext.ACCOUNTS_TRANSACTIONS;
 
 	private final FileChooser fileChooser = new FileChooser();
-	private final UpdateService updateService = new UpdateService();
-	private final DiagnosticPackageService diagnosticPackageService = new DiagnosticPackageService();
+	private final UpdateManager updateManager = new UpdateManager();
+	private final DiagnosticPackageCreator diagnosticPackageCreator = new DiagnosticPackageCreator();
 
 	private final Map<String, String> optionsMap = new HashMap<>();
 
-	private GBankingBean bean;
+	private GBankingService bean;
 	private BankAccessService bankAccessService;
+	private AccountTransactionService accountTransactionService;
+	private BankingCapabilityService bankingCapabilityService;
+	private MoneyTransferService moneyTransferService;
 
 	private BorderPane root;
 	private Label statusLabel;
@@ -128,7 +136,7 @@ public class GBankingGui extends Application implements BaseGui {
 	@Override
 	public void start(Stage stage) {
 		this.primaryStage = stage;
-		GBankingContext.setMoneyTransferTemplateHandler((booking, orderType) -> openMoneyTransferTemplate(booking, orderType));
+		GuiContext.setMoneyTransferTemplateHandler((booking, orderType) -> openMoneyTransferTemplate(booking, orderType));
 		log.info("Starting GBanking application.");
 
 		restoreOptions();
@@ -155,7 +163,7 @@ public class GBankingGui extends Application implements BaseGui {
 			EnvironmentOptions.applyRuntimeOptions(getOptionsMap());
 			FileChooserDirectorySupport.initialize(key -> getOptionsMap().get(key),
 					(key, value) -> getOptionsMap().put(key, value), () -> storeOptionsQuietly());
-			GBankingContext.setOnlyOnlineAccountsVisible(Boolean.parseBoolean(getOptionsMap().get(RestoreHandler.ONLY_ONLINE_ACCOUNTS)));
+			GuiContext.setOnlyOnlineAccountsVisible(Boolean.parseBoolean(getOptionsMap().get(RestoreHandler.ONLY_ONLINE_ACCOUNTS)));
 			log.debug("GUI options restored. language={}, dataDirectory={}", () -> getOptionsMap().get(LANGUAGE),
 					() -> getOptionsMap().get(EnvironmentOptions.DATA_DIRECTORY));
 		} catch (IOException ioe) {
@@ -217,9 +225,12 @@ public class GBankingGui extends Application implements BaseGui {
 		LoggingSettings.ensureSettingsExist();
 		LoggingSettings.applyLogLevels();
 		activateOverview(START_PAGE);
-		bean = GBankingContext.getBean();
+		bean = ServiceRegistry.getService(GBankingService.class);
 		bean.setup();
-		bankAccessService = GBankingContext.getBankAccessService();
+		bankAccessService = ServiceRegistry.getService(BankAccessService.class);
+		accountTransactionService = ServiceRegistry.getService(AccountTransactionService.class);
+		bankingCapabilityService = ServiceRegistry.getService(BankingCapabilityService.class);
+		moneyTransferService = ServiceRegistry.getService(MoneyTransferService.class);
 		log.info("Main window initialization completed.");
 	}
 
@@ -253,7 +264,7 @@ public class GBankingGui extends Application implements BaseGui {
 			return;
 		}
 
-		BankAccount account = GBankingContext.getDbController().getById(BankAccount.class, booking.getAccountId());
+		BankAccount account = DBController.getInstance(".").getById(BankAccount.class, booking.getAccountId());
 		if (account == null) {
 			showWarning(primaryStage, getText("ALERT_MONEYTRANSFER_TEMPLATE_ACCOUNT_MISSING"));
 			return;
@@ -337,7 +348,8 @@ public class GBankingGui extends Application implements BaseGui {
 	}
 
 	private boolean validateSupportedAccountTransactions(List<BankAccount> checkedAccounts) {
-		List<BankAccount> unsupportedAccounts = checkedAccounts.stream().filter(account -> !bean.supportsAccountTransactions(account)).toList();
+		List<BankAccount> unsupportedAccounts = checkedAccounts.stream().filter(account -> !bankingCapabilityService.supportsAccountTransactions(account))
+				.toList();
 		if (unsupportedAccounts.isEmpty()) {
 			return true;
 		}
@@ -380,7 +392,7 @@ public class GBankingGui extends Application implements BaseGui {
 		}
 
 		log.info("Updating account from bank. accountId={}", bankAccount.getId());
-		AccountTransactionRetrievalResult result = bean.retrieveAccountTransactionsWithResult(bankAccount, copyPin(pinMap.get(bankKey)));
+		AccountTransactionRetrievalResult result = accountTransactionService.retrieveAccountTransactionsWithResult(bankAccount, copyPin(pinMap.get(bankKey)));
 		if (result.wrongPin()) {
 			blockedBankKeys.add(bankKey);
 			skippedBanks.add(formatBankLabel(bankAccount));
@@ -403,7 +415,7 @@ public class GBankingGui extends Application implements BaseGui {
 	void executeTransfers(PinAskDialog pinWindow) {
 		log.info("Starting execution of open money transfer orders.");
 
-		List<MoneyTransfer> moneytransferList = bean.retrieveOpenTransfers();
+		List<MoneyTransfer> moneytransferList = moneyTransferService.retrieveOpenTransfers();
 		log.info("Found {} executable transfer orders.", moneytransferList.size());
 		if (moneytransferList.isEmpty()) {
 			showWarning(primaryStage, getText("ALERT_MONEYTRANSFER_NO_EXECUTABLE_TRANSFERS"));
@@ -414,7 +426,7 @@ public class GBankingGui extends Application implements BaseGui {
 		for (MoneyTransfer moneytransfer : moneytransferList) {
 			int accountId = moneytransfer.getAccountId();
 			if (!accountMap.containsKey(accountId)) {
-				accountMap.put(accountId, bean.getAccountForOpenMoneytransfers(accountId));
+				accountMap.put(accountId, moneyTransferService.getAccountForOpenMoneytransfers(accountId));
 			}
 		}
 		Map<Integer, char[]> pinMap = new PinRequestCoordinator(pinWindow).requestPinsByAccountId(accountMap);
@@ -430,7 +442,7 @@ public class GBankingGui extends Application implements BaseGui {
 						CancellationSupport.throwIfCancellationRequested();
 						int accountId = moneytransfer.getAccountId();
 						log.debug("Executing money transfer id {} for account id {}", moneytransfer.getId(), accountId);
-						bean.executeTransfer(moneytransfer, accountMap.get(accountId), copyPin(pinMap.get(accountId)));
+						moneyTransferService.executeTransfer(moneytransfer, accountMap.get(accountId), copyPin(pinMap.get(accountId)));
 					}
 					return null;
 				} finally {
@@ -466,7 +478,8 @@ public class GBankingGui extends Application implements BaseGui {
 			return;
 		}
 
-		List<BankAccount> unsupportedAccounts = selectedAccounts.stream().filter(account -> !bean.supportsOrderInventory(account, orderType)).toList();
+		List<BankAccount> unsupportedAccounts = selectedAccounts.stream()
+				.filter(account -> !bankingCapabilityService.supportsOrderInventory(account, orderType)).toList();
 		if (!unsupportedAccounts.isEmpty()) {
 			showWarning(primaryStage, getText("ALERT_ACCOUNT_ORDER_INVENTORY_UNSUPPORTED", orderType.getPlural(), formatAccountNames(unsupportedAccounts)));
 			return;
@@ -484,7 +497,7 @@ public class GBankingGui extends Application implements BaseGui {
 					for (Entry<BankAccount, char[]> entry : pinMap.entrySet()) {
 						CancellationSupport.throwIfCancellationRequested();
 						log.info("Retrieving order inventory. accountId={}, type={}", entry.getKey().getId(), orderType);
-						bean.retrieveMoneyTransferInventory(entry.getKey(), orderType, copyPin(entry.getValue()));
+						moneyTransferService.retrieveMoneyTransferInventory(entry.getKey(), orderType, copyPin(entry.getValue()));
 					}
 					return null;
 				} finally {
@@ -568,7 +581,7 @@ public class GBankingGui extends Application implements BaseGui {
 			@Override
 			protected ExecutionSummary call() {
 				try {
-					return OpenActionsExecutionService.execute(bean, selection, account -> pinMap.get(account.getBankAccessId()),
+					return OpenActionsExecutionUtil.execute(selection, account -> pinMap.get(account.getBankAccessId()),
 							summary -> latestSummary.set(summary));
 				} finally {
 					clearPins(pinMap);
@@ -672,11 +685,11 @@ public class GBankingGui extends Application implements BaseGui {
 	}
 
 	boolean isOnlyOnlineAccountsVisible() {
-		return GBankingContext.isOnlyOnlineAccountsVisible();
+		return GuiContext.isOnlyOnlineAccountsVisible();
 	}
 
 	void setOnlyOnlineAccountsVisible(boolean onlyOnlineAccountsVisible) {
-		GBankingContext.setOnlyOnlineAccountsVisible(onlyOnlineAccountsVisible);
+		GuiContext.setOnlyOnlineAccountsVisible(onlyOnlineAccountsVisible);
 		getOptionsMap().put(RestoreHandler.ONLY_ONLINE_ACCOUNTS, Boolean.toString(onlyOnlineAccountsVisible));
 		storeOptionsQuietly();
 		refreshAccountListOverviews();
@@ -699,7 +712,7 @@ public class GBankingGui extends Application implements BaseGui {
 	void checkForApplicationUpdates() {
 		log.info("Checking for application updates.");
 		hideUpdateDownloadProgress();
-		if (!updateService.canInstallUpdates()) {
+		if (!updateManager.canInstallUpdates()) {
 			showWarning(primaryStage, getText("UI_UPDATE_UNSUPPORTED_LAYOUT"));
 			return;
 		}
@@ -708,7 +721,7 @@ public class GBankingGui extends Application implements BaseGui {
 			@Override
 			protected Optional<UpdateRelease> call() throws Exception {
 				updateMessage(getText("UI_UPDATE_CHECKING"));
-				return updateService.findUpdate();
+				return updateManager.findUpdate();
 			}
 		};
 		bindStatus(updateCheckTask);
@@ -739,7 +752,7 @@ public class GBankingGui extends Application implements BaseGui {
 				CancellationSupport.throwIfCancellationRequested();
 				updateMessage(getText("UI_UPDATE_PREPARING"));
 				updateDownloadProgress(0L, release.applicationAsset().size());
-				PreparedUpdate preparedUpdate = updateService.downloadAndPrepare(release, new UpdateProgressListener() {
+				PreparedUpdate preparedUpdate = updateManager.downloadAndPrepare(release, new UpdateProgressListener() {
 					@Override
 					public void onProgress(String message) {
 						CancellationSupport.throwIfCancellationRequested();
@@ -775,7 +788,7 @@ public class GBankingGui extends Application implements BaseGui {
 			if (statusLabel != null) {
 				statusLabel.setText(getText("UI_UPDATE_EXECUTING"));
 			}
-			updateService.launchInstaller(preparedUpdate);
+			updateManager.launchInstaller(preparedUpdate);
 			shutdownApplicationForUpdate();
 		} catch (Exception e) {
 			showUpdateFailure(e);
@@ -866,7 +879,7 @@ public class GBankingGui extends Application implements BaseGui {
 	}
 
 	void openLogDirectory() {
-		Path logDirectory = diagnosticPackageService.getLogDirectory();
+		Path logDirectory = diagnosticPackageCreator.getLogDirectory();
 		try {
 			Files.createDirectories(logDirectory);
 			if (!Desktop.isDesktopSupported() || !Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
@@ -883,7 +896,7 @@ public class GBankingGui extends Application implements BaseGui {
 	void createDiagnosticPackage() {
 		FileChooser diagnosticFileChooser = new FileChooser();
 		diagnosticFileChooser.setTitle(getText("UI_DIAGNOSTIC_PACKAGE_SAVE_TITLE"));
-		diagnosticFileChooser.setInitialFileName(diagnosticPackageService.defaultFileName());
+		diagnosticFileChooser.setInitialFileName(diagnosticPackageCreator.defaultFileName());
 		diagnosticFileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(getText("UI_DIAGNOSTIC_PACKAGE_FILE_TYPE"), "*.zip"));
 		FileChooserDirectorySupport.configure(diagnosticFileChooser, EnvironmentOptions.DEFAULT_DIR_EXPORT);
 		Path selectedFile = FileChooserDirectorySupport.remember(diagnosticFileChooser.showSaveDialog(primaryStage),
@@ -892,7 +905,7 @@ public class GBankingGui extends Application implements BaseGui {
 			return;
 		}
 		try {
-			Path diagnosticPackage = diagnosticPackageService.createDiagnosticPackage(selectedFile);
+			Path diagnosticPackage = diagnosticPackageCreator.createDiagnosticPackage(selectedFile);
 			log.info("Created diagnostic package. file={}", () -> fileName(diagnosticPackage));
 			showInfo(primaryStage, getText("UI_DIAGNOSTIC_PACKAGE_CREATED", fileName(diagnosticPackage)));
 		} catch (IOException exception) {
@@ -987,7 +1000,7 @@ public class GBankingGui extends Application implements BaseGui {
 		}
 
 		List<BankAccount> eligibleAccounts = CreditcardImportAccountSelector
-				.eligibleAccounts(GBankingContext.getDbController().getAll(BankAccount.class));
+				.eligibleAccounts(DBController.getInstance(".").getAll(BankAccount.class));
 		if (eligibleAccounts.isEmpty()) {
 			showWarning(primaryStage, getText("ERROR_CREDITCARD_IMPORT_NO_ELIGIBLE_ACCOUNT"));
 			return Optional.empty();
@@ -1201,7 +1214,8 @@ public class GBankingGui extends Application implements BaseGui {
 		}
 
 		InstituteLookupCache.clear();
-		GBankingContext.resetServices();
+		ServiceRegistry.resetServices();
+		GuiContext.resetTenantState();
 		resetMainWindowState();
 		initializeMainWindow(primaryStage);
 		showInfo(primaryStage, getText("UI_INFO_TENANT_RESTORE_FINISHED", fileName(result.backupFile())));
@@ -1220,7 +1234,8 @@ public class GBankingGui extends Application implements BaseGui {
 			throw new IllegalStateException(getText("UI_ERROR_TENANT_DB_CLOSE"));
 		}
 		InstituteLookupCache.clear();
-		GBankingContext.resetServices();
+		ServiceRegistry.resetServices();
+		GuiContext.resetTenantState();
 		primaryStage.hide();
 		BackgroundActionCoordinator.getInstance().resume();
 
@@ -1237,7 +1252,8 @@ public class GBankingGui extends Application implements BaseGui {
 		}
 
 		resetMainWindowState();
-		GBankingContext.resetServices();
+		ServiceRegistry.resetServices();
+		GuiContext.resetTenantState();
 		initializeMainWindow(primaryStage);
 		finishLifecycleTransition();
 		log.info("Tenant switch completed.");

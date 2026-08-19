@@ -26,9 +26,9 @@ import org.apache.logging.log4j.Logger;
 import org.kapott.hbci.GV.GVKontoauszugUebersicht;
 import org.kapott.hbci.GV.HBCIJob;
 import org.kapott.hbci.GV.HBCIJobImpl;
-import org.kapott.hbci.GV_Result.GVRKontoauszug;
 import org.kapott.hbci.GV_Result.GVRKontoauszug.Format;
 import org.kapott.hbci.GV_Result.GVRKontoauszug.GVRKontoauszugEntry;
+import org.kapott.hbci.GV_Result.GVRKontoauszug;
 import org.kapott.hbci.GV_Result.HBCIJobResult;
 import org.kapott.hbci.exceptions.HBCI_Exception;
 import org.kapott.hbci.manager.HBCIHandler;
@@ -36,7 +36,6 @@ import org.kapott.hbci.passport.HBCIPassport;
 import org.kapott.hbci.status.HBCIExecStatus;
 import org.kapott.hbci.structures.Konto;
 
-import de.zft2.gbanking.BaseMessagesDb;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.BankAccountStatement;
@@ -45,10 +44,12 @@ import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
 import de.zft2.gbanking.hbci.HbciStatusMessageExtractor;
 import de.zft2.gbanking.logging.GBankingLoggingHandler;
+import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.HbciSessionRunner;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
 
-public class AccountStatementService implements BaseMessagesDb {
+public class AccountStatementService extends AbstractDbService {
 
 	private static final Logger log = LogManager.getLogger(AccountStatementService.class);
 
@@ -64,20 +65,17 @@ public class AccountStatementService implements BaseMessagesDb {
 	private static final int REDOWNLOAD_LOOKBACK_MONTHS = FIRST_RETRIEVAL_LOOKBACK_YEARS * 12;
 	private static final int REDOWNLOAD_EMPTY_RESULT_LIMIT = 6;
 
-	private final BankAccessService hbciSupport;
-	private final GBankingLoggingHandler logHandler;
-	private final HbciSessionRunner hbciSessionRunner;
-	private final AccountStatementFileService statementFileService;
+	private final BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+	private final GBankingLoggingHandler logHandler = GBankingLoggingHandler.getInstance();
+	private final HbciSessionRunner hbciSessionRunner = new HbciSessionRunner();
+	private final AccountStatementFileManager statementFileManager;
 
-	public AccountStatementService(BankAccessService hbciSupport, GBankingLoggingHandler logHandler) {
-		this(hbciSupport, logHandler, new AccountStatementFileService());
+	public AccountStatementService() {
+		this.statementFileManager = new AccountStatementFileManager();
 	}
 
-	AccountStatementService(BankAccessService hbciSupport, GBankingLoggingHandler logHandler, AccountStatementFileService statementFileService) {
-		this.hbciSupport = hbciSupport;
-		this.logHandler = logHandler;
-		this.hbciSessionRunner = new HbciSessionRunner(hbciSupport);
-		this.statementFileService = statementFileService;
+	AccountStatementService(Path dir) {
+		this.statementFileManager = new AccountStatementFileManager(dir);
 	}
 
 	public List<AccountStatement> listAccountStatements(BankAccount bankAccount) {
@@ -85,11 +83,11 @@ public class AccountStatementService implements BaseMessagesDb {
 	}
 
 	public Path prepareForOpening(AccountStatement statement) {
-		return statementFileService.prepareForOpening(statement.fileName());
+		return statementFileManager.prepareForOpening(statement.fileName());
 	}
 
 	public void updateFileEncryption(boolean enabled) {
-		statementFileService.updateEncryption(enabled);
+		statementFileManager.updateEncryption(enabled);
 	}
 
 	public AccountStatementRetrievalResult retrieveAccountStatementsWithResult(BankAccount bankAccount, char[] pin) {
@@ -757,8 +755,8 @@ public class AccountStatementService implements BaseMessagesDb {
 		}
 
 		Path statementFile = storedStatement != null && storedStatement.getFileName() != null && !storedStatement.getFileName().isBlank()
-				? statementFileService.saveAs(entry, storedStatement.getFileName())
-				: statementFileService.save(bankAccount, entry, existingFileNames);
+				? statementFileManager.saveAs(entry, storedStatement.getFileName())
+				: statementFileManager.save(bankAccount, entry, existingFileNames);
 		BankAccountStatement statement = toBankAccountStatement(bankAccount, entry, sourceJob, retrievedAt, statementFile, storedStatement);
 		BankAccountStatement savedStatement = dbController.insertOrUpdate(statement);
 		if (savedStatement != null) {
@@ -776,7 +774,7 @@ public class AccountStatementService implements BaseMessagesDb {
 		}
 		statement.setAccountId(bankAccount.getId());
 		statement.setAccountName(Objects.toString(bankAccount.getAccountName(), ""));
-		statement.setFileName(statementFileService.logicalFileName(statementFile));
+		statement.setFileName(statementFileManager.logicalFileName(statementFile));
 		statement.setFormat(formatName(entry.getFormat()));
 		statement.setRetrievedAt(retrievedAt);
 		statement.setStatementDate(toLocalDate(entry.getDate()));
@@ -885,7 +883,7 @@ public class AccountStatementService implements BaseMessagesDb {
 
 	private boolean statementFileExists(BankAccountStatement statement) {
 		return statement != null && statement.getFileName() != null && !statement.getFileName().isBlank()
-				&& Files.isRegularFile(statementFileService.resolve(statement.getFileName()));
+				&& Files.isRegularFile(statementFileManager.resolve(statement.getFileName()));
 	}
 
 	private void replaceStoredStatement(List<BankAccountStatement> storedStatements, BankAccountStatement statement) {
@@ -960,7 +958,7 @@ public class AccountStatementService implements BaseMessagesDb {
 	private List<BankAccountStatement> listExistingAccountStatementDaos(BankAccount bankAccount) {
 		List<BankAccountStatement> existingStatements = new ArrayList<>();
 		for (BankAccountStatement statement : listAccountStatementDaos(bankAccount)) {
-			Path statementFile = statementFileService.resolve(statement.getFileName());
+			Path statementFile = statementFileManager.resolve(statement.getFileName());
 			if (Files.isRegularFile(statementFile)) {
 				existingStatements.add(statement);
 			} else {
@@ -1025,7 +1023,7 @@ public class AccountStatementService implements BaseMessagesDb {
 				statement.getId(),
 				statement.getAccountId(),
 				statement.getAccountName(),
-				statementFileService.resolve(statement.getFileName()),
+				statementFileManager.resolve(statement.getFileName()),
 				statement.getFileName(),
 				statement.getFormat(),
 				statement.getRetrievedAt(),

@@ -10,13 +10,15 @@ import org.apache.logging.log4j.Logger;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Category;
 import de.zft2.gbanking.db.dao.enu.Source;
-import de.zft2.gbanking.gui.KeyboardShortcutDispatcher;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
+import de.zft2.gbanking.gui.KeyboardShortcutDispatcher;
 import de.zft2.gbanking.gui.panel.AbstractTitledFormPanel;
 import de.zft2.gbanking.gui.panel.overview.CategoryOverviewPanel;
 import de.zft2.gbanking.gui.util.DateFormatUtils;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
-import de.zft2.gbanking.service.GBankingBean.CategoryDeleteImpact;
+import de.zft2.gbanking.service.category.CategoryService;
+import de.zft2.gbanking.service.category.CategoryService.CategoryDeleteImpact;
+import de.zft2.gbanking.service.ServiceRegistry;
 import javafx.collections.FXCollections;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
@@ -33,6 +35,7 @@ public class CategoryInputPanel extends AbstractTitledFormPanel {
 	private static final Category NO_PARENT_CATEGORY = new Category("");
 
 	private final CategoryOverviewPanel parentPanel;
+	private final CategoryService categoryService;
 
 	private final TextField categoryName = new TextField();
 	private final ComboBox<Category> parentCategoryCombo = new ComboBox<>();
@@ -43,8 +46,13 @@ public class CategoryInputPanel extends AbstractTitledFormPanel {
 	private Category selectedCategory;
 
 	public CategoryInputPanel(CategoryOverviewPanel parent) {
+		this(parent, ServiceRegistry.getService(CategoryService.class));
+	}
+
+	CategoryInputPanel(CategoryOverviewPanel parent, CategoryService categoryService) {
 		super("UI_PANEL_CATEGORIES");
 		this.parentPanel = parent;
+		this.categoryService = categoryService;
 		createCategoryInputPanel();
 	}
 
@@ -88,7 +96,7 @@ public class CategoryInputPanel extends AbstractTitledFormPanel {
 		Category category = selectedCategory != null ? selectedCategory : new Category(trimmedCategoryName, null);
 		category.setName(trimmedCategoryName);
 		category.setParentId(resolveParentIdForSave());
-		bean.saveCategoryToDB(category);
+		categoryService.saveCategoryToDB(category);
 
 		refreshCategoryViews();
 		resetTextFields();
@@ -99,12 +107,12 @@ public class CategoryInputPanel extends AbstractTitledFormPanel {
 			return;
 		}
 
-		CategoryDeleteImpact impact = bean.getCategoryDeleteImpact(selectedCategory);
+		CategoryDeleteImpact impact = categoryService.getCategoryDeleteImpact(selectedCategory);
 		if (!confirmCategoryDeletion(impact)) {
 			return;
 		}
 
-		if (!bean.deleteCategoryFromDB(selectedCategory)) {
+		if (!categoryService.deleteCategoryFromDB(selectedCategory)) {
 			return;
 		}
 		refreshCategoryViews();

@@ -1,13 +1,11 @@
 package de.zft2.gbanking;
 
-import de.zft2.gbanking.gui.GBankingContext;
-import de.zft2.gbanking.service.GBankingBean;
+import de.zft2.gbanking.service.GBankingService;
+import de.zft2.gbanking.service.ServiceRegistry;
 
 public interface BaseMessagesBean extends BaseMessagesDb {
 
-	public static final GBankingBean bean = GBankingContext.getBean();
-
-	default GBankingBean getGBankingBean() {
-		return bean;
+	default GBankingService getGBankingService() {
+		return ServiceRegistry.getService(GBankingService.class);
 	}
 }

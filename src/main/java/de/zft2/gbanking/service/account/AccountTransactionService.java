@@ -12,8 +12,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
@@ -23,8 +23,8 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.kapott.hbci.GV.HBCIJob;
-import org.kapott.hbci.GV_Result.GVRKUms;
 import org.kapott.hbci.GV_Result.GVRKUms.UmsLine;
+import org.kapott.hbci.GV_Result.GVRKUms;
 import org.kapott.hbci.GV_Result.GVRSaldoReq;
 import org.kapott.hbci.GV_Result.HBCIJobResult;
 import org.kapott.hbci.exceptions.HBCI_Exception;
@@ -34,7 +34,6 @@ import org.kapott.hbci.status.HBCIExecStatus;
 import org.kapott.hbci.structures.Konto;
 import org.kapott.hbci.structures.Value;
 
-import de.zft2.gbanking.BaseMessagesDb;
 import de.zft2.gbanking.db.StatementsConfig;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
@@ -50,10 +49,12 @@ import de.zft2.gbanking.logging.SensitiveDataMasker;
 import de.zft2.gbanking.mapper.HbciMapper;
 import de.zft2.gbanking.rebooking.MissingRebookingCreationSummary;
 import de.zft2.gbanking.rebooking.RebookingAssignmentSummary;
+import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.HbciSessionRunner;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
 
-public class AccountTransactionService implements BaseMessagesDb {
+public class AccountTransactionService extends AbstractDbService {
 
 	private static final Logger log = LogManager.getLogger(AccountTransactionService.class);
 
@@ -65,18 +66,16 @@ public class AccountTransactionService implements BaseMessagesDb {
 	private static final int BOOKING_RETRIEVAL_OVERLAP_DAYS = 1;
 	private static final int MAX_RETRIEVAL_ERROR_LENGTH = 1000;
 
-	private final BankAccessService hbciSupport;
 	private final GBankingLoggingHandler logHandler;
 	private final HbciSessionRunner hbciSessionRunner;
 	private final BookingDuplicateChecker bookingDuplicateChecker;
 	private final RebookingService rebookingService;
 
-	public AccountTransactionService(BankAccessService hbciSupport, GBankingLoggingHandler logHandler) {
-		this.hbciSupport = hbciSupport;
-		this.logHandler = logHandler;
-		this.hbciSessionRunner = new HbciSessionRunner(hbciSupport);
+	public AccountTransactionService() {
+		this.logHandler = GBankingLoggingHandler.getInstance();
+		this.hbciSessionRunner = new HbciSessionRunner();
 		this.bookingDuplicateChecker = new BookingDuplicateChecker();
-		this.rebookingService = new RebookingService(dbController);
+		this.rebookingService = new RebookingService();
 	}
 
 	public boolean retrieveAccountTransactions(BankAccount bankAccount, char[] pin) {
@@ -88,6 +87,7 @@ public class AccountTransactionService implements BaseMessagesDb {
 		String bankAccountId = getNullableBankAccountId(bankAccount);
 
 		try {
+			BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 			BankAccess bankAccess = hbciSupport.initBankAccess(bankAccount, pin);
 			if (bankAccess == null) {
 				log.info("HBCI account transaction retrieval skipped, no bank access available.");
@@ -257,7 +257,7 @@ public class AccountTransactionService implements BaseMessagesDb {
 		return saveOnlineBookingsForAccount(bankAccount, mappedBookings, source, "HBCI");
 	}
 
-	public int saveOnlineBookingsForAccount(BankAccount bankAccount, List<Booking> bookings) {
+	private int saveOnlineBookingsForAccount(BankAccount bankAccount, List<Booking> bookings) {
 		return saveOnlineBookingsForAccount(bankAccount, bookings, Source.ONLINE_NEW, "online");
 	}
 
@@ -401,6 +401,7 @@ public class AccountTransactionService implements BaseMessagesDb {
 			return Optional.empty();
 		}
 
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 		HBCIJob<HBCIJobResult> job = hbciSupport.newLowlevelHbciJob(handle, VORMERKPOSTEN_JOB);
 		job.setParam("My.number", number);
 		setParamIfPresent(job, "My.subnumber", subnumber);
@@ -726,6 +727,7 @@ public class AccountTransactionService implements BaseMessagesDb {
 	private <T extends HBCIJobResult> HBCIJob<T> createAndAddHbciJob(HBCIHandler handle, String jobDescription, Map<String, Object> params) {
 		HBCIJob<T> job = null;
 		try {
+			BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 			job = hbciSupport.newHbciJob(handle, jobDescription);
 		} catch (HBCI_Exception hbcie) {
 			job = tryCorrespondingMTJobInstead(handle, jobDescription, hbcie);
@@ -766,6 +768,7 @@ public class AccountTransactionService implements BaseMessagesDb {
 		default:
 			throw hbcie;
 		}
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 		job = hbciSupport.newHbciJob(handle, correspondingMtJob);
 		return job;
 	}

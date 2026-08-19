@@ -27,6 +27,7 @@ import de.zft2.gbanking.gui.BaseWorker;
 import de.zft2.gbanking.mapper.ImportDaoMapper;
 import de.zft2.gbanking.rebooking.RebookingRules;
 import de.zft2.gbanking.service.importproperties.ImportPropertiesSynchronizationService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.util.AppPaths;
 
 abstract class AbstractBookingImportBean implements BaseMessagesDb {
@@ -245,7 +246,7 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 
 	private void processBookingsWithBookingCore(Collection<ImportBankAccount> importAccounts) {
 		try {
-			new ImportPropertiesSynchronizationService().initializeAndSynchronize();
+			ServiceRegistry.getService(ImportPropertiesSynchronizationService.class).initializeAndSynchronize();
 			ImportBookingProcessor bookingProcessor = new ImportBookingProcessor();
 			bookingProcessor.revertCancellationRebookings(importAccounts);
 			bookingProcessor.generateCrossBookings(importAccounts, 6, null);

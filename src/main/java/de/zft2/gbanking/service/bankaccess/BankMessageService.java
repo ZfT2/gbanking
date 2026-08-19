@@ -29,14 +29,15 @@ import org.kapott.hbci.exceptions.HBCI_Exception;
 import org.kapott.hbci.manager.HBCIHandler;
 import org.kapott.hbci.status.HBCIExecStatus;
 
-import de.zft2.gbanking.BaseMessagesDb;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankMessage;
 import de.zft2.gbanking.hbci.HbciStatusMessageExtractor;
 import de.zft2.gbanking.logging.GBankingLoggingHandler;
+import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.HbciSessionRunner;
+import de.zft2.gbanking.service.ServiceRegistry;
 
-public class BankMessageService implements BaseMessagesDb {
+public class BankMessageService extends AbstractDbService {
 
 	private static final Logger log = LogManager.getLogger(BankMessageService.class);
 
@@ -45,15 +46,8 @@ public class BankMessageService implements BaseMessagesDb {
 	private static final String FREE_TEXT_TYPE = "F";
 	private static final int DETAILS_BATCH_SIZE = 10;
 
-	private final BankAccessService hbciSupport;
-	private final GBankingLoggingHandler logHandler;
-	private final HbciSessionRunner hbciSessionRunner;
-
-	public BankMessageService(BankAccessService hbciSupport, GBankingLoggingHandler logHandler) {
-		this.hbciSupport = hbciSupport;
-		this.logHandler = logHandler;
-		hbciSessionRunner = new HbciSessionRunner(hbciSupport);
-	}
+	private final GBankingLoggingHandler logHandler = GBankingLoggingHandler.getInstance();
+	private final HbciSessionRunner hbciSessionRunner = new HbciSessionRunner();
 
 	public List<BankMessage> listBankMessages(BankAccess bankAccess) {
 		if (bankAccess == null || bankAccess.getId() <= 0) {
@@ -146,6 +140,7 @@ public class BankMessageService implements BaseMessagesDb {
 	}
 
 	private BankMessageOverviewResult retrieveBankMessageOverview(HbciSessionRunner.HbciSession session) {
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 		HBCIJob<GVRInfoList> infoListJob = hbciSupport.newHbciJob(session.handler(), INFO_LIST_JOB);
 		infoListJob.addToQueue();
 		session.callback().registerJobDescription(infoListJob, getText("UI_DIALOG_HBCI_JOB_BANK_MESSAGE_LIST"));
@@ -211,6 +206,7 @@ public class BankMessageService implements BaseMessagesDb {
 	}
 
 	private HBCIJob<GVRInfoOrder> createBankMessageDetailsJob(HBCIHandler handler, List<String> codes) {
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 		HBCIJob<GVRInfoOrder> job = hbciSupport.newHbciJob(handler, INFO_DETAILS_JOB);
 		for (int index = 0; index < codes.size(); index++) {
 			job.setParam(toInfoDetailsCodeParameter(index), codes.get(index));
@@ -287,11 +283,11 @@ public class BankMessageService implements BaseMessagesDb {
 		return new ArrayList<>(savedMessages.values());
 	}
 
-	public static List<BankMessage> saveInstitutionMessages(BankAccess bankAccess, List<String> messages) {
+	public List<BankMessage> saveInstitutionMessages(BankAccess bankAccess, List<String> messages) {
 		return saveInstitutionMessages(bankAccess, messages, LocalDateTime.now(ZoneId.systemDefault()));
 	}
 
-	static List<BankMessage> saveInstitutionMessages(BankAccess bankAccess, List<String> messages, LocalDateTime retrievedAt) {
+	List<BankMessage> saveInstitutionMessages(BankAccess bankAccess, List<String> messages, LocalDateTime retrievedAt) {
 		if (bankAccess == null || bankAccess.getId() <= 0 || messages == null || messages.isEmpty()) {
 			return List.of();
 		}
@@ -319,7 +315,7 @@ public class BankMessageService implements BaseMessagesDb {
 		}
 	}
 
-	private static Map<String, BankMessage> existingMessagesByKey(BankAccess bankAccess) {
+	private Map<String, BankMessage> existingMessagesByKey(BankAccess bankAccess) {
 		Map<String, BankMessage> messagesByKey = new HashMap<>();
 		List<BankMessage> existingMessages = dbController.getAllByParentFull(BankMessage.class, bankAccess.getId());
 		if (existingMessages == null) {

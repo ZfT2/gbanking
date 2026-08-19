@@ -13,7 +13,6 @@ import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockConstruction;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -23,6 +22,7 @@ import java.util.List;
 import java.util.Properties;
 
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,18 +34,20 @@ import org.kapott.hbci.structures.Konto;
 import org.mockito.MockedConstruction;
 
 import de.zft2.gbanking.BaseMessagesDb;
-import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
-import de.zft2.gbanking.db.dao.BusinessCase;
 import de.zft2.gbanking.db.dao.Bpd;
-import de.zft2.gbanking.db.dao.Upd;
+import de.zft2.gbanking.db.dao.BusinessCase;
 import de.zft2.gbanking.db.dao.enu.AccountState;
 import de.zft2.gbanking.db.dao.enu.HbciEncodingFilterType;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.db.dao.Upd;
+import de.zft2.gbanking.db.DBController;
+import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
+import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.service.ServiceStubbingUtil;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class BankAccessServiceIntegrationTest {
@@ -62,6 +64,11 @@ class BankAccessServiceIntegrationTest {
 	@BeforeEach
 	void clearDatabase() {
 		DBControllerTestUtil.clearAllTables(DBController.getConnection());
+	}
+
+	@AfterEach
+	void resetServices() {
+		ServiceRegistry.removeService(BankAccessService.class);
 	}
 
 	@AfterAll
@@ -125,7 +132,7 @@ class BankAccessServiceIntegrationTest {
 
 	@Test
 	void addNewBankAccess_shouldPopulatePassportDataReuseExistingAccessAndClearPin() {
-		BankAccessService service = spy(new BankAccessService());
+		BankAccessService bankAccessService = ServiceStubbingUtil.spyService(BankAccessService.class);
 		BankAccess existingAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("40050060"));
 		BankAccess bankAccess = TestData.createSampleBankAccess(null);
 		char[] pin = "12345".toCharArray();
@@ -144,11 +151,11 @@ class BankAccessServiceIntegrationTest {
 		when(passport.getInstName()).thenReturn("Mock Bank");
 		when(status.isOK()).thenReturn(true);
 		when(handle.execute()).thenReturn(status);
-		doReturn(passport).when(service).initBankConnection(any(BankAccess.class), any(GBankingHBCICallback.class));
-		doReturn(handle).when(service).createHBCIHandler(eq(BaseMessagesDb.getVersion().getId()), same(passport));
+		doReturn(passport).when(bankAccessService).initBankConnection(any(BankAccess.class), any(GBankingHBCICallback.class));
+		doReturn(handle).when(bankAccessService).createHBCIHandler(eq(BaseMessagesDb.getVersion().getId()), same(passport));
 
 		try (MockedConstruction<GBankingHBCICallback> callbacks = mockConstruction(GBankingHBCICallback.class)) {
-			boolean result = service.addNewBankAccess(bankAccess);
+			boolean result = bankAccessService.addNewBankAccess(bankAccess);
 
 			assertTrue(result);
 			assertEquals(existingAccess.getId(), bankAccess.getId());
@@ -168,7 +175,7 @@ class BankAccessServiceIntegrationTest {
 
 	@Test
 	void refreshBankAccessParameterData_shouldPersistPassportDataAccountsAndClearPin() {
-		BankAccessService service = spy(new BankAccessService());
+		BankAccessService bankAccessService = ServiceStubbingUtil.spyService(BankAccessService.class);
 		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("50060070"));
 		char[] pin = "56789".toCharArray();
 		HBCIPassport passport = mock(HBCIPassport.class);
@@ -191,11 +198,11 @@ class BankAccessServiceIntegrationTest {
 		when(passport.getBPD()).thenReturn(bpd);
 		when(passport.getUPD()).thenReturn(upd);
 		when(passport.getInstName()).thenReturn("Refresh Bank");
-		doReturn(passport).when(service).initBankConnection(any(BankAccess.class), any(GBankingHBCICallback.class));
-		doReturn(handle).when(service).createHBCIHandler(eq(BaseMessagesDb.getVersion().getId()), same(passport));
+		doReturn(passport).when(bankAccessService).initBankConnection(any(BankAccess.class), any(GBankingHBCICallback.class));
+		doReturn(handle).when(bankAccessService).createHBCIHandler(eq(BaseMessagesDb.getVersion().getId()), same(passport));
 
 		try (MockedConstruction<GBankingHBCICallback> callbacks = mockConstruction(GBankingHBCICallback.class)) {
-			boolean result = service.refreshBankAccessParameterData(bankAccess, pin);
+			boolean result = bankAccessService.refreshBankAccessParameterData(bankAccess, pin);
 
 			assertTrue(result);
 			assertEquals("Refresh Bank", bankAccess.getBankName());

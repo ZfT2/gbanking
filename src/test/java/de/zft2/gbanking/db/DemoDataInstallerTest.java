@@ -15,7 +15,6 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import de.zft2.gbanking.BankingCapabilityService;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.CategoryRule;
@@ -23,6 +22,7 @@ import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.demo.DemoDataInstaller;
+import de.zft2.gbanking.service.BankingCapabilityService;
 
 class DemoDataInstallerTest extends DBControllerIntegrationBaseTest {
 

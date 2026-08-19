@@ -30,6 +30,7 @@ import java.util.Date;
 import java.util.List;
 
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,30 +46,48 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 
 import de.zft2.gbanking.BaseMessagesDb;
-import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.BusinessCase;
-import de.zft2.gbanking.db.dao.MoneyTransfer;
-import de.zft2.gbanking.db.dao.MoneyTransferForeign;
-import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
-import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.ForeignChargeBearer;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.StandingorderMode;
+import de.zft2.gbanking.db.dao.MoneyTransfer;
+import de.zft2.gbanking.db.dao.MoneyTransferForeign;
+import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
+import de.zft2.gbanking.db.dao.Recipient;
+import de.zft2.gbanking.db.DBController;
+import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
 import de.zft2.gbanking.messages.Messages;
-import de.zft2.gbanking.service.GBankingBean;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
+import de.zft2.gbanking.service.BankingCapabilityService;
+import de.zft2.gbanking.service.GBankingService;
+import de.zft2.gbanking.service.Service;
+import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.service.ServiceStubbingUtil;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MoneyTransferExecutionServiceAdditionalTest {
 
 	private Path tempDir;
+
+	private static final List<Class<? extends Service>> SERVICES_TO_STUB = List.of(GBankingService.class, BankAccessService.class,
+			MoneyTransferService.class);
+
+	@BeforeEach
+	void setUp() throws Exception {
+		clearDatabase();
+		ServiceStubbingUtil.initStubbedServicesInContext(SERVICES_TO_STUB);
+	}
+
+	@AfterEach
+	void tearDown() throws Exception {
+		ServiceStubbingUtil.unloadStubbedServicesInContext(SERVICES_TO_STUB);
+	}
 
 	@BeforeAll
 	void setupDatabase() throws Exception {
@@ -76,8 +95,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		DBController.getInstance(tempDir.toString());
 	}
 
-	@BeforeEach
-	void clearDatabase() {
+	private void clearDatabase() {
 		DBControllerTestUtil.clearAllTables(DBController.getConnection());
 	}
 
@@ -89,7 +107,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void supportsTransferOrderType_shouldRejectWhenNoBusinessCasesAreConfigured() {
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), mock(BankAccessService.class));
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 
 		BankAccess bankAccess = insertBankAccessWithBpd("HKCCS", "HKIPZ");
 		BankAccount bankAccount = new BankAccount();
@@ -102,7 +120,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void supportsTransferOrderType_shouldRejectNullAndBlankOnlyBusinessCases() {
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), mock(BankAccessService.class));
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		BankAccess bankAccess = insertBankAccessWithBpd("HKCCS");
 		BankAccount bankAccount = new BankAccount();
 		bankAccount.setBankAccessId(bankAccess.getId());
@@ -115,7 +133,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void supportsTransferOrderType_shouldAcceptAlternativeHbciBusinessCaseCodes() {
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), mock(BankAccessService.class));
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		BankAccess bankAccess = insertBankAccessWithBpd("HKCCS", "HKIPZ", "HKEIL", "HKCSE", "HKCDE", "HKAUB");
 		BankAccount bankAccount = new BankAccount();
 		bankAccount.setBankAccessId(bankAccess.getId());
@@ -132,8 +150,8 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void createTransferJob_shouldConfigureScheduledTransferJob() throws Exception {
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), hbciSupport);
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		HBCIHandler handle = mock(HBCIHandler.class);
 		@SuppressWarnings("unchecked")
 		HBCIJob<HBCIJobResult> job = mock(HBCIJob.class);
@@ -159,8 +177,8 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void createTransferJob_shouldConfigureStandingOrderParams() throws Exception {
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), hbciSupport);
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		HBCIHandler handle = mock(HBCIHandler.class);
 		@SuppressWarnings("unchecked")
 		HBCIJob<HBCIJobResult> job = mock(HBCIJob.class);
@@ -183,8 +201,8 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void createTransferJob_shouldConfigureScheduledTransferEditJob() throws Exception {
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), hbciSupport);
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		HBCIHandler handle = mock(HBCIHandler.class);
 		@SuppressWarnings("unchecked")
 		HBCIJob<HBCIJobResult> job = mock(HBCIJob.class);
@@ -202,8 +220,8 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void createTransferJob_shouldConfigureStandingOrderDeleteJob() throws Exception {
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), hbciSupport);
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		HBCIHandler handle = mock(HBCIHandler.class);
 		@SuppressWarnings("unchecked")
 		HBCIJob<HBCIJobResult> job = mock(HBCIJob.class);
@@ -223,7 +241,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void resolveJobName_shouldMapAllExistingBankOrderOperations() throws Exception {
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), mock(BankAccessService.class));
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 
 		assertEquals("TermUebSEPAEdit", invokePrivate(service, "resolveJobName",
 				new Class<?>[] { OrderType.class, BankOrderOperation.class }, OrderType.SCHEDULED_TRANSFER, BankOrderOperation.EDIT));
@@ -237,8 +255,8 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void createTransferJob_shouldConfigureForeignTransferJob() throws Exception {
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), hbciSupport);
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		HBCIHandler handle = mock(HBCIHandler.class);
 		@SuppressWarnings("unchecked")
 		HBCIJob<HBCIJobResult> job = mock(HBCIJob.class);
@@ -266,8 +284,8 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void createTransferJob_shouldConfigureUrgentTransferJob() throws Exception {
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), hbciSupport);
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		HBCIHandler handle = mock(HBCIHandler.class);
 		@SuppressWarnings("unchecked")
 		HBCIJob<HBCIJobResult> job = mock(HBCIJob.class);
@@ -284,8 +302,8 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void createTransferJob_shouldRejectIncompleteStandingOrder() {
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), hbciSupport);
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		HBCIHandler handle = mock(HBCIHandler.class);
 		@SuppressWarnings("unchecked")
 		HBCIJob<HBCIJobResult> job = mock(HBCIJob.class);
@@ -307,8 +325,8 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void createTransferJob_shouldRejectIncompleteScheduledTransferWithFieldName() {
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), hbciSupport);
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		HBCIHandler handle = mock(HBCIHandler.class);
 		@SuppressWarnings("unchecked")
 		HBCIJob<HBCIJobResult> job = mock(HBCIJob.class);
@@ -326,8 +344,8 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void createTransferJob_shouldRejectIncompleteForeignTransferWithFieldName() {
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), hbciSupport);
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		HBCIHandler handle = mock(HBCIHandler.class);
 		@SuppressWarnings("unchecked")
 		HBCIJob<HBCIJobResult> job = mock(HBCIJob.class);
@@ -345,8 +363,8 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void createTransferJob_shouldRejectIncompleteUrgentTransferWithFieldName() {
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), hbciSupport);
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		HBCIHandler handle = mock(HBCIHandler.class);
 		@SuppressWarnings("unchecked")
 		HBCIJob<HBCIJobResult> job = mock(HBCIJob.class);
@@ -364,7 +382,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void createRecipientAccount_shouldMapRecipientFieldsToHbciKonto() throws Exception {
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), mock(BankAccessService.class));
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		MoneyTransfer moneyTransfer = createMoneyTransfer(OrderType.TRANSFER);
 
 		Konto recipientAccount = (Konto) invokePrivate(service, "createRecipientAccount", new Class<?>[] { MoneyTransfer.class }, moneyTransfer);
@@ -377,7 +395,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void createRecipientAccount_shouldMapGermanIbanToNationalFieldsForUrgentTransfer() throws Exception {
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), mock(BankAccessService.class));
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		MoneyTransfer moneyTransfer = createMoneyTransfer(OrderType.URGENT_TRANSFER);
 		moneyTransfer.getRecipient().setIban("DE89370400440532013000");
 		moneyTransfer.getRecipient().setBic(null);
@@ -392,7 +410,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void createRecipientAccount_shouldMapForeignNationalAccountFields() throws Exception {
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), mock(BankAccessService.class));
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		MoneyTransfer moneyTransfer = createMoneyTransfer(OrderType.FOREIGN_TRANSFER);
 		moneyTransfer.getRecipient().setIban(null);
 		MoneyTransferForeign foreignTransfer = new MoneyTransferForeign();
@@ -412,7 +430,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void standingOrderHelpers_shouldMapModesAndFormatExecutionDays() throws Exception {
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), mock(BankAccessService.class));
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 
 		assertEquals("1", invokePrivate(service, "determineStandingOrderTurnus", new Class<?>[] { StandingorderMode.class }, StandingorderMode.MONTHLY));
 		assertEquals("2", invokePrivate(service, "determineStandingOrderTurnus", new Class<?>[] { StandingorderMode.class }, StandingorderMode.BIMONTHLY));
@@ -431,7 +449,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void updateMoneyTransferAfterExecution_shouldSetTransferSentAndExecutionDate() throws Exception {
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), mock(BankAccessService.class));
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		MoneyTransfer moneyTransfer = createMoneyTransfer(OrderType.TRANSFER);
 		LocalDate before = LocalDate.now(ZoneId.systemDefault());
 
@@ -447,7 +465,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void updateMoneyTransferAfterExecution_shouldNotOverwriteScheduledExecutionDate() throws Exception {
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), mock(BankAccessService.class));
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		MoneyTransfer moneyTransfer = createMoneyTransfer(OrderType.SCHEDULED_TRANSFER);
 		LocalDate executionDate = LocalDate.of(2026, Month.JULY, 15);
 		moneyTransfer.setExecutionDate(executionDate);
@@ -463,7 +481,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void updateMoneyTransferAfterExecution_shouldSetErrorAndReportStatusFailure() throws Exception {
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), mock(BankAccessService.class));
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		MoneyTransfer moneyTransfer = createMoneyTransfer(OrderType.TRANSFER);
 		GBankingHBCICallback callback = mock(GBankingHBCICallback.class);
 		HBCIExecStatus status = mock(HBCIExecStatus.class);
@@ -495,7 +513,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		int changedTransferId = changedTransfer.getId();
 		GVRDauerEdit result = new GVRDauerEdit();
 		result.setOrderId("standing-new-1");
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), mock(BankAccessService.class));
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 
 		invokePrivate(service, "updateMoneyTransferAfterExecution",
 				new Class<?>[] { MoneyTransfer.class, BankOrderOperation.class, GBankingHBCICallback.class, HBCIExecStatus.class, HBCIJobResult.class,
@@ -519,7 +537,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void updateMoneyTransferAfterExecution_shouldKeepFailedDeletePendingAndCompleteSuccessfulDelete() throws Exception {
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), mock(BankAccessService.class));
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		MoneyTransfer moneyTransfer = createMoneyTransfer(OrderType.SCHEDULED_TRANSFER);
 		moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.DELETE_PENDING);
 		GBankingHBCICallback callback = mock(GBankingHBCICallback.class);
@@ -542,7 +560,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 	@Test
 	void applyRecipientNameFromVoP_shouldPersistCorrectedRecipientAndAssignItToOrder() throws Exception {
 		DBController dbController = DBController.getInstance(tempDir.toString());
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(mock(GBankingBean.class), mock(BankAccessService.class));
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		Recipient originalRecipient = dbController.insertOrUpdate(new Recipient("Wrong Recipient", "DE12345678901234567890", "TESTDEFFXXX", null, null,
 				"Testbank", de.zft2.gbanking.db.dao.enu.Source.MANUELL));
 		MoneyTransfer moneyTransfer = createMoneyTransfer(OrderType.TRANSFER);
@@ -560,6 +578,10 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void executeTransfer_shouldRunHbciOrderAfterCallbackAndPersistSentStatus() {
+
+		BankingCapabilityService bankingCapabilityService = mock(BankingCapabilityService.class);
+		ServiceRegistry.setService(BankingCapabilityService.class, bankingCapabilityService);
+
 		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
 		Recipient recipient = dbController.insertOrUpdate(new Recipient("Recipient Name", "DE12345678901234567890", "TESTDEFFXXX", null, null,
@@ -569,9 +591,11 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		moneyTransfer.setRecipientId(recipient.getId());
 		moneyTransfer.setRecipient(recipient);
 
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		GBankingBean gbankingBean = mock(GBankingBean.class);
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService(gbankingBean, hbciSupport);
+		MoneyTransferService moneyTransferService = ServiceRegistry.getService(MoneyTransferService.class);
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
+
 		BankAccess bankAccess = TestData.createSampleBankAccess("10020030");
 		char[] pin = "1234".toCharArray();
 		HBCIPassport passport = mock(HBCIPassport.class);
@@ -583,10 +607,10 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		HBCIJob<HBCIJobResult> job = mock(HBCIJob.class);
 
 		doReturn(bankAccess).when(hbciSupport).initBankAccess(any(BankAccount.class), same(pin));
-		doReturn(true).when(gbankingBean).supportsTransferOrderType(any(BankAccount.class), eq(OrderType.TRANSFER));
+		doReturn(true).when(bankingCapabilityService).supportsTransferOrderType(any(BankAccount.class), eq(OrderType.TRANSFER));
 		doReturn(passport).when(hbciSupport).initBankConnection(eq(bankAccess), any(GBankingHBCICallback.class));
 		doReturn(handle).when(hbciSupport).createHBCIHandler(eq(BaseMessagesDb.getVersion().getId()), same(passport));
-		doReturn(senderAccount).when(gbankingBean).getSenderAccount(eq(passport), any(BankAccount.class));
+		doReturn(senderAccount).when(moneyTransferService).getSenderAccount(eq(passport), any(BankAccount.class));
 		doReturn(job).when(hbciSupport).newHbciJob(handle, "UebSEPA");
 		when(status.isOK()).thenReturn(true);
 		when(handle.execute()).thenReturn(status);
@@ -621,6 +645,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 			assertNotNull(protocols.get(0).getTimeFinish());
 			assertTrue(protocols.get(0).getProtocolText().contains("HBCI execution status"));
 		}
+		ServiceRegistry.removeService(BankingCapabilityService.class);
 	}
 
 	private static MoneyTransfer createMoneyTransfer(OrderType orderType) {

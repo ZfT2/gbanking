@@ -14,7 +14,7 @@ public abstract class BaseWorker extends Task<Void> {
 	private volatile double workerProgress = 0.0;
 
 	protected BaseWorker() {
-		this.dbController = GBankingContext.getDbController();
+		this.dbController = DBController.getInstance(".");
 	}
 
 	public String getProcessingState() {

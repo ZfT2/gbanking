@@ -89,7 +89,7 @@ public class MoneyTransferInputPanel extends MoneyTransferInputBasePanel {
 	}
 
 	private boolean isTransferTypeSupported(BankAccount selectedAccount, OrderType orderType) {
-		return bean.supportsTransferOrderType(selectedAccount, orderType);
+		return bankingCapabilityService.supportsTransferOrderType(selectedAccount, orderType);
 	}
 
 	static List<OrderType> getTransferOrderTypes() {

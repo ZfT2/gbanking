@@ -14,16 +14,16 @@ import java.util.TreeSet;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.BankAccountIdentifier;
 import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.db.dao.enu.AccountIdentifierType;
 import de.zft2.gbanking.db.dao.enu.DataType;
 import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.util.AppPaths;
 
-public class ImportPropertiesSynchronizationService {
+public class ImportPropertiesSynchronizationService extends AbstractDbService {
 
 	private static final Logger log = LogManager.getLogger(ImportPropertiesSynchronizationService.class);
 	private static final String INITIALIZED_SETTING = "import.properties.initialized";
@@ -35,17 +35,7 @@ public class ImportPropertiesSynchronizationService {
 			new PatternFile("accountSkip.properties", PATTERN_PREFIX + "accountSkip."),
 			new PatternFile("bookings.properties", PATTERN_PREFIX + "bookings."));
 
-	private final DBController dbController;
-	private final Path propertiesDirectory;
-
-	public ImportPropertiesSynchronizationService() {
-		this(DBController.getInstance("."), AppPaths.getImportPropertiesDirectory());
-	}
-
-	ImportPropertiesSynchronizationService(DBController dbController, Path propertiesDirectory) {
-		this.dbController = dbController;
-		this.propertiesDirectory = propertiesDirectory;
-	}
+	private final Path propertiesDirectory = AppPaths.getImportPropertiesDirectory();
 
 	public void initializeAndSynchronize() {
 		synchronized (SYNCHRONIZATION_LOCK) {

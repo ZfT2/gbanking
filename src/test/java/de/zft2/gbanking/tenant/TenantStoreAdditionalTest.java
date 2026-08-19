@@ -124,27 +124,27 @@ class TenantStoreAdditionalTest {
 		try (TenantSession session = tenantStore.authenticateSession(tenant.id(), "secret".toCharArray()).orElseThrow()) {
 			java.nio.file.Files.writeString(session.paths().databaseFile(), "database-content");
 			statementFile = session.paths().accountStatementsDirectory().resolve("statement.pdf.enc");
-			new TenantEncryptionService().writeEncryptedContent(statementFile, session,
+			new TenantEncryptionManager().writeEncryptedContent(statementFile, session,
 					output -> output.write("statement-content".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-			new TenantBackupService().backupTenantDatabase(session);
+			new TenantBackupManager().backupTenantDatabase(session);
 			backupFile = session.paths().backupDirectory().resolve("gbanking.db.backup_on_open.gbbackup");
-			new TenantDatabaseLifecycleService().closeAndEncryptDatabase(session, null);
+			new TenantDatabaseLifecycleManager().closeAndEncryptDatabase(session, null);
 		}
 
 		TenantProfile updatedTenant = tenantStore.updateTenant(tenant.id(), "alpha", "secret".toCharArray(), "newsecret".toCharArray());
 
 		assertFalse(tenantStore.authenticate(tenant.id(), "secret".toCharArray()).isPresent());
 		try (TenantSession updatedSession = tenantStore.authenticateSession(updatedTenant.id(), "newsecret".toCharArray()).orElseThrow()) {
-			new TenantDatabaseLifecycleService().prepareDatabaseForOpen(updatedSession, null);
+			new TenantDatabaseLifecycleManager().prepareDatabaseForOpen(updatedSession, null);
 			assertEquals("database-content", java.nio.file.Files.readString(updatedSession.paths().databaseFile()));
 		}
 		java.nio.file.Path restoredBackup = tempDir.resolve("restored.zip");
-		new TenantEncryptionService().decryptContainer(backupFile, restoredBackup, "newsecret".toCharArray());
+		new TenantEncryptionManager().decryptContainer(backupFile, restoredBackup, "newsecret".toCharArray());
 		assertTrue(java.nio.file.Files.size(restoredBackup) > 0L);
 		java.nio.file.Path restoredStatement = tempDir.resolve("restored-statement.pdf");
-		new TenantEncryptionService().decryptContainer(statementFile, restoredStatement, "newsecret".toCharArray());
+		new TenantEncryptionManager().decryptContainer(statementFile, restoredStatement, "newsecret".toCharArray());
 		assertEquals("statement-content", java.nio.file.Files.readString(restoredStatement));
-		TenantEncryptionService encryptionService = new TenantEncryptionService();
+		TenantEncryptionManager encryptionService = new TenantEncryptionManager();
 		java.nio.file.Path wrongBackup = tempDir.resolve("wrong.zip");
 		java.nio.file.Path wrongStatement = tempDir.resolve("wrong.pdf");
 		char[] oldPassword = "secret".toCharArray();

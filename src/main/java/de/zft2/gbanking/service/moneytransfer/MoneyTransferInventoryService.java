@@ -27,7 +27,6 @@ import org.kapott.hbci.status.HBCIExecStatus;
 import org.kapott.hbci.structures.Konto;
 import org.kapott.hbci.structures.Value;
 
-import de.zft2.gbanking.BaseMessagesDb;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
@@ -38,37 +37,38 @@ import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.StandingorderMode;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
-import de.zft2.gbanking.service.GBankingBean;
+import de.zft2.gbanking.service.AbstractDbService;
+import de.zft2.gbanking.service.BankingCapabilityService;
 import de.zft2.gbanking.service.HbciSessionRunner;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
 
-public class MoneyTransferInventoryService implements BaseMessagesDb {
+public class MoneyTransferInventoryService extends AbstractDbService {
 
 	private static final Logger log = LogManager.getLogger(MoneyTransferInventoryService.class);
 
-	private final GBankingBean gBankingBean;
-	private final BankAccessService hbciSupport;
+	private final BankingCapabilityService bankingCapabilityService;
 	private final HbciSessionRunner hbciSessionRunner;
 
-	public MoneyTransferInventoryService(GBankingBean gBankingBean, BankAccessService hbciSupport) {
-		this.gBankingBean = gBankingBean;
-		this.hbciSupport = hbciSupport;
-		this.hbciSessionRunner = new HbciSessionRunner(hbciSupport);
+	public MoneyTransferInventoryService() {
+		this.bankingCapabilityService = ServiceRegistry.getService(BankingCapabilityService.class);
+		this.hbciSessionRunner = new HbciSessionRunner();
 	}
 
-	public boolean retrieveInventory(BankAccount bankAccount, OrderType orderType, char[] pin) {
+	boolean retrieveInventory(BankAccount bankAccount, OrderType orderType, char[] pin) {
 		log.info("Starting money transfer inventory retrieval. accountId={}, type={}", bankAccount != null ? bankAccount.getId() : null, orderType);
 		if (orderType != OrderType.SCHEDULED_TRANSFER && orderType != OrderType.STANDING_ORDER) {
 			log.warn("Money transfer inventory type {} is not supported.", orderType);
 			HbciSessionRunner.clearSecret(pin);
 			return false;
 		}
-		if (!gBankingBean.supportsOrderInventory(bankAccount, orderType)) {
+		if (!bankingCapabilityService.supportsOrderInventory(bankAccount, orderType)) {
 			log.warn("Money transfer inventory type {} is not available for account id {}", orderType, bankAccount != null ? bankAccount.getId() : null);
 			HbciSessionRunner.clearSecret(pin);
 			return false;
 		}
 
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 		BankAccess bankAccess = hbciSupport.initBankAccess(bankAccount, pin);
 		if (bankAccess == null) {
 			log.info("Money transfer inventory retrieval skipped, no bank access available. accountId={}, type={}",
@@ -90,7 +90,8 @@ public class MoneyTransferInventoryService implements BaseMessagesDb {
 	}
 
 	private boolean retrieveInventory(BankAccount bankAccount, OrderType orderType, HbciSessionRunner.HbciSession session) {
-		Konto senderAccount = gBankingBean.getSenderAccount(session.passport(), bankAccount);
+		MoneyTransferService moneyTransferService = ServiceRegistry.getService(MoneyTransferService.class);
+		Konto senderAccount = moneyTransferService.getSenderAccount(session.passport(), bankAccount);
 		return orderType == OrderType.STANDING_ORDER ? retrieveStandingOrders(session.handler(), bankAccount, senderAccount, session.callback())
 				: retrieveScheduledTransfers(session.handler(), bankAccount, senderAccount, session.callback());
 	}
@@ -134,6 +135,7 @@ public class MoneyTransferInventoryService implements BaseMessagesDb {
 	}
 
 	private <T extends HBCIJobResult> HBCIJob<T> createInventoryJob(HBCIHandler handle, String jobName, Konto senderAccount) {
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 		HBCIJob<T> job = hbciSupport.newHbciJob(handle, jobName);
 		job.setParam("src", senderAccount);
 		job.addToQueue();

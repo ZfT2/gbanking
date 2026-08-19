@@ -16,7 +16,7 @@ public final class TenantFileEncryptionContext {
 	public static final String ENCRYPTED_FILE_SUFFIX = ".enc";
 
 	private static final Logger log = LogManager.getLogger(TenantFileEncryptionContext.class);
-	private static final TenantEncryptionService ENCRYPTION_SERVICE = new TenantEncryptionService();
+	private static final TenantEncryptionManager ENCRYPTION_MANAGER = new TenantEncryptionManager();
 
 	private static TenantSession activeSession;
 	private static Path decryptedStatementsDirectory;
@@ -46,30 +46,30 @@ public final class TenantFileEncryptionContext {
 
 	public static synchronized void encrypt(byte[] content, Path targetFile) throws IOException {
 		TenantSession session = requireActiveSession();
-		ENCRYPTION_SERVICE.writeEncryptedContent(targetFile, session, output -> output.write(content));
+		ENCRYPTION_MANAGER.writeEncryptedContent(targetFile, session, output -> output.write(content));
 	}
 
 	public static synchronized void encrypt(Path sourceFile, Path targetFile) throws IOException {
 		TenantSession session = requireActiveSession();
-		ENCRYPTION_SERVICE.encryptFile(sourceFile, targetFile, session);
-		ENCRYPTION_SERVICE.verifyFile(targetFile, session.dataKey());
+		ENCRYPTION_MANAGER.encryptFile(sourceFile, targetFile, session);
+		ENCRYPTION_MANAGER.verifyFile(targetFile, session.dataKey());
 	}
 
 	public static synchronized void decrypt(Path sourceFile, Path targetFile) throws IOException {
-		ENCRYPTION_SERVICE.decryptFile(sourceFile, targetFile, requireActiveSession().dataKey());
+		ENCRYPTION_MANAGER.decryptFile(sourceFile, targetFile, requireActiveSession().dataKey());
 	}
 
 	public static synchronized Path decryptForOpening(Path sourceFile, String logicalFileName) throws IOException {
 		TenantSession session = requireActiveSession();
 		Files.createDirectories(decryptedStatementsDirectory);
 		Path targetFile = Files.createTempFile(decryptedStatementsDirectory, "statement-", fileExtension(logicalFileName));
-		ENCRYPTION_SERVICE.decryptFile(sourceFile, targetFile, session.dataKey());
+		ENCRYPTION_MANAGER.decryptFile(sourceFile, targetFile, session.dataKey());
 		targetFile.toFile().deleteOnExit();
 		return targetFile;
 	}
 
 	public static synchronized void moveAtomically(Path sourceFile, Path targetFile) throws IOException {
-		ENCRYPTION_SERVICE.moveAtomically(sourceFile, targetFile);
+		ENCRYPTION_MANAGER.moveAtomically(sourceFile, targetFile);
 	}
 
 	private static TenantSession requireActiveSession() {

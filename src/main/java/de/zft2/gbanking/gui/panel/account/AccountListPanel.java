@@ -12,9 +12,10 @@ import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
-import de.zft2.gbanking.gui.GBankingContext;
+import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.gui.enu.PageContext;
+import de.zft2.gbanking.gui.GuiContext;
 import de.zft2.gbanking.gui.model.AccountTableModel;
 import de.zft2.gbanking.gui.panel.AbstractFilterableTablePanel;
 import de.zft2.gbanking.gui.panel.overview.AccountsTransactionsOverviewPanel;
@@ -216,7 +217,7 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 	}
 
 	private void handleSelection(BankAccount selectedAccount) {
-		GBankingContext.setSelectedAccount(selectedAccount);
+		GuiContext.setSelectedAccount(selectedAccount);
 		PageContext context = parentPanel.getPageContext();
 
 		if (context == PageContext.ACCOUNTS_TRANSACTIONS) {
@@ -317,14 +318,14 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 	}
 
 	private static List<BankAccount> loadAccounts(AccountListScope accountListScope) {
-		return accountListScope == AccountListScope.ONLINE_ONLY || GBankingContext.isOnlyOnlineAccountsVisible()
-				? GBankingContext.getDbController().getAll(BankAccount.class, SQL_SELECT_ALL_ONLINE_BANKACCOUNTS)
-				: GBankingContext.getDbController().getAll(BankAccount.class);
+		return accountListScope == AccountListScope.ONLINE_ONLY || GuiContext.isOnlyOnlineAccountsVisible()
+				? DBController.getInstance(".").getAll(BankAccount.class, SQL_SELECT_ALL_ONLINE_BANKACCOUNTS)
+				: DBController.getInstance(".").getAll(BankAccount.class);
 	}
 
 	private void updatePanelTitle() {
 		String title = getText(panelTitleKey);
-		if (accountListScope == AccountListScope.FOLLOW_VIEW_SETTING && GBankingContext.isOnlyOnlineAccountsVisible()) {
+		if (accountListScope == AccountListScope.FOLLOW_VIEW_SETTING && GuiContext.isOnlyOnlineAccountsVisible()) {
 			title += " " + getText(UI_PANEL_ACCOUNT_ONLINE_ONLY_SUFFIX);
 		}
 		setPanelTitle(title);
@@ -335,7 +336,7 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 	}
 
 	private Integer accountIdToRestore() {
-		Integer selectedAccountId = GBankingContext.getSelectedAccountId();
+		Integer selectedAccountId = GuiContext.getSelectedAccountId();
 		if (selectedAccountId != null) {
 			return selectedAccountId;
 		}
@@ -355,8 +356,8 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 				.orElse(null);
 		if (accountToSelect != null) {
 			selectAccount(accountToSelect);
-		} else if (accountId.equals(GBankingContext.getSelectedAccountId())) {
-			GBankingContext.clearSelectedAccount();
+		} else if (accountId.equals(GuiContext.getSelectedAccountId())) {
+			GuiContext.clearSelectedAccount();
 		}
 	}
 }

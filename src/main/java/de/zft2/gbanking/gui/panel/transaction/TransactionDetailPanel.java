@@ -18,19 +18,20 @@ import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingNoteDetails;
 import de.zft2.gbanking.db.dao.BookingSepaDetails;
 import de.zft2.gbanking.db.dao.Category;
-import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.AccountState;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.db.dao.Recipient;
+import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.KeyboardShortcutDispatcher;
 import de.zft2.gbanking.gui.KeyboardShortcutDispatcher.Action;
-import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.panel.overview.TransactionsOverviewBasePanel;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.gui.util.FormStyleUtils.FieldWidth;
-import de.zft2.gbanking.service.booking.BookingSplitService;
 import de.zft2.gbanking.gui.util.FxTableUtils;
+import de.zft2.gbanking.service.booking.BookingSplitService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.util.TypeConverter;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.SimpleStringProperty;
@@ -150,8 +151,12 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 	private boolean additionalNoteEditing;
 
 	public TransactionDetailPanel(TransactionsOverviewBasePanel parentPanel) {
+		this(parentPanel, ServiceRegistry.getService(BookingSplitService.class));
+	}
+
+	TransactionDetailPanel(TransactionsOverviewBasePanel parentPanel, BookingSplitService bookingSplitService) {
 		this.parentPanel = parentPanel;
-		this.bookingSplitService = new BookingSplitService(dbController);
+		this.bookingSplitService = bookingSplitService;
 		createUI();
 		loadComboValues();
 		enableFields(false);

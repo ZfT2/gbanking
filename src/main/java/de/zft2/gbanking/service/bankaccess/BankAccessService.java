@@ -22,7 +22,6 @@ import org.kapott.hbci.status.HBCIDialogStatus;
 import org.kapott.hbci.status.HBCIExecStatus;
 import org.kapott.hbci.structures.Konto;
 
-import de.zft2.gbanking.BaseMessagesDb;
 import de.zft2.gbanking.db.StatementsConfig;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
@@ -39,14 +38,16 @@ import de.zft2.gbanking.logging.SensitiveDataMasker;
 import de.zft2.gbanking.mapper.HbciMapper;
 import de.zft2.gbanking.paypal.PaypalAccountService;
 import de.zft2.gbanking.paypal.PaypalSupport;
+import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.HbciSessionRunner;
+import de.zft2.gbanking.service.ServiceRegistry;
 
-public class BankAccessService implements BaseMessagesDb {
+public class BankAccessService extends AbstractDbService {
 
 	private static Logger log = LogManager.getLogger(BankAccessService.class);
 
 	private static GBankingLoggingHandler logHandler = GBankingLoggingHandler.getInstance();
-	private final PaypalAccountService paypalAccountService = new PaypalAccountService();
+	private final PaypalAccountService paypalAccountService = ServiceRegistry.getService(PaypalAccountService.class);
 
 	public HBCIHandler createHBCIHandler(String versionId, HBCIPassport passport) {
 		return new HBCIHandler(versionId, passport);
@@ -62,7 +63,7 @@ public class BankAccessService implements BaseMessagesDb {
 		return handle.newLowlevelJob(jobDescription);
 	}
 
-	public HBCIPassport initBankConnection(BankAccess bankAccess) {
+	HBCIPassport initBankConnection(BankAccess bankAccess) {
 		return initBankConnection(bankAccess, new GBankingHBCICallback(bankAccess));
 	}
 
@@ -146,7 +147,7 @@ public class BankAccessService implements BaseMessagesDb {
 		log.info("Starting bank access setup for bank code {}", bankAccess != null ? SensitiveDataMasker.maskIdentifier(bankAccess.getBlz()) : null);
 
 		try {
-			return new HbciSessionRunner(this).run(bankAccess, bankAccess != null ? bankAccess.getPin() : null,
+			return new HbciSessionRunner().run(bankAccess, bankAccess != null ? bankAccess.getPin() : null,
 					session -> addNewBankAccess(bankAccess, session));
 		} catch (InterruptedException ex) {
 			log.error("Bank access setup failed for bank code {}", bankAccess != null ? SensitiveDataMasker.maskIdentifier(bankAccess.getBlz()) : null, ex);
@@ -199,7 +200,7 @@ public class BankAccessService implements BaseMessagesDb {
 				() -> SensitiveDataMasker.maskIdentifier(refreshAccess.getBlz()));
 
 		try {
-			return new HbciSessionRunner(this).run(refreshAccess, pin, session -> refreshBankAccessParameterData(bankAccess, refreshAccess, session));
+			return new HbciSessionRunner().run(refreshAccess, pin, session -> refreshBankAccessParameterData(bankAccess, refreshAccess, session));
 		} catch (InterruptedException ex) {
 			log.error("BPD/UPD refresh failed for bank access id {}", bankAccess.getId(), ex);
 			Thread.currentThread().interrupt();

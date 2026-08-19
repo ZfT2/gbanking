@@ -18,24 +18,26 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import de.zft2.gbanking.analysis.TurnoverAnalysisService;
-import de.zft2.gbanking.analysis.TurnoverAnalysisService.AccountSelectionMode;
-import de.zft2.gbanking.analysis.TurnoverAnalysisService.AnalysisConfiguration;
-import de.zft2.gbanking.analysis.TurnoverAnalysisService.AnalysisResult;
-import de.zft2.gbanking.analysis.TurnoverAnalysisService.BalancePoint;
-import de.zft2.gbanking.analysis.TurnoverAnalysisService.CategorySlice;
-import de.zft2.gbanking.analysis.TurnoverAnalysisService.DateRange;
-import de.zft2.gbanking.analysis.TurnoverAnalysisService.FlowDirection;
-import de.zft2.gbanking.analysis.TurnoverAnalysisService.PeriodType;
+import de.zft2.gbanking.analysis.TurnoverAnalyzer;
+import de.zft2.gbanking.analysis.TurnoverAnalyzer.AccountSelectionMode;
+import de.zft2.gbanking.analysis.TurnoverAnalyzer.AnalysisConfiguration;
+import de.zft2.gbanking.analysis.TurnoverAnalyzer.AnalysisResult;
+import de.zft2.gbanking.analysis.TurnoverAnalyzer.BalancePoint;
+import de.zft2.gbanking.analysis.TurnoverAnalyzer.CategorySlice;
+import de.zft2.gbanking.analysis.TurnoverAnalyzer.DateRange;
+import de.zft2.gbanking.analysis.TurnoverAnalyzer.FlowDirection;
+import de.zft2.gbanking.analysis.TurnoverAnalyzer.PeriodType;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
-import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.db.dao.enu.DataType;
+import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.gui.component.GBankingTableView;
-import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.enu.PageContext;
+import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.util.DateFormatUtils;
 import de.zft2.gbanking.gui.util.FxTableUtils;
+import de.zft2.gbanking.service.booking.BookingService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -69,6 +71,7 @@ import javafx.util.StringConverter;
 public class AnalysisOverviewPanel extends OverviewBasePanel {
 
 	private static final Logger log = LogManager.getLogger(AnalysisOverviewPanel.class);
+
 	private static final String AMOUNT_NEGATIVE = "amount-negative";
 	private static final String AMOUNT_NEUTRAL = "amount-neutral";
 	private static final String AMOUNT_POSITIVE = "amount-positive";
@@ -88,7 +91,7 @@ public class AnalysisOverviewPanel extends OverviewBasePanel {
 	private record MetricRow(String metric, String value, MetricValueStyle valueStyle) {
 	}
 
-	private final TurnoverAnalysisService analysisService = new TurnoverAnalysisService();
+	private final TurnoverAnalyzer turnoverAnalyzer = new TurnoverAnalyzer();
 	private final DecimalFormat amountFormat = FxTableUtils.createGermanDecimalFormat();
 	private final DecimalFormat axisAmountFormat = new DecimalFormat("#,##0", DecimalFormatSymbols.getInstance(java.util.Locale.GERMAN));
 	private final ObservableList<MetricRow> metricRows = FXCollections.observableArrayList();
@@ -98,6 +101,7 @@ public class AnalysisOverviewPanel extends OverviewBasePanel {
 	private final String panelTitleKey;
 	private final String settingAttribute;
 	private final String settingCommentKey;
+	private final BookingService bookingService;
 
 	private AnalysisConfiguration configuration = AnalysisConfiguration.defaultConfiguration();
 	private List<BankAccount> eligibleAccounts = List.of();
@@ -122,10 +126,16 @@ public class AnalysisOverviewPanel extends OverviewBasePanel {
 	}
 
 	protected AnalysisOverviewPanel(PageContext pageContext, String panelTitleKey, String settingAttribute, String settingCommentKey) {
+		this(pageContext, panelTitleKey, settingAttribute, settingCommentKey, ServiceRegistry.getService(BookingService.class));
+	}
+
+	protected AnalysisOverviewPanel(PageContext pageContext, String panelTitleKey, String settingAttribute, String settingCommentKey,
+			BookingService bookingService) {
 		this.pageContext = pageContext;
 		this.panelTitleKey = panelTitleKey;
 		this.settingAttribute = settingAttribute;
 		this.settingCommentKey = settingCommentKey;
+		this.bookingService = bookingService;
 	}
 
 	@Override
@@ -288,9 +298,9 @@ public class AnalysisOverviewPanel extends OverviewBasePanel {
 	}
 
 	private void reloadData() {
-		List<BankAccount> allAccounts = bean.getAllAccounts();
-		allBookings = bean.getAllBookings();
-		eligibleAccounts = analysisService.getEligibleAccounts(allAccounts, allBookings);
+		List<BankAccount> allAccounts = getGBankingService().getAllAccounts();
+		allBookings = bookingService.getAllBookings();
+		eligibleAccounts = turnoverAnalyzer.getEligibleAccounts(allAccounts, allBookings);
 	}
 
 	private void rebuildAccountMenu() {
@@ -360,7 +370,7 @@ public class AnalysisOverviewPanel extends OverviewBasePanel {
 				entry.getValue().setSelected(mode == entry.getKey());
 			}
 
-			Set<Integer> selectedIds = analysisService.resolveSelectedAccounts(eligibleAccounts, configuration).stream()
+			Set<Integer> selectedIds = turnoverAnalyzer.resolveSelectedAccounts(eligibleAccounts, configuration).stream()
 					.map(BankAccount::getId)
 					.collect(Collectors.toSet());
 			for (Map.Entry<Integer, CheckBox> entry : accountCheckBoxes.entrySet()) {
@@ -475,7 +485,7 @@ public class AnalysisOverviewPanel extends OverviewBasePanel {
 	}
 
 	protected final void updateAnalysis(boolean saveConfiguration) {
-		AnalysisResult result = analysisService.analyze(eligibleAccounts, allBookings, configuration, LocalDate.now(ZoneId.systemDefault()));
+		AnalysisResult result = turnoverAnalyzer.analyze(eligibleAccounts, allBookings, configuration, LocalDate.now(ZoneId.systemDefault()));
 		updateView(result);
 		updateAccountControls();
 		if (saveConfiguration) {

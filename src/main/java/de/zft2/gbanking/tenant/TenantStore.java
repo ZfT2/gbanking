@@ -44,7 +44,7 @@ public class TenantStore implements BaseMessages {
 	private final Path tenantsDirectory;
 	private final Path registryFile;
 	private final Path workDirectory;
-	private final TenantEncryptionService encryptionService = new TenantEncryptionService();
+	private final TenantEncryptionManager encryptionManager = new TenantEncryptionManager();
 
 	public TenantStore() {
 		this(AppPaths.resolveInApplicationDirectory("data"));
@@ -145,11 +145,11 @@ public class TenantStore implements BaseMessages {
 
 	private TenantProfile updateTenantPassword(Properties properties, TenantProfile existingTenant, String normalizedUsername, char[] oldPassword,
 			char[] newPassword) {
-		try (TenantDataKey dataKey = encryptionService.unlockDataKey(existingTenant, oldPassword)) {
-			TenantKeyEnvelope envelope = encryptionService.createEnvelope(newPassword, dataKey);
+		try (TenantDataKey dataKey = encryptionManager.unlockDataKey(existingTenant, oldPassword)) {
+			TenantKeyEnvelope envelope = encryptionManager.createEnvelope(newPassword, dataKey);
 			TenantProfile updatedTenant = createTenantProfile(existingTenant.id(), normalizedUsername, envelope);
 			try {
-				encryptionService.updateContainerEnvelopes(getTenantPaths(existingTenant.id()), updatedTenant, dataKey);
+				encryptionManager.updateContainerEnvelopes(getTenantPaths(existingTenant.id()), updatedTenant, dataKey);
 				storeTenant(properties, updatedTenant);
 				persist(properties);
 				log.info("Updated tenant. tenantId={}", () -> SensitiveDataMasker.maskIdentifier(existingTenant.id()));
@@ -166,7 +166,7 @@ public class TenantStore implements BaseMessages {
 
 	private void rollbackContainerEnvelopes(TenantProfile existingTenant, TenantDataKey dataKey, Exception originalFailure) {
 		try {
-			encryptionService.updateContainerEnvelopes(getTenantPaths(existingTenant.id()), existingTenant, dataKey);
+			encryptionManager.updateContainerEnvelopes(getTenantPaths(existingTenant.id()), existingTenant, dataKey);
 		} catch (IOException | RuntimeException rollbackFailure) {
 			originalFailure.addSuppressed(rollbackFailure);
 			log.error("Could not roll back tenant backup key envelopes", rollbackFailure);
@@ -189,7 +189,7 @@ public class TenantStore implements BaseMessages {
 		}
 		try {
 			TenantProfile profile = tenant.get();
-			return Optional.of(new TenantSession(profile, getTenantPaths(profile.id()), encryptionService.unlockDataKey(profile, password)));
+			return Optional.of(new TenantSession(profile, getTenantPaths(profile.id()), encryptionManager.unlockDataKey(profile, password)));
 		} catch (IllegalStateException e) {
 			return Optional.empty();
 		}
@@ -294,7 +294,7 @@ public class TenantStore implements BaseMessages {
 	}
 
 	private TenantProfile createTenantProfile(String tenantId, String username, char[] password) {
-		return createTenantProfile(tenantId, username, encryptionService.createEnvelope(password));
+		return createTenantProfile(tenantId, username, encryptionManager.createEnvelope(password));
 	}
 
 	private TenantProfile createTenantProfile(String tenantId, String username, TenantKeyEnvelope envelope) {
@@ -306,7 +306,7 @@ public class TenantStore implements BaseMessages {
 			return false;
 		}
 
-		try (TenantDataKey ignored = encryptionService.unlockDataKey(tenant, password)) {
+		try (TenantDataKey ignored = encryptionManager.unlockDataKey(tenant, password)) {
 			return true;
 		} catch (IllegalStateException e) {
 			return false;

@@ -27,7 +27,6 @@ import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankMessage;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
-import de.zft2.gbanking.logging.GBankingLoggingHandler;
 import de.zft2.gbanking.service.HbciSessionRunner;
 
 class BankMessageServiceTest {
@@ -44,7 +43,7 @@ class BankMessageServiceTest {
 	void saveBankMessagesShouldUpdateExistingMessageWithSameMessageKey() {
 		DBController dbController = DBController.getInstance(tempDir.resolve("db").toString());
 		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("34567890"));
-		BankMessageService service = new BankMessageService(new BankAccessService(), GBankingLoggingHandler.getInstance());
+		BankMessageService service = new BankMessageService();
 		GVRInfoList.Info info = createInfo("MSG001", "Important bank message");
 
 		service.saveBankMessages(bankAccess, List.of(info), Map.of("MSG001", "First text"),
@@ -63,7 +62,7 @@ class BankMessageServiceTest {
 	void saveBankMessagesShouldReturnDuplicateOverviewEntriesOnlyOnce() {
 		DBController dbController = DBController.getInstance(tempDir.resolve("db").toString());
 		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("45678901"));
-		BankMessageService service = new BankMessageService(new BankAccessService(), GBankingLoggingHandler.getInstance());
+		BankMessageService service = new BankMessageService();
 		GVRInfoList.Info info = createInfo("MSG002", "Duplicate bank message");
 
 		List<BankMessage> savedMessages = service.saveBankMessages(bankAccess, List.of(info, info), Map.of("MSG002", "Text"),
@@ -78,11 +77,12 @@ class BankMessageServiceTest {
 	void saveInstitutionMessagesShouldPersistSubjectAndDeduplicateRepeatedMessages() {
 		DBController dbController = DBController.getInstance(tempDir.resolve("db").toString());
 		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("56789012"));
+		BankMessageService service = new BankMessageService();
 		String messageText = "Wichtiger Hinweis: Wartungsarbeiten am Sonntag";
 
-		BankMessageService.saveInstitutionMessages(bankAccess, List.of(messageText),
+		service.saveInstitutionMessages(bankAccess, List.of(messageText),
 				LocalDateTime.of(2026, Month.JULY, 16, 13, 0));
-		BankMessageService.saveInstitutionMessages(bankAccess, List.of(messageText),
+		service.saveInstitutionMessages(bankAccess, List.of(messageText),
 				LocalDateTime.of(2026, Month.JULY, 16, 14, 0));
 
 		List<BankMessage> messages = dbController.getAllByParentFull(BankMessage.class, bankAccess.getId());
@@ -96,7 +96,7 @@ class BankMessageServiceTest {
 
 	@Test
 	void retrieveInstitutionMessagesShouldExecuteEmptyDialog() {
-		BankMessageService service = new BankMessageService(new BankAccessService(), GBankingLoggingHandler.getInstance());
+		BankMessageService service = new BankMessageService();
 		HBCIHandler handler = mock(HBCIHandler.class);
 		HBCIExecStatus status = mock(HBCIExecStatus.class);
 		GBankingHBCICallback callback = mock(GBankingHBCICallback.class);

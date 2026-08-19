@@ -20,14 +20,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.zft2.core.exception.ConfigurationException;
-import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.StatementsConfig;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingAdditionalDetails;
-import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.db.dao.Recipient;
+import de.zft2.gbanking.db.StatementsConfig;
 import de.zft2.gbanking.rebooking.DetectedRebookingPair;
 import de.zft2.gbanking.rebooking.MissingRebookingCandidate;
 import de.zft2.gbanking.rebooking.MissingRebookingCreationSummary;
@@ -35,19 +34,15 @@ import de.zft2.gbanking.rebooking.MissingRebookingRouteSummary;
 import de.zft2.gbanking.rebooking.RebookingAccountSummary;
 import de.zft2.gbanking.rebooking.RebookingAssignmentSummary;
 import de.zft2.gbanking.rebooking.RebookingRules;
+import de.zft2.gbanking.service.AbstractDbService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.importproperties.ImportPropertiesSynchronizationService;
 import de.zft2.gbanking.util.AppPaths;
 
-final class RebookingService {
+final class RebookingService extends AbstractDbService {
 
 	private static final Logger log = LogManager.getLogger(RebookingService.class);
 	private static final int SEARCH_WINDOW_DAYS = 6;
-
-	private final DBController dbController;
-
-	RebookingService(DBController dbController) {
-		this.dbController = Objects.requireNonNull(dbController, "dbController");
-	}
 
 	int adjustRebookings(BankAccount checkedAccount) {
 		if (checkedAccount == null || checkedAccount.getId() <= 0) {
@@ -160,7 +155,7 @@ final class RebookingService {
 
 		List<TransferPropertiesFileSnapshot> fileSnapshots = List.of();
 		try {
-			new ImportPropertiesSynchronizationService().initializeAndSynchronize();
+			ServiceRegistry.getService(ImportPropertiesSynchronizationService.class).initializeAndSynchronize();
 			fileSnapshots = snapshotTransferPropertiesFiles();
 			OnlineBookingProcessor.generateCrossBookingsForOnline(accounts);
 		} catch (ConfigurationException | RuntimeException e) {

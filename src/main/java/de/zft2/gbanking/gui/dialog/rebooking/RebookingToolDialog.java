@@ -12,14 +12,15 @@ import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.gui.BaseGui;
-import de.zft2.gbanking.gui.GBankingContext;
-import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
+import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.rebooking.MissingRebookingCreationSummary;
 import de.zft2.gbanking.rebooking.MissingRebookingRouteSummary;
 import de.zft2.gbanking.rebooking.RebookingAccountSummary;
 import de.zft2.gbanking.rebooking.RebookingAssignmentSummary;
-import de.zft2.gbanking.service.GBankingBean;
+import de.zft2.gbanking.service.account.AccountTransactionService;
+import de.zft2.gbanking.service.GBankingService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.concurrent.Task;
@@ -44,8 +45,10 @@ public class RebookingToolDialog implements BaseGui {
 
 	private static final Logger log = LogManager.getLogger(RebookingToolDialog.class);
 
+	AccountTransactionService accountTransactionService = ServiceRegistry.getService(AccountTransactionService.class);
+
 	private Stage stage;
-	private GBankingBean bean;
+	private GBankingService bean;
 
 	List<BankAccount> selectedAccounts;
 
@@ -58,7 +61,7 @@ public class RebookingToolDialog implements BaseGui {
 	public RebookingToolDialog(Stage stage, List<BankAccount> selectedAccounts) {
 		this.stage = stage;
 		this.selectedAccounts = selectedAccounts;
-		bean = GBankingContext.getBean();
+		bean = ServiceRegistry.getService(GBankingService.class);
 	}
 
 	public void assignRebookings() {
@@ -133,7 +136,7 @@ public class RebookingToolDialog implements BaseGui {
 			protected RebookingAssignmentSummary call() {
 				log.info("Starting manual rebooking assignment detection. from={}, to={}, allAccounts={}, anchorAccounts={}", request.dateFrom(),
 						request.dateTo(), request.allAccounts(), anchorAccounts.size());
-				return bean.detectRebookings(request.dateFrom(), request.dateTo(), anchorAccounts);
+				return accountTransactionService.detectRebookings(request.dateFrom(), request.dateTo(), anchorAccounts);
 			}
 		};
 		detectionTask.setOnSucceeded(event -> handleRebookingAssignmentSummary(detectionTask.getValue()));
@@ -156,7 +159,7 @@ public class RebookingToolDialog implements BaseGui {
 			protected MissingRebookingCreationSummary call() {
 				log.info("Starting missing rebooking detection. from={}, to={}, allAccounts={}, anchorAccounts={}", request.dateFrom(), request.dateTo(),
 						request.allAccounts(), anchorAccounts.size());
-				return bean.detectMissingRebookings(request.dateFrom(), request.dateTo(), anchorAccounts);
+				return accountTransactionService.detectMissingRebookings(request.dateFrom(), request.dateTo(), anchorAccounts);
 			}
 		};
 		detectionTask.setOnSucceeded(event -> handleMissingRebookingSummary(detectionTask.getValue()));
@@ -256,7 +259,7 @@ public class RebookingToolDialog implements BaseGui {
 		Task<Integer> saveTask = new Task<>() {
 			@Override
 			protected Integer call() {
-				return bean.saveDetectedRebookings(summary);
+				return accountTransactionService.persistDetectedRebookingLinks(summary);
 			}
 		};
 		saveTask.setOnSucceeded(event -> showInfo(stage, getText("UI_DIALOG_REBOOKING_ASSIGN_SAVED", saveTask.getValue())));
@@ -271,7 +274,7 @@ public class RebookingToolDialog implements BaseGui {
 		Task<Integer> createTask = new Task<>() {
 			@Override
 			protected Integer call() {
-				return bean.createMissingRebookings(summary);
+				return accountTransactionService.createMissingRebookings(summary);
 			}
 		};
 		createTask.setOnSucceeded(event -> showInfo(stage, getText("UI_DIALOG_REBOOKING_CREATE_SAVED", createTask.getValue())));

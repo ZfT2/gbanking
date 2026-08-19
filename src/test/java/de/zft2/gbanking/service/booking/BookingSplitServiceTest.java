@@ -19,14 +19,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
-import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.AccountState;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.db.DBController;
+import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.service.ServiceRegistry;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class BookingSplitServiceTest {
@@ -39,7 +40,7 @@ class BookingSplitServiceTest {
 	void setupDatabase() throws Exception {
 		tempDir = Files.createTempDirectory("gb_test_");
 		dbController = DBController.getInstance(tempDir.toString());
-		service = new BookingSplitService(dbController);
+		service = ServiceRegistry.getService(BookingSplitService.class);
 	}
 
 	@BeforeEach

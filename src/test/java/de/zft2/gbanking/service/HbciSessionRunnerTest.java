@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -15,22 +16,36 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.kapott.hbci.manager.HBCIHandler;
 import org.kapott.hbci.passport.HBCIPassport;
 
 import de.zft2.gbanking.BaseMessagesDb;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccess;
+import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
 
 class HbciSessionRunnerTest {
 
+	private static final List<Class<? extends Service>> SERVICES_TO_STUB = List.of(BankAccessService.class);
+
+	@BeforeEach
+	void setUp() throws Exception {
+		ServiceStubbingUtil.initStubbedServicesInContext(SERVICES_TO_STUB);
+	}
+
+	@AfterEach
+	void tearDown() throws Exception {
+		ServiceStubbingUtil.unloadStubbedServicesInContext(SERVICES_TO_STUB);
+	}
+
 	@Test
 	void run_shouldSerializeHbciOperationsForSameBankAccess() throws Exception {
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		HbciSessionRunner runner = new HbciSessionRunner(hbciSupport, ignored -> mock(GBankingHBCICallback.class));
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		HbciSessionRunner runner = new HbciSessionRunner(ignored -> mock(GBankingHBCICallback.class));
 		BankAccess bankAccess = TestData.createSampleBankAccess("10020030");
 		CountDownLatch firstOperationStarted = new CountDownLatch(1);
 		CountDownLatch releaseFirstOperation = new CountDownLatch(1);
@@ -64,8 +79,8 @@ class HbciSessionRunnerTest {
 
 	@Test
 	void run_shouldSerializeHbciOperationsAcrossDifferentBankAccesses() throws Exception {
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		HbciSessionRunner runner = new HbciSessionRunner(hbciSupport, ignored -> mock(GBankingHBCICallback.class));
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		HbciSessionRunner runner = new HbciSessionRunner(ignored -> mock(GBankingHBCICallback.class));
 		BankAccess firstBankAccess = TestData.createSampleBankAccess("10020030");
 		BankAccess secondBankAccess = TestData.createSampleBankAccess("40050060");
 		CountDownLatch firstOperationStarted = new CountDownLatch(1);

@@ -2,7 +2,6 @@ package de.zft2.gbanking.service.account;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -29,8 +28,6 @@ import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.BankAccountStatement;
-import de.zft2.gbanking.logging.GBankingLoggingHandler;
-import de.zft2.gbanking.service.bankaccess.BankAccessService;
 
 class AccountStatementServiceTest {
 
@@ -50,12 +47,8 @@ class AccountStatementServiceTest {
 
 	@Test
 	void createRedownloadRequestsShouldStartWithStoredAcknowledgedStatementsAndDeduplicateFallbackMonths() {
-		AccountStatementService service = new AccountStatementService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class),
-				new AccountStatementFileService(tempDir));
-		List<BankAccountStatement> storedStatements = List.of(
-				createStatement(2026, 5, true),
-				createStatement(2026, 4, false),
-				createStatement(2025, 12, true),
+		AccountStatementService service = new AccountStatementService(tempDir);
+		List<BankAccountStatement> storedStatements = List.of(createStatement(2026, 5, true), createStatement(2026, 4, false), createStatement(2025, 12, true),
 				createStatement(0, 6, true));
 
 		List<AccountStatementService.StatementRequest> requests = service.createRedownloadRequests(storedStatements, YearMonth.of(2026, Month.JUNE));
@@ -71,8 +64,7 @@ class AccountStatementServiceTest {
 
 	@Test
 	void readStatementOverviewEntriesShouldParseLowlevelResultData() {
-		AccountStatementService service = new AccountStatementService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class),
-				new AccountStatementFileService(tempDir));
+		AccountStatementService service = new AccountStatementService(tempDir);
 		Properties resultData = new Properties();
 		resultData.setProperty("content.number", "5");
 		resultData.setProperty("content.year", "2026");
@@ -92,8 +84,7 @@ class AccountStatementServiceTest {
 
 	@Test
 	void createOverviewDownloadRequestsShouldSkipKnownAndNonRetrievableEntries() {
-		AccountStatementService service = new AccountStatementService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class),
-				new AccountStatementFileService(tempDir));
+		AccountStatementService service = new AccountStatementService(tempDir);
 		List<AccountStatementService.StatementOverviewEntry> overviewEntries = List.of(
 				new AccountStatementService.StatementOverviewEntry(2026, 5, true, "1", null, null, null, null),
 				new AccountStatementService.StatementOverviewEntry(2026, 4, false, "1", null, null, null, null),
@@ -102,17 +93,15 @@ class AccountStatementServiceTest {
 
 		List<AccountStatementService.StatementRequest> requests = service.createOverviewDownloadRequests(overviewEntries, Set.of("2026/5"));
 
-		assertEquals(List.of(
-				new AccountStatementService.StatementRequest(2026, 3, true),
-				new AccountStatementService.StatementRequest(null, 2, true)), requests);
+		assertEquals(List.of(new AccountStatementService.StatementRequest(2026, 3, true), new AccountStatementService.StatementRequest(null, 2, true)),
+				requests);
 	}
 
 	@Test
 	void saveStatementsShouldSkipDuplicateEntriesInRetrievalSession() throws Exception {
 		DBController dbController = DBController.getInstance(tempDir.resolve("db").toString());
 		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
-		AccountStatementService service = new AccountStatementService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class),
-				new AccountStatementFileService(tempDir));
+		AccountStatementService service = new AccountStatementService(tempDir);
 		GVRKontoauszugEntry entry = createEntry("statement".getBytes(StandardCharsets.ISO_8859_1));
 
 		List<BankAccountStatement> savedStatements = service.saveStatements(account, List.of(entry, entry), "KontoauszugPdf", new HashSet<>());
@@ -126,8 +115,7 @@ class AccountStatementServiceTest {
 	void saveStatementsShouldRestoreMissingKnownStatementWithOriginalFileName() throws Exception {
 		DBController dbController = DBController.getInstance(tempDir.resolve("db").toString());
 		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
-		AccountStatementService service = new AccountStatementService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class),
-				new AccountStatementFileService(tempDir));
+		AccountStatementService service = new AccountStatementService(tempDir);
 		BankAccountStatement storedStatement = dbController.insertOrUpdate(createStoredStatement(account, true));
 		GVRKontoauszugEntry entry = createEntry("restored statement".getBytes(StandardCharsets.ISO_8859_1));
 
@@ -147,8 +135,7 @@ class AccountStatementServiceTest {
 	void saveStatementsShouldSkipKnownStatementWhenFileAlreadyExists() throws Exception {
 		DBController dbController = DBController.getInstance(tempDir.resolve("db").toString());
 		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
-		AccountStatementService service = new AccountStatementService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class),
-				new AccountStatementFileService(tempDir));
+		AccountStatementService service = new AccountStatementService(tempDir);
 		BankAccountStatement storedStatement = dbController.insertOrUpdate(createStoredStatement(account, true));
 		Files.write(tempDir.resolve(storedStatement.getFileName()), "existing".getBytes(StandardCharsets.ISO_8859_1));
 		GVRKontoauszugEntry entry = createEntry("duplicate statement".getBytes(StandardCharsets.ISO_8859_1));

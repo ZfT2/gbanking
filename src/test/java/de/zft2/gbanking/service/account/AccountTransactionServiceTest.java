@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,32 +38,47 @@ import org.kapott.hbci.structures.Saldo;
 import org.kapott.hbci.structures.Value;
 
 import de.zft2.gbanking.cache.InstituteLookupCache;
-import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.BankAccountIdentifier;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingAdditionalDetails;
-import de.zft2.gbanking.db.dao.ImportHistory;
-import de.zft2.gbanking.db.dao.Institute;
-import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.AccountIdentifierType;
 import de.zft2.gbanking.db.dao.enu.AccountState;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.InstituteStatus;
 import de.zft2.gbanking.db.dao.enu.Source;
-import de.zft2.gbanking.logging.GBankingLoggingHandler;
+import de.zft2.gbanking.db.dao.ImportHistory;
+import de.zft2.gbanking.db.dao.Institute;
+import de.zft2.gbanking.db.dao.Recipient;
+import de.zft2.gbanking.db.DBController;
+import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.rebooking.DetectedRebookingPair;
 import de.zft2.gbanking.rebooking.MissingRebookingCreationSummary;
 import de.zft2.gbanking.rebooking.MissingRebookingRouteSummary;
 import de.zft2.gbanking.rebooking.RebookingAssignmentSummary;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
+import de.zft2.gbanking.service.Service;
+import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.service.ServiceStubbingUtil;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AccountTransactionServiceTest {
 
 	private Path tempDir;
+
+	private static final List<Class<? extends Service>> SERVICES_TO_STUB = List.of(BankAccessService.class);
+
+	@BeforeEach
+	void setUp() throws Exception {
+		clearDatabase();
+		ServiceStubbingUtil.initStubbedServicesInContext(SERVICES_TO_STUB);
+	}
+
+	@AfterEach
+	void tearDown() throws Exception {
+		ServiceStubbingUtil.unloadStubbedServicesInContext(SERVICES_TO_STUB);
+	}
 
 	@BeforeAll
 	void setupDatabase() throws Exception {
@@ -70,8 +86,7 @@ class AccountTransactionServiceTest {
 		DBController.getInstance(tempDir.toString());
 	}
 
-	@BeforeEach
-	void clearDatabase() {
+	private void clearDatabase() {
 		DBControllerTestUtil.clearAllTables(DBController.getConnection());
 		InstituteLookupCache.clear();
 	}
@@ -85,7 +100,7 @@ class AccountTransactionServiceTest {
 
 	@Test
 	void saveHbciBookingsForAccountShouldReuseExistingRecipientAndKeepNullRecipients() {
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 
 		BankAccount account = new BankAccount();
 		account.setIban("DE12345678901234567890");
@@ -144,7 +159,7 @@ class AccountTransactionServiceTest {
 
 	@Test
 	void saveHbciBookingsForAccountShouldSkipImportedRebookingWhenOnlineRemovalMatchesRecipientAmountAndPurpose() {
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		BankAccount crossAccount = createAccount("DE22222222222222222222", "22222222");
@@ -171,7 +186,7 @@ class AccountTransactionServiceTest {
 
 	@Test
 	void saveHbciBookingsForAccountShouldSetRecipientBankNameFromInstituteDatabase() {
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		insertInstitute(dbController, "50010517", "TESTDEFFXXX", "Lookup Bank");
@@ -191,7 +206,7 @@ class AccountTransactionServiceTest {
 
 	@Test
 	void saveHbciBookingsForAccountShouldSkipImportedRebookingWhenOnlineDepositMatchesRecipientAmountAndPurpose() {
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		BankAccount crossAccount = createAccount("DE22222222222222222222", "22222222");
@@ -218,7 +233,7 @@ class AccountTransactionServiceTest {
 
 	@Test
 	void saveHbciBookingsForAccountShouldSkipDuplicateOnlineBookingFromSameDay() {
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		dbController.insertOrUpdate(createBooking(account, "Doppelte Onlinebuchung\n", new BigDecimal("42.00"), Source.ONLINE));
@@ -232,7 +247,7 @@ class AccountTransactionServiceTest {
 
 	@Test
 	void saveHbciBookingsForAccountShouldSkipImportedBookingWithMoneyplexPurposeVersionSuffix() {
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		dbController.insertOrUpdate(createBooking(account, "Dauerauftrag  V00010", new BigDecimal("42.00"), Source.IMPORT));
@@ -247,7 +262,7 @@ class AccountTransactionServiceTest {
 
 	@Test
 	void saveHbciBookingsForAccountShouldStoreAdditionalIdenticalOnlineBookingFromSameDay() {
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		dbController.insertOrUpdate(createBooking(account, "Identische Tagesbuchung", new BigDecimal("42.00"), Source.ONLINE));
@@ -265,7 +280,7 @@ class AccountTransactionServiceTest {
 
 	@Test
 	void saveHbciBookingsForAccountShouldLinkNewOnlineBookingWithExistingCounterBooking() {
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		BankAccount crossAccount = createAccount("DE22222222222222222222", "22222222");
@@ -295,7 +310,7 @@ class AccountTransactionServiceTest {
 
 	@Test
 	void saveHbciBookingsForAccountShouldIgnoreCounterBookingsOutsideRebookingSearchWindow() {
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 		DBController dbController = DBController.getInstance(tempDir.toString());
 		LocalDate onlineDate = LocalDate.of(2026, Month.JUNE, 1);
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
@@ -336,7 +351,7 @@ class AccountTransactionServiceTest {
 			setStaticField(accountProcessorClass, "propsTransfer", isolatedTransferProperties);
 			setStaticField(accountProcessorClass, "accountNumbersMap", staleAccountNumbersMap);
 
-			AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+			AccountTransactionService service = new AccountTransactionService();
 			DBController dbController = DBController.getInstance(tempDir.toString());
 			BankAccount account = createAccount("DE12345678901234567890", "12345678");
 			BankAccount crossAccount = createAccount("DE22222222222222222222", "22222222");
@@ -367,7 +382,7 @@ class AccountTransactionServiceTest {
 
 	@Test
 	void saveHbciBookingsForAccountShouldUseConfiguredTransferPropertiesForChangedCounterpartyAccount() {
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		BankAccount crossAccount = createAccount("DE22222222222222222222", "22222222");
@@ -402,7 +417,7 @@ class AccountTransactionServiceTest {
 
 	@Test
 	void detectRebookingsShouldSummarizeSelectedAccountAndPersistOnlyAfterConfirmation() {
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 		DBController dbController = DBController.getInstance(tempDir.toString());
 		LocalDate rebookingDate = LocalDate.of(2026, Month.JUNE, 1);
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
@@ -448,7 +463,7 @@ class AccountTransactionServiceTest {
 
 	@Test
 	void detectMissingRebookingsShouldCreateManualNewCounterBookingAfterConfirmation() {
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 		DBController dbController = DBController.getInstance(tempDir.toString());
 		LocalDate rebookingDate = LocalDate.of(2026, Month.JUNE, 1);
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
@@ -492,7 +507,7 @@ class AccountTransactionServiceTest {
 
 	@Test
 	void persistDetectedRebookingLinksShouldSkipSameAccountPairWithoutCancellation() {
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		Booking removal = dbController.insertOrUpdate(createBooking(account, "Selbstreferenz", new BigDecimal("-42.00"), Source.ONLINE));
@@ -511,7 +526,7 @@ class AccountTransactionServiceTest {
 
 	@Test
 	void persistDetectedRebookingLinksShouldAllowSameAccountCancellationPair() {
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		Booking cancellation = createBooking(account, "Storno", new BigDecimal("-42.00"), Source.ONLINE);
@@ -537,7 +552,7 @@ class AccountTransactionServiceTest {
 
 	@Test
 	void releaseRebookingLinksShouldClearOnlyCrossBookingIdsForSelectedBookingAndCounterBooking() {
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		BankAccount crossAccount = createAccount("DE22222222222222222222", "22222222");
@@ -568,9 +583,8 @@ class AccountTransactionServiceTest {
 
 	@Test
 	void createAndAddHbciJobShouldApplySupportedParamTypesAndQueueJob() throws Exception {
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		GBankingLoggingHandler logHandler = mock(GBankingLoggingHandler.class);
-		AccountTransactionService service = new AccountTransactionService(hbciSupport, logHandler);
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		AccountTransactionService service = new AccountTransactionService();
 		HBCIHandler handle = mock(HBCIHandler.class);
 		@SuppressWarnings("unchecked")
 		HBCIJob<HBCIJobResult> job = mock(HBCIJob.class);
@@ -594,7 +608,7 @@ class AccountTransactionServiceTest {
 
 	@Test
 	void hbciKontosMatchesShouldMatchByIbanOrAccountNumber() throws Exception {
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 		BankAccount account = new BankAccount();
 		account.setIban("DE12345678901234567890");
 		account.setNumber("12345678");

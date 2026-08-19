@@ -58,7 +58,7 @@ class ImportPropertiesSynchronizationServiceTest {
 		BankAccount account = insertAccount("Main account", "DE12345678901234567890", "0012345678");
 		writeLegacyFiles("Main account", "DE12345678901234567890;0012345678");
 
-		ImportPropertiesSynchronizationService service = new ImportPropertiesSynchronizationService(dbController, propertiesDirectory);
+		ImportPropertiesSynchronizationService service = new ImportPropertiesSynchronizationService();
 		service.initializeAndSynchronize();
 
 		List<BankAccountIdentifier> identifiers = dbController.getBankAccountIdentifiers(account.getId());
@@ -79,7 +79,7 @@ class ImportPropertiesSynchronizationServiceTest {
 
 	@Test
 	void shouldSynchronizePatternDefaultsFromFreshDatabase() throws Exception {
-		new ImportPropertiesSynchronizationService(dbController, propertiesDirectory).synchronize();
+		new ImportPropertiesSynchronizationService().synchronize();
 
 		Map<String, String> bookingPatterns = ImportPropertiesFileSupport.read(propertiesDirectory.resolve("bookings.properties"));
 		assertTrue(bookingPatterns.containsKey("INTEREST"));
@@ -89,7 +89,7 @@ class ImportPropertiesSynchronizationServiceTest {
 	@Test
 	void shouldKeepUnmatchedLegacyIdentifiersUntilAccountExists() throws Exception {
 		writeLegacyFiles("Later account", "LATER-123");
-		ImportPropertiesSynchronizationService service = new ImportPropertiesSynchronizationService(dbController, propertiesDirectory);
+		ImportPropertiesSynchronizationService service = new ImportPropertiesSynchronizationService();
 		service.initializeAndSynchronize();
 
 		assertEquals("LATER-123", ImportPropertiesFileSupport.read(propertiesDirectory.resolve("accountTransfer.properties")).get("Later account"));

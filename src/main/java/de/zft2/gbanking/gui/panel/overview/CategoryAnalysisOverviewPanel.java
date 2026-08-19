@@ -8,9 +8,9 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-import de.zft2.gbanking.analysis.TurnoverAnalysisService.AnalysisResult;
-import de.zft2.gbanking.analysis.TurnoverAnalysisService.CategorySlice;
-import de.zft2.gbanking.analysis.TurnoverAnalysisService.FlowDirection;
+import de.zft2.gbanking.analysis.TurnoverAnalyzer.AnalysisResult;
+import de.zft2.gbanking.analysis.TurnoverAnalyzer.CategorySlice;
+import de.zft2.gbanking.analysis.TurnoverAnalyzer.FlowDirection;
 import de.zft2.gbanking.db.dao.Category;
 import de.zft2.gbanking.gui.enu.PageContext;
 import javafx.application.Platform;

@@ -7,16 +7,15 @@ import java.util.List;
 
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.Bpd;
-import de.zft2.gbanking.db.dao.ParameterDataBankAccess;
-import de.zft2.gbanking.db.dao.Upd;
 import de.zft2.gbanking.db.dao.enu.HbciEncodingFilterType;
 import de.zft2.gbanking.db.dao.enu.TanProcedure;
-import de.zft2.gbanking.gui.GBankingContext;
+import de.zft2.gbanking.db.dao.ParameterDataBankAccess;
+import de.zft2.gbanking.db.dao.Upd;
 import de.zft2.gbanking.gui.BackgroundActionCoordinator;
-import de.zft2.gbanking.gui.KeyboardShortcutDispatcher;
 import de.zft2.gbanking.gui.dialog.BankAccessParameterDataDialog;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.enu.ButtonContext;
+import de.zft2.gbanking.gui.KeyboardShortcutDispatcher;
 import de.zft2.gbanking.gui.panel.AbstractReadonlyDetailPanel;
 import de.zft2.gbanking.gui.panel.action.PinAskDialog;
 import de.zft2.gbanking.gui.panel.overview.BankAccessOverviewPanel;
@@ -28,6 +27,7 @@ import de.zft2.gbanking.hbci.TanProcedureSupport;
 import de.zft2.gbanking.hbci.TanProcedureSupport.SupportedTanProcedure;
 import de.zft2.gbanking.paypal.PaypalSupport;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.util.TypeConverter;
 import javafx.collections.FXCollections;
 import javafx.concurrent.Task;
@@ -205,7 +205,7 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 			@Override
 			protected Boolean call() {
 				try {
-					BankAccessService bankAccessService = GBankingContext.getBankAccessService();
+					BankAccessService bankAccessService = ServiceRegistry.getService(BankAccessService.class);
 					return bankAccessService.refreshBankAccessParameterData(currentBankAccess, pin);
 				} finally {
 					Arrays.fill(pin, '\0');

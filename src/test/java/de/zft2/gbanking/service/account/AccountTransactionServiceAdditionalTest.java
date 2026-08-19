@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,26 +53,41 @@ import org.kapott.hbci.structures.Value;
 import org.mockito.MockedConstruction;
 
 import de.zft2.gbanking.BaseMessagesDb;
-import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.BankAccountRetrievalStatus;
 import de.zft2.gbanking.db.dao.Booking;
-import de.zft2.gbanking.db.dao.Recipient;
-import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.AccountRetrievalStatus;
+import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.db.dao.Recipient;
+import de.zft2.gbanking.db.DBController;
+import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
-import de.zft2.gbanking.logging.GBankingLoggingHandler;
 import de.zft2.gbanking.messages.Messages;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
+import de.zft2.gbanking.service.Service;
+import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.service.ServiceStubbingUtil;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AccountTransactionServiceAdditionalTest {
 
 	private Path tempDir;
+
+	private static final List<Class<? extends Service>> SERVICES_TO_STUB = List.of(BankAccessService.class);
+
+	@BeforeEach
+	void setUp() throws Exception {
+		clearDatabase();
+		ServiceStubbingUtil.initStubbedServicesInContext(SERVICES_TO_STUB);
+	}
+
+	@AfterEach
+	void tearDown() throws Exception {
+		ServiceStubbingUtil.unloadStubbedServicesInContext(SERVICES_TO_STUB);
+	}
 
 	@BeforeAll
 	void setupDatabase() throws Exception {
@@ -79,8 +95,7 @@ class AccountTransactionServiceAdditionalTest {
 		DBController.getInstance(tempDir.toString());
 	}
 
-	@BeforeEach
-	void clearDatabase() {
+	private void clearDatabase() {
 		DBControllerTestUtil.clearAllTables(DBController.getConnection());
 	}
 
@@ -92,8 +107,8 @@ class AccountTransactionServiceAdditionalTest {
 
 	@Test
 	void createUmsatzJob_shouldRequestAllBookingsWithoutStartDateWhenAccountHasNoBookings() throws Exception {
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		AccountTransactionService service = new AccountTransactionService(hbciSupport, mock(GBankingLoggingHandler.class));
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		AccountTransactionService service = new AccountTransactionService();
 		HBCIHandler handle = mock(HBCIHandler.class);
 		@SuppressWarnings("unchecked")
 		HBCIJob<GVRKUms> job = mock(HBCIJob.class);
@@ -111,8 +126,8 @@ class AccountTransactionServiceAdditionalTest {
 
 	@Test
 	void createUmsatzJob_shouldIncludeProvidedRetrievalStartDate() throws Exception {
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		AccountTransactionService service = new AccountTransactionService(hbciSupport, mock(GBankingLoggingHandler.class));
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		AccountTransactionService service = new AccountTransactionService();
 		HBCIHandler handle = mock(HBCIHandler.class);
 		@SuppressWarnings("unchecked")
 		HBCIJob<GVRKUms> job = mock(HBCIJob.class);
@@ -131,7 +146,7 @@ class AccountTransactionServiceAdditionalTest {
 
 	@Test
 	void resolveBookingRetrievalStartDate_shouldUseOneDayOverlapFromLastBookingDate() throws Exception {
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 		LocalDate lastBookingDate = LocalDate.now(ZoneId.systemDefault()).minusDays(10);
 
 		LocalDate retrievalStartDate = (LocalDate) invokePrivate(service, "resolveBookingRetrievalStartDate",
@@ -142,8 +157,8 @@ class AccountTransactionServiceAdditionalTest {
 
 	@Test
 	void createAndAddHbciJob_shouldIgnoreNullAndUnsupportedParamsButStillQueueJob() throws Exception {
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		AccountTransactionService service = new AccountTransactionService(hbciSupport, mock(GBankingLoggingHandler.class));
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		AccountTransactionService service = new AccountTransactionService();
 		HBCIHandler handle = mock(HBCIHandler.class);
 		@SuppressWarnings("unchecked")
 		HBCIJob<HBCIJobResult> job = mock(HBCIJob.class);
@@ -164,7 +179,7 @@ class AccountTransactionServiceAdditionalTest {
 
 	@Test
 	void getHbciAccountsFromPassport_shouldReturnNullAndEmptyAccountsAsProvided() throws Exception {
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 		HBCIPassport passport = mock(HBCIPassport.class);
 		when(passport.getAccounts()).thenReturn(null);
 
@@ -178,7 +193,7 @@ class AccountTransactionServiceAdditionalTest {
 
 	@Test
 	void hbciKontosMatches_shouldReturnFalseWhenAccountHasNoIdentifiers() throws Exception {
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 		BankAccount bankAccount = new BankAccount();
 		Konto konto = new Konto();
 		konto.iban = "DE12345678901234567890";
@@ -189,7 +204,7 @@ class AccountTransactionServiceAdditionalTest {
 
 	@Test
 	void clearSecret_shouldOverwriteSecretCharsAndAcceptNull() throws Exception {
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 		char[] secret = "12345".toCharArray();
 
 		invokePrivate(service, "clearSecret", new Class<?>[] { char[].class }, secret);
@@ -200,8 +215,8 @@ class AccountTransactionServiceAdditionalTest {
 
 	@Test
 	void retrieveAccountTransactions_shouldReturnFalseAndClearPinWhenBankAccessIsMissing() {
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		AccountTransactionService service = new AccountTransactionService(hbciSupport, mock(GBankingLoggingHandler.class));
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		AccountTransactionService service = new AccountTransactionService();
 		BankAccount bankAccount = TestData.createSampleAccount(null);
 		char[] pin = "1234".toCharArray();
 
@@ -225,8 +240,8 @@ class AccountTransactionServiceAdditionalTest {
 		previousNewBooking.setSource(Source.ONLINE_NEW);
 		previousNewBooking = dbController.insertOrUpdate(previousNewBooking);
 
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		AccountTransactionService service = new AccountTransactionService(hbciSupport, mock(GBankingLoggingHandler.class));
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		AccountTransactionService service = new AccountTransactionService();
 		BankAccess bankAccess = TestData.createSampleBankAccess("10020030");
 		char[] pin = "1234".toCharArray();
 		HBCIPassport passport = mock(HBCIPassport.class);
@@ -267,8 +282,8 @@ class AccountTransactionServiceAdditionalTest {
 	void retrieveAccountTransactionsWithResult_shouldFlagWrongPinTransportFailure() {
 		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		AccountTransactionService service = new AccountTransactionService(hbciSupport, mock(GBankingLoggingHandler.class));
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		AccountTransactionService service = new AccountTransactionService();
 		BankAccess bankAccess = TestData.createSampleBankAccess("10020030");
 		char[] pin = "1234".toCharArray();
 		HBCI_Exception exception = new HBCI_Exception("Fehler beim Empfangen der Daten vom HBCI-Server",
@@ -302,9 +317,8 @@ class AccountTransactionServiceAdditionalTest {
 		previousNewBooking.setSource(Source.ONLINE_NEW);
 		previousNewBooking = dbController.insertOrUpdate(previousNewBooking);
 
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		GBankingLoggingHandler logHandler = mock(GBankingLoggingHandler.class);
-		AccountTransactionService service = new AccountTransactionService(hbciSupport, logHandler);
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		AccountTransactionService service = new AccountTransactionService();
 		BankAccess bankAccess = TestData.createSampleBankAccess("10020030");
 		char[] pin = "1234".toCharArray();
 		HBCIPassport passport = mock(HBCIPassport.class);
@@ -372,8 +386,8 @@ class AccountTransactionServiceAdditionalTest {
 		bankAccount.setBlz("10020030");
 		bankAccount = dbController.insertOrUpdate(bankAccount);
 
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		AccountTransactionService service = new AccountTransactionService(hbciSupport, mock(GBankingLoggingHandler.class));
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		AccountTransactionService service = new AccountTransactionService();
 		BankAccess bankAccess = TestData.createSampleBankAccess("10020030");
 		char[] pin = "1234".toCharArray();
 		HBCIPassport passport = mock(HBCIPassport.class);
@@ -443,8 +457,8 @@ class AccountTransactionServiceAdditionalTest {
 		bankAccount = dbController.insertOrUpdate(bankAccount);
 		Booking existingPrenotification = insertBooking(dbController, bankAccount.getId(), Source.ONLINE_PRENO, new BigDecimal("99.99"));
 
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		AccountTransactionService service = new AccountTransactionService(hbciSupport, mock(GBankingLoggingHandler.class));
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		AccountTransactionService service = new AccountTransactionService();
 		BankAccess bankAccess = TestData.createSampleBankAccess("10020030");
 		char[] pin = "1234".toCharArray();
 		HBCIPassport passport = mock(HBCIPassport.class);
@@ -500,8 +514,8 @@ class AccountTransactionServiceAdditionalTest {
 		bankAccount = dbController.insertOrUpdate(bankAccount);
 		insertBooking(dbController, bankAccount.getId(), Source.ONLINE_PRENO, new BigDecimal("99.99"));
 
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		AccountTransactionService service = new AccountTransactionService(hbciSupport, mock(GBankingLoggingHandler.class));
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		AccountTransactionService service = new AccountTransactionService();
 		BankAccess bankAccess = TestData.createSampleBankAccess("10020030");
 		char[] pin = "1234".toCharArray();
 		HBCIPassport passport = mock(HBCIPassport.class);
@@ -561,7 +575,7 @@ class AccountTransactionServiceAdditionalTest {
 		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
 		insertBooking(dbController, bankAccount.getId(), Source.ONLINE, new BigDecimal("90.00"));
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 
 		service.reconcileAccountBalance(bankAccount, new BigDecimal("100.00"));
 
@@ -581,7 +595,7 @@ class AccountTransactionServiceAdditionalTest {
 		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
 		insertBooking(dbController, bankAccount.getId(), Source.ONLINE, new BigDecimal("100.00"));
 		Booking adjustment = insertBooking(dbController, bankAccount.getId(), Source.AUTO_ADJUSTING, new BigDecimal("10.00"));
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 
 		service.reconcileAccountBalance(bankAccount, new BigDecimal("100.00"));
 
@@ -597,7 +611,7 @@ class AccountTransactionServiceAdditionalTest {
 		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
 		insertBooking(dbController, bankAccount.getId(), Source.ONLINE, new BigDecimal("90.00"));
 		insertBooking(dbController, bankAccount.getId(), Source.ONLINE_PRENO, new BigDecimal("500.00"));
-		AccountTransactionService service = new AccountTransactionService(mock(BankAccessService.class), mock(GBankingLoggingHandler.class));
+		AccountTransactionService service = new AccountTransactionService();
 
 		service.reconcileAccountBalance(bankAccount, new BigDecimal("100.00"));
 

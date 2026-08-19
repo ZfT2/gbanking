@@ -7,20 +7,13 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import de.zft2.gbanking.BaseMessages;
-import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.service.AbstractDbService;
 
-public class BookingSplitService implements BaseMessages {
-
-	private final DBController dbController;
-
-	public BookingSplitService(DBController dbController) {
-		this.dbController = dbController;
-	}
+public class BookingSplitService extends AbstractDbService {
 
 	public List<Booking> getSplitBookings(Booking parentBooking) {
 		if (parentBooking == null || parentBooking.getId() <= 0) {
@@ -29,7 +22,7 @@ public class BookingSplitService implements BaseMessages {
 		return dbController.getSplitBookings(parentBooking.getId());
 	}
 
-	public List<Booking> saveSplitBookings(Booking parentBooking, List<Booking> splitBookings, Collection<Integer> deletedSplitBookingIds) {
+	List<Booking> saveSplitBookings(Booking parentBooking, List<Booking> splitBookings, Collection<Integer> deletedSplitBookingIds) {
 		return saveSplitBookings(parentBooking, splitBookings,
 				deletedSplitBookingIds.stream().collect(java.util.stream.Collectors.toMap(id -> id, id -> Boolean.TRUE)));
 	}
@@ -45,11 +38,11 @@ public class BookingSplitService implements BaseMessages {
 		return getSplitBookings(parentBooking);
 	}
 
-	public void deleteSplitBooking(Integer splitBookingId) {
+	private void deleteSplitBooking(Integer splitBookingId) {
 		deleteSplitBooking(splitBookingId, true);
 	}
 
-	public void deleteSplitBooking(Integer splitBookingId, boolean deleteCounterBooking) {
+	private void deleteSplitBooking(Integer splitBookingId, boolean deleteCounterBooking) {
 		if (splitBookingId == null || splitBookingId <= 0) {
 			return;
 		}

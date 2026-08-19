@@ -24,8 +24,8 @@ import org.apache.logging.log4j.Logger;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingNoteDetails;
-import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.gui.panel.AbstractFilterableTablePanel;
 import de.zft2.gbanking.gui.panel.overview.AccountsTransactionsOverviewPanel;
@@ -33,6 +33,8 @@ import de.zft2.gbanking.gui.panel.overview.TransactionsOverviewBasePanel;
 import de.zft2.gbanking.gui.util.DateFormatUtils;
 import de.zft2.gbanking.gui.util.FxTableUtils;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
+import de.zft2.gbanking.service.booking.BookingService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -63,18 +65,15 @@ import javafx.util.StringConverter;
 
 public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> {
 
+	private static final Logger log = LogManager.getLogger(TransactionListPanel.class);
+
 	private static final String AMOUNT_NEUTRAL = "amount-neutral";
-
 	private static final String AMOUNT_NEGATIVE = "amount-negative";
-
 	private static final String AMOUNT_POSITIVE = "amount-positive";
-
 	private static final String BOOKING_PRENOTIFICATION = "booking-prenotification";
 
 	private static final double PURPOSE_COLUMN_MIN_WIDTH = 180;
-
 	private static final double PURPOSE_COLUMN_PREF_WIDTH = 530;
-
 	private static final double DATE_COLUMN_WIDTH = 88;
 
 	private static final double AMOUNT_COLUMN_MIN_WIDTH = 92;
@@ -90,9 +89,8 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	private static final String FILTER_COLLAPSE_SYMBOL = "\u25b2";
 	private static final DateTimeFormatter GERMAN_DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.uuuu").withResolverStyle(ResolverStyle.STRICT);
 
-	private static final Logger log = LogManager.getLogger(TransactionListPanel.class);
-
 	final TransactionsOverviewBasePanel parentPanel;
+	private final BookingService bookingService;
 	private final Label saldoValueLabel = new Label();
 	private final DecimalFormat amountFormat = FxTableUtils.createGermanDecimalFormat();
 	private final DatePicker dateFromFilter = new DatePicker();
@@ -114,8 +112,13 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	private BigDecimal amountToFilterValue;
 
 	public TransactionListPanel(TransactionsOverviewBasePanel parent) {
+		this(parent, ServiceRegistry.getService(BookingService.class));
+	}
+
+	TransactionListPanel(TransactionsOverviewBasePanel parent, BookingService bookingService) {
 		super(FXCollections.observableArrayList());
 		this.parentPanel = parent;
+		this.bookingService = bookingService;
 		createInnerTransactionsPanel();
 	}
 
@@ -138,7 +141,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 		updateSaldoLabel();
 
 		if (parentPanel.getPageContext() == PageContext.ALL_TRANSACTIONS) {
-			replaceBookingItems(bean.getAllBookings());
+			replaceBookingItems(bookingService.getAllBookings());
 		}
 	}
 
@@ -751,7 +754,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 
 	public void reload() {
 		if (parentPanel.getPageContext() == PageContext.ALL_TRANSACTIONS) {
-			replaceBookingItems(bean.getAllBookings());
+			replaceBookingItems(bookingService.getAllBookings());
 		}
 	}
 

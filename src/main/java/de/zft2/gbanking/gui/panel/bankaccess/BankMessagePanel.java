@@ -16,6 +16,9 @@ import de.zft2.gbanking.gui.panel.layout.DetailListPane;
 import de.zft2.gbanking.gui.panel.layout.MasterContentPane;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.service.bankaccess.BankMessageRetrievalResult;
+import de.zft2.gbanking.service.bankaccess.BankMessageService;
+import de.zft2.gbanking.service.BankingCapabilityService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import javafx.concurrent.Task;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.TextArea;
@@ -29,11 +32,19 @@ public class BankMessagePanel extends DetailListPane implements BaseMessagesBean
 
 	private final BankMessageDetailPanel detailPanel;
 	private final BankMessageListPanel listPanel;
+	private final BankingCapabilityService bankingCapabilityService;
+	private final BankMessageService bankMessageService;
 	private final TextArea messageText = FormStyleUtils.prepareLargeTextArea(new TextArea(), 12);
 
 	private BankAccess currentBankAccess;
 
 	public BankMessagePanel() {
+		this(ServiceRegistry.getService(BankMessageService.class), ServiceRegistry.getService(BankingCapabilityService.class));
+	}
+
+	BankMessagePanel(BankMessageService bankMessageService, BankingCapabilityService bankingCapabilityService) {
+		this.bankMessageService = bankMessageService;
+		this.bankingCapabilityService = bankingCapabilityService;
 		detailPanel = new BankMessageDetailPanel(() -> retrieveMessages());
 		listPanel = new BankMessageListPanel(message -> handleMessageSelection(message));
 		createPanel();
@@ -53,13 +64,13 @@ public class BankMessagePanel extends DetailListPane implements BaseMessagesBean
 
 	public void updateBankAccess(BankAccess bankAccess) {
 		currentBankAccess = bankAccess;
-		boolean supported = bankAccess != null && bean.supportsBankMessages(bankAccess);
+		boolean supported = bankAccess != null && bankingCapabilityService.supportsBankMessages(bankAccess);
 		detailPanel.updateBankAccess(bankAccess, supported);
 		reloadMessages();
 	}
 
 	public void reloadMessages() {
-		List<BankMessage> messages = currentBankAccess != null ? bean.getBankMessages(currentBankAccess) : List.of();
+		List<BankMessage> messages = currentBankAccess != null ? bankMessageService.listBankMessages(currentBankAccess) : List.of();
 		listPanel.updateModelMessages(messages);
 		detailPanel.updateMessage(null);
 		messageText.clear();
@@ -99,7 +110,7 @@ public class BankMessagePanel extends DetailListPane implements BaseMessagesBean
 			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_BANK_ACCESS_NO_SELECTION"));
 			return;
 		}
-		if (!bean.supportsBankMessages(currentBankAccess)) {
+		if (!bankingCapabilityService.supportsBankMessages(currentBankAccess)) {
 			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING,
 					getText("ALERT_BANK_MESSAGES_UNSUPPORTED", currentBankAccess.getBankName()));
 			return;
@@ -126,7 +137,7 @@ public class BankMessagePanel extends DetailListPane implements BaseMessagesBean
 		Task<BankMessageRetrievalResult> task = new Task<>() {
 			@Override
 			protected BankMessageRetrievalResult call() {
-				return bean.retrieveBankMessagesWithResult(bankAccess, pin);
+				return bankMessageService.retrieveBankMessagesWithResult(bankAccess, pin);
 			}
 		};
 		task.setOnSucceeded(event -> handleRetrievalSuccess(task.getValue()));

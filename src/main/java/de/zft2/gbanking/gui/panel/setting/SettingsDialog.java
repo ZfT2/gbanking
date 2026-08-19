@@ -14,18 +14,19 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.BaseMessages;
-import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.db.dao.enu.DataType;
-import de.zft2.gbanking.gui.EnvironmentOptions;
-import de.zft2.gbanking.gui.GBankingContext;
-import de.zft2.gbanking.gui.GuiLayoutState;
+import de.zft2.gbanking.db.dao.Setting;
+import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
+import de.zft2.gbanking.gui.EnvironmentOptions;
+import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.hbci.ChipTanUsbSupport;
-import de.zft2.gbanking.logging.LogLevelSetting;
 import de.zft2.gbanking.logging.LoggingSettings;
+import de.zft2.gbanking.logging.LogLevelSetting;
+import de.zft2.gbanking.service.account.AccountStatementService;
 import de.zft2.gbanking.service.account.AccountStatementSettings;
 import de.zft2.gbanking.service.importproperties.ImportPropertiesSynchronizationService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -140,8 +141,7 @@ public class SettingsDialog implements BaseMessages {
 		GridPane grid = createSettingsGrid();
 		addEnvironmentSettingRow(grid, 1, EnvironmentOptions.DATA_DIRECTORY, "UI_LABEL_ENVIRONMENT_DATA_DIRECTORY_COMMENT",
 				EnvironmentOptions.getDataDirectory(environmentOptions));
-		addEnvironmentSettingRow(grid, 2, EnvironmentOptions.IMPORT_PROPERTIES_DIRECTORY,
-				"UI_LABEL_ENVIRONMENT_IMPORT_PROPERTIES_DIRECTORY_COMMENT",
+		addEnvironmentSettingRow(grid, 2, EnvironmentOptions.IMPORT_PROPERTIES_DIRECTORY, "UI_LABEL_ENVIRONMENT_IMPORT_PROPERTIES_DIRECTORY_COMMENT",
 				EnvironmentOptions.getImportPropertiesDirectory(environmentOptions));
 		addEnvironmentSettingRow(grid, 3, EnvironmentOptions.DEFAULT_DIR_IMPORT, "UI_LABEL_ENVIRONMENT_DEFAULT_DIR_IMPORT_COMMENT",
 				EnvironmentOptions.normalizeOptionalDirectory(environmentOptions.get(EnvironmentOptions.DEFAULT_DIR_IMPORT)));
@@ -212,8 +212,8 @@ public class SettingsDialog implements BaseMessages {
 	}
 
 	private void addSettingRow(GridPane grid, Setting setting, int row) {
-		String comment = AccountStatementSettings.SETTING_ENCRYPT_FILES.equals(setting.getAttribute())
-				? getText("UI_LABEL_ACCOUNT_STATEMENT_FILE_ENCRYPTION") : setting.getComment();
+		String comment = AccountStatementSettings.SETTING_ENCRYPT_FILES.equals(setting.getAttribute()) ? getText("UI_LABEL_ACCOUNT_STATEMENT_FILE_ENCRYPTION")
+				: setting.getComment();
 		Label propertyLabel = new Label(comment != null ? comment : "");
 		propertyLabel.setWrapText(true);
 
@@ -282,8 +282,8 @@ public class SettingsDialog implements BaseMessages {
 		comboBox.setDisable(!setting.isEditable());
 		comboBox.setMaxWidth(Double.MAX_VALUE);
 		comboBox.setValue(LoggingSettings.resolveLogLevel(setting.getAttribute(), setting.getValue()));
-		valueSupplierMap.put(setting, () -> comboBox.getValue() != null ? comboBox.getValue().name()
-				: LoggingSettings.getDefaultLogLevel(setting.getAttribute()).name());
+		valueSupplierMap.put(setting,
+				() -> comboBox.getValue() != null ? comboBox.getValue().name() : LoggingSettings.getDefaultLogLevel(setting.getAttribute()).name());
 		return comboBox;
 	}
 
@@ -391,7 +391,7 @@ public class SettingsDialog implements BaseMessages {
 			return false;
 		}
 		try {
-			new ImportPropertiesSynchronizationService().synchronize();
+			ServiceRegistry.getService(ImportPropertiesSynchronizationService.class).synchronize();
 		} catch (RuntimeException exception) {
 			log.error("Could not synchronize booking recognition properties", exception);
 			showWarning(getText("ALERT_PATTERN_SETTINGS_SYNC_FAILED"));
@@ -439,7 +439,7 @@ public class SettingsDialog implements BaseMessages {
 				return true;
 			}
 			try {
-				GBankingContext.getBean().updateAccountStatementFileEncryption(enabled);
+				ServiceRegistry.getService(AccountStatementService.class).updateFileEncryption(enabled);
 				return true;
 			} catch (RuntimeException exception) {
 				log.error("Could not update account statement file encryption", exception);
@@ -462,14 +462,13 @@ public class SettingsDialog implements BaseMessages {
 		environmentOptions.put(EnvironmentOptions.DATA_DIRECTORY,
 				EnvironmentOptions.normalizeDataDirectory(environmentSupplierMap.get(EnvironmentOptions.DATA_DIRECTORY).get()));
 		environmentOptions.put(EnvironmentOptions.IMPORT_PROPERTIES_DIRECTORY,
-				EnvironmentOptions.normalizeImportPropertiesDirectory(
-						environmentSupplierMap.get(EnvironmentOptions.IMPORT_PROPERTIES_DIRECTORY).get()));
+				EnvironmentOptions.normalizeImportPropertiesDirectory(environmentSupplierMap.get(EnvironmentOptions.IMPORT_PROPERTIES_DIRECTORY).get()));
 		storeOptionalEnvironmentDirectory(EnvironmentOptions.DEFAULT_DIR_IMPORT);
 		storeOptionalEnvironmentDirectory(EnvironmentOptions.DEFAULT_DIR_EXPORT);
 		environmentOptionsSaver.run();
 		log.info("Saved environment settings.");
-		log.debug("Saved environment directory settings: {}", () -> environmentOptions.keySet().stream()
-				.filter(key -> environmentSupplierMap.containsKey(key)).sorted().toList());
+		log.debug("Saved environment directory settings: {}",
+				() -> environmentOptions.keySet().stream().filter(key -> environmentSupplierMap.containsKey(key)).sorted().toList());
 		return true;
 	}
 

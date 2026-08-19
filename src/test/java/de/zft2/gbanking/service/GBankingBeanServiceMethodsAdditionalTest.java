@@ -14,7 +14,6 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -28,6 +27,7 @@ import java.util.List;
 import java.util.Properties;
 
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,43 +44,52 @@ import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 
 import de.zft2.gbanking.BaseMessagesDb;
-import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Bpd;
 import de.zft2.gbanking.db.dao.BusinessCase;
-import de.zft2.gbanking.db.dao.Recipient;
-import de.zft2.gbanking.db.dao.Setting;
-import de.zft2.gbanking.db.dao.Upd;
 import de.zft2.gbanking.db.dao.enu.AccountState;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.DataType;
 import de.zft2.gbanking.db.dao.enu.HbciEncodingFilterType;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.db.dao.Recipient;
+import de.zft2.gbanking.db.dao.Setting;
+import de.zft2.gbanking.db.dao.Upd;
+import de.zft2.gbanking.db.DBController;
+import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
 import de.zft2.gbanking.hbci.HbciProperties;
 import de.zft2.gbanking.logging.LoggingSettings;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
+import de.zft2.gbanking.service.booking.BookingService;
+import de.zft2.gbanking.service.recipient.RecipientService;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class GBankingBeanServiceMethodsAdditionalTest {
 
 	private DBController dbController;
+	private BookingService bookingService;
 	private Path tempDir;
 
 	@BeforeAll
 	void setupDatabase() throws Exception {
 		tempDir = Files.createTempDirectory("gb_test_");
 		dbController = DBController.getInstance(tempDir.toString());
+		bookingService = new BookingService();
 	}
 
 	@BeforeEach
 	void clearDatabase() {
 		DBControllerTestUtil.clearAllTables(DBController.getConnection());
+	}
+
+	@AfterEach
+	void resetServices() {
+		ServiceRegistry.removeService(BankAccessService.class);
 	}
 
 	@AfterAll
@@ -91,7 +100,7 @@ class GBankingBeanServiceMethodsAdditionalTest {
 
 	@Test
 	void addNewBankAccess_shouldPopulateAccountsReuseExistingAccessAndClearPin() {
-		BankAccessService bean = spy(new BankAccessService());
+		BankAccessService bankAccessService = ServiceStubbingUtil.spyService(BankAccessService.class);
 		BankAccess existingAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("10020030"));
 		BankAccess bankAccess = TestData.createSampleBankAccess(null);
 		char[] pin = "12345".toCharArray();
@@ -107,16 +116,16 @@ class GBankingBeanServiceMethodsAdditionalTest {
 		when(passport.getUPD()).thenReturn(upd);
 		when(passport.getBPD()).thenReturn(bpd);
 		when(passport.getInstName()).thenReturn("Mock Bank");
-		doReturn(passport).when(bean).initBankConnection(eq(bankAccess), any(GBankingHBCICallback.class));
+		doReturn(passport).when(bankAccessService).initBankConnection(eq(bankAccess), any(GBankingHBCICallback.class));
 
 		HBCIHandler handle = mock(HBCIHandler.class);
 		HBCIExecStatus status = mock(HBCIExecStatus.class);
 		when(status.isOK()).thenReturn(true);
 		when(handle.execute()).thenReturn(status);
-		doReturn(handle).when(bean).createHBCIHandler(eq(BaseMessagesDb.getVersion().getId()), same(passport));
+		doReturn(handle).when(bankAccessService).createHBCIHandler(eq(BaseMessagesDb.getVersion().getId()), same(passport));
 
 		try (MockedConstruction<GBankingHBCICallback> callbacks = mockConstruction(GBankingHBCICallback.class)) {
-			boolean result = bean.addNewBankAccess(bankAccess);
+			boolean result = bankAccessService.addNewBankAccess(bankAccess);
 
 			assertTrue(result);
 			assertEquals(existingAccess.getId(), bankAccess.getId());
@@ -134,7 +143,7 @@ class GBankingBeanServiceMethodsAdditionalTest {
 
 	@Test
 	void refreshBankAccessParameterData_shouldRefreshBpdUpdAccountsAndClearPin() {
-		BankAccessService bean = spy(new BankAccessService());
+		BankAccessService bankAccessService = ServiceStubbingUtil.spyService(BankAccessService.class);
 		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("70080090"));
 		char[] pin = "12345".toCharArray();
 
@@ -157,13 +166,13 @@ class GBankingBeanServiceMethodsAdditionalTest {
 		when(passport.getUPD()).thenReturn(upd);
 		when(passport.getBPD()).thenReturn(bpd);
 		when(passport.getInstName()).thenReturn("Refresh Bank");
-		doReturn(passport).when(bean).initBankConnection(any(BankAccess.class), any(GBankingHBCICallback.class));
+		doReturn(passport).when(bankAccessService).initBankConnection(any(BankAccess.class), any(GBankingHBCICallback.class));
 
 		HBCIHandler handle = mock(HBCIHandler.class);
-		doReturn(handle).when(bean).createHBCIHandler(eq(BaseMessagesDb.getVersion().getId()), same(passport));
+		doReturn(handle).when(bankAccessService).createHBCIHandler(eq(BaseMessagesDb.getVersion().getId()), same(passport));
 
 		try (MockedConstruction<GBankingHBCICallback> callbacks = mockConstruction(GBankingHBCICallback.class)) {
-			boolean result = bean.refreshBankAccessParameterData(bankAccess, pin);
+			boolean result = bankAccessService.refreshBankAccessParameterData(bankAccess, pin);
 
 			assertTrue(result);
 			assertEquals("2", bankAccess.getBpdVersion());
@@ -222,10 +231,10 @@ class GBankingBeanServiceMethodsAdditionalTest {
 
 	@Test
 	void saveRecipientToDB_shouldInsertNewRecipientAndUpdateExistingNoteOnlyOnce() {
-		GBankingBean bean = new GBankingBean();
+		RecipientService recipientService = ServiceRegistry.getService(RecipientService.class);
 		Recipient newRecipient = new Recipient("Recipient One", "DE11111111111111111111", "TESTDEFFXXX", null, null, "Testbank", Source.MANUELL);
 
-		Recipient savedRecipient = bean.saveRecipientToDB(newRecipient);
+		Recipient savedRecipient = recipientService.saveRecipientToDB(newRecipient);
 
 		assertTrue(savedRecipient.getId() > 0);
 		assertEquals(1, dbController.getAll(Recipient.class).size());
@@ -234,7 +243,7 @@ class GBankingBeanServiceMethodsAdditionalTest {
 				Source.MANUELL);
 		recipientWithUpdatedNote.setNote("Updated note");
 
-		Recipient updatedRecipient = bean.saveRecipientToDB(recipientWithUpdatedNote);
+		Recipient updatedRecipient = recipientService.saveRecipientToDB(recipientWithUpdatedNote);
 
 		assertEquals(savedRecipient.getId(), updatedRecipient.getId());
 		assertEquals("Updated note", dbController.getByIdFull(Recipient.class, savedRecipient.getId()).getNote());
@@ -243,7 +252,7 @@ class GBankingBeanServiceMethodsAdditionalTest {
 
 	@Test
 	void saveRecipientToDB_shouldMoveDefaultForSameIban() {
-		GBankingBean bean = new GBankingBean();
+		RecipientService recipientService = ServiceRegistry.getService(RecipientService.class);
 		Recipient oldDefault = new Recipient("Old Default", "DE11111111111111111111", "TESTDEFFXXX", null, null, "Testbank", Source.MANUELL);
 		oldDefault.setDefault(true);
 		oldDefault = dbController.insertOrUpdate(oldDefault);
@@ -251,7 +260,7 @@ class GBankingBeanServiceMethodsAdditionalTest {
 
 		Recipient newDefault = new Recipient("New Default", "DE11111111111111111111", "TESTDEFFXXX", null, null, "Testbank", Source.MANUELL);
 		newDefault.setDefault(true);
-		Recipient savedDefault = bean.saveRecipientToDB(newDefault);
+		Recipient savedDefault = recipientService.saveRecipientToDB(newDefault);
 
 		assertFalse(dbController.getByIdFull(Recipient.class, oldDefault.getId()).isDefault());
 		assertTrue(dbController.getByIdFull(Recipient.class, savedDefault.getId()).isDefault());
@@ -259,7 +268,7 @@ class GBankingBeanServiceMethodsAdditionalTest {
 
 	@Test
 	void saveRecipientToDB_shouldUseAccountNumberForDefaultWhenIbanIsBlank() {
-		GBankingBean bean = new GBankingBean();
+		RecipientService recipientService = ServiceRegistry.getService(RecipientService.class);
 		Recipient oldDefault = new Recipient("Old Account Default", null, null, "99112", "40040000", "Lookup Bank", Source.MANUELL);
 		oldDefault.setDefault(true);
 		oldDefault = dbController.insertOrUpdate(oldDefault);
@@ -267,7 +276,7 @@ class GBankingBeanServiceMethodsAdditionalTest {
 
 		Recipient newDefault = new Recipient("New Account Default", null, null, "99112", "40040000", "Lookup Bank", Source.MANUELL);
 		newDefault.setDefault(true);
-		Recipient savedDefault = bean.saveRecipientToDB(newDefault);
+		Recipient savedDefault = recipientService.saveRecipientToDB(newDefault);
 
 		assertFalse(dbController.getByIdFull(Recipient.class, oldDefault.getId()).isDefault());
 		assertTrue(dbController.getByIdFull(Recipient.class, savedDefault.getId()).isDefault());
@@ -275,7 +284,6 @@ class GBankingBeanServiceMethodsAdditionalTest {
 
 	@Test
 	void deleteBookingsInBlock_shouldDeleteOnlyOnlineFamilyFromReferenceDate() {
-		GBankingBean bean = new GBankingBean();
 		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
 		insertBooking(account.getId(), Source.ONLINE, LocalDate.of(2026, Month.JANUARY, 1));
 		Booking reference = insertBooking(account.getId(), Source.ONLINE, LocalDate.of(2026, Month.JANUARY, 10));
@@ -283,7 +291,7 @@ class GBankingBeanServiceMethodsAdditionalTest {
 		insertBooking(account.getId(), Source.IMPORT, LocalDate.of(2026, Month.JANUARY, 20));
 		insertBooking(account.getId(), Source.MANUELL, LocalDate.of(2026, Month.JANUARY, 20));
 
-		int deletedCount = bean.deleteBookingsInBlock(reference, true);
+		int deletedCount = bookingService.deleteBookingsInBlock(reference, true);
 
 		List<Booking> remainingBookings = dbController.getAllByParentFull(Booking.class, account.getId());
 		assertEquals(2, deletedCount);
@@ -295,13 +303,12 @@ class GBankingBeanServiceMethodsAdditionalTest {
 
 	@Test
 	void deleteBookingsInBlock_shouldDeleteImportFamilyUntilReferenceValueDate() {
-		GBankingBean bean = new GBankingBean();
 		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
 		insertBookingWithValueDateOnly(account.getId(), Source.IMPORT, LocalDate.of(2026, Month.FEBRUARY, 1));
 		Booking reference = insertBookingWithValueDateOnly(account.getId(), Source.IMPORT_NEW, LocalDate.of(2026, Month.FEBRUARY, 10));
 		insertBookingWithValueDateOnly(account.getId(), Source.IMPORT_INITIAL, LocalDate.of(2026, Month.FEBRUARY, 20));
 
-		int deletedCount = bean.deleteBookingsInBlock(reference, false);
+		int deletedCount = bookingService.deleteBookingsInBlock(reference, false);
 
 		List<Booking> remainingBookings = dbController.getAllByParentFull(Booking.class, account.getId());
 		assertEquals(2, deletedCount);
@@ -311,14 +318,13 @@ class GBankingBeanServiceMethodsAdditionalTest {
 
 	@Test
 	void deleteBookingsInBlock_shouldIgnoreInvalidReferences() {
-		GBankingBean bean = new GBankingBean();
 		Booking manualBooking = new Booking();
 		manualBooking.setAccountId(1);
 		manualBooking.setDateBooking(LocalDate.now(ZoneId.systemDefault()));
 		manualBooking.setSource(Source.MANUELL);
 
-		assertEquals(0, bean.deleteBookingsInBlock(null, true));
-		assertEquals(0, bean.deleteBookingsInBlock(manualBooking, true));
+		assertEquals(0, bookingService.deleteBookingsInBlock(null, true));
+		assertEquals(0, bookingService.deleteBookingsInBlock(manualBooking, true));
 	}
 
 	@Test

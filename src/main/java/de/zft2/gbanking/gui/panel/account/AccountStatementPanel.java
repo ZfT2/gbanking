@@ -19,6 +19,9 @@ import de.zft2.gbanking.gui.panel.layout.DetailListPane;
 import de.zft2.gbanking.service.account.AccountStatement;
 import de.zft2.gbanking.service.account.AccountStatementAcknowledgementResult;
 import de.zft2.gbanking.service.account.AccountStatementRetrievalResult;
+import de.zft2.gbanking.service.account.AccountStatementService;
+import de.zft2.gbanking.service.BankingCapabilityService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import javafx.concurrent.Task;
 import javafx.scene.control.Alert.AlertType;
 import javafx.stage.Stage;
@@ -30,10 +33,18 @@ public class AccountStatementPanel extends DetailListPane implements BaseMessage
 
 	private final AccountStatementDetailPanel detailPanel;
 	private final AccountStatementListPanel listPanel;
+	private final BankingCapabilityService bankingCapabilityService;
+	private final AccountStatementService accountStatementService;
 
 	private BankAccount currentAccount;
 
 	public AccountStatementPanel() {
+		this(ServiceRegistry.getService(AccountStatementService.class), ServiceRegistry.getService(BankingCapabilityService.class));
+	}
+
+	AccountStatementPanel(AccountStatementService accountStatementService, BankingCapabilityService bankingCapabilityService) {
+		this.accountStatementService = accountStatementService;
+		this.bankingCapabilityService = bankingCapabilityService;
 		detailPanel = new AccountStatementDetailPanel(() -> retrieveStatements(), () -> acknowledgeStatements());
 		listPanel = new AccountStatementListPanel(statement -> handleStatementSelection(statement), statement -> openStatement(statement));
 		setDetailAndList(detailPanel, listPanel);
@@ -41,7 +52,7 @@ public class AccountStatementPanel extends DetailListPane implements BaseMessage
 
 	public void updateAccount(BankAccount account) {
 		currentAccount = account;
-		boolean supported = account != null && bean.supportsAccountStatements(account);
+		boolean supported = account != null && bankingCapabilityService.supportsAccountStatements(account);
 		detailPanel.updateAccount(account, supported);
 		reloadStatements();
 	}
@@ -51,7 +62,7 @@ public class AccountStatementPanel extends DetailListPane implements BaseMessage
 	}
 
 	private void reloadStatements() {
-		List<AccountStatement> statements = currentAccount != null ? bean.getAccountStatements(currentAccount) : List.of();
+		List<AccountStatement> statements = currentAccount != null ? accountStatementService.listAccountStatements(currentAccount) : List.of();
 		listPanel.updateModelStatements(statements);
 		detailPanel.updateStatement(null);
 	}
@@ -77,7 +88,7 @@ public class AccountStatementPanel extends DetailListPane implements BaseMessage
 			return;
 		}
 		try {
-			Path fileToOpen = bean.prepareAccountStatementForOpening(statement);
+			Path fileToOpen = accountStatementService.prepareForOpening(statement);
 			desktop.open(fileToOpen.toFile());
 		} catch (IOException | RuntimeException e) {
 			log.warn("Could not open account statement file {}", statement.fileName(), e);
@@ -91,7 +102,7 @@ public class AccountStatementPanel extends DetailListPane implements BaseMessage
 			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_ACCOUNT_NO_SELECTION"));
 			return;
 		}
-		if (!bean.supportsAccountStatements(currentAccount)) {
+		if (!bankingCapabilityService.supportsAccountStatements(currentAccount)) {
 			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING,
 					getText("ALERT_ACCOUNT_STATEMENTS_UNSUPPORTED", currentAccount.getAccountName()));
 			return;
@@ -110,7 +121,7 @@ public class AccountStatementPanel extends DetailListPane implements BaseMessage
 			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_ACCOUNT_NO_SELECTION"));
 			return;
 		}
-		if (!bean.supportsAccountStatements(currentAccount)) {
+		if (!bankingCapabilityService.supportsAccountStatements(currentAccount)) {
 			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING,
 					getText("ALERT_ACCOUNT_STATEMENTS_UNSUPPORTED", currentAccount.getAccountName()));
 			return;
@@ -137,7 +148,7 @@ public class AccountStatementPanel extends DetailListPane implements BaseMessage
 		Task<AccountStatementRetrievalResult> task = new Task<>() {
 			@Override
 			protected AccountStatementRetrievalResult call() {
-				return bean.retrieveAccountStatementsWithResult(account, pin);
+				return accountStatementService.retrieveAccountStatementsWithResult(account, pin);
 			}
 		};
 		task.setOnSucceeded(event -> handleRetrievalSuccess(task.getValue()));
@@ -155,7 +166,7 @@ public class AccountStatementPanel extends DetailListPane implements BaseMessage
 		Task<AccountStatementAcknowledgementResult> task = new Task<>() {
 			@Override
 			protected AccountStatementAcknowledgementResult call() {
-				return bean.acknowledgeAccountStatementsWithResult(account, pin);
+				return accountStatementService.acknowledgeAccountStatementsWithResult(account, pin);
 			}
 		};
 		task.setOnSucceeded(event -> handleAcknowledgementSuccess(task.getValue()));

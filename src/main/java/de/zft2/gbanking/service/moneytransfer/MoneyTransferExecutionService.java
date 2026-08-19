@@ -20,8 +20,6 @@ import org.kapott.hbci.manager.HBCIHandler;
 import org.kapott.hbci.status.HBCIExecStatus;
 import org.kapott.hbci.structures.Konto;
 
-import de.zft2.gbanking.BankingCapabilityService;
-import de.zft2.gbanking.BaseMessagesDb;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
@@ -35,31 +33,23 @@ import de.zft2.gbanking.db.dao.enu.StandingorderMode;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
 import de.zft2.gbanking.logging.SensitiveDataMasker;
-import de.zft2.gbanking.service.GBankingBean;
+import de.zft2.gbanking.service.AbstractDbService;
+import de.zft2.gbanking.service.BankingCapabilityService;
 import de.zft2.gbanking.service.HbciSessionRunner;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
 
-public class MoneyTransferExecutionService implements BaseMessagesDb {
+public class MoneyTransferExecutionService extends AbstractDbService {
 
 	private static final Logger log = LogManager.getLogger(MoneyTransferExecutionService.class);
 
-	private final GBankingBean gBankingBean;
-	private final BankAccessService hbciSupport;
 	private final HbciSessionRunner hbciSessionRunner;
 
-	public MoneyTransferExecutionService(GBankingBean gBankingBean, BankAccessService hbciSupport) {
-		this.gBankingBean = gBankingBean;
-		this.hbciSupport = hbciSupport;
-		this.hbciSessionRunner = new HbciSessionRunner(hbciSupport);
+	public MoneyTransferExecutionService() {
+		this.hbciSessionRunner = new HbciSessionRunner();
 	}
 
-	MoneyTransferExecutionService(BankAccessService hbciSupport) {
-		this.gBankingBean = null;
-		this.hbciSupport = hbciSupport;
-		this.hbciSessionRunner = new HbciSessionRunner(hbciSupport);
-	}
-
-	public boolean executeTransfer(MoneyTransfer moneyTransfer, BankAccount bankAccount, char[] pin) {
+	boolean executeTransfer(MoneyTransfer moneyTransfer, BankAccount bankAccount, char[] pin) {
 
 		boolean result = false;
 
@@ -86,6 +76,7 @@ public class MoneyTransferExecutionService implements BaseMessagesDb {
 			return false;
 		}
 
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 		BankAccess bankAccess = hbciSupport.initBankAccess(transferAccount, pin);
 		if (bankAccess == null) {
 			log.warn("Money transfer execution skipped, no bank access available. transferId={}, accountId={}", moneyTransfer.getId(), transferAccount.getId());
@@ -120,7 +111,8 @@ public class MoneyTransferExecutionService implements BaseMessagesDb {
 	private boolean executeTransfer(MoneyTransfer moneyTransfer, BankAccount transferAccount, BankOrderOperation operation,
 			CommunicationState communicationState,
 			HbciSessionRunner.HbciSession session) {
-		Konto hbciSenderAccount = gBankingBean.getSenderAccount(session.passport(), transferAccount);
+		MoneyTransferService moneyTransferService = ServiceRegistry.getService(MoneyTransferService.class);
+		Konto hbciSenderAccount = moneyTransferService.getSenderAccount(session.passport(), transferAccount);
 		Konto hbciRecipientAccount = createRecipientAccount(moneyTransfer);
 		HBCIJob<HBCIJobResult> job = createTransferJob(session.handler(), moneyTransfer, hbciSenderAccount, hbciRecipientAccount);
 		session.callback().registerJobDescription(job, getText(resolveStatusMessageKey(moneyTransfer.getOrderType(), operation),
@@ -146,6 +138,7 @@ public class MoneyTransferExecutionService implements BaseMessagesDb {
 
 	private HBCIJob<HBCIJobResult> createTransferJob(HBCIHandler handle, MoneyTransfer moneyTransfer, Konto senderAccount, Konto recipientAccount) {
 		BankOrderOperation operation = BankOrderOperation.forTransfer(moneyTransfer);
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 		HBCIJob<HBCIJobResult> job = hbciSupport.newHbciJob(handle, resolveJobName(moneyTransfer.getOrderType(), operation));
 		job.setParam("src", senderAccount);
 		applyBankOrderId(job, moneyTransfer, operation);
@@ -417,14 +410,15 @@ public class MoneyTransferExecutionService implements BaseMessagesDb {
 	}
 
 	boolean supportsTransferOrderType(BankAccount bankAccount, OrderType orderType) {
-		return new BankingCapabilityService().supportsTransferOrderType(bankAccount, orderType);
+		return ServiceRegistry.getService(BankingCapabilityService.class).supportsTransferOrderType(bankAccount, orderType);
 	}
 
 	private boolean supportsBankOrderOperation(BankAccount bankAccount, MoneyTransfer moneyTransfer, BankOrderOperation operation) {
+		BankingCapabilityService bankingCapabilityService = ServiceRegistry.getService(BankingCapabilityService.class);
 		if (operation == BankOrderOperation.CREATE) {
-			return gBankingBean.supportsTransferOrderType(bankAccount, moneyTransfer.getOrderType());
+			return bankingCapabilityService.supportsTransferOrderType(bankAccount, moneyTransfer.getOrderType());
 		}
-		return gBankingBean.supportsBankOrderOperation(bankAccount, moneyTransfer.getOrderType(), operation);
+		return bankingCapabilityService.supportsBankOrderOperation(bankAccount, moneyTransfer.getOrderType(), operation);
 	}
 
 	private void clearSecret(char[] secret) {

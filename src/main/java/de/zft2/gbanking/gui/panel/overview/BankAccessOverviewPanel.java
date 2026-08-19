@@ -6,11 +6,14 @@ import de.zft2.gbanking.gui.panel.bankaccess.BankAccessDetailPanel;
 import de.zft2.gbanking.gui.panel.bankaccess.BankAccessListPanel;
 import de.zft2.gbanking.gui.panel.bankaccess.BankMessagePanel;
 import de.zft2.gbanking.gui.panel.layout.DetailListPane;
+import de.zft2.gbanking.service.BankingCapabilityService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 
 public class BankAccessOverviewPanel extends OverviewBasePanel {
 
+	private final BankingCapabilityService bankingCapabilityService;
 	private BankAccessDetailPanel bankAccessDetailPanel;
 	private BankAccessListPanel bankAccessListPanel;
 	private BankMessagePanel bankMessagePanel;
@@ -19,6 +22,11 @@ public class BankAccessOverviewPanel extends OverviewBasePanel {
 	private BankAccess currentBankAccess;
 
 	public BankAccessOverviewPanel() {
+		this(ServiceRegistry.getService(BankingCapabilityService.class));
+	}
+
+	BankAccessOverviewPanel(BankingCapabilityService bankingCapabilityService) {
+		this.bankingCapabilityService = bankingCapabilityService;
 		bankAccessDetailPanel = new BankAccessDetailPanel(this);
 		bankAccessListPanel = new BankAccessListPanel(this);
 		bankMessagePanel = new BankMessagePanel();
@@ -77,7 +85,7 @@ public class BankAccessOverviewPanel extends OverviewBasePanel {
 			return;
 		}
 
-		boolean supported = currentBankAccess != null && bean.supportsBankMessages(currentBankAccess);
+		boolean supported = currentBankAccess != null && bankingCapabilityService.supportsBankMessages(currentBankAccess);
 		bankMessagesTab.setDisable(!supported);
 		if (!supported && tabPane != null && tabPane.getSelectionModel().getSelectedItem() == bankMessagesTab) {
 			tabPane.getSelectionModel().selectFirst();

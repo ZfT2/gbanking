@@ -10,11 +10,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.dao.BankAccount;
-import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.enu.OrderType;
-import de.zft2.gbanking.gui.GuiLayoutState;
+import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.gui.component.GBankingTableView;
 import de.zft2.gbanking.gui.enu.PageContext;
+import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.model.PendingStatementReceipts;
 import de.zft2.gbanking.gui.model.SelectableOpenAction;
 import de.zft2.gbanking.gui.panel.account.AccountListPanel;
@@ -23,10 +23,14 @@ import de.zft2.gbanking.gui.panel.layout.MasterContentPane;
 import de.zft2.gbanking.gui.util.FxTableUtils;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
 import de.zft2.gbanking.service.account.AccountStatement;
+import de.zft2.gbanking.service.account.AccountStatementService;
 import de.zft2.gbanking.service.action.OpenAccountAction;
 import de.zft2.gbanking.service.action.OpenActionsSelection;
 import de.zft2.gbanking.service.action.OpenBankingAction;
 import de.zft2.gbanking.service.action.OpenTransferAction;
+import de.zft2.gbanking.service.BankingCapabilityService;
+import de.zft2.gbanking.service.moneytransfer.MoneyTransferService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -40,6 +44,7 @@ import javafx.scene.layout.GridPane;
 public class OpenActionsOverviewPanel extends OverviewBasePanel {
 
 	private static final Logger log = LogManager.getLogger(OpenActionsOverviewPanel.class);
+
 	private static final double ACCOUNT_DIVIDER = 0.22;
 	private static final double ACTION_TABLE_HEIGHT = 200;
 	private static final String UI_ACCOUNT_NAME = "UI_TABLE_ACCOUNT_NAME";
@@ -50,10 +55,26 @@ public class OpenActionsOverviewPanel extends OverviewBasePanel {
 	private final ObservableList<SelectableOpenAction<OpenAccountAction<Void>>> scheduledTransferInventoryActions = FXCollections.observableArrayList();
 	private final ObservableList<SelectableOpenAction<OpenAccountAction<Void>>> standingOrderInventoryActions = FXCollections.observableArrayList();
 	private final ObservableList<SelectableOpenAction<OpenAccountAction<Void>>> accountStatementActions = FXCollections.observableArrayList();
-	private final ObservableList<SelectableOpenAction<OpenAccountAction<PendingStatementReceipts>>> statementReceiptActions =
-			FXCollections.observableArrayList();
+	private final ObservableList<SelectableOpenAction<OpenAccountAction<PendingStatementReceipts>>> statementReceiptActions = FXCollections
+			.observableArrayList();
 
 	private AccountListPanel accountListPanel;
+
+	private final BankingCapabilityService bankingCapabilityService;
+	private final MoneyTransferService moneyTransferService;
+	private final AccountStatementService accountStatementService;
+
+	public OpenActionsOverviewPanel() {
+		this(ServiceRegistry.getService(BankingCapabilityService.class), ServiceRegistry.getService(MoneyTransferService.class),
+				ServiceRegistry.getService(AccountStatementService.class));
+	}
+
+	OpenActionsOverviewPanel(BankingCapabilityService bankingCapabilityService, MoneyTransferService moneyTransferService,
+			AccountStatementService accountStatementService) {
+		this.bankingCapabilityService = bankingCapabilityService;
+		this.moneyTransferService = moneyTransferService;
+		this.accountStatementService = accountStatementService;
+	}
 
 	@Override
 	public void createOverallPanel(boolean show) {
@@ -82,20 +103,21 @@ public class OpenActionsOverviewPanel extends OverviewBasePanel {
 		ColumnConstraints rightColumn = createPanelColumn();
 		panels.getColumnConstraints().setAll(leftColumn, rightColumn);
 
-		panels.add(createActionPanel("UI_PANEL_OPEN_ACTIONS_TRANSFERS", transferActions, createTransferColumns(transferActions),
-				"openActions.transfers"), 0, 0, 2, 1);
+		panels.add(createActionPanel("UI_PANEL_OPEN_ACTIONS_TRANSFERS", transferActions, createTransferColumns(transferActions), "openActions.transfers"), 0, 0,
+				2, 1);
 		panels.add(createActionPanel("UI_PANEL_OPEN_ACTIONS_SCHEDULED_INVENTORY", scheduledTransferInventoryActions,
 				createAccountActionColumns(scheduledTransferInventoryActions), "openActions.scheduledInventory"), 0, 1);
-		panels.add(createActionPanel("UI_PANEL_OPEN_ACTIONS_SCHEDULED_ORDERS", scheduledTransferActions,
-				createOrderColumns(scheduledTransferActions), "openActions.scheduledOrders"), 1, 1);
+		panels.add(createActionPanel("UI_PANEL_OPEN_ACTIONS_SCHEDULED_ORDERS", scheduledTransferActions, createOrderColumns(scheduledTransferActions),
+				"openActions.scheduledOrders"), 1, 1);
 		panels.add(createActionPanel("UI_PANEL_OPEN_ACTIONS_STANDING_INVENTORY", standingOrderInventoryActions,
 				createAccountActionColumns(standingOrderInventoryActions), "openActions.standingInventory"), 0, 2);
-		panels.add(createActionPanel("UI_PANEL_OPEN_ACTIONS_STANDING_ORDERS", standingOrderActions,
-				createOrderColumns(standingOrderActions), "openActions.standingOrders"), 1, 2);
-		panels.add(createActionPanel("UI_PANEL_OPEN_ACTIONS_STATEMENTS", accountStatementActions,
-				createAccountActionColumns(accountStatementActions), "openActions.statements"), 0, 3);
-		panels.add(createActionPanel("UI_PANEL_OPEN_ACTIONS_STATEMENT_RECEIPTS", statementReceiptActions, createReceiptColumns(),
-				"openActions.statementReceipts"), 1, 3);
+		panels.add(createActionPanel("UI_PANEL_OPEN_ACTIONS_STANDING_ORDERS", standingOrderActions, createOrderColumns(standingOrderActions),
+				"openActions.standingOrders"), 1, 2);
+		panels.add(createActionPanel("UI_PANEL_OPEN_ACTIONS_STATEMENTS", accountStatementActions, createAccountActionColumns(accountStatementActions),
+				"openActions.statements"), 0, 3);
+		panels.add(
+				createActionPanel("UI_PANEL_OPEN_ACTIONS_STATEMENT_RECEIPTS", statementReceiptActions, createReceiptColumns(), "openActions.statementReceipts"),
+				1, 3);
 		return panels;
 	}
 
@@ -123,12 +145,11 @@ public class OpenActionsOverviewPanel extends OverviewBasePanel {
 
 	private List<TableColumn<SelectableOpenAction<OpenTransferAction>, ?>> createTransferColumns(
 			ObservableList<SelectableOpenAction<OpenTransferAction>> actions) {
-		List<TableColumn<SelectableOpenAction<OpenTransferAction>, ?>> columns =
-				new ArrayList<>(createOrderColumns(actions, 140, 180));
-		TableColumn<SelectableOpenAction<OpenTransferAction>, String> typeColumn = TableColumnFactory.createFixedTextColumn(
-				getText("UI_TABLE_OPEN_ACTION_TYPE"), row -> text(row.getValue().moneyTransfer().getOrderType()), 130);
-		TableColumn<SelectableOpenAction<OpenTransferAction>, String> purposeColumn = TableColumnFactory.createTextColumn(
-				getText("UI_TABLE_PURPOSE"), row -> row.getValue().moneyTransfer().getPurpose(), 140, 240);
+		List<TableColumn<SelectableOpenAction<OpenTransferAction>, ?>> columns = new ArrayList<>(createOrderColumns(actions, 140, 180));
+		TableColumn<SelectableOpenAction<OpenTransferAction>, String> typeColumn = TableColumnFactory
+				.createFixedTextColumn(getText("UI_TABLE_OPEN_ACTION_TYPE"), row -> text(row.getValue().moneyTransfer().getOrderType()), 130);
+		TableColumn<SelectableOpenAction<OpenTransferAction>, String> purposeColumn = TableColumnFactory.createTextColumn(getText("UI_TABLE_PURPOSE"),
+				row -> row.getValue().moneyTransfer().getPurpose(), 140, 240);
 		columns.add(2, typeColumn);
 		columns.add(purposeColumn);
 		return columns;
@@ -139,57 +160,55 @@ public class OpenActionsOverviewPanel extends OverviewBasePanel {
 		return createOrderColumns(actions, 120, 160);
 	}
 
-	private List<TableColumn<SelectableOpenAction<OpenTransferAction>, ?>> createOrderColumns(
-			ObservableList<SelectableOpenAction<OpenTransferAction>> actions, double textMinWidth, double textPrefWidth) {
+	private List<TableColumn<SelectableOpenAction<OpenTransferAction>, ?>> createOrderColumns(ObservableList<SelectableOpenAction<OpenTransferAction>> actions,
+			double textMinWidth, double textPrefWidth) {
 		TableColumn<SelectableOpenAction<OpenTransferAction>, Boolean> selectedColumn = createSelectionColumn(actions);
-		TableColumn<SelectableOpenAction<OpenTransferAction>, String> accountColumn = TableColumnFactory.createTextColumn(
-				getText(UI_ACCOUNT_NAME), row -> row.getAccount().getAccountName(), textMinWidth, textPrefWidth);
-		TableColumn<SelectableOpenAction<OpenTransferAction>, String> recipientColumn = TableColumnFactory.createTextColumn(
-				getText("UI_TABLE_RECIPIENT"), row -> recipientName(row.getValue().moneyTransfer()), textMinWidth, textPrefWidth);
-		TableColumn<SelectableOpenAction<OpenTransferAction>, java.math.BigDecimal> amountColumn = TableColumnFactory.createAmountColumn(
-				getText("UI_TABLE_AMOUNT"), row -> row.getValue().moneyTransfer().getAmount());
+		TableColumn<SelectableOpenAction<OpenTransferAction>, String> accountColumn = TableColumnFactory.createTextColumn(getText(UI_ACCOUNT_NAME),
+				row -> row.getAccount().getAccountName(), textMinWidth, textPrefWidth);
+		TableColumn<SelectableOpenAction<OpenTransferAction>, String> recipientColumn = TableColumnFactory.createTextColumn(getText("UI_TABLE_RECIPIENT"),
+				row -> recipientName(row.getValue().moneyTransfer()), textMinWidth, textPrefWidth);
+		TableColumn<SelectableOpenAction<OpenTransferAction>, java.math.BigDecimal> amountColumn = TableColumnFactory
+				.createAmountColumn(getText("UI_TABLE_AMOUNT"), row -> row.getValue().moneyTransfer().getAmount());
 		FxTableUtils.setFixedWidth(amountColumn, 95);
-		TableColumn<SelectableOpenAction<OpenTransferAction>, LocalDate> dateColumn = TableColumnFactory.createCalendarDateColumn(
-				getText("UI_TABLE_DATE"), row -> row.getValue().moneyTransfer().getExecutionDate(), 95);
-		TableColumn<SelectableOpenAction<OpenTransferAction>, String> statusColumn = TableColumnFactory.createFixedTextColumn(
-				getText("UI_TABLE_STATUS"), row -> text(row.getValue().moneyTransfer().getMoneytransferStatus()), 100);
+		TableColumn<SelectableOpenAction<OpenTransferAction>, LocalDate> dateColumn = TableColumnFactory.createCalendarDateColumn(getText("UI_TABLE_DATE"),
+				row -> row.getValue().moneyTransfer().getExecutionDate(), 95);
+		TableColumn<SelectableOpenAction<OpenTransferAction>, String> statusColumn = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_STATUS"),
+				row -> text(row.getValue().moneyTransfer().getMoneytransferStatus()), 100);
 		return List.of(selectedColumn, accountColumn, recipientColumn, amountColumn, dateColumn, statusColumn);
 	}
 
 	private <T> List<TableColumn<SelectableOpenAction<OpenAccountAction<T>>, ?>> createAccountActionColumns(
 			ObservableList<SelectableOpenAction<OpenAccountAction<T>>> actions) {
 		TableColumn<SelectableOpenAction<OpenAccountAction<T>>, Boolean> selectedColumn = createSelectionColumn(actions);
-		TableColumn<SelectableOpenAction<OpenAccountAction<T>>, String> accountColumn = TableColumnFactory.createTextColumn(
-				getText(UI_ACCOUNT_NAME), row -> row.getAccount().getAccountName(), 170, 220);
-		TableColumn<SelectableOpenAction<OpenAccountAction<T>>, String> ibanColumn = TableColumnFactory.createTextColumn(
-				getText("UI_TABLE_IBAN"), row -> row.getAccount().getIban(), 190, 230);
-		TableColumn<SelectableOpenAction<OpenAccountAction<T>>, String> bankColumn = TableColumnFactory.createTextColumn(
-				getText("UI_TABLE_BANK"), row -> row.getAccount().getBankName(), 140, 180);
-		TableColumn<SelectableOpenAction<OpenAccountAction<T>>, LocalDate> updatedColumn = TableColumnFactory.createUpdatedAtColumn(
-				getText("UI_TABLE_UPDATED_AT"), row -> row.getAccount().getUpdatedAt(), 100);
+		TableColumn<SelectableOpenAction<OpenAccountAction<T>>, String> accountColumn = TableColumnFactory.createTextColumn(getText(UI_ACCOUNT_NAME),
+				row -> row.getAccount().getAccountName(), 170, 220);
+		TableColumn<SelectableOpenAction<OpenAccountAction<T>>, String> ibanColumn = TableColumnFactory.createTextColumn(getText("UI_TABLE_IBAN"),
+				row -> row.getAccount().getIban(), 190, 230);
+		TableColumn<SelectableOpenAction<OpenAccountAction<T>>, String> bankColumn = TableColumnFactory.createTextColumn(getText("UI_TABLE_BANK"),
+				row -> row.getAccount().getBankName(), 140, 180);
+		TableColumn<SelectableOpenAction<OpenAccountAction<T>>, LocalDate> updatedColumn = TableColumnFactory
+				.createUpdatedAtColumn(getText("UI_TABLE_UPDATED_AT"), row -> row.getAccount().getUpdatedAt(), 100);
 		return List.of(selectedColumn, accountColumn, ibanColumn, bankColumn, updatedColumn);
 	}
 
 	private List<TableColumn<SelectableOpenAction<OpenAccountAction<PendingStatementReceipts>>, ?>> createReceiptColumns() {
-		TableColumn<SelectableOpenAction<OpenAccountAction<PendingStatementReceipts>>, Boolean> selectedColumn =
-				createSelectionColumn(statementReceiptActions);
-		TableColumn<SelectableOpenAction<OpenAccountAction<PendingStatementReceipts>>, String> accountColumn = TableColumnFactory.createTextColumn(
-				getText(UI_ACCOUNT_NAME), row -> row.getAccount().getAccountName(), 170, 220);
+		TableColumn<SelectableOpenAction<OpenAccountAction<PendingStatementReceipts>>, Boolean> selectedColumn = createSelectionColumn(statementReceiptActions);
+		TableColumn<SelectableOpenAction<OpenAccountAction<PendingStatementReceipts>>, String> accountColumn = TableColumnFactory
+				.createTextColumn(getText(UI_ACCOUNT_NAME), row -> row.getAccount().getAccountName(), 170, 220);
 		TableColumn<SelectableOpenAction<OpenAccountAction<PendingStatementReceipts>>, Integer> countColumn = new TableColumn<>(
 				getText("UI_TABLE_OPEN_ACTION_RECEIPT_COUNT"));
 		countColumn.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getValue().details().count()));
 		FxTableUtils.setFixedWidth(countColumn, 100);
-		TableColumn<SelectableOpenAction<OpenAccountAction<PendingStatementReceipts>>, LocalDate> dateColumn = TableColumnFactory.createCalendarDateColumn(
-				getText("UI_TABLE_OPEN_ACTION_LATEST_STATEMENT"), row -> row.getValue().details().latestStatementDate(), 130);
-		TableColumn<SelectableOpenAction<OpenAccountAction<PendingStatementReceipts>>, String> ibanColumn = TableColumnFactory.createTextColumn(
-				getText("UI_TABLE_IBAN"), row -> row.getAccount().getIban(), 190, 230);
+		TableColumn<SelectableOpenAction<OpenAccountAction<PendingStatementReceipts>>, LocalDate> dateColumn = TableColumnFactory
+				.createCalendarDateColumn(getText("UI_TABLE_OPEN_ACTION_LATEST_STATEMENT"), row -> row.getValue().details().latestStatementDate(), 130);
+		TableColumn<SelectableOpenAction<OpenAccountAction<PendingStatementReceipts>>, String> ibanColumn = TableColumnFactory
+				.createTextColumn(getText("UI_TABLE_IBAN"), row -> row.getAccount().getIban(), 190, 230);
 		return List.of(selectedColumn, accountColumn, countColumn, dateColumn, ibanColumn);
 	}
 
-	private <T extends OpenBankingAction> TableColumn<SelectableOpenAction<T>, Boolean> createSelectionColumn(
-			ObservableList<SelectableOpenAction<T>> actions) {
-		return FxTableUtils.createSelectAllSelectionColumn(getText("UI_TABLE_SELECT_ALL"), actions,
-				row -> row.isSelected(), (row, selected) -> row.setSelected(selected));
+	private <T extends OpenBankingAction> TableColumn<SelectableOpenAction<T>, Boolean> createSelectionColumn(ObservableList<SelectableOpenAction<T>> actions) {
+		return FxTableUtils.createSelectAllSelectionColumn(getText("UI_TABLE_SELECT_ALL"), actions, row -> row.isSelected(),
+				(row, selected) -> row.setSelected(selected));
 	}
 
 	@Override
@@ -204,11 +223,11 @@ public class OpenActionsOverviewPanel extends OverviewBasePanel {
 	private void reloadActionTables() {
 		List<BankAccount> onlineAccounts = List.copyOf(accountListPanel.getModelAccount().getAccounts());
 		reloadTransferActions();
-		scheduledTransferInventoryActions.setAll(loadAccountActions(onlineAccounts,
-				account -> bean.supportsOrderInventory(account, OrderType.SCHEDULED_TRANSFER)));
-		standingOrderInventoryActions.setAll(loadAccountActions(onlineAccounts,
-				account -> bean.supportsOrderInventory(account, OrderType.STANDING_ORDER)));
-		accountStatementActions.setAll(loadAccountActions(onlineAccounts, account -> bean.supportsAccountStatements(account)));
+		scheduledTransferInventoryActions
+				.setAll(loadAccountActions(onlineAccounts, account -> bankingCapabilityService.supportsOrderInventory(account, OrderType.SCHEDULED_TRANSFER)));
+		standingOrderInventoryActions
+				.setAll(loadAccountActions(onlineAccounts, account -> bankingCapabilityService.supportsOrderInventory(account, OrderType.STANDING_ORDER)));
+		accountStatementActions.setAll(loadAccountActions(onlineAccounts, account -> bankingCapabilityService.supportsAccountStatements(account)));
 		statementReceiptActions.setAll(loadReceiptActions(onlineAccounts));
 	}
 
@@ -216,8 +235,8 @@ public class OpenActionsOverviewPanel extends OverviewBasePanel {
 		transferActions.clear();
 		scheduledTransferActions.clear();
 		standingOrderActions.clear();
-		for (MoneyTransfer transfer : bean.retrieveOpenTransfers()) {
-			BankAccount account = bean.getAccountForOpenMoneytransfers(transfer.getAccountId());
+		for (MoneyTransfer transfer : moneyTransferService.retrieveOpenTransfers()) {
+			BankAccount account = moneyTransferService.getAccountForOpenMoneytransfers(transfer.getAccountId());
 			if (account == null) {
 				continue;
 			}
@@ -232,18 +251,15 @@ public class OpenActionsOverviewPanel extends OverviewBasePanel {
 		}
 	}
 
-	private List<SelectableOpenAction<OpenAccountAction<Void>>> loadAccountActions(List<BankAccount> accounts,
-			Predicate<BankAccount> supported) {
-		return accounts.stream().filter(supported)
-				.map(account -> new SelectableOpenAction<>(new OpenAccountAction<Void>(account, null))).toList();
+	private List<SelectableOpenAction<OpenAccountAction<Void>>> loadAccountActions(List<BankAccount> accounts, Predicate<BankAccount> supported) {
+		return accounts.stream().filter(supported).map(account -> new SelectableOpenAction<>(new OpenAccountAction<Void>(account, null))).toList();
 	}
 
 	private List<SelectableOpenAction<OpenAccountAction<PendingStatementReceipts>>> loadReceiptActions(List<BankAccount> accounts) {
 		List<SelectableOpenAction<OpenAccountAction<PendingStatementReceipts>>> actions = new ArrayList<>();
 		for (BankAccount account : accounts) {
-			List<AccountStatement> pendingReceipts = bean.getAccountStatements(account).stream()
-					.filter(statement -> statement.receiptAvailable() && !statement.acknowledged())
-					.toList();
+			List<AccountStatement> pendingReceipts = accountStatementService.listAccountStatements(account).stream()
+					.filter(statement -> statement.receiptAvailable() && !statement.acknowledged()).toList();
 			if (!pendingReceipts.isEmpty()) {
 				LocalDate latestDate = pendingReceipts.stream().map(statement -> statement.statementDate()).filter(date -> date != null)
 						.max(Comparator.naturalOrder()).orElse(null);
@@ -258,12 +274,8 @@ public class OpenActionsOverviewPanel extends OverviewBasePanel {
 		List<OpenTransferAction> selectedTransfers = new ArrayList<>(selectedValues(transferActions));
 		selectedTransfers.addAll(selectedValues(scheduledTransferActions));
 		selectedTransfers.addAll(selectedValues(standingOrderActions));
-		return new OpenActionsSelection(
-				accountListPanel.getModelAccount().getCheckedAccounts(),
-				selectedTransfers,
-				selectedAccounts(scheduledTransferInventoryActions),
-				selectedAccounts(standingOrderInventoryActions),
-				selectedAccounts(accountStatementActions),
+		return new OpenActionsSelection(accountListPanel.getModelAccount().getCheckedAccounts(), selectedTransfers,
+				selectedAccounts(scheduledTransferInventoryActions), selectedAccounts(standingOrderInventoryActions), selectedAccounts(accountStatementActions),
 				selectedAccounts(statementReceiptActions));
 	}
 

@@ -9,7 +9,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.BaseMessages;
-import de.zft2.gbanking.demo.DemoTenantService;
+import de.zft2.gbanking.demo.DemoTenantManager;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.logging.SensitiveDataMasker;
 import de.zft2.gbanking.messages.Messages;
@@ -68,13 +68,13 @@ public class TenantSelectionDialog implements BaseMessages {
 
 	private final Window parentWindow;
 	private final TenantStore tenantStore;
-	private final DemoTenantService demoTenantService;
+	private final DemoTenantManager demoTenantManager;
 	private String selectedLanguageCode = Messages.toLanguageCode(Messages.getLocale());
 
 	public TenantSelectionDialog(Window parentWindow, TenantStore tenantStore) {
 		this.parentWindow = parentWindow;
 		this.tenantStore = tenantStore;
-		demoTenantService = new DemoTenantService(tenantStore);
+		demoTenantManager = new DemoTenantManager(tenantStore);
 	}
 
 	public Optional<TenantLoginResult> showAndWait(String lastSelectedTenantId, String initialLanguageCode) {
@@ -222,13 +222,13 @@ public class TenantSelectionDialog implements BaseMessages {
 
 	private void configureDemoAction(DialogState state, Runnable refreshTenants) {
 		state.controls.demoButton().setOnAction(event -> {
-			boolean resetExistingDemo = demoTenantService.demoTenantExists();
+			boolean resetExistingDemo = demoTenantManager.demoTenantExists();
 			if (resetExistingDemo && !confirmDemoReset(state.dialog)) {
 				return;
 			}
 
 			try {
-				TenantSession session = demoTenantService.createFreshDemoSession();
+				TenantSession session = demoTenantManager.createFreshDemoSession();
 				state.result[0] = new TenantLoginResult(session, session.profile().id(), selectedLanguageCode, true);
 				state.dialog.close();
 			} catch (IllegalArgumentException | IllegalStateException exception) {

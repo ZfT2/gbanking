@@ -6,14 +6,16 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.Source;
-import de.zft2.gbanking.gui.KeyboardShortcutDispatcher;
+import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
+import de.zft2.gbanking.gui.KeyboardShortcutDispatcher;
 import de.zft2.gbanking.gui.panel.AbstractTitledFormPanel;
 import de.zft2.gbanking.gui.panel.overview.RecipientOverviewPanel;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.gui.util.FormStyleUtils.FieldWidth;
+import de.zft2.gbanking.service.recipient.RecipientService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.util.TypeConverter;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
@@ -43,11 +45,17 @@ public class RecipientDetailPanel extends AbstractTitledFormPanel {
 	private final Button buttonRecipientDelete = new Button();
 
 	private final RecipientOverviewPanel parentPanel;
+	private final RecipientService recipientService;
 	private Recipient selectedRecipient;
 
 	public RecipientDetailPanel(RecipientOverviewPanel parentPanel) {
+		this(parentPanel, ServiceRegistry.getService(RecipientService.class));
+	}
+
+	RecipientDetailPanel(RecipientOverviewPanel parentPanel, RecipientService recipientService) {
 		super("UI_PANEL_RECIPIENT_DETAILS");
 		this.parentPanel = parentPanel;
+		this.recipientService = recipientService;
 		createInnerRecipientDetailPanel();
 	}
 
@@ -89,7 +97,7 @@ public class RecipientDetailPanel extends AbstractTitledFormPanel {
 			return;
 		}
 
-		Recipient savedRecipient = bean.saveRecipientToDB(recipient);
+		Recipient savedRecipient = recipientService.saveRecipientToDB(recipient);
 		selectedRecipient = savedRecipient;
 		parentPanel.setCurrentRecipient(savedRecipient);
 		parentPanel.getRecipientListPanel().refresh();
@@ -117,7 +125,7 @@ public class RecipientDetailPanel extends AbstractTitledFormPanel {
 	}
 
 	private boolean confirmDefaultReplacement(Recipient recipient) {
-		Recipient existingDefault = bean.findDefaultRecipientForSameAccountIdentifier(recipient);
+		Recipient existingDefault = recipientService.findDefaultRecipientForSameAccountIdentifier(recipient);
 		if (existingDefault == null) {
 			return true;
 		}
@@ -144,7 +152,7 @@ public class RecipientDetailPanel extends AbstractTitledFormPanel {
 
 	private void deleteRecipient() {
 		if (selectedRecipient != null) {
-			bean.deleteRecipientFromDB(selectedRecipient);
+			recipientService.deleteRecipientFromDB(selectedRecipient);
 			parentPanel.getRecipientListPanel().refresh();
 			resetTextFields();
 		}
@@ -184,8 +192,8 @@ public class RecipientDetailPanel extends AbstractTitledFormPanel {
 
 		parentPanel.setCurrentRecipient(selectedRecipient);
 
-		buttonRecipientDelete.setDisable(!bean.isRecipientDeletable(selectedRecipient));
-		enableInputFields(bean.isRecipientEditable(selectedRecipient));
+		buttonRecipientDelete.setDisable(!recipientService.isRecipientDeletable(selectedRecipient));
+		enableInputFields(recipientService.isRecipientEditable(selectedRecipient));
 
 		this.selectedRecipient = selectedRecipient;
 	}

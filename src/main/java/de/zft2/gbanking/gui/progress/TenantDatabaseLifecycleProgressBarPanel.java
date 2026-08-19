@@ -11,11 +11,11 @@ import de.zft2.gbanking.db.DatabaseIntegrityException;
 import de.zft2.gbanking.db.DbRuntimeContext;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.gui.panel.account.AccountListPanel;
-import de.zft2.gbanking.tenant.TenantBackupService;
-import de.zft2.gbanking.tenant.TenantBackupRestoreService;
-import de.zft2.gbanking.tenant.TenantBackupRestoreService.RestoreResult;
-import de.zft2.gbanking.tenant.TenantDatabaseLifecycleService;
-import de.zft2.gbanking.tenant.TenantDatabaseLifecycleService.OpenResult;
+import de.zft2.gbanking.tenant.TenantBackupCoordinator;
+import de.zft2.gbanking.tenant.TenantBackupCoordinator.RestoreResult;
+import de.zft2.gbanking.tenant.TenantBackupManager;
+import de.zft2.gbanking.tenant.TenantDatabaseLifecycleManager;
+import de.zft2.gbanking.tenant.TenantDatabaseLifecycleManager.OpenResult;
 import de.zft2.gbanking.tenant.TenantSession;
 import javafx.concurrent.Task;
 import javafx.stage.Stage;
@@ -30,9 +30,9 @@ public class TenantDatabaseLifecycleProgressBarPanel extends BaseFileProgressBar
 	private final TenantSession session;
 	private final Path restoreFile;
 	private final boolean allowMissingInstituteDatabase;
-	private final TenantDatabaseLifecycleService lifecycleService = new TenantDatabaseLifecycleService();
-	private final TenantBackupService backupService = new TenantBackupService();
-	private final TenantBackupRestoreService backupRestoreService = new TenantBackupRestoreService();
+	private final TenantDatabaseLifecycleManager lifecycleManager = new TenantDatabaseLifecycleManager();
+	private final TenantBackupManager backupManager = new TenantBackupManager();
+	private final TenantBackupCoordinator backupCoordinator = new TenantBackupCoordinator();
 	private volatile boolean failed;
 	private volatile boolean backupFailed;
 	private volatile boolean integrityCheckFailed;
@@ -150,18 +150,18 @@ public class TenantDatabaseLifecycleProgressBarPanel extends BaseFileProgressBar
 		protected Void call() throws Exception {
 			switch (operation) {
 			case OPEN -> openTenantDatabase();
-			case CLOSE -> lifecycleService.closeAndEncryptDatabase(session,
+			case CLOSE -> lifecycleManager.closeAndEncryptDatabase(session,
 					(completedSteps, totalSteps, messageKey) -> updateStatus(completedSteps, totalSteps, messageKey));
-			case BACKUP -> createdBackupFile = backupRestoreService.createManualBackup(session,
+			case BACKUP -> createdBackupFile = backupCoordinator.createManualBackup(session,
 					(completedSteps, totalSteps, messageKey) -> updateStatus(completedSteps, totalSteps, messageKey));
-			case RESTORE -> restoreResult = backupRestoreService.restoreBackup(session, restoreFile,
+			case RESTORE -> restoreResult = backupCoordinator.restoreBackup(session, restoreFile,
 					(completedSteps, totalSteps, messageKey) -> updateStatus(completedSteps, totalSteps, messageKey));
 			}
 			return null;
 		}
 
 		private void openTenantDatabase() throws IOException {
-			openResult = lifecycleService.prepareDatabaseForOpen(session,
+			openResult = lifecycleManager.prepareDatabaseForOpen(session,
 					(completedSteps, totalSteps, messageKey) -> updateOpenPreparationProgress(completedSteps, messageKey));
 			validateDatabaseBeforeBackup();
 			backupDatabase();
@@ -177,7 +177,7 @@ public class TenantDatabaseLifecycleProgressBarPanel extends BaseFileProgressBar
 
 		private void validateDatabaseBeforeBackup() {
 			updateProgress(3, OPEN_TOTAL_STEPS);
-			if (!backupService.hasTenantDatabase(session)) {
+			if (!backupManager.hasTenantDatabase(session)) {
 				updateProgress(4, OPEN_TOTAL_STEPS);
 				updateMessage(getText("UI_TENANT_DB_OPEN_PROGRESS_INTEGRITY_SKIPPED"));
 				return;
@@ -197,12 +197,12 @@ public class TenantDatabaseLifecycleProgressBarPanel extends BaseFileProgressBar
 		}
 
 		private void backupDatabase() {
-			if (!backupService.hasTenantDatabase(session)) {
+			if (!backupManager.hasTenantDatabase(session)) {
 				updateProgress(9, OPEN_TOTAL_STEPS);
 				return;
 			}
 			try {
-				backupService.backupTenantDatabase(session,
+				backupManager.backupTenantDatabase(session,
 						(completedSteps, totalSteps, messageKey) -> updateOpenBackupProgress(completedSteps, totalSteps, messageKey));
 			} catch (IOException | RuntimeException e) {
 				backupFailed = true;

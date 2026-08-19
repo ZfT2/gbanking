@@ -24,6 +24,7 @@ import java.util.Date;
 import java.util.List;
 
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,21 +40,25 @@ import org.kapott.hbci.structures.Value;
 import org.mockito.MockedConstruction;
 
 import de.zft2.gbanking.BaseMessagesDb;
-import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
-import de.zft2.gbanking.db.dao.MoneyTransfer;
-import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.StandingorderMode;
+import de.zft2.gbanking.db.dao.MoneyTransfer;
+import de.zft2.gbanking.db.dao.Recipient;
+import de.zft2.gbanking.db.DBController;
+import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
-import de.zft2.gbanking.service.GBankingBean;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
+import de.zft2.gbanking.service.BankingCapabilityService;
+import de.zft2.gbanking.service.GBankingService;
+import de.zft2.gbanking.service.Service;
+import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.service.ServiceStubbingUtil;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MoneyTransferInventoryServiceTest {
@@ -61,15 +66,13 @@ class MoneyTransferInventoryServiceTest {
 	private Path tempDir;
 	private DBController dbController;
 
+	private static final List<Class<? extends Service>> SERVICES_TO_STUB = List.of(GBankingService.class, BankAccessService.class,
+			BankingCapabilityService.class, MoneyTransferService.class);
+
 	@BeforeAll
 	void setupDatabase() throws Exception {
 		tempDir = Files.createTempDirectory("gb_test_");
 		dbController = DBController.getInstance(tempDir.toString());
-	}
-
-	@BeforeEach
-	void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
 	}
 
 	@AfterAll
@@ -78,12 +81,22 @@ class MoneyTransferInventoryServiceTest {
 		DBControllerTestUtil.deleteTemporaryDir(tempDir);
 	}
 
+	@BeforeEach
+	void setUp() throws Exception {
+		DBControllerTestUtil.clearAllTables(DBController.getConnection());
+
+		ServiceStubbingUtil.initStubbedServicesInContext(SERVICES_TO_STUB);
+	}
+
+	@AfterEach
+	void tearDown() throws Exception {
+		ServiceStubbingUtil.unloadStubbedServicesInContext(SERVICES_TO_STUB);
+	}
+
 	@Test
 	void retrieveInventory_shouldPersistStandingOrdersAndSkipDuplicates() {
 		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
-		GBankingBean gBankingBean = mock(GBankingBean.class);
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		MoneyTransferInventoryService service = new MoneyTransferInventoryService(gBankingBean, hbciSupport);
+		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
 		BankAccess bankAccess = TestData.createSampleBankAccess("10020030");
 		HBCIPassport passport = mock(HBCIPassport.class);
 		HBCIHandler handle = mock(HBCIHandler.class);
@@ -94,7 +107,8 @@ class MoneyTransferInventoryServiceTest {
 		@SuppressWarnings("unchecked")
 		HBCIJob<GVRDauerList> job = mock(HBCIJob.class);
 
-		stubHbciSupport(gBankingBean, hbciSupport, bankAccount, bankAccess, passport, handle, senderAccount);
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		stubHbciSupport(hbciSupport, bankAccount, bankAccess, passport, handle, senderAccount);
 		doReturn(job).when(hbciSupport).newHbciJob(handle, "DauerSEPAList");
 		when(handle.execute()).thenReturn(status);
 		when(job.getJobResult()).thenReturn(result);
@@ -132,9 +146,7 @@ class MoneyTransferInventoryServiceTest {
 	@Test
 	void retrieveInventory_shouldPersistScheduledTransfers() {
 		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
-		GBankingBean gBankingBean = mock(GBankingBean.class);
-		BankAccessService hbciSupport = mock(BankAccessService.class);
-		MoneyTransferInventoryService service = new MoneyTransferInventoryService(gBankingBean, hbciSupport);
+		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
 		BankAccess bankAccess = TestData.createSampleBankAccess("10020030");
 		HBCIPassport passport = mock(HBCIPassport.class);
 		HBCIHandler handle = mock(HBCIHandler.class);
@@ -145,7 +157,8 @@ class MoneyTransferInventoryServiceTest {
 		@SuppressWarnings("unchecked")
 		HBCIJob<GVRTermUebList> job = mock(HBCIJob.class);
 
-		stubHbciSupport(gBankingBean, hbciSupport, bankAccount, bankAccess, passport, handle, senderAccount);
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
+		stubHbciSupport(hbciSupport, bankAccount, bankAccess, passport, handle, senderAccount);
 		doReturn(job).when(hbciSupport).newHbciJob(handle, "TermUebSEPAList");
 		when(handle.execute()).thenReturn(status);
 		when(job.getJobResult()).thenReturn(result);
@@ -173,7 +186,7 @@ class MoneyTransferInventoryServiceTest {
 	@Test
 	void retrieveInventory_shouldRejectUnsupportedOrderTypesAndClearPin() {
 		BankAccessService hbciSupport = mock(BankAccessService.class);
-		MoneyTransferInventoryService service = new MoneyTransferInventoryService(null, hbciSupport);
+		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
 		char[] pin = "1234".toCharArray();
 
 		assertFalse(service.retrieveInventory(new BankAccount(), OrderType.TRANSFER, pin));
@@ -187,11 +200,10 @@ class MoneyTransferInventoryServiceTest {
 		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
 		MoneyTransfer validTransfer = inventoryTransfer(bankAccount, "First recipient", "DE11111111111111111111", new BigDecimal("12.34"));
 		MoneyTransfer invalidTransfer = inventoryTransfer(bankAccount, "Second recipient", "DE22222222222222222222", new BigDecimal("-1.00"));
-		MoneyTransferInventoryService service = new MoneyTransferInventoryService(null, null);
+		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
 
 		List<MoneyTransfer> retrievedTransfers = List.of(validTransfer, invalidTransfer);
-		assertThrows(GBankingException.class,
-				() -> service.saveRetrievedTransfers(bankAccount, OrderType.SCHEDULED_TRANSFER, retrievedTransfers));
+		assertThrows(GBankingException.class, () -> service.saveRetrievedTransfers(bankAccount, OrderType.SCHEDULED_TRANSFER, retrievedTransfers));
 
 		assertTrue(dbController.getAllByParent(MoneyTransfer.class, bankAccount.getId()).isEmpty());
 		assertTrue(dbController.getAll(Recipient.class).isEmpty());
@@ -202,7 +214,7 @@ class MoneyTransferInventoryServiceTest {
 	@Test
 	void saveRetrievedTransfers_shouldArchiveChangedBankOrderAndLinkNewVersion() {
 		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
-		MoneyTransferInventoryService service = new MoneyTransferInventoryService(null, null);
+		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
 		MoneyTransfer initial = inventoryTransfer(bankAccount, "Initial recipient", "DE11111111111111111111", new BigDecimal("12.34"));
 		initial.setBankOrderId("scheduled-4711");
 		service.saveRetrievedTransfers(bankAccount, OrderType.SCHEDULED_TRANSFER, List.of(initial));
@@ -227,7 +239,7 @@ class MoneyTransferInventoryServiceTest {
 	@Test
 	void saveRetrievedTransfers_shouldMarkOrdersMissingFromCompleteInventory() {
 		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
-		MoneyTransferInventoryService service = new MoneyTransferInventoryService(null, null);
+		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
 		MoneyTransfer transfer = inventoryTransfer(bankAccount, "Missing recipient", "DE33333333333333333333", new BigDecimal("12.34"));
 		transfer.setBankOrderId("missing-1");
 		service.saveRetrievedTransfers(bankAccount, OrderType.SCHEDULED_TRANSFER, List.of(transfer));
@@ -242,7 +254,7 @@ class MoneyTransferInventoryServiceTest {
 	@Test
 	void saveRetrievedTransfers_shouldLinkReappearingOrderToMissingVersion() {
 		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
-		MoneyTransferInventoryService service = new MoneyTransferInventoryService(null, null);
+		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
 		MoneyTransfer initial = inventoryTransfer(bankAccount, "Recipient", "DE44444444444444444444", new BigDecimal("12.34"));
 		initial.setBankOrderId("reappearing-1");
 		service.saveRetrievedTransfers(bankAccount, OrderType.SCHEDULED_TRANSFER, List.of(initial));
@@ -262,7 +274,7 @@ class MoneyTransferInventoryServiceTest {
 	@Test
 	void saveRetrievedTransfers_shouldReconcileOnlyRequestedOrderType() {
 		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
-		MoneyTransferInventoryService service = new MoneyTransferInventoryService(null, null);
+		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
 		MoneyTransfer scheduled = inventoryTransfer(bankAccount, "Scheduled recipient", "DE55555555555555555555", new BigDecimal("12.34"));
 		scheduled.setBankOrderId("scheduled-1");
 		service.saveRetrievedTransfers(bankAccount, OrderType.SCHEDULED_TRANSFER, List.of(scheduled));
@@ -276,7 +288,7 @@ class MoneyTransferInventoryServiceTest {
 	@Test
 	void saveRetrievedTransfers_shouldPreserveConfirmedVersionWhileEditIsPending() {
 		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
-		MoneyTransferInventoryService service = new MoneyTransferInventoryService(null, null);
+		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
 		MoneyTransfer confirmed = inventoryTransfer(bankAccount, "Confirmed recipient", "DE56565656565656565656", new BigDecimal("12.34"));
 		confirmed.setBankOrderId("pending-edit-1");
 		service.saveRetrievedTransfers(bankAccount, OrderType.SCHEDULED_TRANSFER, List.of(confirmed));
@@ -304,7 +316,7 @@ class MoneyTransferInventoryServiceTest {
 	@Test
 	void saveRetrievedTransfers_shouldNotDuplicateOrderWhileDeletionIsPending() {
 		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
-		MoneyTransferInventoryService service = new MoneyTransferInventoryService(null, null);
+		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
 		MoneyTransfer pendingDeletion = inventoryTransfer(bankAccount, "Deletion recipient", "DE58585858585858585858", new BigDecimal("12.34"));
 		pendingDeletion.setBankOrderId("pending-delete-1");
 		service.saveRetrievedTransfers(bankAccount, OrderType.SCHEDULED_TRANSFER, List.of(pendingDeletion));
@@ -323,7 +335,7 @@ class MoneyTransferInventoryServiceTest {
 	@Test
 	void saveRetrievedTransfers_shouldRollBackArchiveAndSuccessorWhenLaterInsertFails() {
 		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
-		MoneyTransferInventoryService service = new MoneyTransferInventoryService(null, null);
+		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
 		MoneyTransfer initial = inventoryTransfer(bankAccount, "Initial recipient", "DE66666666666666666666", new BigDecimal("12.34"));
 		initial.setBankOrderId("existing-1");
 		service.saveRetrievedTransfers(bankAccount, OrderType.SCHEDULED_TRANSFER, List.of(initial));
@@ -334,8 +346,7 @@ class MoneyTransferInventoryServiceTest {
 		invalid.setBankOrderId("invalid-1");
 
 		List<MoneyTransfer> retrievedTransfers = List.of(changed, invalid);
-		assertThrows(GBankingException.class,
-				() -> service.saveRetrievedTransfers(bankAccount, OrderType.SCHEDULED_TRANSFER, retrievedTransfers));
+		assertThrows(GBankingException.class, () -> service.saveRetrievedTransfers(bankAccount, OrderType.SCHEDULED_TRANSFER, retrievedTransfers));
 
 		List<MoneyTransfer> transfers = dbController.getAllByParent(MoneyTransfer.class, bankAccount.getId());
 		assertEquals(1, transfers.size());
@@ -346,9 +357,9 @@ class MoneyTransferInventoryServiceTest {
 	@Test
 	void retrieveInventory_shouldNotMarkExistingOrdersMissingWhenResponseEntryIsIncomplete() {
 		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
-		GBankingBean gBankingBean = mock(GBankingBean.class);
 		BankAccessService hbciSupport = mock(BankAccessService.class);
-		MoneyTransferInventoryService service = new MoneyTransferInventoryService(gBankingBean, hbciSupport);
+
+		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
 		MoneyTransfer existing = inventoryTransfer(bankAccount, "Existing recipient", "DE99999999999999999999", new BigDecimal("12.34"));
 		existing.setBankOrderId("existing-1");
 		service.saveRetrievedTransfers(bankAccount, OrderType.SCHEDULED_TRANSFER, List.of(existing));
@@ -361,7 +372,7 @@ class MoneyTransferInventoryServiceTest {
 		@SuppressWarnings("unchecked")
 		HBCIJob<GVRTermUebList> job = mock(HBCIJob.class);
 
-		stubHbciSupport(gBankingBean, hbciSupport, bankAccount, bankAccess, passport, handle, new Konto());
+		stubHbciSupport(hbciSupport, bankAccount, bankAccess, passport, handle, new Konto());
 		doReturn(job).when(hbciSupport).newHbciJob(handle, "TermUebSEPAList");
 		HBCIExecStatus status = okStatus();
 		when(handle.execute()).thenReturn(status);
@@ -378,15 +389,18 @@ class MoneyTransferInventoryServiceTest {
 		assertEquals(MoneyTransferStatus.INVENTORY, transfers.get(0).getMoneytransferStatus());
 	}
 
-	private static void stubHbciSupport(GBankingBean hbciSupport, BankAccessService bankAccessService, BankAccount bankAccount, BankAccess bankAccess,
-			HBCIPassport passport, HBCIHandler handle,
-			Konto senderAccount) {
+	private static void stubHbciSupport(BankAccessService bankAccessService, BankAccount bankAccount, BankAccess bankAccess,
+			HBCIPassport passport, HBCIHandler handle, Konto senderAccount) {
+
+		BankingCapabilityService bankingCapabilityService = ServiceRegistry.getService(BankingCapabilityService.class);
+		MoneyTransferService moneyTransferService = ServiceRegistry.getService(MoneyTransferService.class);
+
 		doReturn(bankAccess).when(bankAccessService).initBankAccess(eq(bankAccount), any(char[].class));
-		doReturn(true).when(hbciSupport).supportsOrderInventory(bankAccount, OrderType.STANDING_ORDER);
-		doReturn(true).when(hbciSupport).supportsOrderInventory(bankAccount, OrderType.SCHEDULED_TRANSFER);
+		doReturn(true).when(bankingCapabilityService).supportsOrderInventory(bankAccount, OrderType.STANDING_ORDER);
+		doReturn(true).when(bankingCapabilityService).supportsOrderInventory(bankAccount, OrderType.SCHEDULED_TRANSFER);
 		doReturn(passport).when(bankAccessService).initBankConnection(eq(bankAccess), any(GBankingHBCICallback.class));
 		doReturn(handle).when(bankAccessService).createHBCIHandler(BaseMessagesDb.getVersion().getId(), passport);
-		doReturn(senderAccount).when(hbciSupport).getSenderAccount(passport, bankAccount);
+		doReturn(senderAccount).when(moneyTransferService).getSenderAccount(passport, bankAccount);
 	}
 
 	private static HBCIExecStatus okStatus() {

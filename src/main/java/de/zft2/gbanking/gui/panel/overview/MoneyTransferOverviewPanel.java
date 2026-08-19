@@ -6,27 +6,39 @@ import org.apache.logging.log4j.Logger;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.OrderType;
-import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.enu.PageContext;
+import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.panel.account.AccountListPanel;
+import de.zft2.gbanking.gui.panel.layout.MasterContentPane;
 import de.zft2.gbanking.gui.panel.moneytransfer.MoneyTransferDetailListTabPanel;
 import de.zft2.gbanking.gui.panel.moneytransfer.MoneyTransferInputBasePanel;
 import de.zft2.gbanking.gui.panel.moneytransfer.MoneyTransferInputPanel;
 import de.zft2.gbanking.gui.panel.moneytransfer.MoneyTransferListPanel;
-import de.zft2.gbanking.gui.panel.layout.MasterContentPane;
+import de.zft2.gbanking.service.BankingCapabilityService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 
 public class MoneyTransferOverviewPanel extends OverviewBasePanel {
 
 	private static final Logger log = LogManager.getLogger(MoneyTransferOverviewPanel.class);
+
 	private static final double ACCOUNT_DIVIDER = 0.22;
+	private final BankingCapabilityService bankingCapabilityService;
 
 	private AccountListPanel accountListPanel;
 	private MoneyTransferInputBasePanel moneyTransferInputPanel;
 	private MoneyTransferListPanel moneyTransferListPanel;
 	private BankAccount selectedAccount;
 	private TabPane tabPane;
+
+	public MoneyTransferOverviewPanel() {
+		this(ServiceRegistry.getService(BankingCapabilityService.class));
+	}
+
+	MoneyTransferOverviewPanel(BankingCapabilityService bankingCapabilityService) {
+		this.bankingCapabilityService = bankingCapabilityService;
+	}
 
 	@Override
 	public void createOverallPanel(boolean show) {
@@ -110,11 +122,11 @@ public class MoneyTransferOverviewPanel extends OverviewBasePanel {
 	}
 
 	public boolean supportsTransferOrderType(BankAccount account, OrderType orderType) {
-		return bean.supportsTransferOrderType(account, orderType);
+		return bankingCapabilityService.supportsTransferOrderType(account, orderType);
 	}
 
 	public boolean supportsBankOrderManagement(BankAccount account, OrderType orderType) {
-		return bean.supportsBankOrderManagement(account, orderType);
+		return bankingCapabilityService.supportsBankOrderManagement(account, orderType);
 	}
 
 	public void useBookingAsTemplate(BankAccount account, Booking booking, OrderType orderType) {

@@ -4,12 +4,14 @@ import java.util.List;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.enu.OrderType;
-import de.zft2.gbanking.gui.KeyboardShortcutDispatcher.Action;
 import de.zft2.gbanking.gui.dialog.rebooking.RebookingToolDialog;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.gui.enu.PageContext;
+import de.zft2.gbanking.gui.KeyboardShortcutDispatcher.Action;
 import de.zft2.gbanking.gui.panel.action.PinAskDialog;
-import de.zft2.gbanking.service.GBankingBean;
+import de.zft2.gbanking.service.BankingCapabilityService;
+import de.zft2.gbanking.service.GBankingService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
@@ -21,14 +23,20 @@ public class GBankingMenuBar extends MenuBar implements BaseGui {
 
 	private static final String UI_MENU_FILE_CSV = "UI_MENU_FILE_CSV";
 
-	private Stage stage;
-	private GBankingGui gui;
-	private GBankingBean bean;
+	private final Stage stage;
+	private final GBankingGui gui;
+	private final GBankingService gBankingService;
+	private final BankingCapabilityService bankingCapabilityService;
 
 	GBankingMenuBar(GBankingGui gui) {
+		this(gui, ServiceRegistry.getService(GBankingService.class), ServiceRegistry.getService(BankingCapabilityService.class));
+	}
+
+	GBankingMenuBar(GBankingGui gui, GBankingService gBankingService, BankingCapabilityService bankingCapabilityService) {
 		this.stage = gui.getStage();
 		this.gui = gui;
-		this.bean = GBankingContext.getBean();
+		this.gBankingService = gBankingService;
+		this.bankingCapabilityService = bankingCapabilityService;
 		createMenuBar();
 	}
 
@@ -168,15 +176,15 @@ public class GBankingMenuBar extends MenuBar implements BaseGui {
 			executeSelectedActionsMenuItem.setDisable(openActionsActive && !gui.hasSelectedOpenActions());
 			executeTransfersMenuItem.setDisable(openActionsActive);
 			orderInventoryMenu.setDisable(openActionsActive);
-			List<BankAccount> accountUpdateAccounts = bean != null ? gui.getSelectedAccountsForAccountUpdate() : List.of();
+			List<BankAccount> accountUpdateAccounts = gBankingService != null ? gui.getSelectedAccountsForAccountUpdate() : List.of();
 			updateAccountsMenuItem.setDisable(
 					openActionsActive || accountUpdateAccounts.isEmpty()
-							|| accountUpdateAccounts.stream().noneMatch(account -> bean.supportsAccountTransactions(account)));
-			List<BankAccount> inventoryAccounts = bean != null ? gui.getSelectedAccountsForOrderInventory() : List.of();
+							|| accountUpdateAccounts.stream().noneMatch(account -> bankingCapabilityService.supportsAccountTransactions(account)));
+			List<BankAccount> inventoryAccounts = gBankingService != null ? gui.getSelectedAccountsForOrderInventory() : List.of();
 			retrieveStandingOrdersMenuItem.setDisable(inventoryAccounts.isEmpty()
-					|| inventoryAccounts.stream().noneMatch(account -> bean.supportsOrderInventory(account, OrderType.STANDING_ORDER)));
+					|| inventoryAccounts.stream().noneMatch(account -> bankingCapabilityService.supportsOrderInventory(account, OrderType.STANDING_ORDER)));
 			retrieveScheduledTransfersMenuItem.setDisable(inventoryAccounts.isEmpty()
-					|| inventoryAccounts.stream().noneMatch(account -> bean.supportsOrderInventory(account, OrderType.SCHEDULED_TRANSFER)));
+					|| inventoryAccounts.stream().noneMatch(account -> bankingCapabilityService.supportsOrderInventory(account, OrderType.SCHEDULED_TRANSFER)));
 		});
 
 		executeMenu.getItems().add(executeSelectedActionsMenuItem);

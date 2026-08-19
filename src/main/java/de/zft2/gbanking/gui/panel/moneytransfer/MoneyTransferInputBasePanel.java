@@ -14,21 +14,24 @@ import de.zft2.gbanking.cache.InstituteLookupCache;
 import de.zft2.gbanking.cache.InstituteLookupCache.InstituteLookupEntry;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
-import de.zft2.gbanking.db.dao.MoneyTransfer;
-import de.zft2.gbanking.db.dao.MoneyTransferForeign;
-import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.StandingorderMode;
-import de.zft2.gbanking.gui.KeyboardShortcutDispatcher;
+import de.zft2.gbanking.db.dao.MoneyTransfer;
+import de.zft2.gbanking.db.dao.MoneyTransferForeign;
+import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.gui.component.BankNameLookupField;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.dto.MoneyTransferForm;
+import de.zft2.gbanking.gui.KeyboardShortcutDispatcher;
 import de.zft2.gbanking.gui.panel.AbstractTitledFormPanel;
 import de.zft2.gbanking.gui.util.FormControlUtils;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.gui.util.FormStyleUtils.FieldWidth;
+import de.zft2.gbanking.service.BankingCapabilityService;
 import de.zft2.gbanking.service.moneytransfer.BankOrderOperation;
+import de.zft2.gbanking.service.moneytransfer.MoneyTransferService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.util.IbanCalculator;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
@@ -78,9 +81,19 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 	private boolean bankNameLookupSuspendedUntilBankCodeFocus = false;
 	private String lastIbanCalculationPromptKey;
 
+	private final MoneyTransferService moneyTransferService;
+	protected final BankingCapabilityService bankingCapabilityService;
+
 	protected MoneyTransferInputBasePanel(MoneyTransferDetailListTabPanel parentPanel) {
+		this(parentPanel, ServiceRegistry.getService(MoneyTransferService.class), ServiceRegistry.getService(BankingCapabilityService.class));
+	}
+
+	protected MoneyTransferInputBasePanel(MoneyTransferDetailListTabPanel parentPanel, MoneyTransferService moneyTransferService,
+			BankingCapabilityService bankingCapabilityService) {
 		super("UI_LABEL_SENDER_ACCOUNT");
 		this.parentPanel = parentPanel;
+		this.moneyTransferService = moneyTransferService;
+		this.bankingCapabilityService = bankingCapabilityService;
 		createBasePanel();
 	}
 
@@ -167,8 +180,8 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 			existingMoneyTransfer = null;
 		}
 
-		BankOrderOperation operation = bean.isBankManagedOrder(existingMoneyTransfer) ? BankOrderOperation.EDIT : BankOrderOperation.CREATE;
-		if (!bean.supportsBankOrderOperation(account, getOrderType(), operation)) {
+		BankOrderOperation operation = moneyTransferService.isBankManagedOrder(existingMoneyTransfer) ? BankOrderOperation.EDIT : BankOrderOperation.CREATE;
+		if (!bankingCapabilityService.supportsBankOrderOperation(account, getOrderType(), operation)) {
 			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_MONEYTRANSFER_ORDER_TYPE_NOT_SUPPORTED"));
 			return;
 		}
@@ -182,7 +195,7 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 		formatAmountField();
 		MoneyTransferForm moneyTransfer = buildMoneyTransferForm(account);
 
-		currentMoneytransfer = bean.saveMoneyTransferToDB(moneyTransfer, existingMoneyTransfer);
+		currentMoneytransfer = moneyTransferService.saveMoneyTransferToDB(moneyTransfer, existingMoneyTransfer);
 		parentPanel.reloadListPanels();
 		updateDeleteButtonState();
 	}
@@ -234,26 +247,26 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 			return;
 		}
 		if (currentMoneytransfer.getMoneytransferStatus() == MoneyTransferStatus.DELETE_PENDING) {
-			currentMoneytransfer = bean.cancelBankOrderDeletion(currentMoneytransfer);
+			currentMoneytransfer = moneyTransferService.cancelBankOrderDeletion(currentMoneytransfer);
 			parentPanel.reloadListPanels();
 			updatePanelFieldValues(currentMoneytransfer);
 			return;
 		}
-		if (bean.isBankManagedOrder(currentMoneytransfer)) {
+		if (moneyTransferService.isBankManagedOrder(currentMoneytransfer)) {
 			BankAccount account = parentPanel.getSelectedAccount();
-			if (!bean.supportsBankOrderOperation(account, currentMoneytransfer.getOrderType(), BankOrderOperation.DELETE)) {
+			if (!bankingCapabilityService.supportsBankOrderOperation(account, currentMoneytransfer.getOrderType(), BankOrderOperation.DELETE)) {
 				DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_MONEYTRANSFER_ORDER_TYPE_NOT_SUPPORTED"));
 				return;
 			}
 			if (!confirmBankOrderDeletion()) {
 				return;
 			}
-			currentMoneytransfer = bean.requestBankOrderDeletion(currentMoneytransfer);
+			currentMoneytransfer = moneyTransferService.requestBankOrderDeletion(currentMoneytransfer);
 			parentPanel.reloadListPanels();
 			updatePanelFieldValues(currentMoneytransfer);
 			return;
 		}
-		bean.deleteMoneyTransferFromDB(currentMoneytransfer);
+		moneyTransferService.deleteMoneyTransferFromDB(currentMoneytransfer);
 		resetTextFields();
 		parentPanel.reloadListPanels();
 	}
@@ -331,8 +344,8 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 			setCapabilityEnabled(false);
 			return;
 		}
-		BankOrderOperation operation = bean.isBankManagedOrder(currentMoneytransfer) ? BankOrderOperation.EDIT : BankOrderOperation.CREATE;
-		setCapabilityEnabled(bean.supportsBankOrderOperation(selectedAccount, getOrderType(), operation));
+		BankOrderOperation operation = moneyTransferService.isBankManagedOrder(currentMoneytransfer) ? BankOrderOperation.EDIT : BankOrderOperation.CREATE;
+		setCapabilityEnabled(bankingCapabilityService.supportsBankOrderOperation(selectedAccount, getOrderType(), operation));
 	}
 
 	private void updateDeleteButtonState() {

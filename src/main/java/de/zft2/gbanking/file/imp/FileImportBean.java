@@ -27,8 +27,9 @@ import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.BaseWorker;
 import de.zft2.gbanking.mapper.ImportDaoMapper;
-import de.zft2.gbanking.service.importproperties.ImportPropertiesSynchronizationService;
 import de.zft2.gbanking.rebooking.RebookingRules;
+import de.zft2.gbanking.service.importproperties.ImportPropertiesSynchronizationService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.util.AppPaths;
 
 public class FileImportBean implements BaseMessagesDb {
@@ -177,7 +178,7 @@ public class FileImportBean implements BaseMessagesDb {
 		if (xml2CsvKontoList != null) {
 			long bookingCount = countBookings(xml2CsvKontoList);
 			writeAccountsToDB(xml2CsvKontoList);
-			new ImportPropertiesSynchronizationService().initializeAndSynchronize();
+			ServiceRegistry.getService(ImportPropertiesSynchronizationService.class).initializeAndSynchronize();
 			writeBookingsToDB(xml2CsvKontoList, bookingCount);
 		} else if (fp32CsvBookingList != null) {
 			accountIdMapByAccountname = dbController.getAccountsIdsByAccountName();

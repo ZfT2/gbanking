@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import de.zft2.gbanking.BaseMessagesDb;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.enu.AccountState;
@@ -15,18 +14,11 @@ import de.zft2.gbanking.db.dao.enu.BankAccessType;
 import de.zft2.gbanking.db.dao.enu.HbciEncodingFilterType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.TanProcedure;
+import de.zft2.gbanking.service.AbstractDbService;
 
-public class PaypalAccountService implements BaseMessagesDb {
+public class PaypalAccountService extends AbstractDbService {
 
-	private final PaypalSoapClient client;
-
-	public PaypalAccountService() {
-		this(new PaypalSoapClient());
-	}
-
-	PaypalAccountService(PaypalSoapClient client) {
-		this.client = client;
-	}
+	private final PaypalSoapClient client = new PaypalSoapClient();
 
 	public boolean initialize(BankAccess bankAccess) throws InterruptedException {
 		List<PaypalBalance> balances = client.getBalances(bankAccess.getPaypalApiUsername(), bankAccess.getPin(),
