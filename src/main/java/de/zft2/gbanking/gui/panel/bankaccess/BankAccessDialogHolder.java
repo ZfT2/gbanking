@@ -28,6 +28,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
@@ -178,6 +179,7 @@ public class BankAccessDialogHolder extends BasePanel {
 		task.setOnSucceeded(event -> {
 			setButtonsDisabled(okButton, cancelButton, false);
 			if (Boolean.TRUE.equals(task.getValue())) {
+				promptForPaypalAccountLink(dialog, bankAccess);
 				dialog.setScene(new Scene(createStep2(dialog, bankAccess), STEP2_WIDTH, STEP2_HEIGHT));
 			}
 		});
@@ -194,6 +196,33 @@ public class BankAccessDialogHolder extends BasePanel {
 			setButtonsDisabled(okButton, cancelButton, false);
 		});
 		BackgroundActionCoordinator.getInstance().start(task, "gbanking-add-bank-access");
+	}
+
+	private void promptForPaypalAccountLink(Stage owner, BankAccess bankAccess) {
+		if (!PaypalSupport.isPaypal(bankAccess) || bankAccess.getAccounts() == null || bankAccess.getAccounts().isEmpty()
+				|| bankAccess.getAccounts().get(0).getId() > 0) {
+			return;
+		}
+
+		BankAccessService bankAccessService = ServiceRegistry.getService(BankAccessService.class);
+		List<BankAccount> candidates = bankAccessService.getLinkablePaypalAccounts();
+		if (candidates.isEmpty()) {
+			return;
+		}
+
+		BankAccount newAccountChoice = new BankAccount();
+		newAccountChoice.setAccountName(getText("UI_PAYPAL_ACCOUNT_LINK_NEW"));
+		List<BankAccount> choices = new ArrayList<>();
+		choices.add(newAccountChoice);
+		choices.addAll(candidates);
+		ChoiceDialog<BankAccount> choiceDialog = new ChoiceDialog<>(newAccountChoice, choices);
+		choiceDialog.initOwner(owner);
+		choiceDialog.setTitle(getText("UI_PAYPAL_ACCOUNT_LINK_TITLE"));
+		choiceDialog.setHeaderText(getText("UI_PAYPAL_ACCOUNT_LINK_HEADER"));
+		choiceDialog.setContentText(getText("UI_PAYPAL_ACCOUNT_LINK_PROMPT"));
+		choiceDialog.showAndWait()
+				.filter(account -> account.getId() > 0)
+				.ifPresent(account -> bankAccessService.linkPaypalAccount(bankAccess, account));
 	}
 
 	private void setButtonsDisabled(Button okButton, Button cancelButton, boolean disabled) {

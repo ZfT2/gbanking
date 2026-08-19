@@ -64,6 +64,7 @@ class PaypalAccountTransactionServiceTest {
 		Booking booking = service.mapBooking(account, transaction);
 
 		assertEquals(new BigDecimal("9.50"), booking.getAmount());
+		assertEquals("EUR", booking.getCurrency());
 		assertEquals(new BigDecimal("-0.50"), booking.getAdditionalDetails().getChargeValue());
 		assertEquals("Payment", booking.getAdditionalDetails().getGvcode());
 		assertEquals("payer@example.org", booking.getRecipient().getAccountNumber());

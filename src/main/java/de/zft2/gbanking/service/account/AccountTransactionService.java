@@ -495,13 +495,13 @@ public class AccountTransactionService extends AbstractDbService {
 
 	void reconcileAccountBalance(BankAccount bankAccount, BigDecimal accountBalance) {
 		List<Booking> bookings = getAccountBookings(bankAccount.getId());
-		BigDecimal bookingBalance = calculateBookingBalance(bookings);
+		BigDecimal bookingBalance = calculateBookingBalance(bookings, bankAccount.getCurrency());
 		BigDecimal difference = normalizeAmount(accountBalance).subtract(bookingBalance);
 		if (isZero(difference)) {
 			return;
 		}
 
-		Optional<Booking> lastAdjustment = findLastAutomaticAdjustment(bookings);
+		Optional<Booking> lastAdjustment = findLastAutomaticAdjustment(bookings, bankAccount.getCurrency());
 		if (lastAdjustment.isPresent() && sameAmount(difference.negate(), lastAdjustment.get().getAmount())) {
 			dbController.delete(lastAdjustment.get(), null);
 			log.info("Removed automatic adjustment booking {} for bank account id {}", lastAdjustment.get().getId(), bankAccount.getId());
@@ -520,19 +520,25 @@ public class AccountTransactionService extends AbstractDbService {
 		return bookings != null ? bookings : List.of();
 	}
 
-	private BigDecimal calculateBookingBalance(List<Booking> bookings) {
+	private BigDecimal calculateBookingBalance(List<Booking> bookings, String currency) {
 		return bookings.stream()
 				.filter(booking -> !isPrenotification(booking))
+				.filter(booking -> sameCurrency(currency, booking.getCurrency()))
 				.map(Booking::getAmount)
 				.filter(Objects::nonNull)
 				.reduce(BigDecimal.ZERO, BigDecimal::add)
 				.setScale(2, RoundingMode.HALF_UP);
 	}
 
-	private Optional<Booking> findLastAutomaticAdjustment(List<Booking> bookings) {
+	private Optional<Booking> findLastAutomaticAdjustment(List<Booking> bookings, String currency) {
 		return bookings.stream()
 				.filter(booking -> booking.getSource() == Source.AUTO_ADJUSTING || booking.getSource() == Source.AUTO_ADJUSTING_NEW)
+				.filter(booking -> sameCurrency(currency, booking.getCurrency()))
 				.max(Comparator.comparingInt(Booking::getId));
+	}
+
+	private boolean sameCurrency(String accountCurrency, String bookingCurrency) {
+		return accountCurrency == null ? bookingCurrency == null : accountCurrency.equalsIgnoreCase(bookingCurrency);
 	}
 
 	private Booking createAutomaticAdjustmentBooking(BankAccount bankAccount, BigDecimal amount) {

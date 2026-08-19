@@ -49,10 +49,11 @@ public class PaypalAccountTransactionService extends AbstractDbService {
 						getText("ERROR_ACCOUNT_TRANSACTION_RETRIEVAL_NO_BANK_ACCESS")));
 			}
 
-			PaypalBalance balance = getBalance(bankAccess, apiPassword, bankAccount.getCurrency());
+			PaypalBalance balance = getPrimaryBalance(bankAccess, apiPassword);
+			bankAccount.setCurrency(balance.currency());
 			Instant end = Instant.now();
 			Instant start = resolveStart(bankAccount, end);
-			List<PaypalTransaction> transactions = retrieveAll(bankAccess, apiPassword, start, end, bankAccount.getCurrency());
+			List<PaypalTransaction> transactions = retrieveAll(bankAccess, apiPassword, start, end);
 			List<Booking> bookings = distinct(transactions).stream().map(transaction -> mapBooking(bankAccount, transaction)).toList();
 			return accountTransactionService.persistExternalAccountData(bankAccount, balance.amount(), bookings);
 		} catch (InterruptedException exception) {
@@ -81,9 +82,8 @@ public class PaypalAccountTransactionService extends AbstractDbService {
 		return PaypalSupport.isPaypal(bankAccess) && bankAccess.isActive() ? bankAccess : null;
 	}
 
-	private PaypalBalance getBalance(BankAccess bankAccess, char[] apiPassword, String currency) throws InterruptedException {
+	private PaypalBalance getPrimaryBalance(BankAccess bankAccess, char[] apiPassword) throws InterruptedException {
 		return client.getBalances(bankAccess.getPaypalApiUsername(), apiPassword, bankAccess.getPaypalApiSignature()).stream()
-				.filter(balance -> balance.currency().equalsIgnoreCase(currency))
 				.findFirst()
 				.orElseThrow(() -> new PaypalApiException(getText("ERROR_PAYPAL_NO_BALANCES"), false));
 	}
@@ -98,10 +98,10 @@ public class PaypalAccountTransactionService extends AbstractDbService {
 		return overlappingStart.isBefore(earliestPaypalDate) ? earliestPaypalDate : overlappingStart;
 	}
 
-	private List<PaypalTransaction> retrieveAll(BankAccess bankAccess, char[] apiPassword, Instant start, Instant end, String currency)
+	private List<PaypalTransaction> retrieveAll(BankAccess bankAccess, char[] apiPassword, Instant start, Instant end)
 			throws InterruptedException {
 		List<PaypalTransaction> transactions = client.searchTransactions(bankAccess.getPaypalApiUsername(), apiPassword,
-				bankAccess.getPaypalApiSignature(), start, end, currency);
+				bankAccess.getPaypalApiSignature(), start, end);
 		if (transactions.size() < PaypalSoapClient.MAX_TRANSACTION_RESULTS) {
 			return transactions;
 		}
@@ -112,8 +112,8 @@ public class PaypalAccountTransactionService extends AbstractDbService {
 
 		Instant midpoint = start.plusSeconds(intervalSeconds / 2);
 		List<PaypalTransaction> result = new ArrayList<>();
-		result.addAll(retrieveAll(bankAccess, apiPassword, start, midpoint, currency));
-		result.addAll(retrieveAll(bankAccess, apiPassword, midpoint, end, currency));
+		result.addAll(retrieveAll(bankAccess, apiPassword, start, midpoint));
+		result.addAll(retrieveAll(bankAccess, apiPassword, midpoint, end));
 		return result;
 	}
 

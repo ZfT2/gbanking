@@ -1,6 +1,7 @@
 package de.zft2.gbanking.paypal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -24,8 +25,9 @@ class PaypalSoapClientTest {
 				 xmlns:ebl="urn:ebay:apis:eBLBaseComponents" xmlns:ns="urn:ebay:api:PayPalAPI">
 				 <SOAP-ENV:Body><ns:GetBalanceResponse>
 				  <ebl:Ack>Success</ebl:Ack>
-				  <ns:BalanceHoldings currencyID="EUR">12.34</ns:BalanceHoldings>
+				  <ns:Balance currencyID="EUR">12.34</ns:Balance>
 				  <ns:BalanceHoldings currencyID="USD">5.67</ns:BalanceHoldings>
+				  <ns:BalanceHoldings currencyID="EUR">12.34</ns:BalanceHoldings>
 				 </ns:GetBalanceResponse></SOAP-ENV:Body>
 				</SOAP-ENV:Envelope>
 				""");
@@ -59,7 +61,7 @@ class PaypalSoapClientTest {
 				""");
 
 		List<PaypalTransaction> transactions = client.searchTransactions("user", "password".toCharArray(), "signature",
-				Instant.parse("2026-07-01T00:00:00Z"), Instant.parse("2026-07-20T00:00:00Z"), "EUR");
+				Instant.parse("2026-07-01T00:00:00Z"), Instant.parse("2026-07-20T00:00:00Z"));
 
 		assertEquals(1, transactions.size());
 		PaypalTransaction transaction = transactions.get(0);
@@ -68,7 +70,7 @@ class PaypalSoapClientTest {
 		assertEquals("EUR", transaction.currency());
 		assertEquals("ABC123", transaction.transactionId());
 		assertTrue(request.get().contains("<ns:TransactionClass>BalanceAffecting</ns:TransactionClass>"));
-		assertTrue(request.get().contains("<ns:CurrencyCode>EUR</ns:CurrencyCode>"));
+		assertFalse(request.get().contains("<ns:CurrencyCode>"));
 	}
 
 	@Test

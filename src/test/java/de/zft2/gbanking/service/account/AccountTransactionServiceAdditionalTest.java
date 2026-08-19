@@ -620,6 +620,25 @@ class AccountTransactionServiceAdditionalTest {
 		assertEquals(new BigDecimal("10.00"), adjustment.getAmount());
 	}
 
+	@Test
+	void reconcileAccountBalance_shouldIgnoreBookingsInOtherCurrencies() {
+		DBController dbController = DBController.getInstance(tempDir.toString());
+		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		insertBooking(dbController, bankAccount.getId(), Source.ONLINE, new BigDecimal("90.00"));
+		Booking foreignCurrencyBooking = TestData.createSampleBooking(bankAccount.getId());
+		foreignCurrencyBooking.setAmount(new BigDecimal("500.00"));
+		foreignCurrencyBooking.setCurrency("USD");
+		foreignCurrencyBooking.setSource(Source.ONLINE);
+		dbController.insertOrUpdate(foreignCurrencyBooking);
+		AccountTransactionService service = new AccountTransactionService();
+
+		service.reconcileAccountBalance(bankAccount, new BigDecimal("100.00"));
+
+		List<Booking> bookings = dbController.getAllByParentFull(Booking.class, bankAccount.getId());
+		Booking adjustment = bookings.stream().filter(booking -> booking.getSource() == Source.AUTO_ADJUSTING).findFirst().orElseThrow();
+		assertEquals(new BigDecimal("10.00"), adjustment.getAmount());
+	}
+
 	private static Date toUtilDate(LocalDate date) {
 		return Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant());
 	}

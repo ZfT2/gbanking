@@ -2,10 +2,11 @@ package de.zft2.gbanking.paypal;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Locale;
 
+import de.zft2.gbanking.BaseMessages;
+import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.enu.AccountState;
@@ -14,11 +15,21 @@ import de.zft2.gbanking.db.dao.enu.BankAccessType;
 import de.zft2.gbanking.db.dao.enu.HbciEncodingFilterType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.TanProcedure;
-import de.zft2.gbanking.service.AbstractDbService;
+import de.zft2.gbanking.service.Service;
 
-public class PaypalAccountService extends AbstractDbService {
+public class PaypalAccountService implements Service, BaseMessages {
 
-	private final PaypalSoapClient client = new PaypalSoapClient();
+	private final PaypalSoapClient client;
+	private final DBController database;
+
+	public PaypalAccountService() {
+		this(new PaypalSoapClient(), DBController.getInstance("."));
+	}
+
+	PaypalAccountService(PaypalSoapClient client, DBController database) {
+		this.client = client;
+		this.database = database;
+	}
 
 	public boolean initialize(BankAccess bankAccess) throws InterruptedException {
 		List<PaypalBalance> balances = client.getBalances(bankAccess.getPaypalApiUsername(), bankAccess.getPin(),
@@ -27,22 +38,40 @@ public class PaypalAccountService extends AbstractDbService {
 			throw new PaypalApiException(getText("ERROR_PAYPAL_NO_BALANCES"), false);
 		}
 
-		BankAccess existingAccess = dbController.getBankAccessByBlzAndUserId(PaypalSupport.BANK_CODE, bankAccess.getUserId());
-		Map<String, BankAccount> existingAccounts = getExistingAccounts(existingAccess);
+		BankAccess existingAccess = database.getBankAccessByBlzAndUserId(PaypalSupport.BANK_CODE, bankAccess.getUserId());
+		BankAccount existingAccount = findExistingAccount(bankAccess, existingAccess);
 		applyAccessData(bankAccess, existingAccess);
-		bankAccess.setAccounts(balances.stream().map(balance -> mapAccount(bankAccess, balance, existingAccounts.get(balance.currency()))).toList());
+		bankAccess.setAccounts(List.of(mapAccount(bankAccess, balances.get(0), existingAccount)));
 		return true;
 	}
 
-	private Map<String, BankAccount> getExistingAccounts(BankAccess existingAccess) {
-		if (existingAccess == null) {
-			return Map.of();
+	public List<BankAccount> getLinkableAccounts() {
+		return database.getAll(BankAccount.class).stream()
+				.filter(account -> account.getBankAccessId() == null || account.getBankAccessId() <= 0)
+				.filter(account -> PaypalSupport.isPaypal(account))
+				.toList();
+	}
+
+	public void linkAccount(BankAccess bankAccess, BankAccount existingAccount) {
+		if (bankAccess == null || existingAccount == null || existingAccount.getId() <= 0
+				|| !PaypalSupport.isPaypal(existingAccount)
+				|| existingAccount.getBankAccessId() != null && existingAccount.getBankAccessId() > 0
+				|| bankAccess.getAccounts() == null || bankAccess.getAccounts().isEmpty()) {
+			return;
 		}
-		Map<String, BankAccount> accountsByCurrency = new HashMap<>();
-		for (BankAccount account : dbController.getAllByParent(BankAccount.class, existingAccess.getId())) {
-			accountsByCurrency.put(account.getCurrency(), account);
+		BankAccount retrievedAccount = bankAccess.getAccounts().get(0);
+		PaypalBalance primaryBalance = new PaypalBalance(retrievedAccount.getCurrency(), retrievedAccount.getBalance());
+		bankAccess.setAccounts(List.of(mapAccount(bankAccess, primaryBalance, existingAccount)));
+	}
+
+	private BankAccount findExistingAccount(BankAccess bankAccess, BankAccess existingAccess) {
+		if (existingAccess != null) {
+			return database.getAllByParent(BankAccount.class, existingAccess.getId()).stream().findFirst().orElse(null);
 		}
-		return accountsByCurrency;
+		List<BankAccount> matchingAccounts = getLinkableAccounts().stream()
+				.filter(account -> containsIgnoreCase(account.getAccountName(), bankAccess.getUserId()))
+				.toList();
+		return matchingAccounts.size() == 1 ? matchingAccounts.get(0) : null;
 	}
 
 	private void applyAccessData(BankAccess bankAccess, BankAccess existingAccess) {
@@ -65,13 +94,10 @@ public class PaypalAccountService extends AbstractDbService {
 	}
 
 	private BankAccount mapAccount(BankAccess bankAccess, PaypalBalance balance, BankAccount existingAccount) {
-		BankAccount account = new BankAccount();
-		if (existingAccount != null) {
-			account.setId(existingAccount.getId());
-			account.setCreatedAt(existingAccount.getCreatedAt());
-		}
+		BankAccount account = existingAccount != null ? existingAccount : new BankAccount();
 		account.setBankAccessId(bankAccess.getId() > 0 ? bankAccess.getId() : null);
-		account.setAccountName(PaypalSupport.DISPLAY_NAME + " - " + balance.currency());
+		account.setAccountName(existingAccount != null ? existingAccount.getAccountName()
+				: PaypalSupport.DISPLAY_NAME + " - " + bankAccess.getUserId());
 		account.setAccountType(AccountType.SPECIAL_ACCOUNT);
 		account.setCurrency(balance.currency());
 		account.setBankName(PaypalSupport.DISPLAY_NAME);
@@ -84,5 +110,10 @@ public class PaypalAccountService extends AbstractDbService {
 		account.setBalance(balance.amount());
 		account.setAllowedBusinessCases(List.of());
 		return account;
+	}
+
+	private boolean containsIgnoreCase(String value, String searchValue) {
+		return value != null && searchValue != null && !searchValue.isBlank()
+				&& value.toLowerCase(Locale.ROOT).contains(searchValue.trim().toLowerCase(Locale.ROOT));
 	}
 }

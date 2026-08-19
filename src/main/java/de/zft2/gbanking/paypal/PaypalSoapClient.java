@@ -44,23 +44,20 @@ public class PaypalSoapClient {
 	public List<PaypalBalance> getBalances(String apiUsername, char[] apiPassword, String apiSignature) throws InterruptedException {
 		Document response = execute("GetBalance", "<ns:ReturnAllCurrencies>1</ns:ReturnAllCurrencies>", apiUsername, apiPassword, apiSignature);
 		Map<String, PaypalBalance> balances = new LinkedHashMap<>();
+		for (Element balance : elements(response, "Balance")) {
+			addBalance(balances, balance);
+		}
 		for (Element holding : elements(response, "BalanceHoldings")) {
 			addBalance(balances, holding);
-		}
-		if (balances.isEmpty()) {
-			for (Element balance : elements(response, "Balance")) {
-				addBalance(balances, balance);
-			}
 		}
 		return List.copyOf(balances.values());
 	}
 
-	public List<PaypalTransaction> searchTransactions(String apiUsername, char[] apiPassword, String apiSignature, Instant start, Instant end,
-			String currency) throws InterruptedException {
+	public List<PaypalTransaction> searchTransactions(String apiUsername, char[] apiPassword, String apiSignature, Instant start, Instant end)
+			throws InterruptedException {
 		String requestFields = element("StartDate", DateTimeFormatter.ISO_INSTANT.format(start))
 				+ element("EndDate", DateTimeFormatter.ISO_INSTANT.format(end))
-				+ element("TransactionClass", "BalanceAffecting")
-				+ element("CurrencyCode", currency);
+				+ element("TransactionClass", "BalanceAffecting");
 		Document response = execute("TransactionSearch", requestFields, apiUsername, apiPassword, apiSignature);
 		List<PaypalTransaction> transactions = new ArrayList<>();
 		for (Element transaction : elements(response, "PaymentTransactions")) {

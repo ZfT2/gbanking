@@ -1,6 +1,7 @@
 package de.zft2.gbanking.paypal;
 
 import de.zft2.gbanking.db.dao.BankAccess;
+import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.enu.BankAccessType;
 
 public final class PaypalSupport {
@@ -17,5 +18,14 @@ public final class PaypalSupport {
 
 	public static boolean isPaypalChoice(String value) {
 		return value != null && (DISPLAY_NAME.equalsIgnoreCase(value.trim()) || BANK_CODE.equalsIgnoreCase(value.trim()));
+	}
+
+	public static boolean isPaypal(BankAccount bankAccount) {
+		return bankAccount != null && (containsPaypal(bankAccount.getAccountName())
+				|| containsPaypal(bankAccount.getBankName()) || isPaypalChoice(bankAccount.getBlz()));
+	}
+
+	private static boolean containsPaypal(String value) {
+		return value != null && value.toLowerCase(java.util.Locale.ROOT).contains(DISPLAY_NAME.toLowerCase(java.util.Locale.ROOT));
 	}
 }

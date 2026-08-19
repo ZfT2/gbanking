@@ -368,6 +368,14 @@ public class BankAccessService extends AbstractDbService {
 		return result;
 	}
 
+	public List<BankAccount> getLinkablePaypalAccounts() {
+		return paypalAccountService.getLinkableAccounts();
+	}
+
+	public void linkPaypalAccount(BankAccess bankAccess, BankAccount bankAccount) {
+		paypalAccountService.linkAccount(bankAccess, bankAccount);
+	}
+
 	private List<BankAccount> getAccounts(BankAccess bankAccess) {
 		return bankAccess.getAccounts() != null ? bankAccess.getAccounts() : List.of();
 	}
