@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.List;
 
 import org.junit.jupiter.api.AfterAll;
@@ -17,12 +18,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
+import de.zft2.gbanking.cache.InstituteLookupCache;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
+import de.zft2.gbanking.db.dao.ImportHistory;
+import de.zft2.gbanking.db.dao.Institute;
+import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.BookingType;
+import de.zft2.gbanking.db.dao.enu.InstituteStatus;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
 
@@ -41,10 +47,12 @@ class FileImportCSVBeanTest {
 	@BeforeEach
 	void clearDatabase() {
 		DBControllerTestUtil.clearAllTables(DBController.getConnection());
+		InstituteLookupCache.clear();
 	}
 
 	@AfterAll
 	void cleanupDatabase() throws Exception {
+		InstituteLookupCache.clear();
 		DBControllerTestUtil.closeAndNullifyConnection();
 		DBControllerTestUtil.deleteTemporaryDir(tempDir);
 	}
@@ -116,6 +124,31 @@ class FileImportCSVBeanTest {
 	}
 
 	@Test
+	void importFileToDatabase_shouldPreferFileBankNamesRegardlessOfRowOrder() throws Exception {
+		BankAccount account = createAccount("CSV Konto", "DE11111111111111111111", "11111111");
+		insertInstitute("50010517", "Lookup Bank", "LOOKDEFFXXX");
+		Path csvFile = writeCsv("""
+				KONTO_NAME;KONTO_IBAN;KONTO_NR;BUCHUNGSDATUM;BETRAG;VERWENDUNGSZWECK;EMPFAENGER_NAME;EMPFAENGER_IBAN;EMPFAENGER_BIC;EMPFAENGER_BLZ;EMPFAENGER_BANK
+				CSV Konto;DE11111111111111111111;11111111;13.04.2026;-4.00;Mit Bank B;CSV Empfaenger;DE44500105175407324931;LOOKDEFFXXX;50010517;Bank aus Datei B
+				CSV Konto;DE11111111111111111111;11111111;10.04.2026;-1.00;Ohne Bank zuerst;CSV Empfaenger;DE44500105175407324931;LOOKDEFFXXX;50010517;
+				CSV Konto;DE11111111111111111111;11111111;14.04.2026;-5.00;Ohne Bank zuletzt;CSV Empfaenger;DE44500105175407324931;LOOKDEFFXXX;50010517;
+				CSV Konto;DE11111111111111111111;11111111;11.04.2026;-2.00;Mit Bank A;CSV Empfaenger;DE44500105175407324931;LOOKDEFFXXX;50010517;Bank aus Datei A
+				CSV Konto;DE11111111111111111111;11111111;12.04.2026;-3.00;Ohne Bank mittig;CSV Empfaenger;DE44500105175407324931;LOOKDEFFXXX;50010517;
+				""");
+
+		new FileImportCSVBean(null).importFileToDatabase(csvFile.toString());
+
+		List<Recipient> recipients = dbController.getAll(Recipient.class);
+		assertEquals(List.of("Bank aus Datei A", "Bank aus Datei B"), recipients.stream().map(recipient -> recipient.getBank()).sorted().toList());
+		List<Booking> bookings = dbController.getAllByParentFull(Booking.class, account.getId());
+		assertEquals(5, bookings.size());
+		assertEquals(List.of("Bank aus Datei A", "Bank aus Datei B"),
+				bookings.stream().map(booking -> booking.getRecipient().getBank()).distinct().sorted().toList());
+		assertEquals(3, bookings.stream().filter(booking -> "Bank aus Datei A".equals(booking.getRecipient().getBank())).count());
+		assertEquals(2, bookings.stream().filter(booking -> "Bank aus Datei B".equals(booking.getRecipient().getBank())).count());
+	}
+
+	@Test
 	void importFileToDatabase_shouldRejectMismatchingContextAccount() throws Exception {
 		BankAccount selectedAccount = createAccount("Ausgewaehlt", "DE33333333333333333333", "33333333");
 		createAccount("Andere Bank", "DE44444444444444444444", "44444444");
@@ -136,6 +169,19 @@ class FileImportCSVBeanTest {
 		account.setIban(iban);
 		account.setNumber(number);
 		return dbController.insertOrUpdate(account);
+	}
+
+	private void insertInstitute(String blz, String bankName, String bic) {
+		int importHistoryId = dbController.insertOrUpdate(new ImportHistory("recipient-bank-lookup.csv")).getId();
+		Institute institute = new Institute();
+		institute.setBlz(blz);
+		institute.setBankName(bankName);
+		institute.setBic(bic);
+		institute.setImportNumber(1);
+		institute.setLastChanged(LocalDate.of(2026, 4, 10));
+		institute.setImportFile(importHistoryId);
+		institute.setStateType(InstituteStatus.ACTIVE);
+		dbController.insertOrUpdate(institute);
 	}
 
 	private Path writeCsv(String content) throws Exception {

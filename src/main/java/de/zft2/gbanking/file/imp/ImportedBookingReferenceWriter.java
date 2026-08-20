@@ -4,6 +4,7 @@ import static de.zft2.gbanking.util.TextValues.trimToNull;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -26,14 +27,14 @@ final class ImportedBookingReferenceWriter {
 	}
 
 	void writeRecipients(Collection<Booking> bookings) {
+		List<Booking> recipientBookings = bookings.stream()
+				.filter(booking -> booking.getRecipient() != null && booking.getRecipientId() <= 0)
+				.toList();
+		assignBankNamesByValidity(recipientBookings);
 		Map<RecipientIdentityKey, RecipientReferenceGroup> recipientGroups = new LinkedHashMap<>();
 
-		for (Booking booking : bookings) {
+		for (Booking booking : recipientBookings) {
 			Recipient recipient = booking.getRecipient();
-			if (recipient == null || booking.getRecipientId() > 0) {
-				continue;
-			}
-
 			recipientGroups.computeIfAbsent(RecipientIdentityKey.from(recipient), ignored -> new RecipientReferenceGroup(recipient)).add(booking);
 		}
 
@@ -45,6 +46,39 @@ final class ImportedBookingReferenceWriter {
 
 			recipientGroup.bookings().forEach(booking -> booking.setRecipient(recipient));
 			dbController.updateBookingsWithRecipients(Map.of(recipient, recipientGroup.bookingIds()));
+		}
+	}
+
+	private static void assignBankNamesByValidity(List<Booking> bookings) {
+		Map<RecipientIdentityKey, List<Booking>> timelines = new LinkedHashMap<>();
+		for (Booking booking : bookings) {
+			timelines.computeIfAbsent(RecipientIdentityKey.from(booking.getRecipient()).withoutBank(), ignored -> new ArrayList<>()).add(booking);
+		}
+
+		for (List<Booking> timeline : timelines.values()) {
+			timeline.sort(Comparator.comparing((Booking booking) -> booking.getDate(),
+					Comparator.nullsLast(Comparator.naturalOrder())));
+			assignBankNamesByValidityForTimeline(timeline);
+		}
+	}
+
+	private static void assignBankNamesByValidityForTimeline(List<Booking> timeline) {
+		String currentBankName = timeline.stream()
+				.map(booking -> booking.getRecipient().getBank())
+				.filter(bankName -> trimToNull(bankName) != null)
+				.findFirst()
+				.orElse(null);
+		if (currentBankName == null) {
+			return;
+		}
+
+		for (Booking booking : timeline) {
+			Recipient recipient = booking.getRecipient();
+			if (trimToNull(recipient.getBank()) != null) {
+				currentBankName = recipient.getBank();
+			} else {
+				recipient.setBank(currentBankName);
+			}
 		}
 	}
 
@@ -68,6 +102,10 @@ final class ImportedBookingReferenceWriter {
 			return new RecipientIdentityKey(caseInsensitiveValue(recipient.getName()), caseInsensitiveValue(recipient.getIban()),
 					caseInsensitiveValue(recipient.getBic()), trimToNull(recipient.getAccountNumber()), trimToNull(recipient.getBlz()),
 					caseInsensitiveValue(recipient.getBank()));
+		}
+
+		private RecipientIdentityKey withoutBank() {
+			return new RecipientIdentityKey(name, iban, bic, accountNumber, blz, null);
 		}
 	}
 
