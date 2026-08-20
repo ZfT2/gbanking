@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-20
+
+### Added
+- add enablebanking PSD2 provider
+- add institute import source: reachable-payment-service-providers
+
+### Fixed
+- use JavaFxTestSupport.runFx(...) in JUnit Test to fix build
+- Recipient Bank name enrichment during file import
+- Synchronize institute imports to avoid blocking main window.
+- Keep comments in properties files if modified by program
+
+### Maintenance
+- release: prepare next development version 0.2.1-SNAPSHOT
+
 ## [0.2.0] - 2026-08-19
 
 ### Added
