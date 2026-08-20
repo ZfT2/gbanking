@@ -10,7 +10,8 @@ import java.nio.file.StandardCopyOption;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
-import java.util.TreeMap;
+
+import de.zft2.gbanking.util.PropertiesFileSupport;
 
 public final class ImportPropertiesFileSupport {
 
@@ -52,39 +53,11 @@ public final class ImportPropertiesFileSupport {
 			Files.createDirectories(parent);
 		}
 		Path temporaryPath = path.resolveSibling(path.getFileName() + ".tmp");
-		StringBuilder content = new StringBuilder();
-		for (Map.Entry<String, String> entry : new TreeMap<>(values).entrySet()) {
-			content.append(escape(entry.getKey(), true)).append('=').append(escape(entry.getValue(), false)).append(System.lineSeparator());
-		}
-		Files.writeString(temporaryPath, content, StandardCharsets.UTF_8);
+		Files.writeString(temporaryPath, PropertiesFileSupport.updateContent(path, values, null), StandardCharsets.UTF_8);
 		try {
 			Files.move(temporaryPath, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
 		} catch (AtomicMoveNotSupportedException exception) {
 			Files.move(temporaryPath, path, StandardCopyOption.REPLACE_EXISTING);
 		}
-	}
-
-	private static String escape(String value, boolean key) {
-		String text = value != null ? value : "";
-		StringBuilder escaped = new StringBuilder(text.length());
-		for (int index = 0; index < text.length(); index++) {
-			char character = text.charAt(index);
-			switch (character) {
-			case '\\' -> escaped.append("\\\\");
-			case '\t' -> escaped.append("\\t");
-			case '\n' -> escaped.append("\\n");
-			case '\r' -> escaped.append("\\r");
-			case '\f' -> escaped.append("\\f");
-			case ' ' -> escaped.append(key || index == 0 ? "\\ " : " ");
-			case '=', ':', '#', '!' -> {
-				if (key) {
-					escaped.append('\\');
-				}
-				escaped.append(character);
-			}
-			default -> escaped.append(character);
-			}
-		}
-		return escaped.toString();
 	}
 }

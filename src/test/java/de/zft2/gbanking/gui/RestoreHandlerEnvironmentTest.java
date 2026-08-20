@@ -3,6 +3,7 @@ package de.zft2.gbanking.gui;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -26,6 +27,8 @@ class RestoreHandlerEnvironmentTest {
 	void shouldStoreGuiAndEnvironmentOptionsSeparately() throws Exception {
 		Path guiFile = tempDirectory.resolve("gui.properties");
 		Path environmentFile = tempDirectory.resolve("env.properties");
+		Files.writeString(guiFile, "# Keep GUI comment\nonlyOnlineAccounts=false\n", StandardCharsets.UTF_8);
+		Files.writeString(environmentFile, "! Keep environment comment\nlanguage=de\n", StandardCharsets.UTF_8);
 		Map<String, String> options = new HashMap<>();
 		options.put(EnvironmentOptions.DATA_DIRECTORY, "X:/shared-data");
 		options.put(EnvironmentOptions.DEFAULT_DIR_IMPORT, "X:/imports");
@@ -49,6 +52,8 @@ class RestoreHandlerEnvironmentTest {
 		assertEquals("X:/import-properties", environmentProperties.getProperty(EnvironmentOptions.IMPORT_PROPERTIES_DIRECTORY));
 		assertEquals("tenant-id", environmentProperties.getProperty("lastTenantId"));
 		assertEquals("en", environmentProperties.getProperty("language"));
+		assertTrue(Files.readString(guiFile, StandardCharsets.UTF_8).contains("# Keep GUI comment"));
+		assertTrue(Files.readString(environmentFile, StandardCharsets.UTF_8).contains("! Keep environment comment"));
 	}
 
 	@Test

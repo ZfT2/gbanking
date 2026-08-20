@@ -105,10 +105,12 @@ class ImportPropertiesSynchronizationServiceTest {
 	void propertyFileSupportShouldRoundTripSpecialCharacters() throws Exception {
 		Path file = propertiesDirectory.resolve("roundtrip.properties");
 		Map<String, String> expected = Map.of("Account name:=!", "^Text\\s+(.*);äöü", "simple", " leading value");
+		Files.writeString(file, "# Account identifiers\r\nold=value\r\n", StandardCharsets.UTF_8);
 
 		ImportPropertiesFileSupport.write(file, expected);
 
 		assertEquals(expected, ImportPropertiesFileSupport.read(file));
+		assertTrue(Files.readString(file, StandardCharsets.UTF_8).startsWith("# Account identifiers\r\n"));
 	}
 
 	private void writeLegacyFiles(String accountName, String transferValues) throws Exception {

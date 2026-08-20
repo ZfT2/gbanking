@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
@@ -111,5 +112,19 @@ class TenantStoreTest {
 		assertEquals("beta", tenantStore.getTenants().get(0).username());
 		assertTrue(Files.exists(tenantStore.getTenantDirectory(tenant01.id())));
 		assertTrue(Files.exists(tenantStore.getTenantDirectory(tenant02.id())));
+	}
+
+	@Test
+	void shouldPreserveRegistryCommentsWhenUpdatingTenant() throws Exception {
+		Path dataDirectory = tempDir.resolve("data");
+		TenantStore tenantStore = new TenantStore(dataDirectory);
+		TenantProfile tenant = tenantStore.createTenant("alpha", "secret".toCharArray());
+		Path registryFile = dataDirectory.resolve("tenants.properties");
+		String registry = Files.readString(registryFile, StandardCharsets.UTF_8);
+		Files.writeString(registryFile, "# Keep tenant comment" + System.lineSeparator() + registry, StandardCharsets.UTF_8);
+
+		tenantStore.updateTenant(tenant.id(), "beta", "secret".toCharArray(), new char[0]);
+
+		assertTrue(Files.readString(registryFile, StandardCharsets.UTF_8).startsWith("# Keep tenant comment"));
 	}
 }

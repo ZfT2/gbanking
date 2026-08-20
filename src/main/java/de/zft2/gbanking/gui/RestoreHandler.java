@@ -1,7 +1,6 @@
 package de.zft2.gbanking.gui;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -14,6 +13,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.util.AppPaths;
+import de.zft2.gbanking.util.PropertiesFileSupport;
 
 class RestoreHandler {
 
@@ -86,9 +86,7 @@ class RestoreHandler {
 			return;
 		}
 		Files.createDirectories(parent);
-		try (BufferedWriter writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-			properties.store(writer, comment);
-		}
+		Files.writeString(file, PropertiesFileSupport.updateContent(file, properties, comment), StandardCharsets.UTF_8);
 	}
 
 	private static void putIfPresent(Properties properties, String key, String value) {

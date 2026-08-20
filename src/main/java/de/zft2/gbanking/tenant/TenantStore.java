@@ -2,7 +2,6 @@ package de.zft2.gbanking.tenant;
 
 import java.io.IOException;
 import java.io.Reader;
-import java.io.Writer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -26,6 +25,7 @@ import org.apache.logging.log4j.Logger;
 import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.logging.SensitiveDataMasker;
 import de.zft2.gbanking.util.AppPaths;
+import de.zft2.gbanking.util.PropertiesFileSupport;
 
 public class TenantStore implements BaseMessages {
 
@@ -418,9 +418,8 @@ public class TenantStore implements BaseMessages {
 		try {
 			Files.createDirectories(dataDirectory);
 			Files.deleteIfExists(tempRegistryFile);
-			try (Writer writer = Files.newBufferedWriter(tempRegistryFile, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW)) {
-				properties.store(writer, getText("UI_TENANT_STORE_COMMENT"));
-			}
+			String content = PropertiesFileSupport.updateContent(registryFile, properties, getText("UI_TENANT_STORE_COMMENT"));
+			Files.writeString(tempRegistryFile, content, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
 			try (FileChannel channel = FileChannel.open(tempRegistryFile, StandardOpenOption.WRITE)) {
 				channel.force(true);
 			}
