@@ -3,35 +3,40 @@
 
 [SQL_DEMO_INSERT_BANK_ACCESS]
 INSERT INTO bankAccess (
-    id, bankName, country, blz, hbciURL, port, userId, customerId, sysId,
-    tanProcedure, allowedTwostepMechanisms, hbciVersion, bpdVersion, updVersion,
-    hbciFilterType, active, updatedAt
+    id, bankName, active, accessType, updatedAt
 ) VALUES (
-    900000, 'DemoBank - keine Online-Verbindung', 'DE', '99999999',
-    'https://demo.invalid/fints', 443, 'demo.user', 'demo.customer', 'demo.system',
-    6, '940', '300', '1', '1', 2, 1, '2026-01-01 09:00:00.000'
+    900000, 'DemoBank - keine Online-Verbindung', 1, 1, '2026-01-01 09:00:00.000'
+);
+
+[SQL_DEMO_INSERT_BANK_ACCESS_FINTS]
+INSERT INTO bankAccessFints (
+    bankAccess_id, country, blz, hbciURL, port, userId, customerId, sysId,
+    tanProcedure, allowedTwostepMechanisms, hbciVersion, bpdVersion, updVersion, hbciFilterType
+) VALUES (
+    900000, 'DE', '99999999', 'https://demo.invalid/fints', 443, 'demo.user',
+    'demo.customer', 'demo.system', 6, '940', '300', '1', '1', 2
 );
 
 [SQL_DEMO_INSERT_BANK_ACCOUNTS]
 INSERT INTO bankAccount (
-    id, bankAccess_id, parentAccount_id, accountName, currency, accountType, accountSource,
+    id, bankAccess_id, parentAccount_id, providerAccountId, accountName, currency, accountType, accountSource,
     iban, bic, number, subNumber, bankName, blz, hbciAccountType, accountLimit,
     customerId, ownerName, ownerName2, country, creditorId, isSEPAAccount,
     isOfflineAccount, accountState, balance, createdAt, updatedAt
 ) VALUES
-    (900001, 900000, NULL, 'Girokonto Demo', 'EUR', 1, 1,
+    (900001, 900000, NULL, NULL, 'Girokonto Demo', 'EUR', 1, 1,
      'DE93999999990000000001', 'DEMODEFFXXX', '0000000001', '00', 'DemoBank', '99999999', 1, '1000.00',
      'demo.customer', 'Max Mustermann', NULL, 'DE', NULL, 1, 0, 1, 4860.35,
      '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
-    (900002, 900000, NULL, 'Tagesgeld Reserve', 'EUR', 2, 1,
+    (900002, 900000, NULL, NULL, 'Tagesgeld Reserve', 'EUR', 2, 1,
      'DE66999999990000000002', 'DEMODEFFXXX', '0000000002', '00', 'DemoBank', '99999999', 10, '0.00',
      'demo.customer', 'Max Mustermann', NULL, 'DE', NULL, 1, 0, 1, 6354.75,
      '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
-    (900003, 900000, 900001, 'Kreditkarte Demo', 'EUR', 10, 1,
+    (900003, 900000, 900001, NULL, 'Kreditkarte Demo', 'EUR', 10, 1,
      'DE39999999990000000003', 'DEMODEFFXXX', '0000000003', '00', 'DemoBank', '99999999', 30, '2500.00',
      'demo.customer', 'Max Mustermann', NULL, 'DE', NULL, 0, 0, 1, -642.40,
      '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
-    (900004, NULL, NULL, 'Haushaltskasse', 'EUR', 13, 5,
+    (900004, NULL, NULL, NULL, 'Haushaltskasse', 'EUR', 13, 5,
      NULL, NULL, 'BAR-DEMO', NULL, NULL, NULL, 0, '0.00',
      NULL, 'Max Mustermann', NULL, 'DE', NULL, 0, 1, 1, 250.00,
      '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000');

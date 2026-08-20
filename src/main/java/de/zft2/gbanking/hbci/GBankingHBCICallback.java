@@ -84,9 +84,10 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 
 		switch (reason) {
 		case NEED_PASSPHRASE_LOAD, NEED_PASSPHRASE_SAVE, NEED_PT_PIN -> retDataBuilder.replace(0, retDataBuilder.length(), readPin());
-		case NEED_BLZ -> retDataBuilder.replace(0, retDataBuilder.length(), bankAccess.getBlz());
-		case NEED_USERID -> retDataBuilder.replace(0, retDataBuilder.length(), trimToBlank(bankAccess.getUserId()));
-		case NEED_CUSTOMERID -> retDataBuilder.replace(0, retDataBuilder.length(), firstNonBlank(bankAccess.getCustomerId(), bankAccess.getUserId()));
+		case NEED_BLZ -> retDataBuilder.replace(0, retDataBuilder.length(), bankAccess.getFints().getBlz());
+		case NEED_USERID -> retDataBuilder.replace(0, retDataBuilder.length(), trimToBlank(bankAccess.getFints().getUserId()));
+		case NEED_CUSTOMERID -> retDataBuilder.replace(0, retDataBuilder.length(),
+				firstNonBlank(bankAccess.getFints().getCustomerId(), bankAccess.getFints().getUserId()));
 		case HAVE_VOP_RESULT -> handleVoPResult(passport, msg, retDataBuilder);
 		case NEED_PT_PHOTOTAN, NEED_PT_QRTAN, NEED_PT_TAN -> {
 			confirmRecipientCheckIfNeeded();
@@ -295,7 +296,7 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 	}
 
 	private boolean isFlickerTanProcedure() {
-		TanProcedure procedure = bankAccess != null ? bankAccess.getTanProcedure() : null;
+		TanProcedure procedure = bankAccess != null ? bankAccess.getFints().getTanProcedure() : null;
 		return procedure == TanProcedure.CHIP_TAN || procedure == TanProcedure.CHIP_TAN_OPTICAL;
 	}
 

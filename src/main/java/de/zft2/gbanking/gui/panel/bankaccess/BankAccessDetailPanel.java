@@ -6,8 +6,10 @@ import java.util.Comparator;
 import java.util.List;
 
 import de.zft2.gbanking.db.dao.BankAccess;
+import de.zft2.gbanking.db.dao.BankAccessFints;
 import de.zft2.gbanking.db.dao.Bpd;
 import de.zft2.gbanking.db.dao.enu.HbciEncodingFilterType;
+import de.zft2.gbanking.db.dao.enu.BankAccessType;
 import de.zft2.gbanking.db.dao.enu.TanProcedure;
 import de.zft2.gbanking.db.dao.ParameterDataBankAccess;
 import de.zft2.gbanking.db.dao.Upd;
@@ -66,6 +68,7 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 	private final TextField updatedAtText = FormFields.textS();
 
 	private final Button buttonBankAccessNew = new Button(getText("UI_BUTTON_BANK_ACCESS_NEW"));
+	private final Button buttonEnablebankingNew = new Button(getText("UI_BUTTON_ENABLEBANKING_NEW"));
 	private final Button buttonBankAccessUpdate = new Button(getText("UI_BUTTON_BANK_ACCESS_UPDATE"));
 	private final Button buttonBankAccessEdit = new Button(getText("UI_BUTTON_BANK_ACCESS_EDIT"));
 	private final Button buttonBankAccessSave = new Button(getText("UI_BUTTON_SAVE"));
@@ -108,7 +111,7 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 		KeyboardShortcutDispatcher.registerForm(this, buttonBankAccessSave, buttonBankAccessCancel);
 		KeyboardShortcutDispatcher.blockRefreshWhile(this, buttonBankAccessSave::isVisible);
 		addContentNode(createButtonBar());
-		editModeController = new DetailFormEditMode(editableControls, List.of(updatedAtText), List.of(buttonBankAccessNew),
+		editModeController = new DetailFormEditMode(editableControls, List.of(updatedAtText), List.of(buttonBankAccessNew, buttonEnablebankingNew),
 				List.of(buttonBankAccessUpdate, buttonBankAccessEdit, buttonBankAccessDelete, buttonBankAccessRefreshParameterData,
 						buttonBankAccessShowBpd, buttonBankAccessShowUpd),
 				List.of(buttonBankAccessSave, buttonBankAccessCancel));
@@ -116,12 +119,12 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 	}
 
 	private HBox createButtonBar() {
-		FormStyleUtils.styleButtons(buttonBankAccessNew, buttonBankAccessUpdate, buttonBankAccessEdit, buttonBankAccessSave, buttonBankAccessCancel,
+		FormStyleUtils.styleButtons(buttonBankAccessNew, buttonEnablebankingNew, buttonBankAccessUpdate, buttonBankAccessEdit, buttonBankAccessSave, buttonBankAccessCancel,
 				buttonBankAccessDelete, buttonBankAccessRefreshParameterData, buttonBankAccessShowBpd, buttonBankAccessShowUpd);
 		Region spacer = new Region();
 		HBox.setHgrow(spacer, Priority.ALWAYS);
 
-		HBox buttonBar = new HBox(10, buttonBankAccessNew, buttonBankAccessUpdate, buttonBankAccessEdit, buttonBankAccessSave,
+		HBox buttonBar = new HBox(10, buttonBankAccessNew, buttonEnablebankingNew, buttonBankAccessUpdate, buttonBankAccessEdit, buttonBankAccessSave,
 				buttonBankAccessCancel, buttonBankAccessDelete, buttonBankAccessRefreshParameterData, spacer, buttonBankAccessShowBpd, buttonBankAccessShowUpd);
 		buttonBar.setAlignment(Pos.CENTER_LEFT);
 		buttonBar.setMaxWidth(Double.MAX_VALUE);
@@ -175,6 +178,8 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 
 	private void configureButtons() {
 		buttonBankAccessNew.setOnAction(e -> newBankAccessDialog(ButtonContext.BUTTON_NEW));
+		buttonEnablebankingNew.setOnAction(e -> new EnablebankingSetupDialog(getOwnerWindow(),
+				parentPanel.getBankAccessListPanel()::refreshModelBankAccess).show());
 		buttonBankAccessUpdate.setOnAction(e -> newBankAccessDialog(ButtonContext.BUTTON_EDIT));
 		buttonBankAccessEdit.setOnAction(e -> enableManualEditWithConfirmation());
 		buttonBankAccessSave.setOnAction(e -> saveManualChanges());
@@ -186,12 +191,12 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 	}
 
 	private void refreshParameterData() {
-		if (currentBankAccess == null || PaypalSupport.isPaypal(currentBankAccess)) {
+		if (currentBankAccess == null || currentBankAccess.getAccessType() != BankAccessType.HBCI) {
 			return;
 		}
 
 		PinAskDialog pinWindow = new PinAskDialog(getOwnerWindow());
-		pinWindow.setBankInfo(currentBankAccess.getBlz(), currentBankAccess.getBankName());
+		pinWindow.setBankInfo(currentBankAccess.getFints().getBlz(), currentBankAccess.getBankName());
 		Stage pinDialog = pinWindow.createNewPinAskDialog();
 		pinDialog.showAndWait();
 
@@ -243,7 +248,7 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 	}
 
 	private <T extends ParameterDataBankAccess> void showParameterData(String parameterType, Class<T> dataType) {
-		if (currentBankAccess != null && !PaypalSupport.isPaypal(currentBankAccess)) {
+		if (currentBankAccess != null && currentBankAccess.getAccessType() == BankAccessType.HBCI) {
 			List<ParameterDataBankAccess> parameterData = new ArrayList<>(dbController.getAllByParent(dataType, currentBankAccess.getId()));
 			new BankAccessParameterDataDialog().show(getOwnerWindow(), parameterType, currentBankAccess, parameterData);
 		}
@@ -260,33 +265,36 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 	private void fillForm(BankAccess access) {
 		updateTitle(access.getBankName());
 		boolean paypal = PaypalSupport.isPaypal(access);
+		boolean fints = access.getAccessType() == BankAccessType.HBCI;
+		BankAccessFints fintsData = access.getFints();
 
-		blzText.setText(paypal ? PaypalSupport.DISPLAY_NAME : access.getBlz());
+		blzText.setText(paypal ? PaypalSupport.DISPLAY_NAME : fints ? fintsData.getBlz() : "Enablebanking");
 		bankNameText.setText(access.getBankName());
-		userNameText.setText(access.getUserId());
-		customerIdText.setText(paypal ? "" : access.getCustomerId());
+		userNameText.setText(fints ? fintsData.getUserId() : paypal ? access.getPaypal().getUserId() : "");
+		customerIdText.setText(fints ? fintsData.getCustomerId() : "");
 
-		urlText.setText(paypal ? "" : access.getHbciURL());
-		portText.setText(paypal || access.getPort() == null ? "" : String.valueOf(access.getPort()));
-		systemIdText.setText(paypal ? "" : access.getSysId());
+		urlText.setText(fints ? fintsData.getHbciURL() : "");
+		portText.setText(fints && fintsData.getPort() != null ? String.valueOf(fintsData.getPort()) : "");
+		systemIdText.setText(fints ? fintsData.getSysId() : "");
 
-		refreshSupportedTanProcedures(paypal ? null : access);
-		tanProcedureBox.setValue(paypal ? null : access.getTanProcedure());
+		refreshSupportedTanProcedures(fints ? access : null);
+		tanProcedureBox.setValue(fints ? fintsData.getTanProcedure() : null);
 
-		hbciVersionText.setText(paypal ? "" : access.getHbciVersion());
-		hbciFilterTypeBox.setValue(paypal ? null : access.getFilterType());
-		bpdVersionText.setText(paypal ? "" : access.getBpdVersion());
-		updVersionText.setText(paypal ? "" : access.getUpdVersion());
+		hbciVersionText.setText(fints ? fintsData.getHbciVersion() : "");
+		hbciFilterTypeBox.setValue(fints ? fintsData.getFilterType() : null);
+		bpdVersionText.setText(fints ? fintsData.getBpdVersion() : "");
+		updVersionText.setText(fints ? fintsData.getUpdVersion() : "");
 		activeBox.setSelected(access.isActive());
 		updatedAtText.setText(TypeConverter.toDateStringLong(access.getUpdatedAt()));
 	}
 
 	private void configureProviderActions(BankAccess access) {
-		boolean paypal = PaypalSupport.isPaypal(access);
-		buttonBankAccessEdit.setDisable(paypal);
-		setVisibleAndManaged(buttonBankAccessRefreshParameterData, !paypal);
-		setVisibleAndManaged(buttonBankAccessShowBpd, !paypal);
-		setVisibleAndManaged(buttonBankAccessShowUpd, !paypal);
+		boolean fints = access.getAccessType() == BankAccessType.HBCI;
+		buttonBankAccessUpdate.setDisable(access.getAccessType() == BankAccessType.ENABLEBANKING);
+		buttonBankAccessEdit.setDisable(!fints);
+		setVisibleAndManaged(buttonBankAccessRefreshParameterData, fints);
+		setVisibleAndManaged(buttonBankAccessShowBpd, fints);
+		setVisibleAndManaged(buttonBankAccessShowUpd, fints);
 	}
 
 	private void setVisibleAndManaged(Control control, boolean visible) {
@@ -295,20 +303,21 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 	}
 
 	private void applyFormTo(BankAccess access) {
-		access.setBlz(trimToNull(blzText.getText()));
+		BankAccessFints fints = access.getFints();
+		fints.setBlz(trimToNull(blzText.getText()));
 		access.setBankName(trimToNull(bankNameText.getText()));
-		access.setUserId(trimToNull(userNameText.getText()));
-		access.setCustomerId(trimToNull(customerIdText.getText()));
+		fints.setUserId(trimToNull(userNameText.getText()));
+		fints.setCustomerId(trimToNull(customerIdText.getText()));
 
-		access.setHbciURL(trimToNull(urlText.getText()));
-		access.setPort(parseAndValidatePostiveInt(portText.getText()));
-		access.setSysId(trimToNull(systemIdText.getText()));
-		access.setTanProcedure(tanProcedureBox.getValue());
+		fints.setHbciURL(trimToNull(urlText.getText()));
+		fints.setPort(parseAndValidatePostiveInt(portText.getText()));
+		fints.setSysId(trimToNull(systemIdText.getText()));
+		fints.setTanProcedure(tanProcedureBox.getValue());
 
-		access.setHbciVersion(trimToNull(hbciVersionText.getText()));
-		access.setFilterType(hbciFilterTypeBox.getValue());
-		access.setBpdVersion(trimToNull(bpdVersionText.getText()));
-		access.setUpdVersion(trimToNull(updVersionText.getText()));
+		fints.setHbciVersion(trimToNull(hbciVersionText.getText()));
+		fints.setFilterType(hbciFilterTypeBox.getValue());
+		fints.setBpdVersion(trimToNull(bpdVersionText.getText()));
+		fints.setUpdVersion(trimToNull(updVersionText.getText()));
 		access.setActive(activeBox.isSelected());
 	}
 
@@ -364,7 +373,7 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 
 	private void refreshSupportedTanProcedures(BankAccess access) {
 		List<TanProcedure> procedures = new ArrayList<>(determineSupportedTanProcedures(access));
-		TanProcedure selectedProcedure = access != null ? access.getTanProcedure() : null;
+		TanProcedure selectedProcedure = access != null ? access.getFints().getTanProcedure() : null;
 
 		if (selectedProcedure != null && !procedures.contains(selectedProcedure)) {
 			procedures.add(selectedProcedure);

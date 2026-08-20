@@ -100,7 +100,7 @@ class PaypalAccountServiceTest {
 	}
 
 	private void stubBalances(BankAccess access) throws InterruptedException {
-		when(client.getBalances(access.getPaypalApiUsername(), access.getPin(), access.getPaypalApiSignature())).thenReturn(List.of(
+		when(client.getBalances(access.getPaypal().getApiUsername(), access.getPin(), access.getPaypal().getApiSignature())).thenReturn(List.of(
 				new PaypalBalance("EUR", new BigDecimal("12.34")),
 				new PaypalBalance("USD", new BigDecimal("5.67"))));
 	}
@@ -108,9 +108,9 @@ class PaypalAccountServiceTest {
 	private BankAccess access(String email) {
 		BankAccess access = new BankAccess();
 		access.setAccessType(BankAccessType.PAYPAL);
-		access.setUserId(email);
-		access.setPaypalApiUsername("api-user");
-		access.setPaypalApiSignature("signature");
+		access.getPaypal().setUserId(email);
+		access.getPaypal().setApiUsername("api-user");
+		access.getPaypal().setApiSignature("signature");
 		access.setPin("password".toCharArray());
 		return access;
 	}

@@ -527,7 +527,11 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 		}
 
 		String bankName = trimToNull(bankAccess.getBankName());
-		String userId = trimToNull(bankAccess.getUserId());
+		String userId = switch (bankAccess.getAccessType()) {
+		case HBCI -> trimToNull(bankAccess.getFints().getUserId());
+		case PAYPAL -> trimToNull(bankAccess.getPaypal().getUserId());
+		case ENABLEBANKING -> null;
+		};
 		if (bankName != null && userId != null) {
 			return bankName + " (" + userId + ")";
 		}

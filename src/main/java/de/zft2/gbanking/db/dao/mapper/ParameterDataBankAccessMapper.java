@@ -54,7 +54,8 @@ public class ParameterDataBankAccessMapper extends AbstractDaoMapper<ParameterDa
 
 			ps.setLong(i++, bankAccess.getId());
 			ps.setLong(i++, pd.getId());
-			ps.setString(i++, (typ == ParameterDataType.BPD ? bankAccess.getBpd() : bankAccess.getUpd()).getProperty(pd.getPdKey()));
+			ps.setString(i++, (typ == ParameterDataType.BPD ? bankAccess.getFints().getBpd() : bankAccess.getFints().getUpd())
+					.getProperty(pd.getPdKey()));
 			ps.setTimestamp(i++, TypeConverter.toSqlTimestampNow());
 		}
 	}

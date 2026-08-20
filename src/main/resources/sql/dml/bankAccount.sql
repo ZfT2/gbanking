@@ -4,21 +4,21 @@ FROM bankAccount ba
 WHERE (ba.iban = ? OR ba.number = ?);
 
 [SQL_SELECT_ALL_BANKACCOUNTS]
-SELECT ba.id, ba.bankAccess_id, ba.parentAccount_id, ba.accountName, ba.currency, ba.accountType, ba.accountSource, ba.iban, ba.bic, ba.number, ba.subNumber, ba.bankName, ba.blz, ba.hbciAccountType, ba.accountLimit, ba.customerId, ba.ownerName, ba.ownerName2, ba.country, ba.creditorId, ba.isSepaAccount, ba.isOfflineAccount, ba.accountState, ba.balance, ba.createdAt, ba.updatedAt
+SELECT ba.id, ba.bankAccess_id, ba.parentAccount_id, ba.providerAccountId, ba.accountName, ba.currency, ba.accountType, ba.accountSource, ba.iban, ba.bic, ba.number, ba.subNumber, ba.bankName, ba.blz, ba.hbciAccountType, ba.accountLimit, ba.customerId, ba.ownerName, ba.ownerName2, ba.country, ba.creditorId, ba.isSepaAccount, ba.isOfflineAccount, ba.accountState, ba.balance, ba.createdAt, ba.updatedAt
 FROM bankAccount ba;
 
 [SQL_SELECT_ALL_ONLINE_BANKACCOUNTS]
-SELECT ba.id, ba.bankAccess_id, ba.parentAccount_id, ba.accountName, ba.currency, ba.accountType, ba.accountSource, ba.iban, ba.bic, ba.number, ba.subNumber, ba.bankName, ba.blz, ba.hbciAccountType, ba.accountLimit, ba.customerId, ba.ownerName, ba.ownerName2, ba.country, ba.creditorId, ba.isSepaAccount, ba.isOfflineAccount, ba.accountState, ba.balance, ba.createdAt, ba.updatedAt
+SELECT ba.id, ba.bankAccess_id, ba.parentAccount_id, ba.providerAccountId, ba.accountName, ba.currency, ba.accountType, ba.accountSource, ba.iban, ba.bic, ba.number, ba.subNumber, ba.bankName, ba.blz, ba.hbciAccountType, ba.accountLimit, ba.customerId, ba.ownerName, ba.ownerName2, ba.country, ba.creditorId, ba.isSepaAccount, ba.isOfflineAccount, ba.accountState, ba.balance, ba.createdAt, ba.updatedAt
 FROM bankAccount ba, bankAccess bc
 WHERE bc.id = ba.bankAccess_id;
 
 [SQL_INSERT_BANKACCOUNT]
-INSERT INTO bankAccount (bankAccess_id, parentAccount_id, accountName, currency, accountType, accountSource, iban, bic, number, subNumber, bankName, blz, hbciAccountType, accountLimit, customerId, ownerName, ownerName2, country, creditorId, isSEPAAccount, isOfflineAccount, accountState, balance, createdAt, updatedAt)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO bankAccount (bankAccess_id, parentAccount_id, providerAccountId, accountName, currency, accountType, accountSource, iban, bic, number, subNumber, bankName, blz, hbciAccountType, accountLimit, customerId, ownerName, ownerName2, country, creditorId, isSEPAAccount, isOfflineAccount, accountState, balance, createdAt, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 [SQL_UPDATE_BANKACCOUNT]
 UPDATE bankAccount 
-SET bankAccess_id = ?, parentAccount_id = ?, accountName = ?, currency = ?, accountType = ?, accountSource = ?, iban = ?, bic = ?, number = ?, subNumber = ?, bankName = ?, blz = ?, hbciAccountType = ?, accountLimit = ?, customerId = ?, ownerName = ?, ownerName2 = ?, country = ?, creditorId = ?, isSEPAAccount = ?, isOfflineAccount = ?, accountState = ?, balance = ?, updatedAt = ? 
+SET bankAccess_id = ?, parentAccount_id = ?, providerAccountId = ?, accountName = ?, currency = ?, accountType = ?, accountSource = ?, iban = ?, bic = ?, number = ?, subNumber = ?, bankName = ?, blz = ?, hbciAccountType = ?, accountLimit = ?, customerId = ?, ownerName = ?, ownerName2 = ?, country = ?, creditorId = ?, isSEPAAccount = ?, isOfflineAccount = ?, accountState = ?, balance = ?, updatedAt = ?
 WHERE id = ?;
 
 [SQL_UPDATE_BANKACCOUNT_SOURCE]

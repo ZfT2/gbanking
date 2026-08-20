@@ -35,11 +35,11 @@ public final class TanProcedureSupport {
 	}
 
 	public static Optional<String> resolveTanMethodCode(BankAccess access) {
-		if (access == null || access.getTanProcedure() == null || access.getTanProcedure() == TanProcedure.UNKNOWN) {
+		if (access == null || access.getFints().getTanProcedure() == null || access.getFints().getTanProcedure() == TanProcedure.UNKNOWN) {
 			return Optional.empty();
 		}
 
-		TanProcedure selectedProcedure = access.getTanProcedure();
+		TanProcedure selectedProcedure = access.getFints().getTanProcedure();
 		return determineSupportedProcedures(access).stream()
 				.filter(supportedProcedure -> selectedProcedure == supportedProcedure.procedure())
 				.map(SupportedTanProcedure::code)
@@ -54,8 +54,8 @@ public final class TanProcedureSupport {
 		}
 
 		int tanCode = parsedCode.get();
-		if (access != null && access.getTanProcedure() != null && access.getTanProcedure().hasCode(tanCode)) {
-			return Optional.of(access.getTanProcedure());
+		if (access != null && access.getFints().getTanProcedure() != null && access.getFints().getTanProcedure().hasCode(tanCode)) {
+			return Optional.of(access.getFints().getTanProcedure());
 		}
 
 		return determineSupportedProcedures(access).stream()
@@ -102,8 +102,8 @@ public final class TanProcedureSupport {
 			}
 		}
 
-		if (access != null && access.getAllowedTwostepMechanisms() != null) {
-			for (String allowedMechanism : access.getAllowedTwostepMechanisms()) {
+		if (access != null && access.getFints().getAllowedTwostepMechanisms() != null) {
+			for (String allowedMechanism : access.getFints().getAllowedTwostepMechanisms()) {
 				Optional<String> code = parseCode(allowedMechanism).map(String::valueOf);
 				code.ifPresent(value -> mechanismsByCode.putIfAbsent(value, new TanMechanism(value, extractDescription(allowedMechanism))));
 			}
@@ -115,8 +115,8 @@ public final class TanProcedureSupport {
 	private static List<TanMechanism> collectParameterMechanisms(BankAccess access, List<? extends ParameterDataBankAccess> bpd,
 			List<? extends ParameterDataBankAccess> upd) {
 		Map<String, TanMechanismBuilder> builders = new LinkedHashMap<>();
-		collectParameterMechanisms(builders, access != null ? access.getBpd() : null);
-		collectParameterMechanisms(builders, access != null ? access.getUpd() : null);
+		collectParameterMechanisms(builders, access != null ? access.getFints().getBpd() : null);
+		collectParameterMechanisms(builders, access != null ? access.getFints().getUpd() : null);
 		collectParameterMechanisms(builders, bpd);
 		collectParameterMechanisms(builders, upd);
 
@@ -168,11 +168,11 @@ public final class TanProcedureSupport {
 
 	private static Set<String> collectAllowedCodes(BankAccess access) {
 		Set<String> allowedCodes = new LinkedHashSet<>();
-		if (access == null || access.getAllowedTwostepMechanisms() == null) {
+		if (access == null || access.getFints().getAllowedTwostepMechanisms() == null) {
 			return allowedCodes;
 		}
 
-		for (String allowedMechanism : access.getAllowedTwostepMechanisms()) {
+		for (String allowedMechanism : access.getFints().getAllowedTwostepMechanisms()) {
 			parseCode(allowedMechanism).map(String::valueOf).ifPresent(allowedCodes::add);
 		}
 		return allowedCodes;

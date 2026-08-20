@@ -5,7 +5,8 @@ import de.zft2.gbanking.db.enu.IdType;
 public enum BankAccessType implements IdType {
 
 	HBCI(1),
-	PAYPAL(2);
+	PAYPAL(2),
+	ENABLEBANKING(3);
 
 	private final int dbStateId;
 

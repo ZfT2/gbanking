@@ -53,7 +53,7 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 
 		List<BankAccess> all = db.getAll(BankAccess.class);
 		assertEquals(1, all.size());
-		assertEquals("11111111", all.get(0).getBlz());
+		assertEquals("11111111", all.get(0).getFints().getBlz());
 
 		BankAccess byBlz = db.getBankAccessByBlz("11111111");
 		assertNotNull(byBlz);

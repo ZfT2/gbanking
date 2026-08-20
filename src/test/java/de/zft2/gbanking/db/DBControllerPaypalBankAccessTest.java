@@ -21,17 +21,17 @@ class DBControllerPaypalBankAccessTest extends DBControllerIntegrationBaseTest {
 		assertNotEquals(first.getId(), second.getId());
 		BankAccess loaded = db.getBankAccessByBlzAndUserId("PAYPAL", "second@example.org");
 		assertEquals(BankAccessType.PAYPAL, loaded.getAccessType());
-		assertEquals("api-second", loaded.getPaypalApiUsername());
-		assertEquals("signature-second", loaded.getPaypalApiSignature());
+		assertEquals("api-second", loaded.getPaypal().getApiUsername());
+		assertEquals("signature-second", loaded.getPaypal().getApiSignature());
 	}
 
 	private BankAccess paypalAccess(String email, String apiUsername, String apiSignature) {
 		BankAccess access = TestData.createSampleBankAccess("PAYPAL");
 		access.setBankName("PayPal");
-		access.setUserId(email);
+		access.getPaypal().setUserId(email);
 		access.setAccessType(BankAccessType.PAYPAL);
-		access.setPaypalApiUsername(apiUsername);
-		access.setPaypalApiSignature(apiSignature);
+		access.getPaypal().setApiUsername(apiUsername);
+		access.getPaypal().setApiSignature(apiSignature);
 		return access;
 	}
 }

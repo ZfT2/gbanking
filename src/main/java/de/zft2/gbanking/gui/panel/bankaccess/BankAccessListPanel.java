@@ -40,10 +40,12 @@ public class BankAccessListPanel extends AbstractFilterableTablePanel<BankAccess
 		TableColumn<BankAccess, Boolean> selectedCol = createSelectAllSelectionColumn(
 				access -> access.isSelected(), (access, selected) -> access.setSelected(selected));
 		TableColumn<BankAccess, String> bankCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_BANK"), BankAccess::getBankName, 260);
-		TableColumn<BankAccess, String> userCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_USER_ID"), BankAccess::getUserId, 120);
+		TableColumn<BankAccess, String> userCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_USER_ID"),
+				access -> getUserId(access), 120);
 		TableColumn<BankAccess, String> tanCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_TAN_PROCEDURE"),
-				access -> !PaypalSupport.isPaypal(access) && access.getTanProcedure() != null ? access.getTanProcedure().toString() : "", 160);
-		TableColumn<BankAccess, String> urlCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_FINTS_URL"), BankAccess::getHbciURL, 200, 260);
+				access -> access.getFints().getTanProcedure() != null ? access.getFints().getTanProcedure().toString() : "", 160);
+		TableColumn<BankAccess, String> urlCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_FINTS_URL"),
+				access -> access.getFints().getHbciURL(), 200, 260);
 		TableColumn<BankAccess, String> activeCol = TableColumnFactory.createBooleanAsTextColumn(getText("UI_TABLE_ACTIVE"), BankAccess::isActive, 70);
 		TableColumn<BankAccess, LocalDate> updatedCol = TableColumnFactory.createUpdatedAtColumn(getText("UI_TABLE_UPDATED_AT"),
 				BankAccess::getUpdatedAt, 90);
@@ -60,7 +62,11 @@ public class BankAccessListPanel extends AbstractFilterableTablePanel<BankAccess
 
 	@Override
 	protected boolean matchesFilter(BankAccess access, String filter) {
-		return matchesAny(filter, access.getBankName(), access.getUserId(), access.getHbciURL());
+		return matchesAny(filter, access.getBankName(), getUserId(access), access.getFints().getHbciURL());
+	}
+
+	private String getUserId(BankAccess access) {
+		return PaypalSupport.isPaypal(access) ? access.getPaypal().getUserId() : access.getFints().getUserId();
 	}
 
 	public void reload() {

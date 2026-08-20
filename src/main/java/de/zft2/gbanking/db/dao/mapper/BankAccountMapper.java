@@ -26,6 +26,7 @@ public class BankAccountMapper extends AbstractDaoMapper<BankAccount, Void> {
 
 		index = setIntegerNullable(index, bankAccount.getBankAccessId(), ps);
 		index = setIntegerNullable(index, bankAccount.getParentAccountId(), ps);
+		ps.setString(index++, bankAccount.getProviderAccountId());
 		if (bankAccount.getAccountName() != null) {
 			ps.setString(index++, bankAccount.getAccountName());
 		} else {
@@ -93,6 +94,7 @@ public class BankAccountMapper extends AbstractDaoMapper<BankAccount, Void> {
 	public void mapDao(BankAccount account, ResultType resultType, ResultSet rs) throws SQLException {
 		account.setBankAccessId(rs.getInt("bankAccess_id"));
 		account.setParentAccountId(rs.getInt("parentAccount_id"));
+		account.setProviderAccountId(rs.getString("providerAccountId"));
 		account.setAccountName(rs.getString(SqlFields.ACCOUNT_ACCOUNTNAME));
 		account.setCurrency(rs.getString("currency"));
 		account.setAccountType(AccountType.forInt(rs.getInt("accountType")));

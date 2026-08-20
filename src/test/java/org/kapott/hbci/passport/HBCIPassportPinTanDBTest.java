@@ -53,17 +53,17 @@ class HBCIPassportPinTanDBTest {
 		Properties upd = new Properties();
 		upd.setProperty("UPA.version", "34");
 		BankAccess bankAccess = TestData.createSampleBankAccess("12345678");
-		bankAccess.setBpd(bpd);
-		bankAccess.setUpd(upd);
+		bankAccess.getFints().setBpd(bpd);
+		bankAccess.getFints().setUpd(upd);
 		bankAccess = dbController.insertOrUpdate(bankAccess);
 		dbController.insertOrUpdatePD(bankAccess);
 
 		HBCIPassportPinTanDB passport = new HBCIPassportPinTanDB("12345678");
 		try {
-			assertEquals(bankAccess.getSysId(), passport.getSysId());
-			assertEquals(bankAccess.getHbciVersion(), passport.getHBCIVersion());
+			assertEquals(bankAccess.getFints().getSysId(), passport.getSysId());
+			assertEquals(bankAccess.getFints().getHbciVersion(), passport.getHBCIVersion());
 			assertEquals("946", passport.getCurrentTANMethod(false));
-			assertEquals(bankAccess.getAllowedTwostepMechanisms(), passport.getAllowedTwostepMechanisms());
+			assertEquals(bankAccess.getFints().getAllowedTwostepMechanisms(), passport.getAllowedTwostepMechanisms());
 			assertDoesNotThrow(() -> passport.getAllowedTwostepMechanisms().clear());
 			assertEquals("12", passport.getBPD().getProperty("BPA.version"));
 			assertEquals("34", passport.getUPD().getProperty("UPA.version"));
@@ -81,8 +81,8 @@ class HBCIPassportPinTanDBTest {
 		upd.setProperty("UPA.version", "34");
 		upd.setProperty("KInfo.customerid", "");
 		BankAccess bankAccess = TestData.createSampleBankAccess("87654321");
-		bankAccess.setBpd(bpd);
-		bankAccess.setUpd(upd);
+		bankAccess.getFints().setBpd(bpd);
+		bankAccess.getFints().setUpd(upd);
 		bankAccess = dbController.insertOrUpdate(bankAccess);
 		dbController.insertOrUpdatePD(bankAccess);
 
@@ -90,7 +90,7 @@ class HBCIPassportPinTanDBTest {
 		try {
 			assertNull(passport.getBPD().getProperty("BPA.kiname"));
 			assertNull(passport.getUPD().getProperty("KInfo.customerid"));
-			assertEquals(bankAccess.getUserId(), passport.getCustomerId(0));
+			assertEquals(bankAccess.getFints().getUserId(), passport.getCustomerId(0));
 		} finally {
 			passport.close();
 		}
@@ -99,24 +99,24 @@ class HBCIPassportPinTanDBTest {
 	@Test
 	void readAndSaveChanges_shouldNormalizeBlankPassportValues() {
 		BankAccess bankAccess = TestData.createSampleBankAccess("11223344");
-		bankAccess.setCustomerId(" ");
-		bankAccess.setSysId("");
-		bankAccess.setHbciVersion(" ");
-		bankAccess.setAllowedTwostepMechanisms(List.of("", "946", " "));
+		bankAccess.getFints().setCustomerId(" ");
+		bankAccess.getFints().setSysId("");
+		bankAccess.getFints().setHbciVersion(" ");
+		bankAccess.getFints().setAllowedTwostepMechanisms(List.of("", "946", " "));
 		bankAccess = dbController.insertOrUpdate(bankAccess);
 
 		HBCIPassportPinTanDB passport = new HBCIPassportPinTanDB("11223344");
 		try {
-			assertEquals(bankAccess.getUserId(), passport.getCustomerId());
+			assertEquals(bankAccess.getFints().getUserId(), passport.getCustomerId());
 			assertEquals("0", passport.getSysId());
 			assertEquals(List.of("946"), passport.getAllowedTwostepMechanisms());
 
 			passport.saveChanges();
 			BankAccess storedBankAccess = dbController.getBankAccessByBlz("11223344");
-			assertEquals(bankAccess.getUserId(), storedBankAccess.getCustomerId());
-			assertEquals("0", storedBankAccess.getSysId());
-			assertEquals(List.of("946"), storedBankAccess.getAllowedTwostepMechanisms());
-			assertNull(storedBankAccess.getHbciVersion());
+			assertEquals(bankAccess.getFints().getUserId(), storedBankAccess.getFints().getCustomerId());
+			assertEquals("0", storedBankAccess.getFints().getSysId());
+			assertEquals(List.of("946"), storedBankAccess.getFints().getAllowedTwostepMechanisms());
+			assertNull(storedBankAccess.getFints().getHbciVersion());
 		} finally {
 			passport.close();
 		}

@@ -23,9 +23,9 @@
 
 ## Überblick
 
-GBanking ist eine Desktop-Banking-Anwendung auf Basis von **JavaFX** und **HBCI/FinTS**.
+GBanking ist eine Desktop-Banking-Anwendung auf Basis von **JavaFX**, **HBCI/FinTS** und **PSD2 über Enablebanking**.
 
-Mit dieser Anwendung können Bankkonten über das HBCI/FinTS-Protokoll verwaltet werden.
+Mit dieser Anwendung können Bankkonten über HBCI/FinTS verwaltet und Kontoumsätze alternativ über Enablebanking abgerufen werden.
 
 Der Fokus des Projekts liegt auf:
 
@@ -38,7 +38,7 @@ Der Fokus des Projekts liegt auf:
 Der aktuelle Entwicklungsstand umfasst unter anderem:
 
 - Verwaltung von Bankkonten
-- Zugriff auf Kontoumsätze über HBCI/FinTS
+- Zugriff auf Kontoumsätze über HBCI/FinTS oder Enablebanking (PSD2)
 - Import und Verarbeitung von Bankdaten
 - Desktop-GUI auf Basis von JavaFX
 
@@ -173,9 +173,9 @@ LICENSE
 
 ## Overview
 
-GBanking is a desktop banking application based on **JavaFX** and **HBCI/FinTS**.
+GBanking is a desktop banking application based on **JavaFX**, **HBCI/FinTS** and **PSD2 through Enablebanking**.
 
-The project provides a free banking client for managing bank accounts via the HBCI/FinTS protocol.
+The project provides a free banking client for managing bank accounts through HBCI/FinTS and retrieving account transactions through Enablebanking.
 
 The project focuses on:
 
@@ -188,7 +188,7 @@ The project focuses on:
 Current development includes:
 
 - Bank account management
-- Access to account transactions via HBCI/FinTS
+- Access to account transactions via HBCI/FinTS or Enablebanking (PSD2)
 - Import and processing of banking data
 - Desktop GUI built with JavaFX
 

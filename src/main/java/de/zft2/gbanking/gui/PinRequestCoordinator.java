@@ -5,22 +5,28 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.gui.panel.action.PinAskDialog;
+import de.zft2.gbanking.service.BankingCapabilityService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import javafx.stage.Stage;
 
 final class PinRequestCoordinator {
 
 	private final Function<BankAccount, char[]> pinRequester;
+	private final Predicate<BankAccount> credentialRequired;
 
 	PinRequestCoordinator(PinAskDialog pinDialog) {
 		Objects.requireNonNull(pinDialog, "pinDialog");
 		pinRequester = account -> requestPin(pinDialog, account);
+		credentialRequired = ServiceRegistry.getService(BankingCapabilityService.class)::requiresInteractiveCredential;
 	}
 
 	PinRequestCoordinator(Function<BankAccount, char[]> pinRequester) {
 		this.pinRequester = Objects.requireNonNull(pinRequester, "pinRequester");
+		credentialRequired = account -> true;
 	}
 
 	Map<Integer, char[]> requestPinsByBankAccess(Iterable<BankAccount> accounts) {
@@ -48,6 +54,10 @@ final class PinRequestCoordinator {
 		boolean allPinsRequested = false;
 		try {
 			for (Map.Entry<K, BankAccount> entry : accountsByKey.entrySet()) {
+				if (!credentialRequired.test(entry.getValue())) {
+					pinsByKey.put(entry.getKey(), null);
+					continue;
+				}
 				char[] pin = pinRequester.apply(entry.getValue());
 				if (pin == null || pin.length == 0) {
 					return Map.of();

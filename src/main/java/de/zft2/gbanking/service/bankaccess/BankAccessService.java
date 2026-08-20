@@ -24,6 +24,7 @@ import org.kapott.hbci.structures.Konto;
 
 import de.zft2.gbanking.db.StatementsConfig;
 import de.zft2.gbanking.db.dao.BankAccess;
+import de.zft2.gbanking.db.dao.BankAccessFints;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.db.dao.enu.AccountState;
@@ -79,13 +80,13 @@ public class BankAccessService extends AbstractDbService {
 		}
 		HBCIUtils.init(props, hbciCallback);
 
-		HBCIPassport passport = AbstractHBCIPassport.getInstance("PinTanDB", bankAccess.getBlz());
-		log.debug("Created HBCI passport for bank code {}", () -> SensitiveDataMasker.maskIdentifier(bankAccess.getBlz()));
+		HBCIPassport passport = AbstractHBCIPassport.getInstance("PinTanDB", bankAccess.getFints().getBlz());
+		log.debug("Created HBCI passport for bank code {}", () -> SensitiveDataMasker.maskIdentifier(bankAccess.getFints().getBlz()));
 		passport.setCountry("DE");
 
-		BankInfo info = HBCIUtils.getBankInfo(bankAccess.getBlz());
+		BankInfo info = HBCIUtils.getBankInfo(bankAccess.getFints().getBlz());
 		if (info == null || info.getPinTanAddress() == null || info.getPinTanAddress().isBlank()) {
-			throw new GBankingException("No FinTS address available for bank code: " + bankAccess.getBlz());
+			throw new GBankingException("No FinTS address available for bank code: " + bankAccess.getFints().getBlz());
 		}
 		passport.setHost(info.getPinTanAddress());
 		passport.setPort(443);
@@ -95,7 +96,7 @@ public class BankAccessService extends AbstractDbService {
 		 * verwendet. Bei PIN/TAN kommt "Base64" zum Einsatz.
 		 */
 		passport.setFilterType(HbciEncodingFilterType.BASE64.toString());
-		log.info("Initialized HBCI bank connection for bank code {}", () -> SensitiveDataMasker.maskIdentifier(bankAccess.getBlz()));
+		log.info("Initialized HBCI bank connection for bank code {}", () -> SensitiveDataMasker.maskIdentifier(bankAccess.getFints().getBlz()));
 		return passport;
 	}
 
@@ -144,13 +145,15 @@ public class BankAccessService extends AbstractDbService {
 			}
 		}
 
-		log.info("Starting bank access setup for bank code {}", bankAccess != null ? SensitiveDataMasker.maskIdentifier(bankAccess.getBlz()) : null);
+		log.info("Starting bank access setup for bank code {}",
+				bankAccess != null ? SensitiveDataMasker.maskIdentifier(bankAccess.getFints().getBlz()) : null);
 
 		try {
 			return new HbciSessionRunner().run(bankAccess, bankAccess != null ? bankAccess.getPin() : null,
 					session -> addNewBankAccess(bankAccess, session));
 		} catch (InterruptedException ex) {
-			log.error("Bank access setup failed for bank code {}", bankAccess != null ? SensitiveDataMasker.maskIdentifier(bankAccess.getBlz()) : null, ex);
+			log.error("Bank access setup failed for bank code {}",
+					bankAccess != null ? SensitiveDataMasker.maskIdentifier(bankAccess.getFints().getBlz()) : null, ex);
 			Thread.currentThread().interrupt();
 			throw new GBankingException(getText("EXCEPTION_ADD_BANKACCESS"), ex);
 		}
@@ -162,7 +165,7 @@ public class BankAccessService extends AbstractDbService {
 		List<BankAccount> bankAccountList = mapPassportAccounts(passport);
 		applyPassportData(bankAccess, passport, bankAccountList);
 
-		BankAccess bankAccessDb = dbController.getBankAccessByBlz(bankAccess.getBlz());
+		BankAccess bankAccessDb = dbController.getBankAccessByBlz(bankAccess.getFints().getBlz());
 		if (bankAccessDb != null) {
 			bankAccess.setId(bankAccessDb.getId());
 		}
@@ -179,7 +182,7 @@ public class BankAccessService extends AbstractDbService {
 			syncBankAccessIdByBlz(bankAccess);
 		}
 		log.info("Finished bank access setup for bank code {}, accounts={}, success={}",
-				() -> SensitiveDataMasker.maskIdentifier(bankAccess.getBlz()), bankAccountList::size, () -> success);
+				() -> SensitiveDataMasker.maskIdentifier(bankAccess.getFints().getBlz()), bankAccountList::size, () -> success);
 		return success;
 	}
 
@@ -197,7 +200,7 @@ public class BankAccessService extends AbstractDbService {
 
 		refreshAccess.setPin(pin);
 		log.info("Starting BPD/UPD refresh for bank access id {}, bank code {}", refreshAccess::getId,
-				() -> SensitiveDataMasker.maskIdentifier(refreshAccess.getBlz()));
+				() -> SensitiveDataMasker.maskIdentifier(refreshAccess.getFints().getBlz()));
 
 		try {
 			return new HbciSessionRunner().run(refreshAccess, pin, session -> refreshBankAccessParameterData(bankAccess, refreshAccess, session));
@@ -258,34 +261,35 @@ public class BankAccessService extends AbstractDbService {
 	}
 
 	private void applyPassportData(BankAccess bankAccess, HBCIPassport passport, List<BankAccount> bankAccountList) {
-		bankAccess.setCountry(firstNonBlank(passport.getCountry(), bankAccess.getCountry()));
-		bankAccess.setBlz(firstNonBlank(passport.getBLZ(), bankAccess.getBlz()));
+		BankAccessFints fints = bankAccess.getFints();
+		fints.setCountry(firstNonBlank(passport.getCountry(), fints.getCountry()));
+		fints.setBlz(firstNonBlank(passport.getBLZ(), fints.getBlz()));
 		bankAccess.setBankName(firstNonBlank(passport.getInstName(), bankAccess.getBankName()));
-		bankAccess.setHbciURL(firstNonBlank(passport.getHost(), bankAccess.getHbciURL()));
+		fints.setHbciURL(firstNonBlank(passport.getHost(), fints.getHbciURL()));
 		if (passport.getPort() != null) {
-			bankAccess.setPort(passport.getPort());
+			fints.setPort(passport.getPort());
 		}
-		bankAccess.setUserId(firstNonBlank(passport.getUserId(), bankAccess.getUserId()));
-		bankAccess.setCustomerId(firstNonBlank(passport.getCustomerId(), firstNonBlank(bankAccess.getCustomerId(), bankAccess.getUserId())));
-		bankAccess.setHbciVersion(firstNonBlank(passport.getHBCIVersion(), bankAccess.getHbciVersion()));
-		bankAccess.setBpdVersion(firstNonBlank(passport.getBPDVersion(), bankAccess.getBpdVersion()));
-		bankAccess.setUpdVersion(firstNonBlank(passport.getUPDVersion(), bankAccess.getUpdVersion()));
+		fints.setUserId(firstNonBlank(passport.getUserId(), fints.getUserId()));
+		fints.setCustomerId(firstNonBlank(passport.getCustomerId(), firstNonBlank(fints.getCustomerId(), fints.getUserId())));
+		fints.setHbciVersion(firstNonBlank(passport.getHBCIVersion(), fints.getHbciVersion()));
+		fints.setBpdVersion(firstNonBlank(passport.getBPDVersion(), fints.getBpdVersion()));
+		fints.setUpdVersion(firstNonBlank(passport.getUPDVersion(), fints.getUpdVersion()));
 		HbciEncodingFilterType filterType = HbciEncodingFilterType.forString(passport.getFilterType());
 		if (filterType != null) {
-			bankAccess.setFilterType(filterType);
+			fints.setFilterType(filterType);
 		}
-		bankAccess.setBpd(passport.getBPD());
-		bankAccess.setUpd(passport.getUPD());
+		fints.setBpd(passport.getBPD());
+		fints.setUpd(passport.getUPD());
 		bankAccess.setAccounts(bankAccountList);
 		bankAccess.setActive(true);
 		bankAccess.setUpdatedAt(LocalDate.now(ZoneId.systemDefault()));
 	}
 
 	private void syncBankAccessIdByBlz(BankAccess bankAccess) {
-		if (bankAccess == null || bankAccess.getId() > 0 || bankAccess.getBlz() == null) {
+		if (bankAccess == null || bankAccess.getId() > 0 || bankAccess.getFints().getBlz() == null) {
 			return;
 		}
-		BankAccess bankAccessDb = dbController.getBankAccessByBlz(bankAccess.getBlz());
+		BankAccess bankAccessDb = dbController.getBankAccessByBlz(bankAccess.getFints().getBlz());
 		if (bankAccessDb != null) {
 			bankAccess.setId(bankAccessDb.getId());
 		}
@@ -296,26 +300,12 @@ public class BankAccessService extends AbstractDbService {
 			return;
 		}
 		target.setId(source.getId());
-		target.setCountry(source.getCountry());
-		target.setBlz(source.getBlz());
-		target.setBankName(source.getBankName());
-		target.setHbciURL(source.getHbciURL());
-		target.setPort(source.getPort());
-		target.setUserId(source.getUserId());
-		target.setCustomerId(source.getCustomerId());
-		target.setSysId(source.getSysId());
-		target.setTanProcedure(source.getTanProcedure());
-		target.setAllowedTwostepMechanisms(source.getAllowedTwostepMechanisms());
-		target.setHbciVersion(source.getHbciVersion());
-		target.setBpdVersion(source.getBpdVersion());
-		target.setUpdVersion(source.getUpdVersion());
-		target.setFilterType(source.getFilterType());
-		target.setActive(source.isActive());
 		target.setAccessType(source.getAccessType());
-		target.setPaypalApiUsername(source.getPaypalApiUsername());
-		target.setPaypalApiSignature(source.getPaypalApiSignature());
-		target.setBpd(source.getBpd());
-		target.setUpd(source.getUpd());
+		target.setBankName(source.getBankName());
+		target.setActive(source.isActive());
+		target.setFints(source.getFints());
+		target.setPaypal(source.getPaypal());
+		target.setEnablebanking(source.getEnablebanking());
 		target.setAccounts(source.getAccounts());
 		target.setUpdatedAt(source.getUpdatedAt());
 	}

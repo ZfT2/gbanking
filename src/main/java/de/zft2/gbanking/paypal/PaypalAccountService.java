@@ -12,9 +12,7 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.enu.AccountState;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.BankAccessType;
-import de.zft2.gbanking.db.dao.enu.HbciEncodingFilterType;
 import de.zft2.gbanking.db.dao.enu.Source;
-import de.zft2.gbanking.db.dao.enu.TanProcedure;
 import de.zft2.gbanking.service.Service;
 
 public class PaypalAccountService implements Service, BaseMessages {
@@ -32,13 +30,13 @@ public class PaypalAccountService implements Service, BaseMessages {
 	}
 
 	public boolean initialize(BankAccess bankAccess) throws InterruptedException {
-		List<PaypalBalance> balances = client.getBalances(bankAccess.getPaypalApiUsername(), bankAccess.getPin(),
-				bankAccess.getPaypalApiSignature());
+		List<PaypalBalance> balances = client.getBalances(bankAccess.getPaypal().getApiUsername(), bankAccess.getPin(),
+				bankAccess.getPaypal().getApiSignature());
 		if (balances.isEmpty()) {
 			throw new PaypalApiException(getText("ERROR_PAYPAL_NO_BALANCES"), false);
 		}
 
-		BankAccess existingAccess = database.getBankAccessByBlzAndUserId(PaypalSupport.BANK_CODE, bankAccess.getUserId());
+		BankAccess existingAccess = database.getBankAccessByBlzAndUserId(PaypalSupport.BANK_CODE, bankAccess.getPaypal().getUserId());
 		BankAccount existingAccount = findExistingAccount(bankAccess, existingAccess);
 		applyAccessData(bankAccess, existingAccess);
 		bankAccess.setAccounts(List.of(mapAccount(bankAccess, balances.get(0), existingAccount)));
@@ -69,7 +67,7 @@ public class PaypalAccountService implements Service, BaseMessages {
 			return database.getAllByParent(BankAccount.class, existingAccess.getId()).stream().findFirst().orElse(null);
 		}
 		List<BankAccount> matchingAccounts = getLinkableAccounts().stream()
-				.filter(account -> containsIgnoreCase(account.getAccountName(), bankAccess.getUserId()))
+				.filter(account -> containsIgnoreCase(account.getAccountName(), bankAccess.getPaypal().getUserId()))
 				.toList();
 		return matchingAccounts.size() == 1 ? matchingAccounts.get(0) : null;
 	}
@@ -79,16 +77,7 @@ public class PaypalAccountService implements Service, BaseMessages {
 			bankAccess.setId(existingAccess.getId());
 		}
 		bankAccess.setAccessType(BankAccessType.PAYPAL);
-		bankAccess.setBlz(PaypalSupport.BANK_CODE);
 		bankAccess.setBankName(PaypalSupport.DISPLAY_NAME);
-		bankAccess.setCountry("");
-		bankAccess.setPort(443);
-		bankAccess.setCustomerId(bankAccess.getUserId());
-		bankAccess.setTanProcedure(TanProcedure.APP_TAN);
-		bankAccess.setAllowedTwostepMechanisms(List.of());
-		bankAccess.setBpdVersion("0");
-		bankAccess.setUpdVersion("0");
-		bankAccess.setFilterType(HbciEncodingFilterType.BASE64);
 		bankAccess.setActive(true);
 		bankAccess.setUpdatedAt(LocalDate.now(ZoneId.systemDefault()));
 	}
@@ -97,12 +86,12 @@ public class PaypalAccountService implements Service, BaseMessages {
 		BankAccount account = existingAccount != null ? existingAccount : new BankAccount();
 		account.setBankAccessId(bankAccess.getId() > 0 ? bankAccess.getId() : null);
 		account.setAccountName(existingAccount != null ? existingAccount.getAccountName()
-				: PaypalSupport.DISPLAY_NAME + " - " + bankAccess.getUserId());
+				: PaypalSupport.DISPLAY_NAME + " - " + bankAccess.getPaypal().getUserId());
 		account.setAccountType(AccountType.SPECIAL_ACCOUNT);
 		account.setCurrency(balance.currency());
 		account.setBankName(PaypalSupport.DISPLAY_NAME);
 		account.setBlz(PaypalSupport.BANK_CODE);
-		account.setCustomerid(bankAccess.getUserId());
+		account.setCustomerid(bankAccess.getPaypal().getUserId());
 		account.setSource(Source.ONLINE);
 		account.setSEPAAccount(false);
 		account.setOfflineAccount(false);

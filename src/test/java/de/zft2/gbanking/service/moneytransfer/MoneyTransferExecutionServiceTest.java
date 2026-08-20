@@ -131,7 +131,7 @@ class MoneyTransferExecutionServiceTest {
 	private BankAccess insertBankAccessWithBpd(String... businessCases) {
 		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("10020030"));
-		bankAccess.setBpd(TestData.buildCapabilityBPD(businessCases));
+		bankAccess.getFints().setBpd(TestData.buildCapabilityBPD(businessCases));
 		dbController.insertOrUpdatePD(bankAccess);
 		return bankAccess;
 	}

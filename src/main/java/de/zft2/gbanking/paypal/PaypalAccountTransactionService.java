@@ -83,7 +83,7 @@ public class PaypalAccountTransactionService extends AbstractDbService {
 	}
 
 	private PaypalBalance getPrimaryBalance(BankAccess bankAccess, char[] apiPassword) throws InterruptedException {
-		return client.getBalances(bankAccess.getPaypalApiUsername(), apiPassword, bankAccess.getPaypalApiSignature()).stream()
+		return client.getBalances(bankAccess.getPaypal().getApiUsername(), apiPassword, bankAccess.getPaypal().getApiSignature()).stream()
 				.findFirst()
 				.orElseThrow(() -> new PaypalApiException(getText("ERROR_PAYPAL_NO_BALANCES"), false));
 	}
@@ -100,8 +100,8 @@ public class PaypalAccountTransactionService extends AbstractDbService {
 
 	private List<PaypalTransaction> retrieveAll(BankAccess bankAccess, char[] apiPassword, Instant start, Instant end)
 			throws InterruptedException {
-		List<PaypalTransaction> transactions = client.searchTransactions(bankAccess.getPaypalApiUsername(), apiPassword,
-				bankAccess.getPaypalApiSignature(), start, end);
+		List<PaypalTransaction> transactions = client.searchTransactions(bankAccess.getPaypal().getApiUsername(), apiPassword,
+				bankAccess.getPaypal().getApiSignature(), start, end);
 		if (transactions.size() < PaypalSoapClient.MAX_TRANSACTION_RESULTS) {
 			return transactions;
 		}

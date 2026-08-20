@@ -745,7 +745,7 @@ class GBankingServiceTest {
 	@Test
 	void testSupportsTransferOrderType_WithMultipleUpdAccounts_UsesMatchingAccountOnly() {
 		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("51390000"));
-		bankAccess.setBpd(TestData.buildCapabilityBPD("HKCCS", "HKCDE"));
+		bankAccess.getFints().setBpd(TestData.buildCapabilityBPD("HKCCS", "HKCDE"));
 
 		Properties upd = new Properties();
 		upd.setProperty("KInfo.iban", "DE11111111111111111111");
@@ -756,7 +756,7 @@ class GBankingServiceTest {
 		upd.setProperty("KInfo_2.KTV.number", "22222222");
 		upd.setProperty("KInfo_2.KTV.KIK.blz", "51390000");
 		upd.setProperty("KInfo_2.AllowedGV.code", "HKCCS");
-		bankAccess.setUpd(upd);
+		bankAccess.getFints().setUpd(upd);
 		dbController.insertOrUpdatePD(bankAccess);
 
 		BankAccount standingOrderAccount = new BankAccount();
@@ -779,7 +779,7 @@ class GBankingServiceTest {
 	@Test
 	void testSupportsTransferOrderType_WithConflictingUpdIban_PrefersAccountNumberAndBlz() {
 		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("51390000"));
-		bankAccess.setBpd(TestData.buildCapabilityBPD("HKCCS", "HKIPZ"));
+		bankAccess.getFints().setBpd(TestData.buildCapabilityBPD("HKCCS", "HKIPZ"));
 
 		Properties upd = new Properties();
 		upd.setProperty("KInfo.iban", "DE11111111111111111111");
@@ -792,7 +792,7 @@ class GBankingServiceTest {
 		upd.setProperty("KInfo_2.KTV.KIK.blz", "51390000");
 		upd.setProperty("KInfo_2.konto", "Kreditkartenkonto");
 		upd.setProperty("KInfo_2.AllowedGV.code", "HKCCS");
-		bankAccess.setUpd(upd);
+		bankAccess.getFints().setUpd(upd);
 		dbController.insertOrUpdatePD(bankAccess);
 
 		BankAccount giroAccount = new BankAccount();
@@ -812,9 +812,9 @@ class GBankingServiceTest {
 
 	private BankAccess insertBankAccessWithBpdAndUpd(String[] bpdBusinessCases, String[] updBusinessCases) {
 		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("10020030"));
-		bankAccess.setBpd(TestData.buildCapabilityBPD(bpdBusinessCases));
+		bankAccess.getFints().setBpd(TestData.buildCapabilityBPD(bpdBusinessCases));
 		if (updBusinessCases.length > 0) {
-			bankAccess.setUpd(TestData.buildCapabilityUPD(updBusinessCases));
+			bankAccess.getFints().setUpd(TestData.buildCapabilityUPD(updBusinessCases));
 		}
 		dbController.insertOrUpdatePD(bankAccess);
 		return bankAccess;

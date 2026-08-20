@@ -29,7 +29,7 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		// prepare pd properties
 		Properties bpd = TestData.buildBPD();
 
-		ba.setBpd(bpd);
+		ba.getFints().setBpd(bpd);
 
 		boolean ok = db.insertOrUpdatePD(ba);
 		assertTrue(ok);
@@ -49,7 +49,7 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		ba = db.insertOrUpdate(ba);
 
 		Properties bpd = TestData.buildBPD();
-		ba.setBpd(bpd);
+		ba.getFints().setBpd(bpd);
 
 		boolean ok = db.insertOrUpdatePD(ba);
 		assertTrue(ok);
@@ -58,7 +58,7 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		assertEquals(20, bpdList.size());
 
 		bpd.put("KEY_added_BP", "VALUE added BP");
-		ba.setBpd(bpd);
+		ba.getFints().setBpd(bpd);
 
 		ok = db.insertOrUpdatePD(ba);
 		assertTrue(ok);
@@ -76,7 +76,7 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		ba = db.insertOrUpdate(ba);
 
 		Properties bpd = TestData.buildBPD();
-		ba.setBpd(bpd);
+		ba.getFints().setBpd(bpd);
 
 		boolean ok = db.insertOrUpdatePD(ba);
 		assertTrue(ok);
@@ -85,7 +85,7 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		assertEquals(20, bpdList.size());
 
 		bpd.remove("Params_68.TAN2StepPar6.ParTAN2Step.TAN2StepParams_4.name");
-		ba.setBpd(bpd);
+		ba.getFints().setBpd(bpd);
 
 		ok = db.insertOrUpdatePD(ba);
 		assertTrue(ok);
@@ -103,7 +103,7 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		ba = db.insertOrUpdate(ba);
 
 		Properties bpd = TestData.buildBPD();
-		ba.setBpd(bpd);
+		ba.getFints().setBpd(bpd);
 
 		boolean ok = db.insertOrUpdatePD(ba);
 		assertTrue(ok);
@@ -112,7 +112,7 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		assertEquals(20, bpdList.size());
 
 		bpd.put("Params_65.Template2DPar.ParTemplate2D.dummy", "1");
-		ba.setBpd(bpd);
+		ba.getFints().setBpd(bpd);
 		ok = db.insertOrUpdatePD(ba);
 		assertTrue(ok);
 
@@ -132,7 +132,7 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		// prepare pd properties
 		Properties upd = TestData.buildUPD();
 
-		ba.setUpd(upd);
+		ba.getFints().setUpd(upd);
 
 		boolean ok = db.insertOrUpdatePD(ba);
 		assertTrue(ok);
@@ -151,7 +151,7 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		ba = db.insertOrUpdate(ba);
 
 		Properties upd = TestData.buildUPD();
-		ba.setUpd(upd);
+		ba.getFints().setUpd(upd);
 
 		boolean ok = db.insertOrUpdatePD(ba);
 		assertTrue(ok);
@@ -160,7 +160,7 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		assertEquals(10, updList.size());
 
 		upd.put("KEY_added_UP", "VALUE added UP");
-		ba.setUpd(upd);
+		ba.getFints().setUpd(upd);
 
 		ok = db.insertOrUpdatePD(ba);
 		assertTrue(ok);
@@ -178,7 +178,7 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		ba = db.insertOrUpdate(ba);
 
 		Properties upd = TestData.buildUPD();
-		ba.setUpd(upd);
+		ba.getFints().setUpd(upd);
 
 		boolean ok = db.insertOrUpdatePD(ba);
 		assertTrue(ok);
@@ -187,7 +187,7 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		assertEquals(10, updList.size());
 
 		upd.remove("KInfo.konto");
-		ba.setUpd(upd);
+		ba.getFints().setUpd(upd);
 
 		ok = db.insertOrUpdatePD(ba);
 		assertTrue(ok);
@@ -204,7 +204,7 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		ba = db.insertOrUpdate(ba);
 
 		Properties upd = TestData.buildUPD();
-		ba.setUpd(upd);
+		ba.getFints().setUpd(upd);
 
 		boolean ok = db.insertOrUpdatePD(ba);
 		assertTrue(ok);
@@ -213,7 +213,7 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		assertEquals(10, updList.size());
 
 		upd.put("KInfo.AllowedGV_20.reqSigs", "2");
-		ba.setUpd(upd);
+		ba.getFints().setUpd(upd);
 		ok = db.insertOrUpdatePD(ba);
 		assertTrue(ok);
 
@@ -234,14 +234,14 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		Properties bpd1 = new Properties();
 		bpd1.put("Params_15.SEPAInfoPar1.ParSEPAInfo.suppformats_2", "sepade:xsd:pain.001.001.03.xsd");
 		bpd1.put("Params_50.Template2DPar.SegHead.code", "HIIPSS");
-		ba1.setBpd(bpd1);
+		ba1.getFints().setBpd(bpd1);
 		
 		BankAccess ba2 = TestData.createSampleBankAccess("44444444");
 		ba2 = db.insertOrUpdate(ba2);
 		
 		Properties bpd2 = new Properties();
 		bpd2.put("Params_15.SEPAInfoPar1.ParSEPAInfo.suppformats_2", "sepade:xsd:pain.001.001.04.xsd");
-		ba2.setBpd(bpd2);
+		ba2.getFints().setBpd(bpd2);
 		
 		boolean ok = db.insertOrUpdatePD(ba1);
 		assertTrue(ok);
@@ -256,7 +256,7 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		assertEquals(3, bpdList.size());
 		
 		bpd1.remove("Params_50.Template2DPar.SegHead.code");
-		ba1.setBpd(bpd1); // delete one BPD
+		ba1.getFints().setBpd(bpd1); // delete one BPD
 		ok = db.insertOrUpdatePD(ba1);
 		assertTrue(ok);
 		
@@ -273,10 +273,10 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		ba1 = db.insertOrUpdate(ba1);
 		
 		Properties bpd1 = TestData.buildBPD();
-		ba1.setBpd(bpd1);
+		ba1.getFints().setBpd(bpd1);
 		
 		Properties upd1 = TestData.buildUPD();
-		ba1.setUpd(upd1);
+		ba1.getFints().setUpd(upd1);
 		
 		boolean ok = db.insertOrUpdatePD(ba1);
 		assertTrue(ok);
@@ -288,10 +288,10 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		ba2 = db.insertOrUpdate(ba2);
 		
 		Properties bpd2 = TestData.buildBPD2();
-		ba2.setBpd(bpd2);
+		ba2.getFints().setBpd(bpd2);
 		
 		Properties upd2 = TestData.buildUPD2();
-		ba2.setUpd(upd2);
+		ba2.getFints().setUpd(upd2);
 		
 		ok = db.insertOrUpdatePD(ba2);
 		assertTrue(ok);
@@ -306,7 +306,7 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		assertEquals(10, updList.size());
 
 		upd1.put("KInfo.AllowedGV_20.reqSigs", "2");
-		ba1.setUpd(upd1);
+		ba1.getFints().setUpd(upd1);
 		ok = db.insertOrUpdatePD(ba1);
 		assertTrue(ok);
 
@@ -327,7 +327,7 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		
 		bpd1 = new Properties();
 		bpd1.put("only one", "left");
-		ba1.setBpd(bpd1);
+		ba1.getFints().setBpd(bpd1);
 		ok = db.insertOrUpdatePD(ba1);
 		assertTrue(ok);
 		
@@ -354,8 +354,8 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		bpd1.put("exclusive.bpd.ba1", "only ba1");
 		Properties upd1 = new Properties();
 		upd1.put("exclusive.upd.ba1", "only ba1");
-		ba1.setBpd(bpd1);
-		ba1.setUpd(upd1);
+		ba1.getFints().setBpd(bpd1);
+		ba1.getFints().setUpd(upd1);
 		assertTrue(db.insertOrUpdatePD(ba1));
 
 		BankAccess ba2 = TestData.createSampleBankAccess("44444444");
@@ -364,8 +364,8 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		bpd2.put("shared.bpd", "shared value for ba2");
 		Properties upd2 = new Properties();
 		upd2.put("exclusive.upd.ba2", "only ba2");
-		ba2.setBpd(bpd2);
-		ba2.setUpd(upd2);
+		ba2.getFints().setBpd(bpd2);
+		ba2.getFints().setUpd(upd2);
 		assertTrue(db.insertOrUpdatePD(ba2));
 
 		assertEquals(4, db.getAll(ParameterData.class).size());

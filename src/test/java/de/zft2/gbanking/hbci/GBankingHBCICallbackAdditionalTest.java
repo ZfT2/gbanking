@@ -118,7 +118,7 @@ class GBankingHBCICallbackAdditionalTest {
 			chipTanMock.when(() -> ChipTanUsbSupport.isChipTanPayload("0FA1BC")).thenReturn(true);
 
 			BankAccess bankAccess = new BankAccess();
-			bankAccess.setTanProcedure(TanProcedure.CHIP_TAN_OPTICAL);
+			bankAccess.getFints().setTanProcedure(TanProcedure.CHIP_TAN_OPTICAL);
 			GBankingHBCICallback callback = new GBankingHBCICallback(bankAccess);
 			StringBuffer retData = new StringBuffer("0FA1BC");
 
@@ -314,8 +314,8 @@ class GBankingHBCICallbackAdditionalTest {
 	private static BankAccess createBankAccess() {
 		BankAccess bankAccess = new BankAccess();
 		bankAccess.setPin("12345".toCharArray());
-		bankAccess.setBlz("10020030");
-		bankAccess.setUserId("user-1");
+		bankAccess.getFints().setBlz("10020030");
+		bankAccess.getFints().setUserId("user-1");
 		return bankAccess;
 	}
 

@@ -27,7 +27,7 @@
 					<li><a href="#startup">Startup and tenants</a></li>
 					<li><a href="#encryption">Encryption and risks</a></li>
 					<li><a href="#navigation">Using the interface</a></li>
-					<li><a href="#bank-access">Bank access and PayPal</a></li>
+					<li><a href="#bank-access">Bank access, Enablebanking and PayPal</a></li>
 					<li><a href="#accounts">Accounts</a></li>
 					<li><a href="#transactions">Transactions</a></li>
 					<li><a href="#statements">Statements and bank messages</a></li>
@@ -48,7 +48,7 @@
 			<main id="content">
 				<section id="overview">
 					<h2>1. Overview</h2>
-					<p class="lead">GBanking is a desktop application for managing bank accounts, transactions, recipients, categories and payment orders. Online banking uses FinTS/HBCI; PayPal accounts can be connected through the PayPal interface.</p>
+					<p class="lead">GBanking is a desktop application for managing bank accounts, transactions, recipients, categories and payment orders. Online banking uses FinTS/HBCI or Enablebanking (PSD2) for account transactions; PayPal accounts can be connected through the PayPal interface.</p>
 					<div class="card-grid">
 						<div class="card"><h3>Review</h3><p>See balances, transactions, account statements and bank messages in one place.</p></div>
 						<div class="card"><h3>Organise</h3><p>Filter, categorise, split and flag transactions or link movements between your own accounts.</p></div>
@@ -122,16 +122,50 @@
 				</section>
 
 				<section id="bank-access">
-					<h2>5. Bank access and PayPal</h2>
-					<p>Use <strong>Edit &gt; Bank accesses</strong> to configure a bank or PayPal connection. A FinTS/HBCI access contains details such as bank code, user ID, FinTS address, protocol version and TAN procedure. During setup or update, GBanking fetches bank parameters (BPD), user parameters (UPD) and associated accounts.</p>
+					<h2>5. Bank access, Enablebanking and PayPal</h2>
+					<p>Use <strong>Edit &gt; Bank accesses</strong> to configure a FinTS/HBCI access, an Enablebanking access or a PayPal connection.</p>
+					<h3>FinTS/HBCI</h3>
+					<p>A FinTS/HBCI access contains details such as bank code, user ID, FinTS address, protocol version and TAN procedure. During setup or update, GBanking fetches bank parameters (BPD), user parameters (UPD) and associated accounts.</p>
 					<ul>
 						<li><strong>Refresh BPD/UPD:</strong> Reloads capabilities and account information.</li>
 						<li><strong>Show BPD/UPD:</strong> Displays the technical data supplied by the bank.</li>
 						<li><strong>Bank messages:</strong> Retrieves messages for a FinTS access and shows text, type, date and other details.</li>
-						<li><strong>PayPal:</strong> Uses API username, API password, API signature and email address. It retrieves the PayPal account and transactions; FinTS orders and bank messages do not apply.</li>
 					</ul>
 					<p>PIN and TAN are requested in dialogs when needed. The procedure offered depends on the bank data, such as app approval, pushTAN, photoTAN or chipTAN USB. A chipTAN USB reader can be selected in Settings.</p>
 					<div class="warning"><strong>Review before approval:</strong> Compare the amount, recipient and the display in your TAN device or banking app. GBanking also shows any recipient verification requested by the bank before payment approval.</div>
+
+					<h3>Preparing Enablebanking (PSD2)</h3>
+					<p>Enablebanking retrieves balances and transactions from banks that do not provide FinTS/HBCI. Personal use requires your own Enablebanking application:</p>
+					<ol>
+						<li>Create an account at <a href="https://enablebanking.com/" target="_blank" rel="noopener noreferrer">enablebanking.com</a>.</li>
+						<li>Open <a href="https://enablebanking.com/cp/applications" target="_blank" rel="noopener noreferrer">API Applications</a> in the Control Panel.</li>
+						<li>Register a new application with these settings:
+							<ul>
+								<li><strong>Environment:</strong> Production</li>
+								<li><strong>Key generation:</strong> Generate in the browser</li>
+								<li><strong>Application name:</strong> any name of your choice</li>
+								<li><strong>Allowed redirect URLs:</strong> <code>https://127.0.0.1:18443/callback</code></li>
+								<li><strong>Application description:</strong> <code>Used by GBanking</code></li>
+								<li><strong>Email:</strong> your email address</li>
+								<li><strong>Privacy URL:</strong> <a href="https://example.com/" target="_blank" rel="noopener noreferrer">https://example.com/</a></li>
+								<li><strong>Terms URL:</strong> <a href="https://example.com/" target="_blank" rel="noopener noreferrer">https://example.com/</a></li>
+							</ul>
+						</li>
+						<li>Keep the downloaded PEM file secure; it is required when configuring GBanking.</li>
+						<li>Use <strong>Link Accounts</strong> to link every account that GBanking should access later.</li>
+					</ol>
+					<div class="warning"><strong>Protect the private key:</strong> The PEM file contains the private application key. Do not share it and keep a protected copy outside GBanking.</div>
+
+					<h3>Configuring Enablebanking in GBanking</h3>
+					<ol>
+						<li>Under <strong>Edit &gt; Bank accesses</strong>, click <strong>Enablebanking...</strong>.</li>
+						<li>Enter the application ID, select the downloaded PEM file and choose <strong>Load institutions</strong>. The callback URL is preset to <code>https://127.0.0.1:18443/callback</code> and must match the value in the Enablebanking Control Panel.</li>
+						<li>Select the country and financial institution or filter the bank by using the search field, complete authorization in the browser, select the desired accounts and save the access.</li>
+					</ol>
+					<div class="note"><strong>Linked accounts and the bank list:</strong> The bank list may contain more institutions than those linked in the Control Panel. Only accounts enabled through <strong>Link Accounts</strong> can be accessed. Accounts already connected through FinTS take precedence and are not offered again during Enablebanking setup.</div>
+
+					<h3>PayPal</h3>
+					<p>The PayPal connection uses API username, API password, API signature and email address. It retrieves the PayPal account and transactions; FinTS orders and bank messages do not apply.</p>
 					<p class="back-to-top"><a href="#top">Back to top</a></p>
 				</section>
 

@@ -88,7 +88,7 @@ class BankAccessServiceIntegrationTest {
 
 		assertNotNull(initializedAccess);
 		assertEquals(bankAccess.getId(), initializedAccess.getId());
-		assertEquals("10020030", initializedAccess.getBlz());
+		assertEquals("10020030", initializedAccess.getFints().getBlz());
 		assertSame(pin, initializedAccess.getPin());
 	}
 
@@ -159,10 +159,10 @@ class BankAccessServiceIntegrationTest {
 
 			assertTrue(result);
 			assertEquals(existingAccess.getId(), bankAccess.getId());
-			assertEquals("40050060", bankAccess.getBlz());
+			assertEquals("40050060", bankAccess.getFints().getBlz());
 			assertEquals("Mock Bank", bankAccess.getBankName());
-			assertSame(bpd, bankAccess.getBpd());
-			assertSame(upd, bankAccess.getUpd());
+			assertSame(bpd, bankAccess.getFints().getBpd());
+			assertSame(upd, bankAccess.getFints().getUpd());
 			assertEquals(1, bankAccess.getAccounts().size());
 			assertEquals(konto.iban, bankAccess.getAccounts().get(0).getIban());
 			assertEquals(konto.number, bankAccess.getAccounts().get(0).getNumber());
@@ -206,11 +206,11 @@ class BankAccessServiceIntegrationTest {
 
 			assertTrue(result);
 			assertEquals("Refresh Bank", bankAccess.getBankName());
-			assertEquals("https://fints.example.test", bankAccess.getHbciURL());
-			assertEquals("2", bankAccess.getBpdVersion());
-			assertEquals("3", bankAccess.getUpdVersion());
-			assertSame(bpd, bankAccess.getBpd());
-			assertSame(upd, bankAccess.getUpd());
+			assertEquals("https://fints.example.test", bankAccess.getFints().getHbciURL());
+			assertEquals("2", bankAccess.getFints().getBpdVersion());
+			assertEquals("3", bankAccess.getFints().getUpdVersion());
+			assertSame(bpd, bankAccess.getFints().getBpd());
+			assertSame(upd, bankAccess.getFints().getUpd());
 			assertEquals(1, dbController.getAllByParent(BankAccount.class, bankAccess.getId()).size());
 			assertEquals(1, dbController.getAllByParent(Bpd.class, bankAccess.getId()).size());
 			assertEquals(2, dbController.getAllByParent(Upd.class, bankAccess.getId()).size());

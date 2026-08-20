@@ -17,6 +17,7 @@ public class BankAccount extends Dao implements Serializable, Account<Booking> {
 
 	private Integer bankAccessId;
 	private Integer parentAccountId;
+	private String providerAccountId;
 	private String accountName;
 	private AccountType accountType;
 	private String currency;
@@ -92,6 +93,14 @@ public class BankAccount extends Dao implements Serializable, Account<Booking> {
 
 	public void setParentAccountId(Integer parentAccountId) {
 		this.parentAccountId = parentAccountId;
+	}
+
+	public String getProviderAccountId() {
+		return providerAccountId;
+	}
+
+	public void setProviderAccountId(String providerAccountId) {
+		this.providerAccountId = providerAccountId;
 	}
 
 	public AccountType getAccountType() {

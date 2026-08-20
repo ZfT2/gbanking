@@ -41,12 +41,15 @@ import de.zft2.gbanking.db.dao.BankAccountRetrievalStatus;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.BookingType;
+import de.zft2.gbanking.db.dao.enu.BankAccessType;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.enablebanking.EnablebankingAccountTransactionService;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.hbci.HbciStatusMessageExtractor;
 import de.zft2.gbanking.logging.GBankingLoggingHandler;
 import de.zft2.gbanking.logging.SensitiveDataMasker;
 import de.zft2.gbanking.mapper.HbciMapper;
+import de.zft2.gbanking.paypal.PaypalAccountTransactionService;
 import de.zft2.gbanking.rebooking.MissingRebookingCreationSummary;
 import de.zft2.gbanking.rebooking.RebookingAssignmentSummary;
 import de.zft2.gbanking.service.AbstractDbService;
@@ -83,6 +86,25 @@ public class AccountTransactionService extends AbstractDbService {
 	}
 
 	public AccountTransactionRetrievalResult retrieveAccountTransactionsWithResult(BankAccount bankAccount, char[] pin) {
+		BankAccess configuredAccess = getConfiguredAccess(bankAccount);
+		if (configuredAccess != null && configuredAccess.getAccessType() == BankAccessType.PAYPAL) {
+			return ServiceRegistry.getService(PaypalAccountTransactionService.class).retrieve(bankAccount, pin);
+		}
+		if (configuredAccess != null && configuredAccess.getAccessType() == BankAccessType.ENABLEBANKING) {
+			clearSecret(pin);
+			return ServiceRegistry.getService(EnablebankingAccountTransactionService.class).retrieve(bankAccount);
+		}
+		return retrieveFintsAccountTransactions(bankAccount, pin);
+	}
+
+	private BankAccess getConfiguredAccess(BankAccount bankAccount) {
+		if (bankAccount == null || bankAccount.getBankAccessId() == null || bankAccount.getBankAccessId() <= 0) {
+			return null;
+		}
+		return dbController.getBankAccessById(bankAccount.getBankAccessId());
+	}
+
+	private AccountTransactionRetrievalResult retrieveFintsAccountTransactions(BankAccount bankAccount, char[] pin) {
 		log.info("Starting HBCI account transaction retrieval for account id {}", bankAccount != null ? bankAccount.getId() : null);
 		String bankAccountId = getNullableBankAccountId(bankAccount);
 
@@ -203,14 +225,20 @@ public class AccountTransactionService extends AbstractDbService {
 
 	public AccountTransactionRetrievalResult persistExternalAccountData(BankAccount bankAccount, BigDecimal accountBalance,
 			List<Booking> bookings) {
+		return persistExternalAccountData(bankAccount, Optional.ofNullable(accountBalance), bookings, Optional.empty(), "online");
+	}
+
+	public AccountTransactionRetrievalResult persistExternalAccountData(BankAccount bankAccount, Optional<BigDecimal> accountBalance,
+			List<Booking> bookings, Optional<PendingBookingSnapshot> pendingBookings, String providerName) {
 		return dbController.executeInTransaction(() -> {
 			refreshBankAccount(bankAccount);
 			updatePreviousNewBookings(bankAccount);
-			updateAccountBalance(bankAccount, accountBalance);
-			int newBookingCount = saveOnlineBookingsForAccount(bankAccount, bookings);
-			reconcileAccountBalance(bankAccount, accountBalance);
+			accountBalance.ifPresent(balance -> updateAccountBalance(bankAccount, balance));
+			int newBookingCount = saveOnlineBookingsForAccount(bankAccount, bookings, Source.ONLINE_NEW, providerName);
+			int pendingBookingCount = updatePendingBookings(bankAccount, pendingBookings, providerName);
+			accountBalance.ifPresent(balance -> reconcileAccountBalance(bankAccount, balance));
 
-			AccountTransactionRetrievalResult result = AccountTransactionRetrievalResult.success(newBookingCount, 0);
+			AccountTransactionRetrievalResult result = AccountTransactionRetrievalResult.success(newBookingCount, pendingBookingCount);
 			persistRetrievalStatus(bankAccount, result);
 			return result;
 		});
@@ -222,10 +250,19 @@ public class AccountTransactionService extends AbstractDbService {
 			return (int) getAccountBookings(bankAccount.getId()).stream().filter(this::isPrenotification).count();
 		}
 
-		List<UmsLine> unbookedUms = prenotificationResult.get();
-		deletePreviousPrenotifications(bankAccount);
-		saveHbciBookingsForAccount(bankAccount, unbookedUms, Source.ONLINE_PRENO_NEW);
-		return unbookedUms.size();
+		List<Booking> bookings = mapHbciBookings(bankAccount, prenotificationResult.get(), Source.ONLINE_PRENO_NEW);
+		return updatePendingBookings(bankAccount,
+				Optional.of(new PendingBookingSnapshot(bookings, null)), "HBCI");
+	}
+
+	private int updatePendingBookings(BankAccount bankAccount, Optional<PendingBookingSnapshot> snapshot, String providerName) {
+		if (snapshot.isEmpty()) {
+			return (int) getAccountBookings(bankAccount.getId()).stream().filter(this::isPrenotification).count();
+		}
+		PendingBookingSnapshot pending = snapshot.get();
+		deletePreviousPrenotifications(bankAccount, pending.fromInclusive());
+		saveOnlineBookingsForAccount(bankAccount, pending.bookings(), Source.ONLINE_PRENO_NEW, providerName);
+		return pending.bookings().size();
 	}
 
 	private AccountTransactionRetrievalResult toRetrievalResult(HBCIExecStatus status) {
@@ -239,11 +276,14 @@ public class AccountTransactionService extends AbstractDbService {
 	}
 
 	int saveHbciBookingsForAccount(BankAccount bankAccount, List<UmsLine> buchungen, Source source) {
-		if (buchungen == null || buchungen.isEmpty()) {
-			return 0;
-		}
+		return saveOnlineBookingsForAccount(bankAccount, mapHbciBookings(bankAccount, buchungen, source), source, "HBCI");
+	}
 
+	private List<Booking> mapHbciBookings(BankAccount bankAccount, List<UmsLine> buchungen, Source source) {
 		List<Booking> mappedBookings = new ArrayList<>();
+		if (buchungen == null) {
+			return mappedBookings;
+		}
 		for (UmsLine buchung : buchungen) {
 			logHandler.logRetrivedBookingInfo(buchung);
 			Booking newBooking = HbciMapper.mapUmsLineToBooking(bankAccount.getId(), buchung, source);
@@ -254,11 +294,7 @@ public class AccountTransactionService extends AbstractDbService {
 			newBooking.setRecipient(HbciMapper.mapUmsLineKontoToRecipient(buchung.other));
 			mappedBookings.add(newBooking);
 		}
-		return saveOnlineBookingsForAccount(bankAccount, mappedBookings, source, "HBCI");
-	}
-
-	private int saveOnlineBookingsForAccount(BankAccount bankAccount, List<Booking> bookings) {
-		return saveOnlineBookingsForAccount(bankAccount, bookings, Source.ONLINE_NEW, "online");
+		return mappedBookings;
 	}
 
 	private int saveOnlineBookingsForAccount(BankAccount bankAccount, List<Booking> bookings, Source source, String providerName) {
@@ -273,6 +309,11 @@ public class AccountTransactionService extends AbstractDbService {
 		int skippedDuplicates = 0;
 
 		for (Booking newBooking : bookings) {
+			newBooking.setAccountId(bankAccount.getId());
+			newBooking.setSource(source);
+			if (newBooking.getCurrency() == null) {
+				newBooking.setCurrency(bankAccount.getCurrency());
+			}
 
 			if (bookingDuplicateChecker.isDuplicate(newBooking, duplicateCheckBookings, processedIncomingBookings)) {
 				skippedDuplicates++;
@@ -447,9 +488,11 @@ public class AccountTransactionService extends AbstractDbService {
 		}
 	}
 
-	private void deletePreviousPrenotifications(BankAccount bankAccount) {
+	private void deletePreviousPrenotifications(BankAccount bankAccount, LocalDate fromInclusive) {
 		getAccountBookings(bankAccount.getId()).stream()
 				.filter(this::isPrenotification)
+				.filter(booking -> fromInclusive == null || booking.getDateBooking() == null
+						|| !booking.getDateBooking().isBefore(fromInclusive))
 				.forEach(booking -> dbController.delete(booking, null));
 	}
 

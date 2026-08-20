@@ -1,25 +1,24 @@
-package de.zft2.gbanking.update;
+package de.zft2.gbanking.util;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-final class SimpleJsonParser {
+public final class SimpleJson {
 
 	private final String json;
 	private int index;
 
-	private SimpleJsonParser(String json) {
+	private SimpleJson(String json) {
 		this.json = json;
 	}
 
-	static Object parse(String json) throws UpdateException {
+	public static Object parse(String json) {
 		if (json == null) {
-			throw new UpdateException("JSON input must not be null");
+			throw new IllegalArgumentException("JSON input must not be null");
 		}
-
-		SimpleJsonParser parser = new SimpleJsonParser(json);
+		SimpleJson parser = new SimpleJson(json);
 		Object value = parser.parseValue();
 		parser.skipWhitespace();
 		if (!parser.isEnd()) {
@@ -28,12 +27,90 @@ final class SimpleJsonParser {
 		return value;
 	}
 
-	private Object parseValue() throws UpdateException {
+	public static String write(Object value) {
+		StringBuilder result = new StringBuilder();
+		appendValue(result, value);
+		return result.toString();
+	}
+
+	private static void appendValue(StringBuilder target, Object value) {
+		if (value == null) {
+			target.append("null");
+		} else if (value instanceof String text) {
+			appendString(target, text);
+		} else if (value instanceof Number || value instanceof Boolean) {
+			target.append(value);
+		} else if (value instanceof Map<?, ?> map) {
+			appendMap(target, map);
+		} else if (value instanceof Iterable<?> iterable) {
+			appendIterable(target, iterable);
+		} else {
+			throw new IllegalArgumentException("Unsupported JSON value type: " + value.getClass().getName());
+		}
+	}
+
+	private static void appendMap(StringBuilder target, Map<?, ?> map) {
+		target.append('{');
+		boolean first = true;
+		for (Map.Entry<?, ?> entry : map.entrySet()) {
+			if (!(entry.getKey() instanceof String key)) {
+				throw new IllegalArgumentException("JSON object keys must be strings");
+			}
+			if (!first) {
+				target.append(',');
+			}
+			appendString(target, key);
+			target.append(':');
+			appendValue(target, entry.getValue());
+			first = false;
+		}
+		target.append('}');
+	}
+
+	private static void appendIterable(StringBuilder target, Iterable<?> iterable) {
+		target.append('[');
+		boolean first = true;
+		for (Object item : iterable) {
+			if (!first) {
+				target.append(',');
+			}
+			appendValue(target, item);
+			first = false;
+		}
+		target.append(']');
+	}
+
+	private static void appendString(StringBuilder target, String value) {
+		target.append('"');
+		for (int i = 0; i < value.length(); i++) {
+			char current = value.charAt(i);
+			switch (current) {
+			case '"' -> target.append("\\\"");
+			case '\\' -> target.append("\\\\");
+			case '\b' -> target.append("\\b");
+			case '\f' -> target.append("\\f");
+			case '\n' -> target.append("\\n");
+			case '\r' -> target.append("\\r");
+			case '\t' -> target.append("\\t");
+			default -> appendCharacter(target, current);
+			}
+		}
+		target.append('"');
+	}
+
+	private static void appendCharacter(StringBuilder target, char value) {
+		if (value < 0x20) {
+			target.append(String.format("\\u%04x", (int) value));
+		} else {
+			target.append(value);
+		}
+	}
+
+	private Object parseValue() {
 		skipWhitespace();
 		if (isEnd()) {
 			throw error("Unexpected end of JSON");
 		}
-
 		return switch (peek()) {
 		case '{' -> parseObject();
 		case '[' -> parseArray();
@@ -45,14 +122,13 @@ final class SimpleJsonParser {
 		};
 	}
 
-	private Map<String, Object> parseObject() throws UpdateException {
+	private Map<String, Object> parseObject() {
 		expect('{');
 		Map<String, Object> object = new LinkedHashMap<>();
 		skipWhitespace();
 		if (consumeIf('}')) {
 			return object;
 		}
-
 		while (true) {
 			skipWhitespace();
 			String key = parseString();
@@ -67,14 +143,13 @@ final class SimpleJsonParser {
 		}
 	}
 
-	private List<Object> parseArray() throws UpdateException {
+	private List<Object> parseArray() {
 		expect('[');
 		List<Object> array = new ArrayList<>();
 		skipWhitespace();
 		if (consumeIf(']')) {
 			return array;
 		}
-
 		while (true) {
 			array.add(parseValue());
 			skipWhitespace();
@@ -85,7 +160,7 @@ final class SimpleJsonParser {
 		}
 	}
 
-	private String parseString() throws UpdateException {
+	private String parseString() {
 		expect('"');
 		StringBuilder value = new StringBuilder();
 		while (!isEnd()) {
@@ -97,7 +172,6 @@ final class SimpleJsonParser {
 				value.append(current);
 				continue;
 			}
-
 			if (isEnd()) {
 				throw error("Incomplete JSON escape sequence");
 			}
@@ -116,7 +190,7 @@ final class SimpleJsonParser {
 		throw error("Unterminated JSON string");
 	}
 
-	private char parseUnicodeEscape() throws UpdateException {
+	private char parseUnicodeEscape() {
 		if (index + 4 > json.length()) {
 			throw error("Incomplete JSON unicode escape");
 		}
@@ -124,12 +198,12 @@ final class SimpleJsonParser {
 		index += 4;
 		try {
 			return (char) Integer.parseInt(hex, 16);
-		} catch (NumberFormatException e) {
+		} catch (NumberFormatException exception) {
 			throw error("Invalid JSON unicode escape: " + hex);
 		}
 	}
 
-	private Object parseNumber() throws UpdateException {
+	private Number parseNumber() {
 		int start = index;
 		if (peek() == '-') {
 			index++;
@@ -149,15 +223,13 @@ final class SimpleJsonParser {
 			}
 			consumeDigits();
 		}
-
 		if (start == index) {
 			throw error("Expected JSON value");
 		}
-
 		String number = json.substring(start, index);
 		try {
 			return floatingPoint ? (Number) Double.valueOf(number) : Long.valueOf(number);
-		} catch (NumberFormatException e) {
+		} catch (NumberFormatException exception) {
 			throw error("Invalid JSON number: " + number);
 		}
 	}
@@ -168,7 +240,7 @@ final class SimpleJsonParser {
 		}
 	}
 
-	private Object parseLiteral(String literal, Object value) throws UpdateException {
+	private Object parseLiteral(String literal, Object value) {
 		if (!json.startsWith(literal, index)) {
 			throw error("Expected JSON literal " + literal);
 		}
@@ -182,7 +254,7 @@ final class SimpleJsonParser {
 		}
 	}
 
-	private void expect(char expected) throws UpdateException {
+	private void expect(char expected) {
 		if (isEnd() || next() != expected) {
 			throw error("Expected '" + expected + "'");
 		}
@@ -208,7 +280,7 @@ final class SimpleJsonParser {
 		return index >= json.length();
 	}
 
-	private UpdateException error(String message) {
-		return new UpdateException(message + " at JSON position " + index);
+	private IllegalArgumentException error(String message) {
+		return new IllegalArgumentException(message + " at JSON position " + index);
 	}
 }

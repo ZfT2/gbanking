@@ -12,6 +12,7 @@ CREATE TABLE bankAccount (
   id INTEGER PRIMARY KEY,
   bankAccess_id INTEGER,
   parentAccount_id INTEGER,
+  providerAccountId TEXT,
   accountName TEXT NOT NULL,
   currency TEXT NOT NULL,
   accountType INTEGER NOT NULL,

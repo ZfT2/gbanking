@@ -16,6 +16,7 @@ import de.zft2.gbanking.db.dao.BusinessCase;
 import de.zft2.gbanking.db.dao.ParameterDataBankAccess;
 import de.zft2.gbanking.db.dao.Upd;
 import de.zft2.gbanking.db.dao.enu.AccountState;
+import de.zft2.gbanking.db.dao.enu.BankAccessType;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.paypal.PaypalSupport;
 import de.zft2.gbanking.service.moneytransfer.BankOrderOperation;
@@ -85,7 +86,7 @@ public class BankingCapabilityService extends AbstractDbService {
 		BankAccount resolvedAccount = resolveFullAccount(bankAccount);
 		if (hasUsableBankAccess(resolvedAccount)) {
 			BankAccess bankAccess = dbController.getBankAccessById(resolvedAccount.getBankAccessId());
-			if (PaypalSupport.isPaypal(bankAccess)) {
+			if (PaypalSupport.isPaypal(bankAccess) || bankAccess.getAccessType() == BankAccessType.ENABLEBANKING) {
 				return bankAccess.isActive();
 			}
 		}
@@ -104,7 +105,16 @@ public class BankingCapabilityService extends AbstractDbService {
 
 	public boolean supportsBankMessages(BankAccess bankAccess) {
 		BankAccess resolvedAccess = resolveBankAccess(bankAccess);
-		return hasUsableBankAccess(resolvedAccess) && !PaypalSupport.isPaypal(resolvedAccess);
+		return hasUsableBankAccess(resolvedAccess) && resolvedAccess.getAccessType() == BankAccessType.HBCI;
+	}
+
+	public boolean requiresInteractiveCredential(BankAccount bankAccount) {
+		BankAccount resolvedAccount = resolveFullAccount(bankAccount);
+		if (!hasUsableBankAccess(resolvedAccount)) {
+			return true;
+		}
+		BankAccess bankAccess = dbController.getBankAccessById(resolvedAccount.getBankAccessId());
+		return bankAccess == null || bankAccess.getAccessType() != BankAccessType.ENABLEBANKING;
 	}
 
 	private boolean isAvailable(BankAccount bankAccount, Capability capability) {

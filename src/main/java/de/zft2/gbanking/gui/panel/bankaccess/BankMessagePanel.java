@@ -126,7 +126,7 @@ public class BankMessagePanel extends DetailListPane implements BaseMessagesBean
 
 	private char[] requestPin() {
 		PinAskDialog pinWindow = new PinAskDialog(getOwnerWindow());
-		pinWindow.setBankInfo(currentBankAccess.getBlz(), currentBankAccess.getBankName());
+		pinWindow.setBankInfo(currentBankAccess.getFints().getBlz(), currentBankAccess.getBankName());
 		Stage pinDialog = pinWindow.createNewPinAskDialog();
 		pinDialog.showAndWait();
 		return pinWindow.getPin();

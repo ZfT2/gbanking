@@ -104,10 +104,11 @@ public class BankAccessDialogHolder extends BasePanel {
 		TextField apiSignatureText = new PasswordField();
 
 		if (buttonContext == ButtonContext.BUTTON_EDIT && currentBankAccess != null) {
-			bankCombo.getEditor().setText(PaypalSupport.isPaypal(currentBankAccess) ? PaypalSupport.DISPLAY_NAME : currentBankAccess.getBlz());
-			userNameText.setText(currentBankAccess.getUserId());
-			apiUsernameText.setText(currentBankAccess.getPaypalApiUsername());
-			apiSignatureText.setText(currentBankAccess.getPaypalApiSignature());
+			boolean paypal = PaypalSupport.isPaypal(currentBankAccess);
+			bankCombo.getEditor().setText(paypal ? PaypalSupport.DISPLAY_NAME : currentBankAccess.getFints().getBlz());
+			userNameText.setText(paypal ? currentBankAccess.getPaypal().getUserId() : currentBankAccess.getFints().getUserId());
+			apiUsernameText.setText(currentBankAccess.getPaypal().getApiUsername());
+			apiSignatureText.setText(currentBankAccess.getPaypal().getApiSignature());
 		}
 
 		Label userLabel = new Label();
@@ -158,13 +159,15 @@ public class BankAccessDialogHolder extends BasePanel {
 	private BankAccess createBankAccess(CredentialFields fields, String bankChoice, boolean paypal) {
 		BankAccess bankAccess = new BankAccess();
 		bankAccess.setAccessType(paypal ? BankAccessType.PAYPAL : BankAccessType.HBCI);
-		bankAccess.setBlz(paypal ? PaypalSupport.BANK_CODE : bankChoice.trim());
-		bankAccess.setUserId(fields.userName().getText());
 		bankAccess.setPin(fields.pin().getText().toCharArray());
-		bankAccess.setTanProcedure(TanProcedure.APP_TAN);
 		if (paypal) {
-			bankAccess.setPaypalApiUsername(fields.apiUsername().getText().trim());
-			bankAccess.setPaypalApiSignature(fields.apiSignature().getText().trim());
+			bankAccess.getPaypal().setUserId(fields.userName().getText());
+			bankAccess.getPaypal().setApiUsername(fields.apiUsername().getText().trim());
+			bankAccess.getPaypal().setApiSignature(fields.apiSignature().getText().trim());
+		} else {
+			bankAccess.getFints().setBlz(bankChoice.trim());
+			bankAccess.getFints().setUserId(fields.userName().getText());
+			bankAccess.getFints().setTanProcedure(TanProcedure.APP_TAN);
 		}
 		return bankAccess;
 	}
@@ -329,8 +332,16 @@ public class BankAccessDialogHolder extends BasePanel {
 	}
 
 	private GridPane createBankAccessInfoGrid() {
-		Label blzValue = new Label(currentBankAccess != null ? nullToEmpty(currentBankAccess.getBlz()) : "");
-		Label userValue = new Label(currentBankAccess != null ? nullToEmpty(currentBankAccess.getUserId()) : "");
+		String identifier = currentBankAccess == null ? null : switch (currentBankAccess.getAccessType()) {
+		case HBCI -> currentBankAccess.getFints().getBlz();
+		case PAYPAL -> PaypalSupport.DISPLAY_NAME;
+		case ENABLEBANKING -> currentBankAccess.getEnablebanking().getAspspName();
+		};
+		String userId = currentBankAccess == null ? null
+				: currentBankAccess.getAccessType() == BankAccessType.PAYPAL ? currentBankAccess.getPaypal().getUserId()
+						: currentBankAccess.getFints().getUserId();
+		Label blzValue = new Label(nullToEmpty(identifier));
+		Label userValue = new Label(nullToEmpty(userId));
 
 		GridPane grid = createDefaultGrid();
 		grid.setPadding(Insets.EMPTY);

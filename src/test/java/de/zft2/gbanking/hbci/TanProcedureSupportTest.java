@@ -57,7 +57,7 @@ class TanProcedureSupportTest {
 	@Test
 	void resolveTanMethodCodeShouldUseBankSupportedCodeForSelectedProcedure() {
 		BankAccess access = createAccess(TanProcedure.PHOTO_TAN, List.of("902"));
-		access.setBpd(toProperties(tan2StepParams("902", "photoTAN")));
+		access.getFints().setBpd(toProperties(tan2StepParams("902", "photoTAN")));
 
 		assertEquals("902", TanProcedureSupport.resolveTanMethodCode(access).orElseThrow());
 	}
@@ -65,15 +65,15 @@ class TanProcedureSupportTest {
 	@Test
 	void resolveProcedureForCodeShouldUseParameterDescriptionWhenCodeIsAmbiguous() {
 		BankAccess access = createAccess(null, List.of("920"));
-		access.setBpd(toProperties(tan2StepParams("920", "BestSign")));
+		access.getFints().setBpd(toProperties(tan2StepParams("920", "BestSign")));
 
 		assertEquals(TanProcedure.BESTSIGN, TanProcedureSupport.resolveProcedureForCode("920", access).orElseThrow());
 	}
 
 	private BankAccess createAccess(TanProcedure tanProcedure, List<String> allowedTwostepMechanisms) {
 		BankAccess access = new BankAccess();
-		access.setTanProcedure(tanProcedure);
-		access.setAllowedTwostepMechanisms(allowedTwostepMechanisms);
+		access.getFints().setTanProcedure(tanProcedure);
+		access.getFints().setAllowedTwostepMechanisms(allowedTwostepMechanisms);
 		return access;
 	}
 

@@ -27,7 +27,7 @@
 					<li><a href="#start">Start und Mandanten</a></li>
 					<li><a href="#verschluesselung">Verschlüsselung und Risiken</a></li>
 					<li><a href="#navigation">Bedienung und Navigation</a></li>
-					<li><a href="#bankzugaenge">Bankzugänge und PayPal</a></li>
+					<li><a href="#bankzugaenge">Bankzugänge, Enablebanking und PayPal</a></li>
 					<li><a href="#konten">Konten</a></li>
 					<li><a href="#umsaetze">Umsätze</a></li>
 					<li><a href="#kontoauszuege">Kontoauszüge und Banknachrichten</a></li>
@@ -48,7 +48,7 @@
 			<main id="inhalt">
 				<section id="ueberblick">
 					<h2>1. Überblick</h2>
-					<p class="lead">GBanking ist eine Desktop-Anwendung zur Verwaltung von Bankkonten, Umsätzen, Empfängern, Kategorien und Zahlungsaufträgen. Online-Banking erfolgt über FinTS/HBCI; PayPal-Konten können über die PayPal-Schnittstelle angebunden werden.</p>
+					<p class="lead">GBanking ist eine Desktop-Anwendung zur Verwaltung von Bankkonten, Umsätzen, Empfängern, Kategorien und Zahlungsaufträgen. Online-Banking erfolgt über FinTS/HBCI oder für Kontoumsätze über Enablebanking (PSD2); PayPal-Konten können über die PayPal-Schnittstelle angebunden werden.</p>
 					<div class="card-grid">
 						<div class="card"><h3>Informieren</h3><p>Kontostände, Umsätze, Kontoauszüge und Banknachrichten gesammelt einsehen.</p></div>
 						<div class="card"><h3>Ordnen</h3><p>Umsätze filtern, kategorisieren, aufteilen, markieren und als Umbuchungen verbinden.</p></div>
@@ -122,16 +122,50 @@
 				</section>
 
 				<section id="bankzugaenge">
-					<h2>5. Bankzugänge und PayPal</h2>
-					<p>Unter <strong>Bearbeiten &gt; Bankzugänge</strong> richten Sie den Zugang zu einer Bank oder zu PayPal ein. Ein FinTS/HBCI-Zugang enthält unter anderem Bankleitzahl, Benutzerkennung, FinTS-Adresse, Version und TAN-Verfahren. Beim Einrichten oder Aktualisieren fragt GBanking die Bankparameter (BPD), Benutzerparameter (UPD) und zugehörigen Konten ab.</p>
+					<h2>5. Bankzugänge, Enablebanking und PayPal</h2>
+					<p>Unter <strong>Bearbeiten &gt; Bankzugänge</strong> richten Sie einen FinTS/HBCI-Zugang, einen Enablebanking-Zugang oder eine PayPal-Verbindung ein.</p>
+					<h3>FinTS/HBCI</h3>
+					<p>Ein FinTS/HBCI-Zugang enthält unter anderem Bankleitzahl, Benutzerkennung, FinTS-Adresse, Version und TAN-Verfahren. Beim Einrichten oder Aktualisieren fragt GBanking die Bankparameter (BPD), Benutzerparameter (UPD) und zugehörigen Konten ab.</p>
 					<ul>
 						<li><strong>BPD/UPD aktualisieren:</strong> Liest Fähigkeiten und Kontoinformationen neu ein.</li>
 						<li><strong>BPD/UPD anzeigen:</strong> Zeigt die von der Bank gelieferten technischen Angaben.</li>
 						<li><strong>Banknachrichten:</strong> Ruft Nachrichten eines FinTS-Zugangs ab und zeigt Text, Typ, Datum und weitere Angaben.</li>
-						<li><strong>PayPal:</strong> Verwendet API-Benutzername, API-Passwort, API-Signatur und E-Mail-Adresse. Damit können PayPal-Konto und PayPal-Umsätze abgerufen werden; FinTS-Aufträge und Banknachrichten gelten dafür nicht.</li>
 					</ul>
 					<p>PIN und TAN werden bei Bedarf in Dialogen abgefragt. Das angebotene Verfahren hängt von den Bankdaten ab, zum Beispiel App-Freigabe, pushTAN, photoTAN oder chipTAN USB. Ein Kartenleser für chipTAN USB kann in den Einstellungen gewählt werden.</p>
 					<div class="warning"><strong>Vor Freigabe prüfen:</strong> Vergleichen Sie Betrag, Empfänger und die Anzeige Ihres TAN-Geräts oder Ihrer Banking-App. GBanking zeigt auch eine von der Bank verlangte Empfängerprüfung vor der Zahlungsfreigabe an.</div>
+
+					<h3>Enablebanking (PSD2) vorbereiten</h3>
+					<p>Enablebanking ermöglicht den Abruf von Kontoständen und Umsätzen bei Banken, die kein FinTS/HBCI anbieten. Für die persönliche Nutzung wird eine eigene Enablebanking-Anwendung benötigt:</p>
+					<ol>
+						<li>Unter <a href="https://enablebanking.com/" target="_blank" rel="noopener noreferrer">enablebanking.com</a> einen Account erstellen.</li>
+						<li>Im Control Panel die Seite <a href="https://enablebanking.com/cp/applications" target="_blank" rel="noopener noreferrer">API Applications</a> aufrufen.</li>
+						<li>Eine neue Anwendung mit folgenden Einstellungen registrieren:
+							<ul>
+								<li><strong>Environment:</strong> Production</li>
+								<li><strong>Key generation:</strong> Generate in the browser</li>
+								<li><strong>Application name:</strong> frei wählbar</li>
+								<li><strong>Allowed redirect URLs:</strong> <code>https://127.0.0.1:18443/callback</code></li>
+								<li><strong>Application description:</strong> <code>Used by GBanking</code></li>
+								<li><strong>Email:</strong> Ihre E-Mail-Adresse</li>
+								<li><strong>Privacy URL:</strong> <a href="https://example.com/" target="_blank" rel="noopener noreferrer">https://example.com/</a></li>
+								<li><strong>Terms URL:</strong> <a href="https://example.com/" target="_blank" rel="noopener noreferrer">https://example.com/</a></li>
+							</ul>
+						</li>
+						<li>Die anschließend heruntergeladene PEM-Datei sicher aufbewahren; sie wird für die Einrichtung in GBanking benötigt.</li>
+						<li>Über <strong>Link Accounts</strong> alle Konten mit der Anwendung verknüpfen, auf die GBanking später zugreifen soll.</li>
+					</ol>
+					<div class="warning"><strong>Privaten Schlüssel schützen:</strong> Die PEM-Datei enthält den privaten Anwendungsschlüssel. Geben Sie sie nicht weiter und bewahren Sie sie außerhalb von GBanking geschützt auf.</div>
+
+					<h3>Enablebanking in GBanking einrichten</h3>
+					<ol>
+						<li>Unter <strong>Bearbeiten &gt; Bankzugänge</strong> auf <strong>Enablebanking...</strong> klicken.</li>
+						<li>Die Application-ID eintragen, die heruntergeladene PEM-Datei auswählen und <strong>Kreditinstitute laden</strong> wählen. Die Callback-URL ist mit <code>https://127.0.0.1:18443/callback</code> vorbelegt und muss mit der Angabe im Enablebanking Control Panel übereinstimmen.</li>
+						<li>Land und Kreditinstitut auswählen oder die Bank über das Suchfeld filtern, die Autorisierung im Browser durchführen, die gewünschten Konten markieren und den Zugang speichern.</li>
+					</ol>
+					<div class="note"><strong>Verknüpfte Konten und Bankliste:</strong> Die Bankliste kann mehr Institute enthalten als im Control Panel verknüpft wurden. Abrufbar sind ausschließlich die unter <strong>Link Accounts</strong> freigegebenen Konten. Bereits über FinTS angebundene Konten haben Vorrang und werden bei der Enablebanking-Einrichtung nicht erneut angeboten.</div>
+
+					<h3>PayPal</h3>
+					<p>Die PayPal-Anbindung verwendet API-Benutzername, API-Passwort, API-Signatur und E-Mail-Adresse. Damit können PayPal-Konto und PayPal-Umsätze abgerufen werden; FinTS-Aufträge und Banknachrichten gelten dafür nicht.</p>
 					<p class="back-to-top"><a href="#top">Nach oben</a></p>
 				</section>
 

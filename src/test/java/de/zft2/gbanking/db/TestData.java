@@ -30,19 +30,19 @@ public class TestData {
 	public static BankAccess createSampleBankAccess(String blz) {
 		BankAccess ba = new BankAccess();
 		ba.setBankName("TestBank-" + blz);
-		ba.setCountry("DE");
-		ba.setBlz(blz);
-		ba.setHbciURL("https://hbci.test/" + blz);
-		ba.setPort(3000);
-		ba.setUserId("user-" + blz);
-		ba.setCustomerId("cust-" + blz);
-		ba.setSysId("sys-" + blz);
-		ba.setTanProcedure(TanProcedure.APP_SECUREGO_PLUS); // beliebiger enum
-		ba.setAllowedTwostepMechanisms(Arrays.asList("SMS", "APP"));
-		ba.setHbciVersion("300");
-		ba.setBpdVersion("1");
-		ba.setUpdVersion("1");
-		ba.setFilterType(HbciEncodingFilterType.NONE);
+		ba.getFints().setCountry("DE");
+		ba.getFints().setBlz(blz);
+		ba.getFints().setHbciURL("https://hbci.test/" + blz);
+		ba.getFints().setPort(3000);
+		ba.getFints().setUserId("user-" + blz);
+		ba.getFints().setCustomerId("cust-" + blz);
+		ba.getFints().setSysId("sys-" + blz);
+		ba.getFints().setTanProcedure(TanProcedure.APP_SECUREGO_PLUS); // beliebiger enum
+		ba.getFints().setAllowedTwostepMechanisms(Arrays.asList("SMS", "APP"));
+		ba.getFints().setHbciVersion("300");
+		ba.getFints().setBpdVersion("1");
+		ba.getFints().setUpdVersion("1");
+		ba.getFints().setFilterType(HbciEncodingFilterType.NONE);
 		ba.setActive(true);
 		LocalDate cal = LocalDate.now(ZoneId.systemDefault());
 		ba.setUpdatedAt(cal);

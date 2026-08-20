@@ -129,9 +129,9 @@ class GBankingBeanServiceMethodsAdditionalTest {
 
 			assertTrue(result);
 			assertEquals(existingAccess.getId(), bankAccess.getId());
-			assertEquals("10020030", bankAccess.getBlz());
-			assertSame(upd, bankAccess.getUpd());
-			assertSame(bpd, bankAccess.getBpd());
+			assertEquals("10020030", bankAccess.getFints().getBlz());
+			assertSame(upd, bankAccess.getFints().getUpd());
+			assertSame(bpd, bankAccess.getFints().getBpd());
 			assertEquals(1, bankAccess.getAccounts().size());
 			assertEquals(konto.iban, bankAccess.getAccounts().get(0).getIban());
 			assertArrayEquals(new char[] { '\0', '\0', '\0', '\0', '\0' }, pin);
@@ -175,10 +175,10 @@ class GBankingBeanServiceMethodsAdditionalTest {
 			boolean result = bankAccessService.refreshBankAccessParameterData(bankAccess, pin);
 
 			assertTrue(result);
-			assertEquals("2", bankAccess.getBpdVersion());
-			assertEquals("3", bankAccess.getUpdVersion());
-			assertSame(bpd, bankAccess.getBpd());
-			assertSame(upd, bankAccess.getUpd());
+			assertEquals("2", bankAccess.getFints().getBpdVersion());
+			assertEquals("3", bankAccess.getFints().getUpdVersion());
+			assertSame(bpd, bankAccess.getFints().getBpd());
+			assertSame(upd, bankAccess.getFints().getUpd());
 			assertEquals(1, bankAccess.getAccounts().size());
 			assertEquals(konto.iban, bankAccess.getAccounts().get(0).getIban());
 			assertEquals(1, dbController.getAllByParent(Bpd.class, bankAccess.getId()).size());

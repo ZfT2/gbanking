@@ -16,6 +16,7 @@ import org.kapott.hbci.manager.HBCIUtilsInternal;
 import de.zft2.gbanking.BaseMessagesDb;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.BankAccess;
+import de.zft2.gbanking.db.dao.BankAccessFints;
 import de.zft2.gbanking.db.dao.Bpd;
 import de.zft2.gbanking.db.dao.ParameterDataBankAccess;
 import de.zft2.gbanking.db.dao.Upd;
@@ -79,29 +80,30 @@ public class HBCIPassportPinTanDB extends HBCIPassportPinTan implements BaseMess
 
 		DBController dbController = getDBController();
 		BankAccess bankAccess = dbController.getBankAccessByBlz(blz);
+		BankAccessFints fints = bankAccess.getFints();
 
-		this.setCountry(bankAccess.getCountry());
-		this.setBLZ(bankAccess.getBlz());
-		String url = bankAccess.getHbciURL();
+		this.setCountry(fints.getCountry());
+		this.setBLZ(fints.getBlz());
+		String url = fints.getHbciURL();
 		this.setHost(url != null && url.startsWith("https://") ? url : "https://" + url);
-		this.setPort(bankAccess.getPort());
+		this.setPort(fints.getPort());
 		
-		String userId = trimToNull(bankAccess.getUserId());
+		String userId = trimToNull(fints.getUserId());
 		this.setUserId(userId);
-		this.setCustomerId(firstNonBlank(bankAccess.getCustomerId(), userId));
-		this.setSysId(firstNonBlank(bankAccess.getSysId(), "0"));
-		this.setHBCIVersion(trimToNull(bankAccess.getHbciVersion()));
+		this.setCustomerId(firstNonBlank(fints.getCustomerId(), userId));
+		this.setSysId(firstNonBlank(fints.getSysId(), "0"));
+		this.setHBCIVersion(trimToNull(fints.getHbciVersion()));
 
 		Properties bpd = toProperties(dbController.getAllByParent(Bpd.class, bankAccess.getId()));
 		Properties upd = toProperties(dbController.getAllByParent(Upd.class, bankAccess.getId()));
-		bankAccess.setBpd(bpd);
-		bankAccess.setUpd(upd);
+		fints.setBpd(bpd);
+		fints.setUpd(upd);
 		this.setBPD(bpd);
 		this.setUPD(upd);
 
-		HbciEncodingFilterType filterType = bankAccess.getFilterType();
+		HbciEncodingFilterType filterType = fints.getFilterType();
 		this.setFilterType(filterType != null ? filterType.getDescription() : HbciEncodingFilterType.BASE64.getDescription());
-		this.setAllowedTwostepMechanisms(nonBlankList(bankAccess.getAllowedTwostepMechanisms()));
+		this.setAllowedTwostepMechanisms(nonBlankList(fints.getAllowedTwostepMechanisms()));
 		this.setCurrentTANMethod(toTanMethod(bankAccess));
 	}
 
@@ -149,26 +151,27 @@ public class HBCIPassportPinTanDB extends HBCIPassportPinTan implements BaseMess
 			if (bankAccess == null) {
 				bankAccess = new BankAccess();
 			}
+			BankAccessFints fints = bankAccess.getFints();
 
-			bankAccess.setCountry(this.getCountry());
-			bankAccess.setBlz(this.getBLZ());
+			fints.setCountry(this.getCountry());
+			fints.setBlz(this.getBLZ());
 			bankAccess.setBankName(this.getInstName() != null ? this.getInstName() : "unbekannt");			
 			
-			bankAccess.setHbciURL(this.getHost());
-			bankAccess.setPort(this.getPort());
+			fints.setHbciURL(this.getHost());
+			fints.setPort(this.getPort());
 			
-			String userId = firstNonBlank(this.getUserId(), bankAccess.getUserId());
-			bankAccess.setUserId(userId);
-			bankAccess.setCustomerId(firstNonBlank(this.getCustomerId(), userId));
-			bankAccess.setSysId(firstNonBlank(this.getSysId(), "0"));
+			String userId = firstNonBlank(this.getUserId(), fints.getUserId());
+			fints.setUserId(userId);
+			fints.setCustomerId(firstNonBlank(this.getCustomerId(), userId));
+			fints.setSysId(firstNonBlank(this.getSysId(), "0"));
 			
-			bankAccess.setBpdVersion(this.getBPDVersion());
-			bankAccess.setUpdVersion(this.getUPDVersion());
-			bankAccess.setBpd(sanitizeProperties(this.getBPD()));
-			bankAccess.setUpd(sanitizeProperties(this.getUPD()));
+			fints.setBpdVersion(this.getBPDVersion());
+			fints.setUpdVersion(this.getUPDVersion());
+			fints.setBpd(sanitizeProperties(this.getBPD()));
+			fints.setUpd(sanitizeProperties(this.getUPD()));
 
-			bankAccess.setHbciVersion(trimToNull(this.getHBCIVersion()));
-			bankAccess.setFilterType(HbciEncodingFilterType.forString(this.getFilterType()));
+			fints.setHbciVersion(trimToNull(this.getHBCIVersion()));
+			fints.setFilterType(HbciEncodingFilterType.forString(this.getFilterType()));
 
 			bankAccess.setActive(true);
 			bankAccess.setUpdatedAt(LocalDate.now(ZoneId.systemDefault()));
@@ -189,14 +192,14 @@ public class HBCIPassportPinTanDB extends HBCIPassportPinTan implements BaseMess
 		
 		final List<String> l = nonBlankList(getAllowedTwostepMechanisms());
 		HBCIUtils.log("saving two step mechs: " + l, HBCIUtils.LOG_DEBUG);
-		bankAccess.setAllowedTwostepMechanisms(l);
+		bankAccess.getFints().setAllowedTwostepMechanisms(l);
 
 		try {
 			final String s = this.getCurrentTANMethod(false);
 			HBCIUtils.log("saving current tan method: " + s, HBCIUtils.LOG_DEBUG);
 			TanProcedure tanProcedure = TanProcedureSupport.resolveProcedureForCode(s, bankAccess).orElse(null);
 			if (tanProcedure != null) {
-				bankAccess.setTanProcedure(tanProcedure);
+				bankAccess.getFints().setTanProcedure(tanProcedure);
 			}
 		} catch (Exception e) {
 			// Nur zur Sicherheit. In der obigen Funktion werden u.U. eine Menge Sachen

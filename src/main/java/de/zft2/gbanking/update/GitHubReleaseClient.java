@@ -11,6 +11,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
+import de.zft2.gbanking.util.SimpleJson;
+
 public class GitHubReleaseClient {
 
 	private static final URI DEFAULT_LATEST_RELEASE_URI = URI.create("https://api.github.com/repos/ZfT2/gbanking/releases/latest");
@@ -47,7 +49,12 @@ public class GitHubReleaseClient {
 	}
 
 	UpdateRelease parseRelease(String json, OperatingSystem operatingSystem) throws UpdateException {
-		Object parsedJson = SimpleJsonParser.parse(json);
+		Object parsedJson;
+		try {
+			parsedJson = SimpleJson.parse(json);
+		} catch (IllegalArgumentException exception) {
+			throw new UpdateException(exception.getMessage(), exception);
+		}
 		if (!(parsedJson instanceof Map<?, ?> root)) {
 			throw new UpdateException("GitHub release response is not a JSON object");
 		}

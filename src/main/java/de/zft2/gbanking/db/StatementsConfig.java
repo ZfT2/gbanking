@@ -16,6 +16,7 @@ import static de.zft2.gbanking.db.DaoSqlStatements.MONEY_TRANSFER_FOREIGN_SQL;
 import static de.zft2.gbanking.db.DaoSqlStatements.MONEY_TRANSFER_PROTOCOL_SQL;
 import static de.zft2.gbanking.db.DaoSqlStatements.MONEY_TRANSFER_SQL;
 import static de.zft2.gbanking.db.DaoSqlStatements.PARAMETER_DATA_SQL;
+	import static de.zft2.gbanking.db.DaoSqlStatements.PSD2_CLIENT_CONFIGURATION_SQL;
 import static de.zft2.gbanking.db.DaoSqlStatements.RECIPIENT_SQL;
 import static de.zft2.gbanking.db.DaoSqlStatements.SETTING_SQL;
 import static de.zft2.gbanking.db.DaoSqlStatements.UPD_SQL;
@@ -43,6 +44,7 @@ import de.zft2.gbanking.db.dao.MoneyTransferForeign;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.ParameterData;
 import de.zft2.gbanking.db.dao.ParameterDataBankAccess;
+import de.zft2.gbanking.db.dao.Psd2ClientConfiguration;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.db.dao.Upd;
@@ -77,6 +79,7 @@ import de.zft2.gbanking.db.dao.mapper.MoneytransferMapper;
 import de.zft2.gbanking.db.dao.mapper.MtoNTableMapper;
 import de.zft2.gbanking.db.dao.mapper.ParameterDataBankAccessMapper;
 import de.zft2.gbanking.db.dao.mapper.ParameterDataMapper;
+import de.zft2.gbanking.db.dao.mapper.Psd2ClientConfigurationMapper;
 import de.zft2.gbanking.db.dao.mapper.RecipientMapper;
 import de.zft2.gbanking.db.dao.mapper.SettingMapper;
 import de.zft2.gbanking.db.dao.mapper.UpdMapper;
@@ -180,6 +183,13 @@ public final class StatementsConfig {
                     Booking.class,
                     null,
 					BANK_ACCOUNT_SQL)),
+
+			Map.entry(Psd2ClientConfiguration.class, new DaoMetadata<>(
+					new Psd2ClientConfigurationMapper(),
+					new StatementsLogicDefault<>(),
+					null,
+					null,
+					PSD2_CLIENT_CONFIGURATION_SQL)),
 
             Map.entry(BankAccountStatement.class, new DaoMetadata<>(
                     new BankAccountStatementMapper(),
@@ -310,7 +320,8 @@ public final class StatementsConfig {
     );
 
 	private static final Map<Class<? extends Dao>, String> SELECT_BY_ID_SQL = Map.ofEntries(
-			Map.entry(BankAccess.class, "SELECT * FROM bankAccess WHERE id = ?"),
+			Map.entry(BankAccess.class, DaoSqlStatements.SQL_SELECT_BANKACCESS_BY_ID),
+			Map.entry(Psd2ClientConfiguration.class, "SELECT * FROM psd2ClientConfiguration WHERE id = ?"),
 			Map.entry(BankAccount.class, "SELECT * FROM bankAccount WHERE id = ?"),
 			Map.entry(BankAccountStatement.class, "SELECT * FROM bankAccountStatement WHERE id = ?"),
 			Map.entry(BankMessage.class, "SELECT * FROM bankMessage WHERE id = ?"),

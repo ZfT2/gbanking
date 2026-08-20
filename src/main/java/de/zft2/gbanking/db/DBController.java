@@ -507,9 +507,15 @@ public class DBController extends DbExecutor {
 
 	public BankAccess getBankAccessByBlzAndUserId(String blz, String userId) {
 		return withDbAccess(() -> {
-			try (PreparedStatement ps = connection.prepareStatement(DaoSqlStatements.SQL_SELECT_BANKACCESS_BY_BLZ_AND_USER_ID)) {
-				ps.setString(1, blz);
-				ps.setString(2, userId);
+			boolean paypal = "PAYPAL".equalsIgnoreCase(blz);
+			String sql = paypal ? DaoSqlStatements.SQL_SELECT_BANKACCESS_PAYPAL_BY_USER_ID
+					: DaoSqlStatements.SQL_SELECT_BANKACCESS_BY_BLZ_AND_USER_ID;
+			try (PreparedStatement ps = connection.prepareStatement(sql)) {
+				int index = 1;
+				if (!paypal) {
+					ps.setString(index++, blz);
+				}
+				ps.setString(index, userId);
 				try (ResultSet rs = ps.executeQuery()) {
 					return rs.next() ? (BankAccess) StatementsResultMapper.toDao(BankAccess.class, rs, ResultType.WITHOUT_RELATIONS) : null;
 				}

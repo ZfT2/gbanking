@@ -57,10 +57,10 @@
 		try {
 			
 			bankAccess.setBankName("Bank12");
-			bankAccess.setHbciURL("https://Bank12.de/hbci");
-			bankAccess.setBpdVersion("0.1");
-			bankAccess.setUpdVersion("0.2");
-			bankAccess.setUserId("boener02");
+			bankAccess.getFints().setHbciURL("https://Bank12.de/hbci");
+			bankAccess.getFints().setBpdVersion("0.1");
+			bankAccess.getFints().setUpdVersion("0.2");
+			bankAccess.getFints().setUserId("boener02");
 			bankAccess.setUpdatedAt(Calendar.getInstance());
 
 			Konto[] konten = getAccountsMock();
@@ -95,8 +95,8 @@
 			bpd.put("bpdK01", "VB01");
 			bpd.put("bpdK02", "VB02");
 			
-			bankAccess.setUpd(upd);
-			bankAccess.setBpd(bpd);
+			bankAccess.getFints().setUpd(upd);
+			bankAccess.getFints().setBpd(bpd);
 			bankAccess.setAccounts(bankAccountList);
 			
 			HBCIExecStatus status  = new HBCIExecStatus();
