@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedConstruction;
 
+import de.zft2.gbanking.gui.JavaFxTestSupport;
 import de.zft2.gbanking.gui.progress.InstituteFileImportProgressBarPanel;
 import de.zft2.gbanking.service.institute.InstituteImportService;
 import de.zft2.gbanking.service.institute.InstituteImportService.ImportDefinition;
@@ -29,28 +30,30 @@ class GBankingServiceStartupTest {
 
 	@Test
 	void shouldShowInstituteImportsSequentiallyWithSameOwner() {
-		Window owner = mock(Window.class);
-		List<ImportDefinition> importDefinitions = new InstituteImportService().getDefaultImports();
-		List<Stage> progressWindows = new ArrayList<>();
-		List<Object> constructorOwners = new ArrayList<>();
+		JavaFxTestSupport.runFx(() -> {
+			Window owner = mock(Window.class);
+			List<ImportDefinition> importDefinitions = new InstituteImportService().getDefaultImports();
+			List<Stage> progressWindows = new ArrayList<>();
+			List<Object> constructorOwners = new ArrayList<>();
 
-		try (MockedConstruction<InstituteFileImportProgressBarPanel> panels = mockConstruction(
-				InstituteFileImportProgressBarPanel.class, (panel, context) -> {
-					Stage progressWindow = createProgressWindow(panel);
-					progressWindows.add(progressWindow);
-					constructorOwners.add(context.arguments().get(1));
-				})) {
-			GBankingService.showInstituteImportsSequentially(owner, importDefinitions);
+			try (MockedConstruction<InstituteFileImportProgressBarPanel> panels = mockConstruction(
+					InstituteFileImportProgressBarPanel.class, (panel, context) -> {
+						Stage progressWindow = createProgressWindow(panel);
+						progressWindows.add(progressWindow);
+						constructorOwners.add(context.arguments().get(1));
+					})) {
+				GBankingService.showInstituteImportsSequentially(owner, importDefinitions);
 
-			assertEquals(importDefinitions.size(), panels.constructed().size());
-			for (int index = 0; index < importDefinitions.size(); index++) {
-				InstituteFileImportProgressBarPanel panel = panels.constructed().get(index);
-				ImportDefinition importDefinition = importDefinitions.get(index);
-				assertSame(owner, constructorOwners.get(index));
-				verify(progressWindows.get(index)).showAndWait();
-				verify(panel).startTask(importDefinition.fileName(), null, null);
+				assertEquals(importDefinitions.size(), panels.constructed().size());
+				for (int index = 0; index < importDefinitions.size(); index++) {
+					InstituteFileImportProgressBarPanel panel = panels.constructed().get(index);
+					ImportDefinition importDefinition = importDefinitions.get(index);
+					assertSame(owner, constructorOwners.get(index));
+					verify(progressWindows.get(index)).showAndWait();
+					verify(panel).startTask(importDefinition.fileName(), null, null);
+				}
 			}
-		}
+		});
 	}
 
 	private static Stage createProgressWindow(InstituteFileImportProgressBarPanel panel) {
