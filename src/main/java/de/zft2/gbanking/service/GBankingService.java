@@ -7,14 +7,15 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.dao.BankAccount;
+import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.progress.InstituteFileImportProgressBarPanel;
 import de.zft2.gbanking.service.account.AccountTransactionService;
 import de.zft2.gbanking.service.booking.BookingCategoryService;
 import de.zft2.gbanking.service.institute.InstituteImportService.ImportDefinition;
 import de.zft2.gbanking.service.institute.InstituteImportService;
 import javafx.application.Platform;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 
 public class GBankingService extends AbstractDbService implements Serializable {
 
@@ -43,8 +44,8 @@ public class GBankingService extends AbstractDbService implements Serializable {
 		Platform.runLater(() -> {
 			try {
 				startInstituteImportWithProgress();
-			} catch (Exception e) {
-				log.error("Error starting startInstituteImportWithProgress()", e);
+			} catch (RuntimeException exception) {
+				log.error("Could not start institute imports", exception);
 			}
 		});
 
@@ -58,18 +59,27 @@ public class GBankingService extends AbstractDbService implements Serializable {
 	}
 
 	private void startInstituteImportWithProgress() {
-		Stage dialogStage = new Stage();
-		dialogStage.initModality(Modality.APPLICATION_MODAL);
+		Window owner = DialogWindowSupport.findBestOwnerWindow().orElse(null);
+		showInstituteImportsSequentially(owner, instituteImportService.getDefaultImports());
+	}
 
-		for (ImportDefinition importDefinition : instituteImportService.getDefaultImports()) {
-			startInstituteImportWithProgress(dialogStage, importDefinition);
+	static void showInstituteImportsSequentially(Window owner, List<ImportDefinition> importDefinitions) {
+		for (ImportDefinition importDefinition : importDefinitions) {
+			InstituteFileImportProgressBarPanel progressPanel = new InstituteFileImportProgressBarPanel(importDefinition.importType(), owner);
+			Stage progressWindow = progressPanel.createNewFileImportProgressBarWindow();
+			progressWindow.setOnShown(event -> startInstituteImport(progressPanel, progressWindow, importDefinition));
+			progressWindow.showAndWait();
 		}
 	}
 
-	private void startInstituteImportWithProgress(Stage dialogStage, ImportDefinition importDefinition) {
-		InstituteFileImportProgressBarPanel progressPanel = new InstituteFileImportProgressBarPanel(importDefinition.importType(), dialogStage);
-		progressPanel.createNewFileImportProgressBarWindow().show();
-		progressPanel.startTask(importDefinition.fileName(), null, null);
+	private static void startInstituteImport(InstituteFileImportProgressBarPanel progressPanel, Stage progressWindow,
+			ImportDefinition importDefinition) {
+		try {
+			progressPanel.startTask(importDefinition.fileName(), null, null);
+		} catch (RuntimeException exception) {
+			log.error("Could not start institute import for {}", importDefinition.fileName(), exception);
+			progressWindow.close();
+		}
 	}
 
 }
