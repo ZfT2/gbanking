@@ -60,6 +60,13 @@ public class Institute extends Dao implements Serializable {
 	private String schemeLeavingDate;
 	private String schemeOptions;
 
+	/** Reachable data **/
+	private Integer serviceSct;
+	private Integer serviceCor;
+	private Integer serviceCor1;
+	private Integer serviceB2b;
+	private Integer serviceScc;
+
 	public int getImportNumber() {
 		return importNumber;
 	}
@@ -362,6 +369,46 @@ public class Institute extends Dao implements Serializable {
 
 	public void setSchemeOptions(String schemeOptions) {
 		this.schemeOptions = schemeOptions;
+	}
+
+	public Integer getServiceSct() {
+		return serviceSct;
+	}
+
+	public void setServiceSct(Integer serviceSct) {
+		this.serviceSct = serviceSct;
+	}
+
+	public Integer getServiceCor() {
+		return serviceCor;
+	}
+
+	public void setServiceCor(Integer serviceCor) {
+		this.serviceCor = serviceCor;
+	}
+
+	public Integer getServiceCor1() {
+		return serviceCor1;
+	}
+
+	public void setServiceCor1(Integer serviceCor1) {
+		this.serviceCor1 = serviceCor1;
+	}
+
+	public Integer getServiceB2b() {
+		return serviceB2b;
+	}
+
+	public void setServiceB2b(Integer serviceB2b) {
+		this.serviceB2b = serviceB2b;
+	}
+
+	public Integer getServiceScc() {
+		return serviceScc;
+	}
+
+	public void setServiceScc(Integer serviceScc) {
+		this.serviceScc = serviceScc;
 	}
 
 	public IdType getStateType() {

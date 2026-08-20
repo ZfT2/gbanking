@@ -50,6 +50,7 @@ class DbConnectionHandlerInstituteDatabaseTest {
 		assertTrue(tableExists("institute_db", "institute"));
 		assertTrue(tableExists("institute_db", "instituteStatus"));
 		assertTrue(tableExists("institute_db", "importHistory"));
+		assertTrue(tableExists("institute_db", "instituteDbbReachable"));
 		assertEquals(3, countInstituteStatusRows());
 
 		ImportHistory importHistory = dbController.insertOrUpdate(new ImportHistory("shared-test.csv"));
@@ -85,8 +86,8 @@ class DbConnectionHandlerInstituteDatabaseTest {
 		assertTrue(Files.isRegularFile(dataRoot.resolve("institute.db")));
 		assertFalse(Files.exists(tempDir.resolve("work").resolve("institute.db")));
 		assertTrue(countInstituteRows() > 0);
-		assertEquals(Files.size(AppPaths.resolveInApplicationDirectory("data").resolve("institute.db")),
-				Files.size(dataRoot.resolve("institute.db")));
+		assertTrue(Files.size(dataRoot.resolve("institute.db"))
+				>= Files.size(AppPaths.resolveInApplicationDirectory("data").resolve("institute.db")));
 	}
 
 	@Test

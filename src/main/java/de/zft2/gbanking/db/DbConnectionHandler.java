@@ -420,6 +420,8 @@ abstract class DbConnectionHandler {
 			statement.executeUpdate(SqlTemplateRepository.getDdl(currentSql));
 			currentSql = "SQL_SETUP_CREATE_INSTITUTE_EPC";
 			statement.executeUpdate(SqlTemplateRepository.getDdl(currentSql));
+			currentSql = "SQL_SETUP_CREATE_INSTITUTE_DBB_REACHABLE";
+			statement.executeUpdate(SqlTemplateRepository.getDdl(currentSql));
 			currentSql = "SQL_SETUP_CREATE_TRIGGER_INSTITUTEDK_VALIDATE_UNIQUE_BLZ_IMPORTNUMBER_INSERT";
 			statement.executeUpdate(SqlTemplateRepository.getDdl(currentSql));
 			currentSql = "SQL_SETUP_CREATE_TRIGGER_INSTITUTEDK_VALIDATE_UNIQUE_BLZ_IMPORTNUMBER_UPDATE";

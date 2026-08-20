@@ -3,6 +3,7 @@ package de.zft2.gbanking.db.dao.mapper;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 
 import de.zft2.gbanking.db.StatementsConfig.ResultType;
 import de.zft2.gbanking.db.StatementsConfig.StatementType;
@@ -81,6 +82,12 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 		institute.setReadinessDate(rs.getString("readinessDate"));
 		institute.setSchemeLeavingDate(rs.getString("schemeLeavingDate"));
 		institute.setSchemeOptions(rs.getString("schemeOptions"));
+
+		institute.setServiceSct(getIntegerNullable("serviceSct", rs));
+		institute.setServiceCor(getIntegerNullable("serviceCor", rs));
+		institute.setServiceCor1(getIntegerNullable("serviceCor1", rs));
+		institute.setServiceB2b(getIntegerNullable("serviceB2b", rs));
+		institute.setServiceScc(getIntegerNullable("serviceScc", rs));
 	}
 
 	public boolean hasDkData(Institute institute) {
@@ -96,6 +103,11 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 	public boolean hasEpcData(Institute institute) {
 		return hasText(institute.getCountry()) || hasText(institute.getAddress()) || hasText(institute.getReadinessDate())
 				|| hasText(institute.getSchemeLeavingDate()) || hasText(institute.getSchemeOptions());
+	}
+
+	public boolean hasDbbReachableData(Institute institute) {
+		return institute.getServiceSct() != null || institute.getServiceCor() != null || institute.getServiceCor1() != null
+				|| institute.getServiceB2b() != null || institute.getServiceScc() != null;
 	}
 
 	public void setParamsDK(Institute institute, StatementType statementType, PreparedStatement ps) throws SQLException {
@@ -156,6 +168,21 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 		ps.setString(index++, institute.getReadinessDate());
 		ps.setString(index++, institute.getSchemeLeavingDate());
 		ps.setString(index++, institute.getSchemeOptions());
+		ps.setTimestamp(index++, TypeConverter.toSqlTimestampNow());
+
+		if (statementType == StatementType.UPDATE)
+			checkAndSetId(institute, ps, index);
+	}
+
+	public void setParamsDbbReachable(Institute institute, StatementType statementType, PreparedStatement ps) throws SQLException {
+		int index = 1;
+
+		ps.setInt(index++, institute.getId());
+		ps.setObject(index++, institute.getServiceSct(), Types.INTEGER);
+		ps.setObject(index++, institute.getServiceCor(), Types.INTEGER);
+		ps.setObject(index++, institute.getServiceCor1(), Types.INTEGER);
+		ps.setObject(index++, institute.getServiceB2b(), Types.INTEGER);
+		ps.setObject(index++, institute.getServiceScc(), Types.INTEGER);
 		ps.setTimestamp(index++, TypeConverter.toSqlTimestampNow());
 
 		if (statementType == StatementType.UPDATE)

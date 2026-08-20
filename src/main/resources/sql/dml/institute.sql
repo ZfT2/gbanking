@@ -3,6 +3,7 @@ importNumber, blz, bic, bankName, place,
 dataCenter, organisation, hbciDns, hbciIp, hbciVersion, ddv, rdh1, rdh2, rdh3, rdh4, rdh5, rdh6, rdh7, rdh8, rdh9, rdh10, pinUrl, version, lastChanged, 
 datasetNumber, feature, postcode, bankNameShort, pan, checkdigitMethod, featureChange, blzDeletion, blzSuccession, 
 country, address, readinessDate, schemeLeavingDate, schemeOptions,
+serviceSct, serviceCor, serviceCor1, serviceB2b, serviceScc,
 stateType, importFile, ih.importFileName;
 
 [SQL_SELECT_ALL_INSTITUTES]
@@ -11,6 +12,7 @@ FROM institute_db.institute i
 LEFT JOIN institute_db.instituteDk idk ON idk.institute_id = i.id
 LEFT JOIN institute_db.instituteDbb idbb ON idbb.institute_id = i.id
 LEFT JOIN institute_db.instituteEpc iepc ON iepc.institute_id = i.id
+LEFT JOIN institute_db.instituteDbbReachable idr ON idr.institute_id = i.id
 LEFT JOIN institute_db.importHistory ih ON ih.id = i.importFile
 ORDER BY i.id, idk.importNumber ASC;
 
@@ -70,6 +72,17 @@ ON CONFLICT(institute_id) DO UPDATE SET
     schemeOptions = excluded.schemeOptions,
     updatedAt = excluded.updatedAt;
 
+[SQL_INSERT_INSTITUTE_DBB_REACHABLE]
+INSERT INTO instituteDbbReachable (institute_id, serviceSct, serviceCor, serviceCor1, serviceB2b, serviceScc, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(institute_id) DO UPDATE SET
+    serviceSct = excluded.serviceSct,
+    serviceCor = excluded.serviceCor,
+    serviceCor1 = excluded.serviceCor1,
+    serviceB2b = excluded.serviceB2b,
+    serviceScc = excluded.serviceScc,
+    updatedAt = excluded.updatedAt;
+
 [SQL_UPDATE_INSTIUTE]
 UPDATE institute_db.institute SET blz = ?, bic = ?, bankName = ?, place = ?, stateType = ?, importFile = ?, updatedAt = ?
 WHERE id = ?;
@@ -86,6 +99,10 @@ WHERE institute_id = ?;
 UPDATE institute_db.instituteEpc SET institute_id = ?, country = ?, address = ?, readinessDate = ?, schemeLeavingDate = ?, schemeOptions = ?, updatedAt = ?
 WHERE institute_id = ?;
 
+[SQL_UPDATE_INSTITUTE_DBB_REACHABLE]
+UPDATE institute_db.instituteDbbReachable SET institute_id = ?, serviceSct = ?, serviceCor = ?, serviceCor1 = ?, serviceB2b = ?, serviceScc = ?, updatedAt = ?
+WHERE institute_id = ?;
+
 [SQL_DELETE_INSTITUTE_DK]
 DELETE FROM instituteDk WHERE institute_id = ?;
 
@@ -94,3 +111,6 @@ DELETE FROM instituteDbb WHERE institute_id = ?;
 
 [SQL_DELETE_INSTITUTE_EPC]
 DELETE FROM instituteEpc WHERE institute_id = ?;
+
+[SQL_DELETE_INSTITUTE_DBB_REACHABLE]
+DELETE FROM instituteDbbReachable WHERE institute_id = ?;

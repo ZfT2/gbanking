@@ -127,6 +127,24 @@ CREATE TABLE IF NOT EXISTS institute_db.instituteEpc (
   FOREIGN KEY(institute_id) REFERENCES institute(id) ON DELETE CASCADE);
 ;
 
+[SQL_SETUP_CREATE_INSTITUTE_DBB_REACHABLE]
+CREATE TABLE IF NOT EXISTS institute_db.instituteDbbReachable (
+  id INTEGER PRIMARY KEY,
+  institute_id INTEGER NOT NULL UNIQUE,
+  serviceSct INTEGER NOT NULL,
+  serviceCor INTEGER NOT NULL,
+  serviceCor1 INTEGER NOT NULL,
+  serviceB2b INTEGER NOT NULL,
+  serviceScc INTEGER NOT NULL,
+  updatedAt TEXT NOT NULL,
+  FOREIGN KEY(institute_id) REFERENCES institute(id) ON DELETE CASCADE,
+  CHECK (serviceSct IN (0, 1)),
+  CHECK (serviceCor IN (0, 1)),
+  CHECK (serviceCor1 IN (0, 1)),
+  CHECK (serviceB2b IN (0, 1)),
+  CHECK (serviceScc IN (0, 1)));
+;
+
 [SQL_SETUP_CREATE_TRIGGER_INSTITUTEDK_VALIDATE_UNIQUE_BLZ_IMPORTNUMBER_INSERT]
 CREATE TRIGGER IF NOT EXISTS institute_db.instituteDk_unique_blz_importNumber_insert
 BEFORE INSERT ON instituteDk

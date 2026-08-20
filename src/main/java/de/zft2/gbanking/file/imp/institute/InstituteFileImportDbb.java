@@ -49,7 +49,14 @@ public class InstituteFileImportDbb extends InstituteFileImport {
 		existing.setBic(imported.getBic());
 		existing.setBankName(imported.getBankName());
 		existing.setPlace(imported.getPlace());
-		existing.setLastChanged(imported.getLastChanged());
+		existing.setFeature(imported.getFeature());
+		existing.setPostcode(imported.getPostcode());
+		existing.setBankNameShort(imported.getBankNameShort());
+		existing.setPan(imported.getPan());
+		existing.setCheckdigitMethod(imported.getCheckdigitMethod());
+		existing.setFeatureChange(imported.getFeatureChange());
+		existing.setBlzDeletion(imported.getBlzDeletion());
+		existing.setBlzSuccession(imported.getBlzSuccession());
 	}
 
 	@Override

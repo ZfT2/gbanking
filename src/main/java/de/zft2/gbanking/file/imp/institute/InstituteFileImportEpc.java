@@ -53,16 +53,20 @@ public class InstituteFileImportEpc extends InstituteFileImport {
 
 	@Override
 	protected boolean isRelevantCurrentInstitute(Institute institute) {
-		return institute.getBic() != null;
+		return hasText(institute.getCountry()) || hasText(institute.getAddress()) || hasText(institute.getReadinessDate())
+				|| hasText(institute.getSchemeLeavingDate()) || hasText(institute.getSchemeOptions());
 	}
 
 	@Override
 	protected void copyImportedFields(Institute existing, Institute imported) {
-		existing.setDatasetNumber(imported.getDatasetNumber());
 		existing.setBic(imported.getBic());
 		existing.setBankName(imported.getBankName());
 		existing.setPlace(imported.getPlace());
-		existing.setLastChanged(imported.getLastChanged());
+		existing.setCountry(imported.getCountry());
+		existing.setAddress(imported.getAddress());
+		existing.setReadinessDate(imported.getReadinessDate());
+		existing.setSchemeLeavingDate(imported.getSchemeLeavingDate());
+		existing.setSchemeOptions(imported.getSchemeOptions());
 	}
 
 	@Override
@@ -102,6 +106,10 @@ public class InstituteFileImportEpc extends InstituteFileImport {
 
 	static Charset getCharset(Charset charset) {
 		return charset != null ? charset : StandardCharsets.UTF_8;
+	}
+
+	private static boolean hasText(String value) {
+		return value != null && !value.isBlank();
 	}
 
 }

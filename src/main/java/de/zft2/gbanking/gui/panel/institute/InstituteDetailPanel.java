@@ -53,13 +53,15 @@ public class InstituteDetailPanel extends VBox implements BaseMessagesBean {
 		titledPane.setText(getText(UI_DETAILS) + " - " + text(institute.getBankName()));
 		Tab general = createTab(getText("UI_TAB_INSTITUTE_GENERAL"), createGeneralGrid(institute));
 		Tab dbb = createTab("DBB", createDbbGrid(institute));
+		Tab dbbReachable = createTab("DBB Reachable", createDbbReachableGrid(institute));
 		Tab dk = createTab("DK", createDkGrid(institute));
 		Tab epc = createTab("EPC", createEpcGrid(institute));
 		List<InstituteSource> sources = InstituteSource.forInstitute(institute);
 		dbb.setDisable(!sources.contains(InstituteSource.DBB));
+		dbbReachable.setDisable(!sources.contains(InstituteSource.DBB_REACHABLE));
 		dk.setDisable(!sources.contains(InstituteSource.DK));
 		epc.setDisable(!sources.contains(InstituteSource.EPC));
-		tabs.getTabs().setAll(general, dbb, dk, epc);
+		tabs.getTabs().setAll(general, dbb, dbbReachable, dk, epc);
 	}
 
 	private GridPane createGeneralGrid(Institute institute) {
@@ -110,6 +112,17 @@ public class InstituteDetailPanel extends VBox implements BaseMessagesBean {
 		add(grid, "UI_LABEL_RDH_1_TO_5", formatRdh(institute, 0, 5), 2, 2);
 		add(grid, "UI_LABEL_RDH_6_TO_10", formatRdh(institute, 5, 10), 3, 2);
 		addNode(grid, UI_SOURCE_LINK, createSourceLink(InstituteSource.DK), 0, 3);
+		return grid;
+	}
+
+	private GridPane createDbbReachableGrid(Institute institute) {
+		GridPane grid = createGrid();
+		add(grid, "UI_LABEL_SERVICE_SCT", institute.getServiceSct(), 0, 0);
+		add(grid, "UI_LABEL_SERVICE_COR", institute.getServiceCor(), 1, 0);
+		add(grid, "UI_LABEL_SERVICE_COR1", institute.getServiceCor1(), 2, 0);
+		add(grid, "UI_LABEL_SERVICE_B2B", institute.getServiceB2b(), 3, 0);
+		add(grid, "UI_LABEL_SERVICE_SCC", institute.getServiceScc(), 0, 1);
+		addNode(grid, UI_SOURCE_LINK, createSourceLink(InstituteSource.DBB_REACHABLE), 1, 1);
 		return grid;
 	}
 

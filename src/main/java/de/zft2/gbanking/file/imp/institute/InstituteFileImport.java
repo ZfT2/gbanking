@@ -1,5 +1,6 @@
 package de.zft2.gbanking.file.imp.institute;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.charset.Charset;
@@ -21,6 +22,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -64,7 +66,7 @@ public abstract class InstituteFileImport implements BaseMessages {
 	/**
 	 * getInstance for JUnit tests without worker support.
 	 */
-	public static InstituteFileImport getInstance(Class<InstituteFileImportDk> type, String basePath, String fileName) {
+	public static InstituteFileImport getInstance(Class<? extends InstituteFileImport> type, String basePath, String fileName) {
 		return getInstance(type, basePath, fileName, null, null);
 	}
 
@@ -81,6 +83,8 @@ public abstract class InstituteFileImport implements BaseMessages {
 				importType = new InstituteFileImportDbb(basePath, fileName, InstituteFileImportDbb.getCharset(charset), worker);
 			} else if (type == InstituteFileImportEpc.class) {
 				importType = new InstituteFileImportEpc(basePath, fileName, InstituteFileImportEpc.getCharset(charset), worker);
+			} else if (type == InstituteFileImportDbbReachable.class) {
+				importType = new InstituteFileImportDbbReachable(basePath, fileName, InstituteFileImportDbbReachable.getCharset(charset), worker);
 			}
 			return importType;
 		} else {
@@ -91,11 +95,13 @@ public abstract class InstituteFileImport implements BaseMessages {
 	private static InstituteFileImport chooseByDefaultFilename(String fileName, String basePath, Charset charset, BaseWorker worker) {
 		switch (fileName) {
 		case InstituteFileImportDk.DEFAULT_FILENAME:
-			return new InstituteFileImportDk(fileName, basePath, InstituteFileImportDk.getCharset(charset), worker);
+			return new InstituteFileImportDk(basePath, fileName, InstituteFileImportDk.getCharset(charset), worker);
 		case InstituteFileImportDbb.DEFAULT_FILENAME:
-			return new InstituteFileImportDbb(fileName, basePath, InstituteFileImportDbb.getCharset(charset), worker);
+			return new InstituteFileImportDbb(basePath, fileName, InstituteFileImportDbb.getCharset(charset), worker);
 		case InstituteFileImportEpc.DEFAULT_FILENAME:
-			return new InstituteFileImportEpc(fileName, basePath, InstituteFileImportEpc.getCharset(charset), worker);
+			return new InstituteFileImportEpc(basePath, fileName, InstituteFileImportEpc.getCharset(charset), worker);
+		case InstituteFileImportDbbReachable.DEFAULT_FILENAME:
+			return new InstituteFileImportDbbReachable(basePath, fileName, InstituteFileImportDbbReachable.getCharset(charset), worker);
 		default:
 			throw new GBankingException("Unknown default file: " + fileName);
 		}
@@ -155,19 +161,26 @@ public abstract class InstituteFileImport implements BaseMessages {
 	private List<Institute> parseCsv(Path file) throws IOException {
 		List<Institute> importedInstitutes = new ArrayList<>();
 		long totalRows;
-		try (var lineStream = Files.lines(file, charset)) {
-			totalRows = Math.max(1, lineStream.skip(1).count());
+		try (Stream<String> lineStream = Files.lines(file, charset)) {
+			totalRows = Math.max(1, lineStream.skip(getLinesToSkip()).count());
 		}
 
-		try (Reader reader = Files.newBufferedReader(file, charset);
-				CSVParser parser = csvFormat().parse(reader)) {
-			int rowIndex = 0;
-			for (CSVRecord csvRecord : parser) {
-				rowIndex++;
-				updateWorkerRange(rowIndex, totalRows, 2, 30, "UI_PROGRESS_INSTITUTE_READ_CSV_ROW", rowIndex, totalRows);
-				Institute institute = mapRecord(csvRecord);
-				if (institute != null) {
-					importedInstitutes.add(institute);
+		try (Reader reader = Files.newBufferedReader(file, charset); BufferedReader bufferedReader = new BufferedReader(reader)) {
+
+			for (int line = 1; line < getLinesToSkip(); line++) {
+				String skippedLine = bufferedReader.readLine();
+				log.debug("Skip line {} before CSV header: {}", line, skippedLine);
+			}
+
+			try (CSVParser parser = csvFormat().parse(bufferedReader)) {
+				int rowIndex = 0;
+				for (CSVRecord csvRecord : parser) {
+					rowIndex++;
+					updateWorkerRange(rowIndex, totalRows, 2, 30, "UI_PROGRESS_INSTITUTE_READ_CSV_ROW", rowIndex, totalRows);
+					Institute institute = mapRecord(csvRecord);
+					if (institute != null) {
+						importedInstitutes.add(institute);
+					}
 				}
 			}
 		}
@@ -415,6 +428,10 @@ public abstract class InstituteFileImport implements BaseMessages {
 
 	protected boolean isCurrentInstitute(Institute institute) {
 		return institute.getStateType() == InstituteStatus.ACTIVE || institute.getStateType() == InstituteStatus.DUPLICATE;
+	}
+
+	protected int getLinesToSkip() {
+		return 1;
 	}
 
 	record MatchedInstitute(Institute existing, Institute toImport) {
