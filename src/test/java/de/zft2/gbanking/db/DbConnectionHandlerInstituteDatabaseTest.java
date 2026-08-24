@@ -114,6 +114,23 @@ class DbConnectionHandlerInstituteDatabaseTest {
 	}
 
 	@Test
+	void shouldNotModifyExistingInstituteDatabaseDuringConnectionSetup() throws Exception {
+		tempDir = Files.createTempDirectory("gb_test_");
+		Path dataRoot = tempDir.resolve("shared-data");
+		Files.createDirectories(dataRoot);
+		Path referenceDatabase = tempDir.resolve("institute-reference.db");
+		Path instituteDatabase = dataRoot.resolve("institute.db");
+		Files.copy(AppPaths.resolveInApplicationDirectory("data").resolve("institute.db"), referenceDatabase);
+		Files.copy(referenceDatabase, instituteDatabase);
+		configureTenant(dataRoot);
+
+		DBController.getInstance(".");
+		DBControllerTestUtil.closeAndNullifyConnection();
+
+		assertEquals(-1L, Files.mismatch(referenceDatabase, instituteDatabase));
+	}
+
+	@Test
 	void shouldNotCreateInstituteDatabaseWhenTemplateIsMissing() throws Exception {
 		tempDir = Files.createTempDirectory("gb_test_");
 		Path dataRoot = tempDir.resolve("shared-data");

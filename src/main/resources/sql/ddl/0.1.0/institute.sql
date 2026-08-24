@@ -31,7 +31,9 @@ VALUES
 ON CONFLICT(id) DO UPDATE SET
   stateName = excluded.stateName,
   description = excluded.description,
-  updatedAt = excluded.updatedAt;
+  updatedAt = excluded.updatedAt
+WHERE instituteStatus.stateName <> excluded.stateName
+   OR instituteStatus.description <> excluded.description;
 
 ;
 
