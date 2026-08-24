@@ -7,7 +7,8 @@ public enum ExportType {
 	BOOKINGS_FP3(FileType.FP3),
 	BOOKINGS_MT940(FileType.MT940),
 	BOOKINGS_XML(FileType.XML),
-	MONEYTRANSFERS_CSV(FileType.CSV);
+	MONEYTRANSFERS_CSV(FileType.CSV),
+	MONEYTRANSFERS_SEPA_XML(FileType.XML);
 
 	private final FileType fileType;
 

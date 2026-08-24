@@ -337,6 +337,8 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 		mt.setOrderType(OrderType.TRANSFER);
 		mt.setRecipientId(rec.getId());
 		mt.setPurpose("Rent");
+		mt.setPurposeCode("GDDS");
+		mt.setEndToEndId("E2E-DB-TEST");
 		mt.setAmount(new BigDecimal("750.00"));
 		mt.setExecutionDate(LocalDate.now(ZoneId.systemDefault()));
 		mt.setExecutionDay(15);
@@ -347,6 +349,8 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 		List<MoneyTransfer> transfers = db.getAllByParent(MoneyTransfer.class, acc.getId());
 		assertEquals(1, transfers.size());
 		assertEquals("Rent", transfers.get(0).getPurpose());
+		assertEquals("GDDS", transfers.get(0).getPurposeCode());
+		assertEquals("E2E-DB-TEST", transfers.get(0).getEndToEndId());
 		assertEquals(Integer.valueOf(15), transfers.get(0).getExecutionDay());
 		assertEquals(StandingorderMode.MONTHLY, transfers.get(0).getStandingorderMode());
 	}

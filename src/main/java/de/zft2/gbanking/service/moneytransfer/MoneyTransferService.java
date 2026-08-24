@@ -164,6 +164,7 @@ public class MoneyTransferService extends AbstractDbService {
 		MoneyTransfer successor = new MoneyTransfer();
 		successor.setBankOrderId(predecessor.getBankOrderId());
 		successor.setPurposeCode(predecessor.getPurposeCode());
+		successor.setEndToEndId(predecessor.getEndToEndId());
 		successor.setHistoryorderId(predecessor.getId());
 		return successor;
 	}

@@ -14,6 +14,7 @@ public class MoneyTransfer extends Dao {
 	private int recipientId;
 	private String purpose;
 	private String purposeCode;
+	private String endToEndId;
 	private BigDecimal amount;
 	private String currency;
 	private LocalDate executionDate;
@@ -79,6 +80,14 @@ public class MoneyTransfer extends Dao {
 
 	public void setPurposeCode(String purposeCode) {
 		this.purposeCode = purposeCode;
+	}
+
+	public String getEndToEndId() {
+		return endToEndId;
+	}
+
+	public void setEndToEndId(String endToEndId) {
+		this.endToEndId = endToEndId;
 	}
 
 	public BigDecimal getAmount() {

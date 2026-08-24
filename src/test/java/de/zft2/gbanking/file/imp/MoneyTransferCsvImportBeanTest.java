@@ -110,7 +110,7 @@ class MoneyTransferCsvImportBeanTest {
 		BankAccount account = insertAccount(SENDER_IBAN, "5407324931");
 		String header = gbankingExportHeader();
 		String baseRow = String.join(";", account.getAccountName(), account.getIban(), account.getNumber(), "", OrderType.TRANSFER.toString(),
-				"Rechnung 4711", "GDDS", "123,45", "2026-02-03", MoneyTransferStatus.SENT.toString(), "Max Empfaenger",
+				"Rechnung 4711", "GDDS", "E2E-4711", "123,45", "2026-02-03", MoneyTransferStatus.SENT.toString(), "Max Empfaenger",
 				"DE11100100101234567890", "MARKDEF1100", "1234567890", "10010010", "Notiz", Source.MONEYTRANSFER.toString());
 		Path csvFile = writeCsvWithHeader(header,
 				baseRow + ";gesendet;2026-02-03T10:15:00;2026-02-03T10:16:00;Erstes Protokoll",
@@ -126,10 +126,23 @@ class MoneyTransferCsvImportBeanTest {
 		assertEquals(OrderType.TRANSFER, transfer.getOrderType());
 		assertEquals(MoneyTransferStatus.IMPORTED, transfer.getMoneytransferStatus());
 		assertEquals("GDDS", transfer.getPurposeCode());
+		assertEquals("E2E-4711", transfer.getEndToEndId());
 		List<MoneyTransferProtocol> protocols = dbController.getAllByParent(MoneyTransferProtocol.class, transfer.getId());
 		assertEquals(2, protocols.size());
 		assertTrue(protocols.stream().anyMatch(protocol -> "Erstes Protokoll".equals(protocol.getProtocolText())));
 		assertTrue(protocols.stream().anyMatch(protocol -> "Zweites Protokoll".equals(protocol.getProtocolText())));
+	}
+
+	@Test
+	void importFile_shouldUseSelectedOpenStatus() throws Exception {
+		BankAccount account = insertAccount(SENDER_IBAN, "5407324931");
+		Path csvFile = writeCsv(SENDER_IBAN + ";Max Empfaenger;DE11100100101234567890;MARKDEF1100;10,25;Rechnung;GDDS");
+
+		new MoneyTransferCsvImportBean(null, MoneyTransferStatus.NEW).importFile(csvFile);
+
+		List<MoneyTransfer> transfers = dbController.getAllByParent(MoneyTransfer.class, account.getId());
+		assertEquals(1, transfers.size());
+		assertEquals(MoneyTransferStatus.NEW, transfers.get(0).getMoneytransferStatus());
 	}
 
 	@Test
@@ -261,6 +274,7 @@ class MoneyTransferCsvImportBeanTest {
 		transfer.setRecipient(recipient);
 		transfer.setPurpose("Export purpose");
 		transfer.setPurposeCode("GDDS");
+		transfer.setEndToEndId("E2E-EXPORT");
 		transfer.setAmount(new BigDecimal("42.50"));
 		transfer.setExecutionDate(LocalDateTime.of(2026, Month.JANUARY, 2, 0, 0).toLocalDate());
 		transfer.setMoneytransferStatus(MoneyTransferStatus.SENT);
@@ -301,7 +315,8 @@ class MoneyTransferCsvImportBeanTest {
 	private String gbankingExportHeader() {
 		return String.join(";", ExportConstants.ACCOUNT.toString(), ExportConstants.IBAN.toString(), ExportConstants.ACCOUNT_NUMBER.toString(),
 				ExportConstants.SOURCE_MONEYTRANSFER.toString(), ExportConstants.TYP.toString(), ExportConstants.PURPOSE.toString(),
-				ExportConstants.PURPOSE_CODE.toString(), ExportConstants.AMOUNT.toString(), ExportConstants.EXECUTION_DATE.toString(),
+				ExportConstants.PURPOSE_CODE.toString(), ExportConstants.END_TO_END_ID.toString(), ExportConstants.AMOUNT.toString(),
+				ExportConstants.EXECUTION_DATE.toString(),
 				ExportConstants.STATE.toString(), ExportConstants.RECIPIENT_NAME.toString(), ExportConstants.RECIPIENT_IBAN.toString(),
 				ExportConstants.RECIPIENT_BIC.toString(), ExportConstants.RECIPIENT_ACCOUNT_NUMBER.toString(), ExportConstants.BLZ.toString(),
 				ExportConstants.NOTICE.toString(), ExportConstants.RECIPIENT_SOURCE.toString(), protocolHeader());

@@ -16,6 +16,7 @@ CREATE TABLE moneytransfer (
   recipient_id INTEGER,
   purpose TEXT,
   purposeCode TEXT,
+  endToEndId TEXT,
   amount REAL,
   executionDate TEXT,
   executionDay INTEGER,

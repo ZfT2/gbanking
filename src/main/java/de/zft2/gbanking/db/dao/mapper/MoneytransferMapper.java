@@ -25,24 +25,25 @@ public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> 
 		ps.setInt(3, moneytransfer.getRecipientId());
 		ps.setString(4, moneytransfer.getPurpose());
 		ps.setString(5, moneytransfer.getPurposeCode());
-		ps.setDouble(6, moneytransfer.getAmount().doubleValue());
-		ps.setString(7, TypeConverter.toDateStringShort(moneytransfer.getExecutionDate()));
+		ps.setString(6, moneytransfer.getEndToEndId());
+		ps.setDouble(7, moneytransfer.getAmount().doubleValue());
+		ps.setString(8, TypeConverter.toDateStringShort(moneytransfer.getExecutionDate()));
 		if (moneytransfer.getExecutionDay() != null) {
-			ps.setInt(8, moneytransfer.getExecutionDay());
+			ps.setInt(9, moneytransfer.getExecutionDay());
 		} else {
-			ps.setNull(8, java.sql.Types.INTEGER);
+			ps.setNull(9, java.sql.Types.INTEGER);
 		}
-		ps.setInt(9, moneytransfer.getMoneytransferStatus().getDbStateId());
-		setEnumNullable(10, moneytransfer.getStandingorderMode(), ps);
-		ps.setString(11, moneytransfer.getBankOrderId());
+		ps.setInt(10, moneytransfer.getMoneytransferStatus().getDbStateId());
+		setEnumNullable(11, moneytransfer.getStandingorderMode(), ps);
+		ps.setString(12, moneytransfer.getBankOrderId());
 		if (moneytransfer.getHistoryorderId() != null) {
-			ps.setInt(12, moneytransfer.getHistoryorderId());
+			ps.setInt(13, moneytransfer.getHistoryorderId());
 		} else {
-			ps.setNull(12, java.sql.Types.INTEGER);
+			ps.setNull(13, java.sql.Types.INTEGER);
 		}
-		ps.setTimestamp(13, TypeConverter.toSqlTimestampNow());
+		ps.setTimestamp(14, TypeConverter.toSqlTimestampNow());
 		if (moneytransfer.getId() > 0)
-			ps.setInt(14, moneytransfer.getId());
+			ps.setInt(15, moneytransfer.getId());
 	}
 
 	@Override
@@ -52,6 +53,7 @@ public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> 
 		moneytransfer.setRecipientId(rs.getInt("recipient_id"));
 		moneytransfer.setPurpose(rs.getString(SqlFields.BOOKING_PURPOSE));
 		moneytransfer.setPurposeCode(rs.getString("purposeCode"));
+		moneytransfer.setEndToEndId(rs.getString("endToEndId"));
 		moneytransfer.setAmount(rs.getBigDecimal(SqlFields.BOOKING_AMOUNT));
 		moneytransfer.setCurrency(rs.getString("currency"));
 		moneytransfer.setExecutionDate(TypeConverter.toLocalDateFromDateStrShort(rs.getString("executionDate")));

@@ -1,8 +1,9 @@
 package de.zft2.gbanking.gui.progress;
 
 import de.zft2.gbanking.db.dao.BankAccount;
-import de.zft2.gbanking.file.imp.MoneyTransferCsvImportBean;
-import de.zft2.gbanking.file.imp.MoneyTransferCsvImportTask;
+import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
+import de.zft2.gbanking.file.imp.MoneyTransferImportBean;
+import de.zft2.gbanking.file.imp.MoneyTransferImportTask;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.gui.panel.account.AccountListPanel;
@@ -10,25 +11,30 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
 import javafx.stage.Window;
 
-public class MoneyTransferCsvImportProgressBarPanel extends BaseFileProgressBarPanel {
+public class MoneyTransferImportProgressBarPanel extends BaseFileProgressBarPanel {
 
 	private final BankAccount contextAccount;
 	private final Runnable refreshAction;
+	private final ExportType importType;
+	private final MoneyTransferStatus importStatus;
 
-	public MoneyTransferCsvImportProgressBarPanel(Window parent, BankAccount contextAccount, Runnable refreshAction) {
+	public MoneyTransferImportProgressBarPanel(Window parent, BankAccount contextAccount, Runnable refreshAction, ExportType importType,
+			MoneyTransferStatus importStatus) {
 		super(parent);
 		this.contextAccount = contextAccount;
 		this.refreshAction = refreshAction;
+		this.importType = importType;
+		this.importStatus = importStatus;
 	}
 
 	@Override
 	protected String getWindowTitle() {
-		return getText("UI_MENU_FILE_IMPORT_MONEYTRANSFERS_CSV");
+		return getText(importType == ExportType.MONEYTRANSFERS_SEPA_XML ? "UI_MENU_FILE_XML_SEPA" : "UI_MENU_FILE_CSV_MONEYPLEX");
 	}
 
 	@Override
 	public void startTask(String fileName, ExportType exportType, AccountListPanel accountListPanel) {
-		task = new MoneyTransferCsvImportTask(fileName, contextAccount);
+		task = new MoneyTransferImportTask(fileName, importType, contextAccount, importStatus);
 		super.startTask(accountListPanel);
 	}
 
@@ -37,7 +43,7 @@ public class MoneyTransferCsvImportProgressBarPanel extends BaseFileProgressBarP
 		if (refreshAction != null) {
 			refreshAction.run();
 		}
-		if (task instanceof MoneyTransferCsvImportTask importTask) {
+		if (task instanceof MoneyTransferImportTask importTask) {
 			addImportSummary(importTask.getImportResult());
 		}
 	}
@@ -53,11 +59,10 @@ public class MoneyTransferCsvImportProgressBarPanel extends BaseFileProgressBarP
 		return true;
 	}
 
-	private void addImportSummary(MoneyTransferCsvImportBean.ImportResult result) {
-		if (result == null) {
-			return;
+	private void addImportSummary(MoneyTransferImportBean.ImportResult result) {
+		if (result != null) {
+			contentBox.getChildren()
+					.add(new Label(getText("UI_MONEYTRANSFER_IMPORT_SUMMARY", result.importedCount(), result.skippedDuplicateCount())));
 		}
-		contentBox.getChildren()
-				.add(new Label(getText("UI_MONEYTRANSFER_IMPORT_SUMMARY", result.importedCount(), result.skippedDuplicateCount())));
 	}
 }

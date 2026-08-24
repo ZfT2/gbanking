@@ -62,9 +62,11 @@ public class GBankingMenuBar extends MenuBar implements BaseGui {
 		fileImportBookingsXml.setOnAction(e -> gui.processBookingImport(ExportType.BOOKINGS_XML));
 		fileImportBookingsMenu.getItems().addAll(fileImportBookingsCsv, fileImportBookingsFp3, fileImportBookingsMt940, fileImportBookingsXml);
 		Menu fileImportOrdersMenu = new Menu(getText("UI_MENU_FILE_ORDERS"));
-		MenuItem fileImportCsvOrders = new MenuItem(getText(UI_MENU_FILE_CSV));
-		fileImportCsvOrders.setOnAction(e -> gui.processMoneyTransferCsvImport());
-		fileImportOrdersMenu.getItems().add(fileImportCsvOrders);
+		MenuItem fileImportCsvOrders = new MenuItem(getText("UI_MENU_FILE_CSV_MONEYPLEX"));
+		fileImportCsvOrders.setOnAction(e -> gui.processMoneyTransferImport(ExportType.MONEYTRANSFERS_CSV));
+		MenuItem fileImportSepaOrders = new MenuItem(getText("UI_MENU_FILE_XML_SEPA"));
+		fileImportSepaOrders.setOnAction(e -> gui.processMoneyTransferImport(ExportType.MONEYTRANSFERS_SEPA_XML));
+		fileImportOrdersMenu.getItems().addAll(fileImportCsvOrders, fileImportSepaOrders);
 		MenuItem fileImportCreditcard = new MenuItem(getText("UI_MENU_FILE_IMPORT_CREDITCARD"));
 		fileImportCreditcard.setOnAction(e -> gui.processCreditcardImport());
 		fileImportMenu.getItems().addAll(fileImportBookingsMenu, fileImportOrdersMenu, new SeparatorMenuItem(), fileImportCreditcard);
@@ -81,9 +83,11 @@ public class GBankingMenuBar extends MenuBar implements BaseGui {
 		fileExportXML.setOnAction(e -> gui.processExport(ExportType.BOOKINGS_XML));
 		fileExportBookingsMenu.getItems().addAll(fileExportCSV, fileExportFP3, fileExportMT940, fileExportXML);
 		Menu fileExportOrdersMenu = new Menu(getText("UI_MENU_FILE_ORDERS"));
-		MenuItem fileExportCSVOrders = new MenuItem(getText(UI_MENU_FILE_CSV));
+		MenuItem fileExportCSVOrders = new MenuItem(getText("UI_MENU_FILE_CSV_MONEYPLEX"));
 		fileExportCSVOrders.setOnAction(e -> gui.processExport(ExportType.MONEYTRANSFERS_CSV));
-		fileExportOrdersMenu.getItems().add(fileExportCSVOrders);
+		MenuItem fileExportSepaOrders = new MenuItem(getText("UI_MENU_FILE_XML_SEPA"));
+		fileExportSepaOrders.setOnAction(e -> gui.processExport(ExportType.MONEYTRANSFERS_SEPA_XML));
+		fileExportOrdersMenu.getItems().addAll(fileExportCSVOrders, fileExportSepaOrders);
 		fileExportMenu.getItems().addAll(fileExportBookingsMenu, fileExportOrdersMenu);
 
 		MenuItem createBackupMenuItem = new MenuItem(getText("UI_MENU_FILE_CREATE_BACKUP"));

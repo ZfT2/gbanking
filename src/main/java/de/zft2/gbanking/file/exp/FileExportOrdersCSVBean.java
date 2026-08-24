@@ -85,6 +85,7 @@ public class FileExportOrdersCSVBean extends FileExportBean {
 				getTechnicalName(moneytransfer.getOrderType()),
 				moneytransfer.getPurpose(),
 				moneytransfer.getPurposeCode(),
+				moneytransfer.getEndToEndId(),
 				moneytransfer.getAmount(),
 				moneytransfer.getExecutionDate(),
 				getTechnicalName(moneytransfer.getMoneytransferStatus()),
@@ -127,7 +128,8 @@ public class FileExportOrdersCSVBean extends FileExportBean {
 
 		builder.setHeader(ExportConstants.ACCOUNT.toString(), ExportConstants.IBAN.toString(), ExportConstants.ACCOUNT_NUMBER.toString(),
 				ExportConstants.SOURCE_MONEYTRANSFER.toString(), ExportConstants.TYP.toString(), ExportConstants.PURPOSE.toString(),
-				ExportConstants.PURPOSE_CODE.toString(), ExportConstants.AMOUNT.toString(), ExportConstants.EXECUTION_DATE.toString(),
+				ExportConstants.PURPOSE_CODE.toString(), ExportConstants.END_TO_END_ID.toString(), ExportConstants.AMOUNT.toString(),
+				ExportConstants.EXECUTION_DATE.toString(),
 				ExportConstants.STATE.toString(), ExportConstants.RECIPIENT_NAME.toString(), ExportConstants.RECIPIENT_IBAN.toString(),
 				ExportConstants.RECIPIENT_BIC.toString(), ExportConstants.RECIPIENT_ACCOUNT_NUMBER.toString(), ExportConstants.BLZ.toString(),
 				ExportConstants.NOTICE.toString(), ExportConstants.RECIPIENT_SOURCE.toString(), ExportConstants.PROTOCOL_STATUS.toString(),

@@ -131,6 +131,7 @@ class DbMigrationRunnerTest {
 		assertTrue(baselineStatements.stream().anyMatch(statement -> statement.contains("CREATE INDEX idx_moneytransferforeign_moneytransfer_id")));
 		assertTrue(baselineStatements.stream().anyMatch(statement -> statement.contains("name TEXT NOT NULL UNIQUE")));
 		assertTrue(baselineStatements.stream().anyMatch(statement -> statement.contains("categoryRule_id INTEGER")));
+		assertTrue(baselineStatements.stream().anyMatch(statement -> statement.contains("endToEndId TEXT")));
 	}
 
 	private static List<SqlTemplateRepository.VersionScript> moneyTransferStatusMigrationScripts() {

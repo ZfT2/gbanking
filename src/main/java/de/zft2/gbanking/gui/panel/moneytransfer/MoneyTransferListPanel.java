@@ -17,11 +17,12 @@ import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.gui.EnvironmentOptions;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
+import de.zft2.gbanking.gui.dialog.MoneyTransferImportStatusDialog;
 import de.zft2.gbanking.gui.dialog.MoneyTransferProtocolDialog;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.gui.enu.FileType;
 import de.zft2.gbanking.gui.panel.AbstractFilterableTablePanel;
-import de.zft2.gbanking.gui.progress.MoneyTransferCsvImportProgressBarPanel;
+import de.zft2.gbanking.gui.progress.MoneyTransferImportProgressBarPanel;
 import de.zft2.gbanking.gui.util.FileChooserDirectorySupport;
 import de.zft2.gbanking.gui.util.FxTableUtils;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
@@ -141,10 +142,14 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 		if (importFile == null) {
 			return;
 		}
+		var importStatus = MoneyTransferImportStatusDialog.show(getTableWindow());
+		if (importStatus.isEmpty()) {
+			return;
+		}
 
 		try {
-			MoneyTransferCsvImportProgressBarPanel progressPanel = new MoneyTransferCsvImportProgressBarPanel(getTableWindow(), selectedAccount,
-					parentPanel::reloadListPanels);
+			MoneyTransferImportProgressBarPanel progressPanel = new MoneyTransferImportProgressBarPanel(getTableWindow(), selectedAccount,
+					parentPanel::reloadListPanels, ExportType.MONEYTRANSFERS_CSV, importStatus.get());
 			var progressWindow = progressPanel.createNewFileImportProgressBarWindow();
 			progressPanel.startTask(importFile.toString(), ExportType.MONEYTRANSFERS_CSV, null);
 			progressWindow.show();

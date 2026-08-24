@@ -29,6 +29,7 @@ import de.zft2.gbanking.concurrent.CancellationSupport;
 import de.zft2.gbanking.db.BuildInfo;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
+import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.DBController;
@@ -36,6 +37,7 @@ import de.zft2.gbanking.gui.BackgroundActionCoordinator.ActionScope;
 import de.zft2.gbanking.gui.BackgroundActionCoordinator.QuiesceMode;
 import de.zft2.gbanking.gui.BackgroundActionCoordinator.QuiesceResult;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
+import de.zft2.gbanking.gui.dialog.MoneyTransferImportStatusDialog;
 import de.zft2.gbanking.gui.dialog.tenant.TenantLoginDialog;
 import de.zft2.gbanking.gui.dialog.tenant.TenantLoginDialog.BackupOperationResult;
 import de.zft2.gbanking.gui.enu.ExportType;
@@ -52,7 +54,7 @@ import de.zft2.gbanking.gui.panel.overview.OverviewBasePanel;
 import de.zft2.gbanking.gui.panel.setting.SettingsDialog;
 import de.zft2.gbanking.gui.progress.FileExportProgressBarPanel;
 import de.zft2.gbanking.gui.progress.FileImportProgressBarPanel;
-import de.zft2.gbanking.gui.progress.MoneyTransferCsvImportProgressBarPanel;
+import de.zft2.gbanking.gui.progress.MoneyTransferImportProgressBarPanel;
 import de.zft2.gbanking.gui.util.FileChooserDirectorySupport;
 import de.zft2.gbanking.logging.DiagnosticPackageCreator;
 import de.zft2.gbanking.logging.LoggingSettings;
@@ -948,18 +950,23 @@ public class GBankingGui extends Application implements BaseGui {
 		}
 	}
 
-	void processMoneyTransferCsvImport() {
-		Path importFile = chooseImportFile(FileType.CSV);
+	void processMoneyTransferImport(ExportType importType) {
+		Path importFile = chooseImportFile(importType.getFileType());
 		if (importFile == null) {
-			log.debug("Money transfer CSV import cancelled.");
+			log.debug("Money transfer import cancelled. type={}", importType);
+			return;
+		}
+		Optional<MoneyTransferStatus> importStatus = MoneyTransferImportStatusDialog.show(primaryStage);
+		if (importStatus.isEmpty()) {
+			log.debug("Money transfer import target selection cancelled. type={}", importType);
 			return;
 		}
 		try {
-			log.info("Starting money transfer CSV import. file={}", () -> fileName(importFile));
-			log.debug("Money transfer CSV import path: {}", importFile);
-			importMoneyTransferCsvFile(importFile);
+			log.info("Starting money transfer import. type={}, file={}", () -> importType, () -> fileName(importFile));
+			log.debug("Money transfer import path: {}", importFile);
+			importMoneyTransferFile(importFile, importType, importStatus.get());
 		} catch (Exception e) {
-			log.error("Money transfer CSV import failed. file={}", fileName(importFile), e);
+			log.error("Money transfer import failed. type={}, file={}", importType, fileName(importFile), e);
 			showWarning(primaryStage, e.getMessage());
 		}
 	}
@@ -1023,18 +1030,18 @@ public class GBankingGui extends Application implements BaseGui {
 		progressWindow.show();
 	}
 
-	private void importMoneyTransferCsvFile(Path importFile) {
-		MoneyTransferCsvImportProgressBarPanel progressPanel = new MoneyTransferCsvImportProgressBarPanel(primaryStage, null, () -> {
+	private void importMoneyTransferFile(Path importFile, ExportType importType, MoneyTransferStatus importStatus) {
+		MoneyTransferImportProgressBarPanel progressPanel = new MoneyTransferImportProgressBarPanel(primaryStage, null, () -> {
 			MoneyTransferOverviewPanel moneyTransferPanel = (MoneyTransferOverviewPanel) OverviewPanelFactory
 					.retrievePanel(PageContext.ACCOUNTS_MONEYTRANSFERS.name());
 			if (moneyTransferPanel != null) {
 				moneyTransferPanel.refreshOnShow();
 			}
-		});
+		}, importType, importStatus);
 		Stage progressWindow = progressPanel.createNewFileImportProgressBarWindow();
 		AccountsTransactionsOverviewPanel overviewPanel = (AccountsTransactionsOverviewPanel) OverviewPanelFactory
 				.retrievePanel(PageContext.ACCOUNTS_TRANSACTIONS.name());
-		progressPanel.startTask(importFile.toString(), ExportType.MONEYTRANSFERS_CSV, overviewPanel != null ? overviewPanel.getAccountListPanel() : null);
+		progressPanel.startTask(importFile.toString(), importType, overviewPanel != null ? overviewPanel.getAccountListPanel() : null);
 		progressWindow.show();
 	}
 

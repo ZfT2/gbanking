@@ -1,5 +1,5 @@
 [SQL_SELECT_ALL_MONEYTRANSFERS_BASE]
-SELECT m.id, m.account_id, m.moneytransferType, m.recipient_id, m.purpose, m.purposeCode, m.amount, mf.currency,
+SELECT m.id, m.account_id, m.moneytransferType, m.recipient_id, m.purpose, m.purposeCode, m.endToEndId, m.amount, mf.currency,
     m.executionDate, m.executionDay, m.moneytransferStatus, m.standingorderMode, m.bankOrderId, m.historyorder_id, m.updatedAt,
     r.id AS r_id, r.name, r.iban, r.bic, r.accountnumber, r.blz, r.bank,
     mf.id AS foreign_id, mf.moneytransfer_id AS foreign_moneytransfer_id, mf.currency AS foreign_currency,
@@ -25,12 +25,12 @@ ${SQL_SELECT_ALL_MONEYTRANSFERS_BASE} AND m.account_id = ? AND moneytransferstat
 SELECT id FROM moneytransfer WHERE id = ? AND account_id = ?;
 
 [SQL_INSERT_MONEYTRANSFER]
-INSERT INTO moneytransfer (account_id, moneytransferType, recipient_id, purpose, purposeCode, amount, executionDate, executionDay, moneytransferStatus, standingorderMode, bankOrderId, historyorder_id, updatedAt)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);;
+INSERT INTO moneytransfer (account_id, moneytransferType, recipient_id, purpose, purposeCode, endToEndId, amount, executionDate, executionDay, moneytransferStatus, standingorderMode, bankOrderId, historyorder_id, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);;
 
 [SQL_UPDATE_MONEYTRANSFER]
 UPDATE moneytransfer
-SET account_id = ?, moneytransferType = ?, recipient_id = ?, purpose = ?, purposeCode = ?, amount = ?, executionDate = ?, executionDay = ?, moneytransferStatus = ?, standingorderMode = ?, bankOrderId = ?, historyorder_id = ?, updatedAt = ?
+SET account_id = ?, moneytransferType = ?, recipient_id = ?, purpose = ?, purposeCode = ?, endToEndId = ?, amount = ?, executionDate = ?, executionDay = ?, moneytransferStatus = ?, standingorderMode = ?, bankOrderId = ?, historyorder_id = ?, updatedAt = ?
 WHERE id = ?;
 
 [SQL_INSERT_MONEYTRANSFER_PROTOCOL]

@@ -151,6 +151,11 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 				&& moneyTransfer.getOrderType() != OrderType.URGENT_TRANSFER) {
 			job.setParam("purposecode", purposeCode);
 		}
+		String endToEndId = trimToNull(moneyTransfer.getEndToEndId());
+		if (endToEndId != null && moneyTransfer.getOrderType() != OrderType.FOREIGN_TRANSFER
+				&& moneyTransfer.getOrderType() != OrderType.URGENT_TRANSFER) {
+			job.setParam("endtoendid", endToEndId);
+		}
 
 		switch (moneyTransfer.getOrderType()) {
 		case SCHEDULED_TRANSFER -> applyScheduledTransferParams(job, moneyTransfer);

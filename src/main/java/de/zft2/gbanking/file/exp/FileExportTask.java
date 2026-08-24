@@ -39,6 +39,7 @@ public class FileExportTask extends BaseFileTask {
 		case BOOKINGS_FP3 -> new FileExportFP3Bean(this);
 		case BOOKINGS_MT940 -> new FileExportMT940Bean(this);
 		case MONEYTRANSFERS_CSV -> new FileExportOrdersCSVBean(this);
+		case MONEYTRANSFERS_SEPA_XML -> new FileExportOrdersSepaBean(this);
 		default -> {
 			log.error("Unknown Export type: {}", exportType);
 			throw new GBankingException("Unknown Export type: {}", exportType);

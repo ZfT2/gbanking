@@ -65,6 +65,7 @@ class MoneyTransferExecutionServicePurposeCodeTest {
 
 		verify(job).setParam("usage", "Rechnung 4711");
 		verify(job).setParam("purposecode", "GDDS");
+		verify(job).setParam("endtoendid", "E2E-4711");
 	}
 
 	private static MoneyTransfer createMoneyTransfer() {
@@ -73,6 +74,7 @@ class MoneyTransferExecutionServicePurposeCodeTest {
 		moneyTransfer.setAmount(new BigDecimal("12.34"));
 		moneyTransfer.setPurpose("Rechnung 4711");
 		moneyTransfer.setPurposeCode("GDDS");
+		moneyTransfer.setEndToEndId("E2E-4711");
 		return moneyTransfer;
 	}
 

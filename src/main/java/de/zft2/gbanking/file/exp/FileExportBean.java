@@ -54,6 +54,7 @@ public abstract class FileExportBean implements BaseMessagesDb {
 		TYP(null, "Typ"),
 		PURPOSE(null, "Verwendungszweck"),
 		PURPOSE_CODE(null, "Purpose Code"),
+		END_TO_END_ID(null, "End-to-End-ID"),
 		EXECUTION_DATE(null, "Datum Ausführung"),
 		STATE(null, "Status"),
 		RECIPIENT_NAME(null, "Empfänger Name"),
