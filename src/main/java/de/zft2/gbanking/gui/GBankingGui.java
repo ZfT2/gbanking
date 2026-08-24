@@ -234,6 +234,7 @@ public class GBankingGui extends Application implements BaseGui {
 		bankingCapabilityService = ServiceRegistry.getService(BankingCapabilityService.class);
 		moneyTransferService = ServiceRegistry.getService(MoneyTransferService.class);
 		log.info("Main window initialization completed.");
+		updateManager.cleanupSuccessfulUpdateBackups();
 	}
 
 	OverviewBasePanel activateOverview(PageContext pageContext) {
@@ -785,21 +786,31 @@ public class GBankingGui extends Application implements BaseGui {
 	}
 
 	private void launchPreparedUpdate(PreparedUpdate preparedUpdate) {
-		try {
-			hideUpdateDownloadProgress();
-			if (statusLabel != null) {
-				statusLabel.setText(getText("UI_UPDATE_EXECUTING"));
-			}
-			updateManager.launchInstaller(preparedUpdate);
-			shutdownApplicationForUpdate();
-		} catch (Exception e) {
-			showUpdateFailure(e);
+		hideUpdateDownloadProgress();
+		if (statusLabel != null) {
+			statusLabel.setText(getText("UI_UPDATE_EXECUTING"));
 		}
+		beginLifecycleTransition(() -> backupAndLaunchPreparedUpdate(preparedUpdate), false);
 	}
 
-	private void shutdownApplicationForUpdate() {
-		log.info("Shutting down GBanking for application update.");
-		beginLifecycleTransition(this::completeShutdown, false);
+	private void backupAndLaunchPreparedUpdate(PreparedUpdate preparedUpdate) {
+		BackupOperationResult backupResult = tenantLoginDialog.runBackupOperation(null);
+		if (!backupResult.succeeded()) {
+			abortLifecycleTransition();
+			String messageKey = backupResult.integrityCheckFailed() ? "UI_UPDATE_BACKUP_INTEGRITY_ERROR"
+					: "UI_UPDATE_BACKUP_ERROR";
+			showWarning(primaryStage, getText(messageKey));
+			return;
+		}
+
+		try {
+			updateManager.launchInstaller(preparedUpdate);
+			log.info("Shutting down GBanking for application update.");
+			completeShutdown();
+		} catch (Exception e) {
+			abortLifecycleTransition();
+			showUpdateFailure(e);
+		}
 	}
 
 	private void bindStatus(Task<?> task) {

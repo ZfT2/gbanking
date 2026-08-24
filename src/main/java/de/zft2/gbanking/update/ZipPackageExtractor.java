@@ -12,6 +12,8 @@ import java.util.zip.ZipInputStream;
 
 public final class ZipPackageExtractor {
 
+	private static final String INSTITUTE_DATABASE_PATH = "data/institute.db";
+
 	public Path extract(Path zipFile, Path targetDirectory) throws IOException, UpdateException {
 		Path normalizedTargetDirectory = targetDirectory.toAbsolutePath().normalize();
 		Files.createDirectories(normalizedTargetDirectory);
@@ -56,6 +58,7 @@ public final class ZipPackageExtractor {
 	}
 
 	private boolean isDistributionRoot(Path path) {
-		return Files.isDirectory(path.resolve("bin")) && Files.isDirectory(path.resolve("lib"));
+		return Files.isDirectory(path.resolve("bin")) && Files.isDirectory(path.resolve("lib"))
+				&& Files.isRegularFile(path.resolve(INSTITUTE_DATABASE_PATH));
 	}
 }

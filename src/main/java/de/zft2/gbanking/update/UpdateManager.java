@@ -87,6 +87,10 @@ public class UpdateManager {
 		installerLauncher.launch(preparedUpdate);
 	}
 
+	public void cleanupSuccessfulUpdateBackups() {
+		new UpdateBackupCleaner().cleanup(installDirectory);
+	}
+
 	private Path download(ReleaseAsset asset, Path targetDirectory, UpdateProgressListener progressListener)
 			throws IOException, InterruptedException, UpdateException {
 		Path targetFile = targetDirectory.resolve(asset.name()).normalize();

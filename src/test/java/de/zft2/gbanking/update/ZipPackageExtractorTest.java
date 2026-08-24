@@ -28,6 +28,8 @@ class ZipPackageExtractorTest {
 			addFile(zipOutputStream, "GBanking-0.5.2-linux/bin/gbanking.sh", "run");
 			addDirectory(zipOutputStream, "GBanking-0.5.2-linux/lib/");
 			addFile(zipOutputStream, "GBanking-0.5.2-linux/lib/gbanking.jar", "jar");
+			addDirectory(zipOutputStream, "GBanking-0.5.2-linux/data/");
+			addFile(zipOutputStream, "GBanking-0.5.2-linux/data/institute.db", "database");
 		}
 
 		Path root = new ZipPackageExtractor().extract(zipFile, tempDir.resolve("extract"));
@@ -35,6 +37,17 @@ class ZipPackageExtractorTest {
 		assertEquals("GBanking-0.5.2-linux", root.getFileName().toString());
 		assertTrue(Files.isDirectory(root.resolve("bin")));
 		assertTrue(Files.isDirectory(root.resolve("lib")));
+	}
+
+	@Test
+	void extract_shouldRejectDistributionWithoutInstituteDatabase() throws Exception {
+		Path zipFile = tempDir.resolve("missing-institute-db.zip");
+		try (ZipOutputStream zipOutputStream = new ZipOutputStream(Files.newOutputStream(zipFile))) {
+			addDirectory(zipOutputStream, "GBanking-0.5.2-linux/bin/");
+			addDirectory(zipOutputStream, "GBanking-0.5.2-linux/lib/");
+		}
+
+		assertThrows(UpdateException.class, () -> new ZipPackageExtractor().extract(zipFile, tempDir.resolve("missing-db")));
 	}
 
 	@Test
