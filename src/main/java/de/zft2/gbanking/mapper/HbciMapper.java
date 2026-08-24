@@ -51,7 +51,7 @@ public class HbciMapper {
 		bankAccount.setOwnerName2(konto.name2);
 		bankAccount.setNumber(konto.number);
 		bankAccount.setSubnumber(konto.subnumber);
-		bankAccount.setHbciAccountType(Integer.parseInt(konto.acctype));
+		bankAccount.setHbciAccountType(parseHbciAccountType(konto.acctype));
 		bankAccount.setSEPAAccount(konto.isSEPAAccount());
 		bankAccount.setSource(Source.ONLINE);
 
@@ -66,6 +66,18 @@ public class HbciMapper {
 		bankAccount.setUpdatedAt(LocalDate.now(ZoneId.systemDefault()));
 
 		return bankAccount;
+	}
+
+	private static int parseHbciAccountType(String accountType) {
+		if (accountType == null || accountType.isBlank()) {
+			return 0;
+		}
+		try {
+			return Integer.parseInt(accountType.trim());
+		} catch (NumberFormatException e) {
+			log.warn("Could not parse HBCI account type '{}'. Falling back to 0.", accountType);
+			return 0;
+		}
 	}
 	
 	public static Booking mapUmsLineToBooking(int accountId, UmsLine umsLine) {
