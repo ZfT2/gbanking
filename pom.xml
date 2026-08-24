@@ -54,20 +54,20 @@
 
 		<maven.compiler.release>17</maven.compiler.release>
 
-		<javafx.version>21.0.11</javafx.version>
-		<log4j.version>2.26.0</log4j.version>
-		<sqlitejdbc.version>3.53.1.0</sqlitejdbc.version>
+		<javafx.version>21.0.12</javafx.version>
+		<log4j.version>2.26.1</log4j.version>
+		<sqlitejdbc.version>3.53.2.1</sqlitejdbc.version>
 		<commonscsv.version>1.14.1</commonscsv.version>
-		<hbci4j.version>4.1.10</hbci4j.version>
+		<hbci4j.version>4.1.12</hbci4j.version>
 		<fp3xmlextract.version>0.7.2</fp3xmlextract.version>
 		<bookingcore.version>0.2.3</bookingcore.version>
 
 		<junit.version>5.14.4</junit.version>
 		<mockito.version>5.23.0</mockito.version>
-		<xmlunit.version>2.11.0</xmlunit.version>
+		<xmlunit.version>2.13.0</xmlunit.version>
 
 		<maven.compiler.plugin.version>3.15.0</maven.compiler.plugin.version>
-		<maven.jar.plugin.version>3.5.0</maven.jar.plugin.version>
+		<maven.jar.plugin.version>3.5.1</maven.jar.plugin.version>
 		<maven.assembly.plugin.version>3.8.0</maven.assembly.plugin.version>
 		<maven.resources.plugin.version>3.5.0</maven.resources.plugin.version>
 		<maven.surefire.plugin.version>3.5.6</maven.surefire.plugin.version>
