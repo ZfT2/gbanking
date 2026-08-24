@@ -55,7 +55,7 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 	MenuItem assignCategoryItem = new MenuItem(getText("UI_MENU_BOOKING_ASSIGN_CATEGORY"));
 	MenuItem clearCategoryItem = new MenuItem(getText("UI_MENU_BOOKING_CLEAR_CATEGORY"));
 	MenuItem releaseRebookingLinksItem = new MenuItem(getText("UI_MENU_BOOKING_RELEASE_REBOOKING_LINKS"));
-	MenuItem importCsvItem = new MenuItem(getText("UI_MENU_FILE_CSV"));
+	MenuItem importCsvItem = new MenuItem(getText("UI_MENU_FILE_CSV_FORMATS"));
 	MenuItem importFp3Item = new MenuItem(getText("UI_MENU_FILE_FP3"));
 	MenuItem importMt940Item = new MenuItem(getText("UI_MENU_FILE_MT940"));
 	MenuItem importXmlItem = new MenuItem(getText("UI_MENU_FILE_XML"));

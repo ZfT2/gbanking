@@ -37,6 +37,7 @@ import de.zft2.gbanking.gui.BackgroundActionCoordinator.ActionScope;
 import de.zft2.gbanking.gui.BackgroundActionCoordinator.QuiesceMode;
 import de.zft2.gbanking.gui.BackgroundActionCoordinator.QuiesceResult;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
+import de.zft2.gbanking.gui.dialog.CsvImportDialogSupport;
 import de.zft2.gbanking.gui.dialog.MoneyTransferImportStatusDialog;
 import de.zft2.gbanking.gui.dialog.tenant.TenantLoginDialog;
 import de.zft2.gbanking.gui.dialog.tenant.TenantLoginDialog.BackupOperationResult;
@@ -85,7 +86,6 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ProgressIndicator;
@@ -942,9 +942,22 @@ public class GBankingGui extends Application implements BaseGui {
 			return;
 		}
 		try {
+			BankAccount contextAccount = null;
+			String csvDefinitionName = null;
+			if (importType == ExportType.BOOKINGS_CSV) {
+				AccountsTransactionsOverviewPanel overviewPanel = (AccountsTransactionsOverviewPanel) OverviewPanelFactory
+						.retrievePanel(PageContext.ACCOUNTS_TRANSACTIONS.name());
+				BankAccount suggestedAccount = overviewPanel != null ? overviewPanel.getSelectedAccount() : null;
+				var selection = CsvImportDialogSupport.prepare(primaryStage, importFile, null, suggestedAccount);
+				if (selection.isEmpty()) {
+					return;
+				}
+				contextAccount = selection.get().account();
+				csvDefinitionName = selection.get().definitionName();
+			}
 			log.info("Starting booking import. type={}, file={}", () -> importType, () -> fileName(importFile));
 			log.debug("Booking import path: {}", importFile);
-			importFile(importFile, importType);
+			importFile(importFile, importType, contextAccount, csvDefinitionName);
 		} catch (Exception e) {
 			log.error("Import failed. type={}, file={}", importType, fileName(importFile), e);
 		}
@@ -969,65 +982,6 @@ public class GBankingGui extends Application implements BaseGui {
 			log.error("Money transfer import failed. type={}, file={}", importType, fileName(importFile), e);
 			showWarning(primaryStage, e.getMessage());
 		}
-	}
-
-	void processCreditcardImport() {
-		Optional<BankAccount> account = selectCreditcardImportAccount();
-		if (account.isEmpty()) {
-			return;
-		}
-
-		Path importFile = chooseImportFile(FileType.CSV);
-		if (importFile == null) {
-			log.debug("Credit card CSV import cancelled.");
-			return;
-		}
-
-		try {
-			if (log.isInfoEnabled()) {
-				log.info("Starting credit card CSV import. file={}, accountId={}", fileName(importFile), account.get().getId());
-			}
-			log.debug("Credit card CSV import path: {}", importFile);
-			importCreditcardFile(importFile, account.get());
-		} catch (Exception exception) {
-			log.error("Credit card CSV import failed. file={}", fileName(importFile), exception);
-			showWarning(primaryStage, exception.getMessage());
-		}
-	}
-
-	private Optional<BankAccount> selectCreditcardImportAccount() {
-		AccountsTransactionsOverviewPanel overviewPanel = (AccountsTransactionsOverviewPanel) OverviewPanelFactory
-				.retrievePanel(PageContext.ACCOUNTS_TRANSACTIONS.name());
-		BankAccount selectedAccount = overviewPanel.getSelectedAccount();
-		if (CreditcardImportAccountSelector.isEligible(selectedAccount)) {
-			boolean confirmed = DialogWindowSupport.showConfirmation(primaryStage, javafx.scene.control.Alert.AlertType.CONFIRMATION,
-					getText("UI_MENU_FILE_IMPORT_CREDITCARD"), getText("UI_CREDITCARD_IMPORT_CONFIRM_HEADER"),
-					getText("UI_CREDITCARD_IMPORT_CONFIRM_ACCOUNT", selectedAccount.getAccountName()), ButtonType.YES, ButtonType.CANCEL);
-			return confirmed ? Optional.of(selectedAccount) : Optional.empty();
-		}
-
-		List<BankAccount> eligibleAccounts = CreditcardImportAccountSelector
-				.eligibleAccounts(DBController.getInstance(".").getAll(BankAccount.class));
-		if (eligibleAccounts.isEmpty()) {
-			showWarning(primaryStage, getText("ERROR_CREDITCARD_IMPORT_NO_ELIGIBLE_ACCOUNT"));
-			return Optional.empty();
-		}
-
-		ChoiceDialog<BankAccount> dialog = new ChoiceDialog<>(eligibleAccounts.get(0), eligibleAccounts);
-		dialog.initOwner(primaryStage);
-		dialog.setTitle(getText("UI_MENU_FILE_IMPORT_CREDITCARD"));
-		dialog.setHeaderText(getText("UI_CREDITCARD_IMPORT_SELECT_HEADER"));
-		dialog.setContentText(getText("UI_CREDITCARD_IMPORT_SELECT_ACCOUNT"));
-		return dialog.showAndWait();
-	}
-
-	private void importCreditcardFile(Path importFile, BankAccount account) {
-		AccountsTransactionsOverviewPanel overviewPanel = (AccountsTransactionsOverviewPanel) OverviewPanelFactory
-				.retrievePanel(PageContext.ACCOUNTS_TRANSACTIONS.name());
-		FileImportProgressBarPanel progressPanel = new FileImportProgressBarPanel(primaryStage, account, () -> overviewPanel.refreshOnShow());
-		Stage progressWindow = progressPanel.createNewFileImportProgressBarWindow();
-		progressPanel.startTask(importFile.toString(), ExportType.BOOKINGS_CREDITCARD_CSV, overviewPanel.getAccountListPanel());
-		progressWindow.show();
 	}
 
 	private void importMoneyTransferFile(Path importFile, ExportType importType, MoneyTransferStatus importStatus) {
@@ -1118,8 +1072,8 @@ public class GBankingGui extends Application implements BaseGui {
 		return fileName != null ? fileName.toString() : null;
 	}
 
-	private void importFile(Path chosenFile, ExportType exportType) {
-		FileImportProgressBarPanel progressPanel = new FileImportProgressBarPanel(primaryStage);
+	private void importFile(Path chosenFile, ExportType exportType, BankAccount contextAccount, String csvDefinitionName) {
+		FileImportProgressBarPanel progressPanel = new FileImportProgressBarPanel(primaryStage, contextAccount, null, csvDefinitionName);
 		Stage progressWindow = progressPanel.createNewFileImportProgressBarWindow();
 		AccountsTransactionsOverviewPanel overviewPanel = (AccountsTransactionsOverviewPanel) OverviewPanelFactory
 				.retrievePanel(PageContext.ACCOUNTS_TRANSACTIONS.name());

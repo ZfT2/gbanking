@@ -116,7 +116,7 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 
 	private ContextMenu createContextMenu() {
 		Menu importMenu = new Menu(getText("UI_MENU_FILE_IMPORT"));
-		MenuItem importCsvItem = new MenuItem(getText("UI_MENU_FILE_CSV"));
+		MenuItem importCsvItem = new MenuItem(getText("UI_MENU_FILE_CSV_FORMATS"));
 		MenuItem importFp3Item = new MenuItem(getText("UI_MENU_FILE_FP3"));
 		MenuItem importMt940Item = new MenuItem(getText("UI_MENU_FILE_MT940"));
 		MenuItem importXmlItem = new MenuItem(getText("UI_MENU_FILE_XML"));

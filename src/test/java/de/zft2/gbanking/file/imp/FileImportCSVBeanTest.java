@@ -31,6 +31,8 @@ import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.InstituteStatus;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer;
+import de.zft2.gbanking.file.imp.csv.CsvImportDefinitionRepository;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FileImportCSVBeanTest {
@@ -161,6 +163,41 @@ class FileImportCSVBeanTest {
 
 		String csvFileName = csvFile.toString();
 		assertThrows(GBankingException.class, () -> importer.importFileToDatabase(csvFileName));
+	}
+
+	@Test
+	void importFileToDatabase_shouldImportWithCopiedMoneyplexDefinition() throws Exception {
+		BankAccount account = createAccount("Moneyplex Zielkonto", "DE66666666666666666666", "66666666");
+		Path definitionFile = tempDir.resolve("moneyplex-" + System.nanoTime() + ".properties");
+		Files.writeString(definitionFile, """
+				[Buchung: Moneyplex Bank]
+				Datum=Buchungstag
+				Valuta=Wertstellungstag
+				Betrag=Umsatz
+				Waehrung=Waehrung
+				Zweck=Verwendungszweck;Buchungstext
+				Name=Beguenstigter/Zahlungspflichtiger
+				Iban=Kontonummer/IBAN
+				Bic=BLZ/BIC
+				Format.DecimalSeparator=,
+				Format.ThousandSeparator=.
+				Format.DateOrder=TMJ
+				Extra.NoZweckColumnNames=
+				""".stripIndent(), StandardCharsets.UTF_8);
+		Path csvFile = writeCsv("""
+				Buchungstag;Wertstellungstag;Umsatz;Waehrung;Verwendungszweck;Buchungstext;Beguenstigter/Zahlungspflichtiger;Kontonummer/IBAN;BLZ/BIC
+				20.08.2026;21.08.2026;-1.234,56;EUR;Rechnung;August;Beispiel GmbH;DE02120300000000202051;BYLADEM1001
+				""");
+		CsvImportAnalyzer analyzer = new CsvImportAnalyzer(new CsvImportDefinitionRepository(definitionFile));
+
+		new FileImportCSVBean(null, account, "Buchung: Moneyplex Bank", analyzer).importFileToDatabase(csvFile.toString());
+
+		Booking booking = dbController.getAllByParentFull(Booking.class, account.getId()).get(0);
+		assertEquals(new BigDecimal("-1234.56"), booking.getAmount());
+		assertEquals(LocalDate.of(2026, 8, 20), booking.getDateBooking());
+		assertEquals("Rechnung" + System.lineSeparator() + "August", booking.getPurpose());
+		assertEquals("Beispiel GmbH", booking.getRecipient().getName());
+		assertEquals("DE02120300000000202051", booking.getRecipient().getIban());
 	}
 
 	private BankAccount createAccount(String name, String iban, String number) {

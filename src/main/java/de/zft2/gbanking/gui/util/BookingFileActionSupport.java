@@ -8,6 +8,8 @@ import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
+import de.zft2.gbanking.gui.dialog.CsvImportDialogSupport;
+import de.zft2.gbanking.gui.dialog.CsvImportDialogSupport.Selection;
 import de.zft2.gbanking.gui.EnvironmentOptions;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.gui.enu.FileType;
@@ -53,7 +55,16 @@ public final class BookingFileActionSupport {
 			return;
 		}
 		try {
-			FileImportProgressBarPanel progressPanel = new FileImportProgressBarPanel(owner, account, successCallback);
+			Selection selection = new Selection(null, account);
+			if (importType == ExportType.BOOKINGS_CSV) {
+				var preparedImport = CsvImportDialogSupport.prepare(owner, importFile, account, account);
+				if (preparedImport.isEmpty()) {
+					return;
+				}
+				selection = preparedImport.get();
+			}
+			FileImportProgressBarPanel progressPanel = new FileImportProgressBarPanel(owner, selection.account(), successCallback,
+					selection.definitionName());
 			var progressWindow = progressPanel.createNewFileImportProgressBarWindow();
 			progressPanel.startTask(importFile.toString(), importType, accountListPanel);
 			progressWindow.show();

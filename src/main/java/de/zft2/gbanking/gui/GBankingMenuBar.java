@@ -52,7 +52,7 @@ public class GBankingMenuBar extends MenuBar implements BaseGui {
 
 		Menu fileImportMenu = new Menu(getText("UI_MENU_FILE_IMPORT"));
 		Menu fileImportBookingsMenu = new Menu(getText("UI_MENU_FILE_BOOKINGS"));
-		MenuItem fileImportBookingsCsv = new MenuItem(getText(UI_MENU_FILE_CSV));
+		MenuItem fileImportBookingsCsv = new MenuItem(getText("UI_MENU_FILE_CSV_FORMATS"));
 		fileImportBookingsCsv.setOnAction(e -> gui.processBookingImport(ExportType.BOOKINGS_CSV));
 		MenuItem fileImportBookingsFp3 = new MenuItem(getText("UI_MENU_FILE_FP3"));
 		fileImportBookingsFp3.setOnAction(e -> gui.processBookingImport(ExportType.BOOKINGS_FP3));
@@ -67,9 +67,7 @@ public class GBankingMenuBar extends MenuBar implements BaseGui {
 		MenuItem fileImportSepaOrders = new MenuItem(getText("UI_MENU_FILE_XML_SEPA"));
 		fileImportSepaOrders.setOnAction(e -> gui.processMoneyTransferImport(ExportType.MONEYTRANSFERS_SEPA_XML));
 		fileImportOrdersMenu.getItems().addAll(fileImportCsvOrders, fileImportSepaOrders);
-		MenuItem fileImportCreditcard = new MenuItem(getText("UI_MENU_FILE_IMPORT_CREDITCARD"));
-		fileImportCreditcard.setOnAction(e -> gui.processCreditcardImport());
-		fileImportMenu.getItems().addAll(fileImportBookingsMenu, fileImportOrdersMenu, new SeparatorMenuItem(), fileImportCreditcard);
+		fileImportMenu.getItems().addAll(fileImportBookingsMenu, fileImportOrdersMenu);
 
 		Menu fileExportMenu = new Menu(getText("UI_MENU_FILE_EXPORT"));
 		Menu fileExportBookingsMenu = new Menu(getText("UI_MENU_FILE_BOOKINGS"));

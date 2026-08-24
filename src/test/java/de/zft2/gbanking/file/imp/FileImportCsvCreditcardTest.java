@@ -34,7 +34,7 @@ import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class CreditcardCsvImportBeanTest {
+class FileImportCsvCreditcardTest {
 
 	private DBController dbController;
 	private Path tempDir;
@@ -64,7 +64,7 @@ class CreditcardCsvImportBeanTest {
 				14.08.2022;ORLEN STACJA NR 790;Einkauf;-182,52;0,214880561;PLN;-39,22;SZCZECIN;Service Stations;15.08.2022;01.09.2022
 				""");
 
-		CreditcardCsvImportBean importer = new CreditcardCsvImportBean(null, account);
+		FileImportCSVBean importer = new FileImportCSVBean(null, account);
 		importer.importFileToDatabase(csvFile.toString());
 
 		List<Booking> bookings = dbController.getAllByParentFull(Booking.class, account.getId());
@@ -98,7 +98,7 @@ class CreditcardCsvImportBeanTest {
 				03.05.2026;Ohne Betrag;03.05.2026;;
 				""");
 
-		CreditcardCsvImportBean importer = new CreditcardCsvImportBean(null, account);
+		FileImportCSVBean importer = new FileImportCSVBean(null, account);
 		importer.importFileToDatabase(csvFile.toString());
 
 		Map<String, Booking> bookingsByPurpose = dbController.getAllByParentFull(Booking.class, account.getId()).stream()
@@ -129,7 +129,7 @@ class CreditcardCsvImportBeanTest {
 				03.05.2026;Bezahlung von DE33333333333333333333 Kreditkartenabrechnung;03.05.2026;300;
 				""");
 
-		CreditcardCsvImportBean importer = new CreditcardCsvImportBean(null, account);
+		FileImportCSVBean importer = new FileImportCSVBean(null, account);
 		importer.importFileToDatabase(csvFile.toString());
 
 		Map<String, Booking> bookingsByPurpose = dbController.getAllByParentFull(Booking.class, account.getId()).stream()
@@ -149,7 +149,7 @@ class CreditcardCsvImportBeanTest {
 		BankAccount account = createCreditcardAccount("Kreditkarte Unbekannt");
 		Path csvFile = writeCsv("Foo;Bar" + System.lineSeparator() + "1;2" + System.lineSeparator());
 
-		CreditcardCsvImportBean importer = new CreditcardCsvImportBean(null, account);
+		FileImportCSVBean importer = new FileImportCSVBean(null, account);
 		String fileName = csvFile.toString();
 
 		assertThrows(GBankingException.class, () -> importer.importFileToDatabase(fileName));

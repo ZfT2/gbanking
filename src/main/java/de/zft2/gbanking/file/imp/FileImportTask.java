@@ -12,6 +12,7 @@ import org.xml.sax.SAXException;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.file.BaseFileTask;
+import de.zft2.gbanking.file.imp.FileImportCSVBean.RejectedRow;
 import de.zft2.gbanking.gui.enu.ExportType;
 
 public class FileImportTask extends BaseFileTask {
@@ -19,17 +20,23 @@ public class FileImportTask extends BaseFileTask {
 	private static Logger log = LogManager.getLogger(FileImportTask.class);
 	private String importSummaryText;
 	private List<FileImportBean.ImportAccountStatistics> importStatistics;
-	private List<CreditcardCsvImportBean.RejectedRow> rejectedRows = List.of();
+	private List<RejectedRow> rejectedRows = List.of();
 	private final BankAccount contextAccount;
+	private final String csvDefinitionName;
 
 	public FileImportTask(String fileName) {
-		this(fileName, ExportType.BOOKINGS_XML, null);
+		this(fileName, ExportType.BOOKINGS_XML, null, null);
 	}
 
 	public FileImportTask(String fileName, ExportType exportType, BankAccount contextAccount) {
+		this(fileName, exportType, contextAccount, null);
+	}
+
+	public FileImportTask(String fileName, ExportType exportType, BankAccount contextAccount, String csvDefinitionName) {
 		super(fileName);
 		this.exportType = exportType;
 		this.contextAccount = contextAccount;
+		this.csvDefinitionName = csvDefinitionName;
 	}
 
 	@Override
@@ -40,7 +47,6 @@ public class FileImportTask extends BaseFileTask {
 		switch (exportType) {
 		case BOOKINGS_XML -> importBookingsXml();
 		case BOOKINGS_CSV -> importBookingsCsv();
-		case BOOKINGS_CREDITCARD_CSV -> importCreditcardBookingsCsv();
 		case BOOKINGS_FP3 -> importBookingsFp3();
 		case BOOKINGS_MT940 -> importBookingsMt940();
 		default -> throw new GBankingException("Unknown import type: " + exportType);
@@ -56,16 +62,10 @@ public class FileImportTask extends BaseFileTask {
 	}
 
 	private void importBookingsCsv() throws IOException {
-		FileImportCSVBean fileImportBean = new FileImportCSVBean(this, contextAccount);
+		FileImportCSVBean fileImportBean = new FileImportCSVBean(this, contextAccount, csvDefinitionName);
 		fileImportBean.importFileToDatabase(fileName);
 		importStatistics = fileImportBean.getImportStatistics();
-	}
-
-	private void importCreditcardBookingsCsv() throws IOException {
-		CreditcardCsvImportBean importBean = new CreditcardCsvImportBean(this, contextAccount);
-		importBean.importFileToDatabase(fileName);
-		importStatistics = importBean.getImportStatistics();
-		rejectedRows = importBean.getRejectedRows();
+		rejectedRows = fileImportBean.getRejectedRows();
 	}
 
 	private void importBookingsFp3() {
@@ -89,7 +89,7 @@ public class FileImportTask extends BaseFileTask {
 		return importStatistics != null ? List.copyOf(importStatistics) : null;
 	}
 
-	public List<CreditcardCsvImportBean.RejectedRow> getRejectedRows() {
+	public List<RejectedRow> getRejectedRows() {
 		return List.copyOf(rejectedRows);
 	}
 

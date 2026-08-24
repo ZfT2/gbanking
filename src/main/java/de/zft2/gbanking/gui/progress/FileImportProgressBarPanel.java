@@ -4,8 +4,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import de.zft2.gbanking.db.dao.BankAccount;
-import de.zft2.gbanking.file.imp.CreditcardCsvImportBean.RejectedRow;
 import de.zft2.gbanking.file.imp.FileImportBean.ImportAccountStatistics;
+import de.zft2.gbanking.file.imp.FileImportCSVBean.RejectedRow;
 import de.zft2.gbanking.file.imp.FileImportTask;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.enu.ExportType;
@@ -24,15 +24,21 @@ public class FileImportProgressBarPanel extends BaseFileProgressBarPanel {
 
 	private final BankAccount contextAccount;
 	private final Runnable successCallback;
+	private final String csvDefinitionName;
 
 	public FileImportProgressBarPanel(Window parent) {
-		this(parent, null, null);
+		this(parent, null, null, null);
 	}
 
 	public FileImportProgressBarPanel(Window parent, BankAccount contextAccount, Runnable successCallback) {
+		this(parent, contextAccount, successCallback, null);
+	}
+
+	public FileImportProgressBarPanel(Window parent, BankAccount contextAccount, Runnable successCallback, String csvDefinitionName) {
 		super(parent);
 		this.contextAccount = contextAccount;
 		this.successCallback = successCallback;
+		this.csvDefinitionName = csvDefinitionName;
 	}
 
 	@Override
@@ -56,7 +62,7 @@ public class FileImportProgressBarPanel extends BaseFileProgressBarPanel {
 
 	@Override
 	public void startTask(String fileName, ExportType exportType, AccountListPanel accountListPanel) {
-		task = new FileImportTask(fileName, exportType, contextAccount);
+		task = new FileImportTask(fileName, exportType, contextAccount, csvDefinitionName);
 		super.startTask(accountListPanel);
 	}
 
@@ -100,9 +106,9 @@ public class FileImportProgressBarPanel extends BaseFileProgressBarPanel {
 			return;
 		}
 		String details = rejectedRows.stream()
-				.map(row -> getText("UI_CREDITCARD_IMPORT_REJECTED_ROW", row.lineNumber(), row.reason()))
+				.map(row -> getText("UI_CSV_IMPORT_REJECTED_ROW", row.lineNumber(), row.reason()))
 				.collect(Collectors.joining(System.lineSeparator()));
-		DialogWindowSupport.showAlert(dialogStage, Alert.AlertType.WARNING, getText("UI_MENU_FILE_IMPORT_CREDITCARD"),
-				getText("UI_CREDITCARD_IMPORT_REJECTED_HEADER", rejectedRows.size()), details);
+		DialogWindowSupport.showAlert(dialogStage, Alert.AlertType.WARNING, getText("UI_CSV_IMPORT_TITLE"),
+				getText("UI_CSV_IMPORT_REJECTED_HEADER", rejectedRows.size()), details);
 	}
 }

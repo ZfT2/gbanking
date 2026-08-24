@@ -3,7 +3,6 @@ package de.zft2.gbanking.gui.enu;
 public enum ExportType {
 
 	BOOKINGS_CSV(FileType.CSV),
-	BOOKINGS_CREDITCARD_CSV(FileType.CSV),
 	BOOKINGS_FP3(FileType.FP3),
 	BOOKINGS_MT940(FileType.MT940),
 	BOOKINGS_XML(FileType.XML),
