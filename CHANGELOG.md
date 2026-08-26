@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-26
+
+### Added
+- Import filters for CSV import data
+- add SEPA XML format import / export
+
+### Fixed
+- Set product version in FinTS messages
+- In-place Update:
+- Avoid unnecessary instute.db changes
+- BankAccess Sparkasse if account type is not set.
+
+### Changed
+- Foreign currency handling and persisting
+
+### Maintenance
+- external libraries minor updates
+- release: prepare next development version 0.3.1-SNAPSHOT
+
 ## [0.3.0] - 2026-08-20
 
 ### Added
@@ -471,16 +490,4 @@ All notable changes to this project will be documented in this file.
 ### Maintenance
 - Update libs
 - release: prepare next development version 0.4.1-SNAPSHOT
-
-## [0.4.0] - 2026-05-06
-
-### Fixed
-- added missing messages
-
-### Build
-- automatic changelog
-
-### Other
-- refactoring, cleanup
-- cleanup unused code
 
