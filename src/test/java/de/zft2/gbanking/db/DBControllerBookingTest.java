@@ -37,6 +37,8 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingAdditionalDetails;
 import de.zft2.gbanking.db.dao.BookingCreditCardDetails;
+import de.zft2.gbanking.db.dao.BookingFee;
+import de.zft2.gbanking.db.dao.BookingForeignCurrencyDetails;
 import de.zft2.gbanking.db.dao.BookingNoteDetails;
 import de.zft2.gbanking.db.dao.BookingSepaDetails;
 import de.zft2.gbanking.db.dao.Category;
@@ -44,6 +46,7 @@ import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.AccountState;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.BookingType;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.SepaType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
@@ -70,7 +73,6 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 
 		assertEquals("Miete", booking.getPurpose());
 		assertEquals(new BigDecimal("1200.00"), booking.getAmount());
-		assertEquals("EUR", booking.getCurrency());
 		assertEquals(BookingType.REMOVAL, booking.getBookingType());
 		assertEquals(Source.ONLINE, booking.getSource());
 
@@ -98,7 +100,6 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 
 		assertEquals("Miete", booking.getPurpose());
 		assertEquals(new BigDecimal("1200.00"), booking.getAmount());
-		assertEquals("EUR", booking.getCurrency());
 		assertEquals(BookingType.REMOVAL, booking.getBookingType());
 		assertEquals(Source.ONLINE, booking.getSource());
 		LocalDate dateCurrentWithoutSeconds = getCalendarWithoutTime(LocalDate.now(ZoneId.systemDefault()));
@@ -122,6 +123,8 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		booking.setSepaDetails(createSepaDetails());
 		booking.setAdditionalDetails(createAdditionalDetails());
 		booking.setCreditCardDetails(createCreditCardDetails());
+		booking.setForeignCurrencyDetails(createForeignCurrencyDetails());
+		booking.setFee(createFee());
 		booking.setNoteDetails(createNoteDetails("Beleg anfordern", true));
 
 		db.insertOrUpdate(booking);
@@ -154,8 +157,10 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		assertTrue(tableHasColumn("bookingAdditional", "add_instref"));
 		assertTrue(tableHasColumn("bookingAdditional", "updatedAt"));
 		assertTrue(tableHasColumn("bookingAdditionalCreditcard", "creditcard_transaction_date"));
-		assertTrue(tableHasColumn("bookingAdditionalCreditcard", "creditcard_currency_rate"));
+		assertFalse(tableHasColumn("bookingAdditionalCreditcard", "creditcard_currency_rate"));
 		assertTrue(tableHasColumn("bookingAdditionalCreditcard", "updatedAt"));
+		assertTrue(tableHasColumn("bookingAdditionalForeigncurrency", "exchangeRateToBaseCurrency"));
+		assertTrue(tableHasColumn("bookingFee", "currency"));
 		assertBookingDetailsStoredInSubTables(booking.getId());
 		assertBookingFullUpdatedAtIsNewestDetailTimestamp(booking.getId());
 	}
@@ -180,8 +185,6 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		details.setPrimanota("PN-1");
 		details.setKey("KEY-1");
 		details.setStorno(Boolean.TRUE);
-		details.setOrigValue(new BigDecimal("12.34"));
-		details.setChargeValue(new BigDecimal("1.23"));
 		details.setRawData("RAW");
 		details.setSepa(Boolean.TRUE);
 		details.setCamt(Boolean.FALSE);
@@ -193,12 +196,24 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		BookingCreditCardDetails details = new BookingCreditCardDetails();
 		details.setTransactionDate(LocalDate.of(2022, Month.AUGUST, 14));
 		details.setType("Einkauf");
-		details.setCurrencyAmount(new BigDecimal("-182.52"));
-		details.setCurrencyRate(new BigDecimal("0.214880561"));
-		details.setCurrency("PLN");
 		details.setMerchantArea("SZCZECIN");
 		details.setMerchantCategory("Service Stations");
 		return details;
+	}
+
+	private BookingForeignCurrencyDetails createForeignCurrencyDetails() {
+		BookingForeignCurrencyDetails details = new BookingForeignCurrencyDetails();
+		details.setForeignAmount(new BigDecimal("-182.52"));
+		details.setForeignCurrency(Currency.PLN);
+		details.setExchangeRateToBaseCurrency(new BigDecimal("0.214880561"));
+		return details;
+	}
+
+	private BookingFee createFee() {
+		BookingFee fee = new BookingFee();
+		fee.setAmount(new BigDecimal("1.23"));
+		fee.setCurrency(Currency.EUR);
+		return fee;
 	}
 
 	private BookingNoteDetails createNoteDetails(String note, boolean reviewRequired) {
@@ -217,8 +232,6 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		assertEquals("PN-1", details.getPrimanota());
 		assertEquals("KEY-1", details.getKey());
 		assertEquals(Boolean.TRUE, details.getStorno());
-		assertEquals(new BigDecimal("12.34"), details.getOrigValue());
-		assertEquals(new BigDecimal("1.23"), details.getChargeValue());
 		assertEquals("RAW", details.getRawData());
 		assertEquals(Boolean.TRUE, details.getSepa());
 		assertEquals(Boolean.FALSE, details.getCamt());
@@ -230,11 +243,16 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		assertNotNull(details);
 		assertEquals(LocalDate.of(2022, Month.AUGUST, 14), details.getTransactionDate());
 		assertEquals("Einkauf", details.getType());
-		assertEquals(0, new BigDecimal("-182.52").compareTo(details.getCurrencyAmount()));
-		assertEquals(0, new BigDecimal("0.214880561").compareTo(details.getCurrencyRate()));
-		assertEquals("PLN", details.getCurrency());
 		assertEquals("SZCZECIN", details.getMerchantArea());
 		assertEquals("Service Stations", details.getMerchantCategory());
+		BookingForeignCurrencyDetails foreign = reloaded.getForeignCurrencyDetails();
+		assertNotNull(foreign);
+		assertEquals(0, new BigDecimal("-182.52").compareTo(foreign.getForeignAmount()));
+		assertEquals(Currency.PLN, foreign.getForeignCurrency());
+		assertEquals(0, new BigDecimal("0.214880561").compareTo(foreign.getExchangeRateToBaseCurrency()));
+		assertNotNull(reloaded.getFee());
+		assertEquals(new BigDecimal("1.23"), reloaded.getFee().getAmount());
+		assertEquals(Currency.EUR, reloaded.getFee().getCurrency());
 	}
 
 	private void assertBookingSepaInfo(Booking reloaded) {
@@ -529,7 +547,6 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 
 		assertEquals("Miete", booking01.getPurpose());
 		assertEquals(new BigDecimal("1200.00"), booking01.getAmount());
-		assertEquals("EUR", booking01.getCurrency());
 		assertEquals(BookingType.REMOVAL, booking01.getBookingType());
 		assertEquals(Source.ONLINE, booking01.getSource());
 		LocalDate dateCurrentWithoutSeconds = getCalendarWithoutTime(LocalDate.now(ZoneId.systemDefault()));
@@ -544,7 +561,6 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		
 		assertEquals("Kreditrate", booking02.getPurpose());
 		assertEquals(new BigDecimal("400.00"), booking02.getAmount());
-		assertEquals("EUR", booking02.getCurrency());
 		assertEquals(BookingType.REMOVAL, booking02.getBookingType());
 		assertEquals(Source.ONLINE, booking02.getSource());
 	}
@@ -622,7 +638,6 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 
 		assertEquals("Miete", booking01.getPurpose());
 		assertEquals(new BigDecimal("1200.00"), booking01.getAmount());
-		assertEquals("EUR", booking01.getCurrency());
 		assertEquals(BookingType.REMOVAL, booking01.getBookingType());
 		assertEquals(Source.ONLINE, booking01.getSource());
 		LocalDate dateCurrentWithoutSeconds = getCalendarWithoutTime(LocalDate.now(ZoneId.systemDefault()));
@@ -637,7 +652,6 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		
 		assertEquals("Kreditrate", booking02.getPurpose());
 		assertEquals(new BigDecimal("400.00"), booking02.getAmount());
-		assertEquals("EUR", booking02.getCurrency());
 		assertEquals(BookingType.REMOVAL, booking02.getBookingType());
 		assertEquals(Source.ONLINE, booking02.getSource());
 	}
@@ -669,7 +683,6 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 
 		assertEquals(booking02.getPurpose(), rebookingToCheck.getPurpose());
 		assertEquals(booking02.getAmount(), rebookingToCheck.getAmount()/*.multiply(new BigDecimal(-1))*/);
-		assertEquals("EUR", rebookingToCheck.getCurrency());
 		assertEquals(BookingType.REMOVAL, booking01.getBookingType());
 		assertEquals(BookingType.DEPOSIT, booking02.getBookingType());
 		assertEquals(BookingType.DEPOSIT, rebookingToCheck.getBookingType());
@@ -698,11 +711,15 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		String sql = """
 				SELECT bse.sepa_customer_ref, bse.updatedAt AS sepaUpdatedAt,
 					bad.add_instref, bad.add_bank_saldo, bad.updatedAt AS additionalUpdatedAt,
-					bac.creditcard_currency, bac.creditcard_currency_rate, bac.updatedAt AS creditcardUpdatedAt,
+					baf.foreignAmount, baf.foreignCurrency, baf.exchangeRateToBaseCurrency,
+					baf.updatedAt AS foreignUpdatedAt, bfe.amount AS feeAmount, bfe.currency AS feeCurrency,
+					bfe.updatedAt AS feeUpdatedAt, bac.updatedAt AS creditcardUpdatedAt,
 					bno.note, bno.review_required, bno.updatedAt AS noteUpdatedAt
 				FROM bookingAdditionalSepa bse
 				JOIN bookingAdditional bad ON bad.booking_id = bse.booking_id
 				JOIN bookingAdditionalCreditcard bac ON bac.booking_id = bse.booking_id
+				JOIN bookingAdditionalForeigncurrency baf ON baf.booking_id = bse.booking_id
+				JOIN bookingFee bfe ON bfe.booking_id = bse.booking_id
 				JOIN bookingAdditionalNote bno ON bno.booking_id = bse.booking_id
 				WHERE bse.booking_id = ?
 				""";
@@ -713,13 +730,18 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 				assertEquals("Customer-Updated", rs.getString("sepa_customer_ref"));
 				assertEquals("INST-2", rs.getString("add_instref"));
 				assertEquals(new BigDecimal("3456.78"), rs.getBigDecimal("add_bank_saldo"));
-				assertEquals("PLN", rs.getString("creditcard_currency"));
-				assertEquals(0, new BigDecimal("0.214880561").compareTo(rs.getBigDecimal("creditcard_currency_rate")));
+				assertEquals(new BigDecimal("-182.52"), rs.getBigDecimal("foreignAmount"));
+				assertEquals(Currency.PLN.getDbStateId(), rs.getInt("foreignCurrency"));
+				assertEquals(0, new BigDecimal("0.214880561").compareTo(rs.getBigDecimal("exchangeRateToBaseCurrency")));
+				assertEquals(new BigDecimal("1.23"), rs.getBigDecimal("feeAmount"));
+				assertEquals(Currency.EUR.getDbStateId(), rs.getInt("feeCurrency"));
 				assertEquals("Beleg anfordern", rs.getString("note"));
 				assertTrue(rs.getBoolean("review_required"));
 				assertNotNull(rs.getString("sepaUpdatedAt"));
 				assertNotNull(rs.getString("additionalUpdatedAt"));
 				assertNotNull(rs.getString("creditcardUpdatedAt"));
+				assertNotNull(rs.getString("foreignUpdatedAt"));
+				assertNotNull(rs.getString("feeUpdatedAt"));
 				assertNotNull(rs.getString("noteUpdatedAt"));
 				assertFalse(rs.next());
 			}
@@ -732,12 +754,16 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 					bse.updatedAt AS sepaUpdatedAt,
 					bad.updatedAt AS additionalUpdatedAt,
 					bac.updatedAt AS creditcardUpdatedAt,
+					baf.updatedAt AS foreignUpdatedAt,
+					bfe.updatedAt AS feeUpdatedAt,
 					bno.updatedAt AS noteUpdatedAt,
 					bf.updatedAt AS fullUpdatedAt
 				FROM booking b
 				LEFT JOIN bookingAdditionalSepa bse ON bse.booking_id = b.id
 				LEFT JOIN bookingAdditional bad ON bad.booking_id = b.id
 				LEFT JOIN bookingAdditionalCreditcard bac ON bac.booking_id = b.id
+				LEFT JOIN bookingAdditionalForeigncurrency baf ON baf.booking_id = b.id
+				LEFT JOIN bookingFee bfe ON bfe.booking_id = b.id
 				LEFT JOIN bookingAdditionalNote bno ON bno.booking_id = b.id
 				JOIN bookingFull bf ON bf.id = b.id
 				WHERE b.id = ?
@@ -751,7 +777,10 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 				String additionalUpdatedAt = rs.getString("additionalUpdatedAt");
 				String creditcardUpdatedAt = rs.getString("creditcardUpdatedAt");
 				String noteUpdatedAt = rs.getString("noteUpdatedAt");
-				String newestUpdatedAt = newest(bookingUpdatedAt, sepaUpdatedAt, additionalUpdatedAt, creditcardUpdatedAt, noteUpdatedAt);
+				String foreignUpdatedAt = rs.getString("foreignUpdatedAt");
+				String feeUpdatedAt = rs.getString("feeUpdatedAt");
+				String newestUpdatedAt = newest(bookingUpdatedAt, sepaUpdatedAt, additionalUpdatedAt,
+						creditcardUpdatedAt, noteUpdatedAt, foreignUpdatedAt, feeUpdatedAt);
 
 				assertEquals(newestUpdatedAt, rs.getString("fullUpdatedAt"));
 			}

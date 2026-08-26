@@ -37,7 +37,9 @@ public enum CsvImportTarget {
 	CREDITCARD_CURRENCY_RATE("Kreditkarte.Wechselkurs"),
 	CREDITCARD_CURRENCY("Kreditkarte.Waehrung"),
 	CREDITCARD_MERCHANT_AREA("Kreditkarte.Haendlerregion"),
-	CREDITCARD_MERCHANT_CATEGORY("Kreditkarte.Haendlerkategorie");
+	CREDITCARD_MERCHANT_CATEGORY("Kreditkarte.Haendlerkategorie"),
+	FEE_AMOUNT("Gebuehr.Betrag"),
+	FEE_CURRENCY("Gebuehr.Waehrung");
 
 	private static final Map<String, CsvImportTarget> TARGETS_BY_PROPERTY = createTargetMap();
 

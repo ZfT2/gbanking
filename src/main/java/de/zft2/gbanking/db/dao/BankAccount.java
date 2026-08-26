@@ -8,6 +8,7 @@ import java.util.List;
 import de.zft2.core.dto.Account;
 import de.zft2.gbanking.db.dao.enu.AccountState;
 import de.zft2.gbanking.db.dao.enu.AccountType;
+import de.zft2.gbanking.db.dao.enu.Currency;
 
 public class BankAccount extends Dao implements Serializable, Account<Booking> {
 	/**
@@ -20,7 +21,7 @@ public class BankAccount extends Dao implements Serializable, Account<Booking> {
 	private String providerAccountId;
 	private String accountName;
 	private AccountType accountType;
-	private String currency;
+	private Currency baseCurrency = Currency.EUR;
 	private String iban;
 	private String bic;
 	private String number;
@@ -111,12 +112,20 @@ public class BankAccount extends Dao implements Serializable, Account<Booking> {
 		this.accountType = accountType;
 	}
 
+	public Currency getBaseCurrency() {
+		return baseCurrency;
+	}
+
+	public void setBaseCurrency(Currency baseCurrency) {
+		this.baseCurrency = baseCurrency != null ? baseCurrency : Currency.EUR;
+	}
+
 	public String getCurrency() {
-		return currency;
+		return baseCurrency != null ? baseCurrency.name() : null;
 	}
 
 	public void setCurrency(String currency) {
-		this.currency = currency;
+		this.baseCurrency = Currency.forCodeOrDefault(currency, Currency.EUR);
 	}
 
 	public String getIban() {

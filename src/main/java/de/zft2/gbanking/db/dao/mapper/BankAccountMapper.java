@@ -15,6 +15,7 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.AccountState;
 import de.zft2.gbanking.db.dao.enu.AccountType;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.util.TypeConverter;
 
@@ -32,7 +33,7 @@ public class BankAccountMapper extends AbstractDaoMapper<BankAccount, Void> {
 		} else {
 			ps.setString(index++, bankAccount.getDefaultAccountName());
 		}
-		ps.setString(index++, bankAccount.getCurrency());
+		ps.setInt(index++, bankAccount.getBaseCurrency().getDbStateId());
 		ps.setInt(index++, bankAccount.getAccountType().getDbStateId());
 		ps.setInt(index++, bankAccount.getSource().getDbStateId());
 		ps.setString(index++, bankAccount.getIban());
@@ -96,7 +97,7 @@ public class BankAccountMapper extends AbstractDaoMapper<BankAccount, Void> {
 		account.setParentAccountId(rs.getInt("parentAccount_id"));
 		account.setProviderAccountId(rs.getString("providerAccountId"));
 		account.setAccountName(rs.getString(SqlFields.ACCOUNT_ACCOUNTNAME));
-		account.setCurrency(rs.getString("currency"));
+		account.setBaseCurrency(Currency.forInt(rs.getInt("baseCurrency")));
 		account.setAccountType(AccountType.forInt(rs.getInt("accountType")));
 		account.setSource(Source.forInt(rs.getInt("accountSource")));
 		account.setIban(rs.getString("iban"));

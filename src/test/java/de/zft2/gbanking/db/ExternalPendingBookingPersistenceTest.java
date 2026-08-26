@@ -49,7 +49,6 @@ class ExternalPendingBookingPersistenceTest extends DBControllerIntegrationBaseT
 		booking.setDateValue(date);
 		booking.setPurpose(purpose);
 		booking.setAmount(new BigDecimal("-10.00"));
-		booking.setCurrency("EUR");
 		booking.setBookingType(BookingType.REMOVAL);
 		booking.setSource(Source.ONLINE_PRENO);
 		return booking;

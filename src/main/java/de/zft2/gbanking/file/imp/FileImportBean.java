@@ -23,6 +23,7 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingAdditionalDetails;
 import de.zft2.gbanking.db.dao.enu.BookingType;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.BaseWorker;
@@ -48,6 +49,7 @@ public class FileImportBean implements BaseMessagesDb {
 
 	private Map<String, Integer> accountIdMapByAccountname;
 	private Map<String, Integer> crossAccountIdMapByIdentifier;
+	private Map<Integer, Currency> baseCurrencyByAccountId = Map.of();
 
 	private int totalAccounts = 0;
 	private long totalBookings = 0L;
@@ -164,7 +166,7 @@ public class FileImportBean implements BaseMessagesDb {
 			}
 		}
 
-		loadIntoDatabase();
+		dbController.executeInTransaction(() -> loadIntoDatabase());
 		log.info("Finished XML/FP3 booking import. file={}, durationSeconds={}, {}", importPath::getFileName,
 				() -> (System.currentTimeMillis() - timeStart) / 1000, importStatistics::summary);
 	}
@@ -173,23 +175,36 @@ public class FileImportBean implements BaseMessagesDb {
 		return forceFp3Import || importFilePath.toLowerCase(Locale.ROOT).endsWith(".fp3");
 	}
 
+	private void loadBaseCurrencies() {
+		Map<Integer, Currency> currencies = new HashMap<>();
+		for (BankAccount account : dbController.getAll(BankAccount.class)) {
+			currencies.put(account.getId(), account.getBaseCurrency());
+		}
+		if (contextAccount != null && contextAccount.getId() > 0) {
+			currencies.put(contextAccount.getId(), contextAccount.getBaseCurrency());
+		}
+		baseCurrencyByAccountId = Map.copyOf(currencies);
+	}
+
 	private void loadIntoDatabase() {
 
 		if (xml2CsvKontoList != null) {
 			long bookingCount = countBookings(xml2CsvKontoList);
 			writeAccountsToDB(xml2CsvKontoList);
+			loadBaseCurrencies();
 			ServiceRegistry.getService(ImportPropertiesSynchronizationService.class).initializeAndSynchronize();
 			writeBookingsToDB(xml2CsvKontoList, bookingCount);
 		} else if (fp32CsvBookingList != null) {
 			accountIdMapByAccountname = dbController.getAccountsIdsByAccountName();
 			crossAccountIdMapByIdentifier = dbController.getCrossAccountsIdsByIbanOrNumber();
 			addContextAccountToLookupMaps();
+			loadBaseCurrencies();
 			String fallbackAccountName = resolveFallbackAccountName(fp32CsvBookingList);
 			if (fallbackAccountName == null && contextAccount != null) {
 				fallbackAccountName = contextAccount.getAccountName();
 			}
 			Collection<Booking> bookingDaoList = ImportDaoMapper.maptoBookingDaoList(fallbackAccountName, fp32CsvBookingList, accountIdMapByAccountname,
-					crossAccountIdMapByIdentifier, Source.IMPORT_INITIAL);
+					crossAccountIdMapByIdentifier, baseCurrencyByAccountId, Source.IMPORT_INITIAL);
 			postProcessImportedBookings(persistImportedBookings(bookingDaoList));
 			updateWorkerState(PROGRESS_FINISHED, "UI_PROGRESS_FINISH");
 		} else {
@@ -388,7 +403,8 @@ public class FileImportBean implements BaseMessagesDb {
 		int accountId = ImportedAccountResolver.resolveAccountId(accountName, xmlBooking, accountIdMapByAccountname);
 		Integer crossAccountId = ImportedAccountResolver.resolveCrossAccountId(xmlBooking, accountId, accountIdMapByAccountname,
 				crossAccountIdMapByIdentifier);
-		Booking bookingDao = ImportDaoMapper.maptoBookingDao(xmlBooking, accountId, crossAccountId, Source.IMPORT_INITIAL);
+		Booking bookingDao = ImportDaoMapper.maptoBookingDao(xmlBooking, accountId, crossAccountId, Source.IMPORT_INITIAL,
+				baseCurrencyByAccountId.getOrDefault(accountId, Currency.EUR));
 		Booking existingBooking = ImportedBookingMatcher.findMatchingBooking(existingBookings, bookingDao);
 		boolean existing = existingBooking != null;
 		Booking resolvedBooking = existing ? existingBooking : dbController.insertOrUpdate(bookingDao);

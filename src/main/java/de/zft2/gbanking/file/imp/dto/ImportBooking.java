@@ -42,17 +42,17 @@ public class ImportBooking implements BookingDetails {
 	private String addPrimanota;
 	private String addKey;
 	private Boolean addIsStorno;
-	private BigDecimal addOrigValue;
-	private BigDecimal addChargeValue;
 	private String addRawData;
 	private Boolean addIsSepa;
 	private Boolean addIsCamt;
 	private BigDecimal addBankSaldo;
 	private LocalDate creditcardTransactionDate;
 	private String creditcardType;
-	private BigDecimal creditcardCurrencyAmount;
-	private BigDecimal creditcardCurrencyRate;
-	private String creditcardCurrency;
+	private BigDecimal foreignAmount;
+	private BigDecimal exchangeRateToBaseCurrency;
+	private String foreignCurrency;
+	private BigDecimal feeAmount;
+	private String feeCurrency;
 	private String creditcardMerchantArea;
 	private String creditcardMerchantCategory;
 	private Source source;
@@ -96,17 +96,17 @@ public class ImportBooking implements BookingDetails {
 			this.addPrimanota = importBooking.addPrimanota;
 			this.addKey = importBooking.addKey;
 			this.addIsStorno = importBooking.addIsStorno;
-			this.addOrigValue = importBooking.addOrigValue;
-			this.addChargeValue = importBooking.addChargeValue;
 			this.addRawData = importBooking.addRawData;
 			this.addIsSepa = importBooking.addIsSepa;
 			this.addIsCamt = importBooking.addIsCamt;
 			this.addBankSaldo = importBooking.addBankSaldo;
 			this.creditcardTransactionDate = importBooking.creditcardTransactionDate;
 			this.creditcardType = importBooking.creditcardType;
-			this.creditcardCurrencyAmount = importBooking.creditcardCurrencyAmount;
-			this.creditcardCurrencyRate = importBooking.creditcardCurrencyRate;
-			this.creditcardCurrency = importBooking.creditcardCurrency;
+			this.foreignAmount = importBooking.foreignAmount;
+			this.exchangeRateToBaseCurrency = importBooking.exchangeRateToBaseCurrency;
+			this.foreignCurrency = importBooking.foreignCurrency;
+			this.feeAmount = importBooking.feeAmount;
+			this.feeCurrency = importBooking.feeCurrency;
 			this.creditcardMerchantArea = importBooking.creditcardMerchantArea;
 			this.creditcardMerchantCategory = importBooking.creditcardMerchantCategory;
 			this.source = importBooking.source;
@@ -342,22 +342,6 @@ public class ImportBooking implements BookingDetails {
 		this.addIsStorno = addIsStorno;
 	}
 
-	public BigDecimal getAddOrigValue() {
-		return addOrigValue;
-	}
-
-	public void setAddOrigValue(BigDecimal addOrigValue) {
-		this.addOrigValue = addOrigValue;
-	}
-
-	public BigDecimal getAddChargeValue() {
-		return addChargeValue;
-	}
-
-	public void setAddChargeValue(BigDecimal addChargeValue) {
-		this.addChargeValue = addChargeValue;
-	}
-
 	public String getAddRawData() {
 		return addRawData;
 	}
@@ -406,28 +390,44 @@ public class ImportBooking implements BookingDetails {
 		this.creditcardType = creditcardType;
 	}
 
-	public BigDecimal getCreditcardCurrencyAmount() {
-		return creditcardCurrencyAmount;
+	public BigDecimal getForeignAmount() {
+		return foreignAmount;
 	}
 
-	public void setCreditcardCurrencyAmount(BigDecimal creditcardCurrencyAmount) {
-		this.creditcardCurrencyAmount = creditcardCurrencyAmount;
+	public void setForeignAmount(BigDecimal foreignAmount) {
+		this.foreignAmount = foreignAmount;
 	}
 
-	public BigDecimal getCreditcardCurrencyRate() {
-		return creditcardCurrencyRate;
+	public BigDecimal getExchangeRateToBaseCurrency() {
+		return exchangeRateToBaseCurrency;
 	}
 
-	public void setCreditcardCurrencyRate(BigDecimal creditcardCurrencyRate) {
-		this.creditcardCurrencyRate = creditcardCurrencyRate;
+	public void setExchangeRateToBaseCurrency(BigDecimal exchangeRateToBaseCurrency) {
+		this.exchangeRateToBaseCurrency = exchangeRateToBaseCurrency;
 	}
 
-	public String getCreditcardCurrency() {
-		return creditcardCurrency;
+	public String getForeignCurrency() {
+		return foreignCurrency;
 	}
 
-	public void setCreditcardCurrency(String creditcardCurrency) {
-		this.creditcardCurrency = creditcardCurrency;
+	public void setForeignCurrency(String foreignCurrency) {
+		this.foreignCurrency = foreignCurrency;
+	}
+
+	public BigDecimal getFeeAmount() {
+		return feeAmount;
+	}
+
+	public void setFeeAmount(BigDecimal feeAmount) {
+		this.feeAmount = feeAmount;
+	}
+
+	public String getFeeCurrency() {
+		return feeCurrency;
+	}
+
+	public void setFeeCurrency(String feeCurrency) {
+		this.feeCurrency = feeCurrency;
 	}
 
 	public String getCreditcardMerchantArea() {

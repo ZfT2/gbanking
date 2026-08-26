@@ -66,6 +66,19 @@ public class PaypalSoapClient {
 		return transactions;
 	}
 
+	public PaypalTransactionDetails getTransactionDetails(String apiUsername, char[] apiPassword,
+			String apiSignature, String transactionId) throws InterruptedException {
+		Document response = execute("GetTransactionDetails", element("TransactionID", transactionId),
+				apiUsername, apiPassword, apiSignature);
+		Element settleAmount = firstElement(response, "SettleAmount");
+		BigDecimal amount = settleAmount != null && !text(settleAmount).isBlank()
+				? new BigDecimal(text(settleAmount)) : null;
+		String currency = settleAmount != null ? currency(settleAmount) : null;
+		String exchangeRate = firstText(response, "ExchangeRate");
+		return new PaypalTransactionDetails(amount, currency,
+				exchangeRate.isBlank() ? null : new BigDecimal(exchangeRate));
+	}
+
 	private Document execute(String operation, String requestFields, String apiUsername, char[] apiPassword, String apiSignature)
 			throws InterruptedException {
 		String request = soapEnvelope(operation, requestFields, apiUsername, apiPassword, apiSignature);
@@ -110,7 +123,7 @@ public class PaypalSoapClient {
 		return new PaypalTransaction(Instant.parse(childText(transaction, "Timestamp")), childText(transaction, "Type"),
 				childText(transaction, "Payer"), childText(transaction, "PayerDisplayName"), childText(transaction, "TransactionID"),
 				childText(transaction, "Status"), decimal(transaction, "GrossAmount"), decimal(transaction, "FeeAmount"),
-				new BigDecimal(text(netAmount)), currency(netAmount));
+				currency(child(transaction, "FeeAmount")), new BigDecimal(text(netAmount)), currency(netAmount));
 	}
 
 	private void validateResponse(Document document) {
@@ -149,7 +162,7 @@ public class PaypalSoapClient {
 	}
 
 	private String currency(Element amount) {
-		return amount.getAttribute("currencyID").trim().toUpperCase(Locale.ROOT);
+		return amount != null ? amount.getAttribute("currencyID").trim().toUpperCase(Locale.ROOT) : null;
 	}
 
 	private static Document parse(String xml) {
@@ -191,6 +204,11 @@ public class PaypalSoapClient {
 	private static String firstText(Document document, String localName) {
 		NodeList nodes = document.getElementsByTagNameNS("*", localName);
 		return nodes.getLength() > 0 ? text(nodes.item(0)) : "";
+	}
+
+	private static Element firstElement(Document document, String localName) {
+		NodeList nodes = document.getElementsByTagNameNS("*", localName);
+		return nodes.getLength() > 0 ? (Element) nodes.item(0) : null;
 	}
 
 	private static String childText(Element parent, String localName) {

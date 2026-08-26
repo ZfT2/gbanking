@@ -12,6 +12,7 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.enu.AccountState;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.BankAccessType;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.service.Service;
 
@@ -35,12 +36,19 @@ public class PaypalAccountService implements Service, BaseMessages {
 		if (balances.isEmpty()) {
 			throw new PaypalApiException(getText("ERROR_PAYPAL_NO_BALANCES"), false);
 		}
+		validateCurrencies(balances);
 
 		BankAccess existingAccess = database.getBankAccessByBlzAndUserId(PaypalSupport.BANK_CODE, bankAccess.getPaypal().getUserId());
 		BankAccount existingAccount = findExistingAccount(bankAccess, existingAccess);
 		applyAccessData(bankAccess, existingAccess);
 		bankAccess.setAccounts(List.of(mapAccount(bankAccess, balances.get(0), existingAccount)));
 		return true;
+	}
+
+	private void validateCurrencies(List<PaypalBalance> balances) {
+		for (PaypalBalance balance : balances) {
+			Currency.forCode(balance.currency());
+		}
 	}
 
 	public List<BankAccount> getLinkableAccounts() {

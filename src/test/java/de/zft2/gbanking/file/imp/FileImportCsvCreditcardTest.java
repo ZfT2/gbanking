@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,9 +28,11 @@ import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingCreditCardDetails;
+import de.zft2.gbanking.db.dao.BookingForeignCurrencyDetails;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.BookingType;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
 
@@ -71,7 +74,7 @@ class FileImportCsvCreditcardTest {
 		assertEquals(1, bookings.size());
 		Booking booking = bookings.get(0);
 		assertEquals(new BigDecimal("-39.22"), booking.getAmount());
-		assertEquals("EUR", booking.getCurrency());
+		assertEquals(Currency.EUR, account.getBaseCurrency());
 		assertEquals("ORLEN STACJA NR 790", booking.getPurpose());
 		assertEquals(LocalDate.of(2022, Month.AUGUST, 15), booking.getDateBooking());
 		assertEquals(LocalDate.of(2022, Month.SEPTEMBER, 1), booking.getDateValue());
@@ -79,11 +82,14 @@ class FileImportCsvCreditcardTest {
 		assertNotNull(details);
 		assertEquals(LocalDate.of(2022, Month.AUGUST, 14), details.getTransactionDate());
 		assertEquals("Einkauf", details.getType());
-		assertEquals(0, new BigDecimal("-182.52").compareTo(details.getCurrencyAmount()));
-		assertEquals(0, new BigDecimal("0.214880561").compareTo(details.getCurrencyRate()));
-		assertEquals("PLN", details.getCurrency());
 		assertEquals("SZCZECIN", details.getMerchantArea());
 		assertEquals("Service Stations", details.getMerchantCategory());
+		BookingForeignCurrencyDetails foreign = booking.getForeignCurrencyDetails();
+		assertNotNull(foreign);
+		assertEquals(new BigDecimal("-182.52"), foreign.getForeignAmount());
+		assertEquals(Currency.PLN, foreign.getForeignCurrency());
+		assertEquals(new BigDecimal("-39.22"), foreign.getForeignAmount()
+				.multiply(foreign.getExchangeRateToBaseCurrency()).setScale(2, RoundingMode.HALF_UP));
 		assertEquals(List.of(), importer.getRejectedRows());
 	}
 
@@ -107,9 +113,24 @@ class FileImportCsvCreditcardTest {
 		assertEquals(new BigDecimal("15.00"), bookingsByPurpose.get("Kartenrabatt").getAmount());
 		assertEquals(new BigDecimal("-150.00"),
 				bookingsByPurpose.get("Shell Tankstelle 14007400, Kronberg Im T, DE - Kartenzahlung").getAmount());
-		assertEquals("EUR", bookingsByPurpose.get("Kartenrabatt").getCurrency());
+		assertEquals(Currency.EUR, account.getBaseCurrency());
 		assertNull(bookingsByPurpose.get("Kartenrabatt").getCreditCardDetails());
 		assertEquals(List.of(4L, 5L), importer.getRejectedRows().stream().map(row -> row.lineNumber()).toList());
+	}
+
+	@Test
+	void importFileToDatabase_shouldRollbackWholeFileWhenForeignBookingHasNoBaseAmount() throws Exception {
+		BankAccount account = createCreditcardAccount("Kreditkarte Fremdwährung");
+		Path csvFile = writeCsv("""
+				TransactionDate;Text;Type;Currency Amount;Currency Rate;Currency;Amount;Merchant Area;Merchant Category;BookDate;ValueDate
+				14.08.2022;Gueltig;Einkauf;-182,52;0,214880561;PLN;-39,22;SZCZECIN;Service Stations;15.08.2022;01.09.2022
+				15.08.2022;Ohne Basisbetrag;Einkauf;-20,00;0,20;PLN;;WARSCHAU;Hotel;16.08.2022;02.09.2022
+				""");
+
+		FileImportCSVBean importer = new FileImportCSVBean(null, account);
+
+		assertThrows(GBankingException.class, () -> importer.importFileToDatabase(csvFile.toString()));
+		assertEquals(List.of(), dbController.getAllByParentFull(Booking.class, account.getId()));
 	}
 
 	@Test

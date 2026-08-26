@@ -78,6 +78,8 @@
 								<tr><td><code>BUCHUNGSTYP</code></td><td>Technischer Typ, zum Beispiel <code>DEPOSIT</code>, <code>REMOVAL</code>, <code>REBOOKING_IN</code> oder <code>REBOOKING_OUT</code>. Ohne Angabe wird er aus dem Vorzeichen des Betrags bestimmt.</td></tr>
 								<tr><td><code>KATEGORIE</code></td><td>Kategoriepfad oder Kategoriename.</td></tr>
 								<tr><td><code>SEPA_CUSTOMER_REF</code>, <code>SEPA_CREDITOR_ID</code>, <code>SEPA_END_TO_END</code>, <code>SEPA_MANDATE</code>, <code>SEPA_PERSON_ID</code>, <code>SEPA_PURPOSE</code>, <code>SEPA_TYPE</code></td><td>Optionale SEPA-Zusatzinformationen.</td></tr>
+								<tr><td><code>FREMDWAEHRUNGSBETRAG</code>, <code>FREMDWAEHRUNG</code>, <code>WECHSELKURS_ZUR_KONTOWAEHRUNG</code></td><td>Ursprünglicher Fremdbetrag und Kurs mit der festen Richtung: Fremdbetrag mal Kurs ergibt den Betrag in Kontowährung.</td></tr>
+								<tr><td><code>GEBUEHR</code>, <code>GEBUEHRENWAEHRUNG</code></td><td>Optionale Gebühr und deren Währung. Ohne Gebührenwährung gilt die Kontowährung.</td></tr>
 							</tbody>
 						</table>
 					</div>
@@ -94,8 +96,8 @@
 
 				<section id="vollstaendig">
 					<h2>5. Beispiel: vollständige Datei</h2>
-					<pre>KONTO_NAME;KONTO_IBAN;KONTO_NR;KONTO_BANK;KONTO_BIC;BUCHUNGSDATUM;WERTSTELLUNG;BETRAG;WAEHRUNG;VERWENDUNGSZWECK;EMPFAENGER_NAME;EMPFAENGER_IBAN;EMPFAENGER_BIC;EMPFAENGER_KONTONR;EMPFAENGER_BLZ;EMPFAENGER_BANK;BUCHUNGSTYP;KATEGORIE;SEPA_CUSTOMER_REF;SEPA_CREDITOR_ID;SEPA_END_TO_END;SEPA_MANDATE;SEPA_PERSON_ID;SEPA_PURPOSE;SEPA_TYPE
-Girokonto;DE11111111111111111111;11111111;Testbank;TESTDEFF;10.04.2026;11.04.2026;-49,90;EUR;Einkauf Supermarkt;Supermarkt GmbH;DE99999999999999999999;BANKDEFFXXX;;;;REMOVAL;Haushalt/Lebensmittel;;;E2E-123;;;;</pre>
+					<pre>KONTO_NAME;KONTO_IBAN;KONTO_NR;KONTO_BANK;KONTO_BIC;BUCHUNGSDATUM;WERTSTELLUNG;BETRAG;WAEHRUNG;VERWENDUNGSZWECK;EMPFAENGER_NAME;EMPFAENGER_IBAN;EMPFAENGER_BIC;EMPFAENGER_KONTONR;EMPFAENGER_BLZ;EMPFAENGER_BANK;BUCHUNGSTYP;KATEGORIE;SEPA_CUSTOMER_REF;SEPA_CREDITOR_ID;SEPA_END_TO_END;SEPA_MANDATE;SEPA_PERSON_ID;SEPA_PURPOSE;SEPA_TYPE;FREMDWAEHRUNGSBETRAG;FREMDWAEHRUNG;WECHSELKURS_ZUR_KONTOWAEHRUNG;GEBUEHR;GEBUEHRENWAEHRUNG
+Girokonto;DE11111111111111111111;11111111;Testbank;TESTDEFF;10.04.2026;11.04.2026;-49,90;EUR;Einkauf Supermarkt;Supermarkt GmbH;DE99999999999999999999;BANKDEFFXXX;;;;REMOVAL;Haushalt/Lebensmittel;;;E2E-123;;;;;-55,00;USD;0,907272727273;1,25;EUR</pre>
 					<p class="back-to-top"><a href="#top">Nach oben</a></p>
 				</section>
 

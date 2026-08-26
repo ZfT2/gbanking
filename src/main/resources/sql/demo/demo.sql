@@ -19,24 +19,24 @@ INSERT INTO bankAccessFints (
 
 [SQL_DEMO_INSERT_BANK_ACCOUNTS]
 INSERT INTO bankAccount (
-    id, bankAccess_id, parentAccount_id, providerAccountId, accountName, currency, accountType, accountSource,
+    id, bankAccess_id, parentAccount_id, providerAccountId, accountName, baseCurrency, accountType, accountSource,
     iban, bic, number, subNumber, bankName, blz, hbciAccountType, accountLimit,
     customerId, ownerName, ownerName2, country, creditorId, isSEPAAccount,
     isOfflineAccount, accountState, balance, createdAt, updatedAt
 ) VALUES
-    (900001, 900000, NULL, NULL, 'Girokonto Demo', 'EUR', 1, 1,
+    (900001, 900000, NULL, NULL, 'Girokonto Demo', 1, 1, 1,
      'DE93999999990000000001', 'DEMODEFFXXX', '0000000001', '00', 'DemoBank', '99999999', 1, '1000.00',
      'demo.customer', 'Max Mustermann', NULL, 'DE', NULL, 1, 0, 1, 4860.35,
      '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
-    (900002, 900000, NULL, NULL, 'Tagesgeld Reserve', 'EUR', 2, 1,
+    (900002, 900000, NULL, NULL, 'Tagesgeld Reserve', 1, 2, 1,
      'DE66999999990000000002', 'DEMODEFFXXX', '0000000002', '00', 'DemoBank', '99999999', 10, '0.00',
      'demo.customer', 'Max Mustermann', NULL, 'DE', NULL, 1, 0, 1, 6354.75,
      '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
-    (900003, 900000, 900001, NULL, 'Kreditkarte Demo', 'EUR', 10, 1,
+    (900003, 900000, 900001, NULL, 'Kreditkarte Demo', 1, 10, 1,
      'DE39999999990000000003', 'DEMODEFFXXX', '0000000003', '00', 'DemoBank', '99999999', 30, '2500.00',
      'demo.customer', 'Max Mustermann', NULL, 'DE', NULL, 0, 0, 1, -642.40,
      '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
-    (900004, NULL, NULL, NULL, 'Haushaltskasse', 'EUR', 13, 5,
+    (900004, NULL, NULL, NULL, 'Haushaltskasse', 1, 13, 5,
      NULL, NULL, 'BAR-DEMO', NULL, NULL, NULL, 0, '0.00',
      NULL, 'Max Mustermann', NULL, 'DE', NULL, 0, 1, 1, 250.00,
      '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000');
@@ -107,50 +107,50 @@ INSERT INTO categoryRule_bankAccount (id, categoryRule_id, account_id, updatedAt
 
 [SQL_DEMO_INSERT_BOOKINGS]
 INSERT INTO booking (
-    id, account_id, parentBooking_id, dateBooking, dateValue, purpose, amount, currency,
+    id, account_id, parentBooking_id, dateBooking, dateValue, purpose, amount,
     bookingType, bookingSource, crossAccount_id, recipient_id, category_id,
     categoryRule_id, crossBooking_id, updatedAt
 ) VALUES
     (910001, 900001, NULL, '2026-01-03 00:00:00.000', '2026-01-03 00:00:00.000',
-     'Gehalt Januar Demo GmbH', 3200.00, 'EUR', 1, 1, NULL, NULL, 920002, NULL, NULL, '2026-01-03 08:00:00.000'),
+     'Gehalt Januar Demo GmbH', 3200.00, 1, 1, NULL, NULL, 920002, NULL, NULL, '2026-01-03 08:00:00.000'),
     (910002, 900001, NULL, '2026-01-05 00:00:00.000', '2026-01-05 00:00:00.000',
-     'Miete Januar', -1200.00, 'EUR', 2, 1, NULL, 930001, 920011, 921002, NULL, '2026-01-05 08:00:00.000'),
+     'Miete Januar', -1200.00, 2, 1, NULL, 930001, 920011, 921002, NULL, '2026-01-05 08:00:00.000'),
     (910003, 900001, NULL, '2026-01-09 00:00:00.000', '2026-01-09 00:00:00.000',
-     'Demo Supermarkt Wocheneinkauf', -86.40, 'EUR', 2, 1, NULL, 930003, 920021, 921001, NULL, '2026-01-09 18:00:00.000'),
+     'Demo Supermarkt Wocheneinkauf', -86.40, 2, 1, NULL, 930003, 920021, 921001, NULL, '2026-01-09 18:00:00.000'),
     (910004, 900001, NULL, '2026-02-10 00:00:00.000', '2026-02-10 00:00:00.000',
-     'Stromabschlag Februar', -78.90, 'EUR', 2, 7, NULL, 930002, 920012, NULL, NULL, '2026-02-10 08:00:00.000'),
+     'Stromabschlag Februar', -78.90, 2, 7, NULL, 930002, 920012, NULL, NULL, '2026-02-10 08:00:00.000'),
     (910005, 900001, NULL, '2026-02-20 00:00:00.000', '2026-02-20 00:00:00.000',
-     'Erstattung Versicherung', 75.00, 'EUR', 1, 7, NULL, NULL, 920001, NULL, NULL, '2026-02-20 08:00:00.000'),
+     'Erstattung Versicherung', 75.00, 1, 7, NULL, NULL, 920001, NULL, NULL, '2026-02-20 08:00:00.000'),
     (910006, 900003, NULL, '2026-02-27 00:00:00.000', '2026-02-27 00:00:00.000',
-     'Vorgemerkt: Hotelreservierung', -240.00, 'EUR', 2, 2, NULL, 930004, 920031, NULL, NULL, '2026-02-27 18:00:00.000'),
+     'Vorgemerkt: Hotelreservierung', -240.00, 2, 2, NULL, 930004, 920031, NULL, NULL, '2026-02-27 18:00:00.000'),
     (910007, 900001, NULL, '2026-03-03 00:00:00.000', '2026-03-03 00:00:00.000',
-     'Gehalt Maerz Demo GmbH', 3200.00, 'EUR', 1, 1, NULL, NULL, 920002, NULL, NULL, '2026-03-03 08:00:00.000'),
+     'Gehalt Maerz Demo GmbH', 3200.00, 1, 1, NULL, NULL, 920002, NULL, NULL, '2026-03-03 08:00:00.000'),
     (910008, 900001, NULL, '2026-03-05 00:00:00.000', '2026-03-05 00:00:00.000',
-     'Miete Maerz', -1200.00, 'EUR', 2, 1, NULL, 930001, 920011, 921002, NULL, '2026-03-05 08:00:00.000'),
+     'Miete Maerz', -1200.00, 2, 1, NULL, 930001, 920011, 921002, NULL, '2026-03-05 08:00:00.000'),
     (910009, 900001, NULL, '2026-03-12 00:00:00.000', '2026-03-12 00:00:00.000',
-     'Demo Supermarkt Familieneinkauf', -112.35, 'EUR', 2, 1, NULL, 930003, 920021, 921001, NULL, '2026-03-12 18:00:00.000'),
+     'Demo Supermarkt Familieneinkauf', -112.35, 2, 1, NULL, 930003, 920021, 921001, NULL, '2026-03-12 18:00:00.000'),
     (910012, 900003, NULL, '2026-04-14 00:00:00.000', '2026-04-14 00:00:00.000',
-     'Hotel Sonnenschein', -380.00, 'EUR', 2, 1, NULL, 930004, 920031, NULL, NULL, '2026-04-14 18:00:00.000'),
+     'Hotel Sonnenschein', -380.00, 2, 1, NULL, 930004, 920031, NULL, NULL, '2026-04-14 18:00:00.000'),
     (910013, 900002, NULL, '2026-04-30 00:00:00.000', '2026-04-30 00:00:00.000',
-     'Zinsgutschrift April', 4.75, 'EUR', 3, 1, NULL, NULL, 920003, NULL, NULL, '2026-04-30 18:00:00.000'),
+     'Zinsgutschrift April', 4.75, 3, 1, NULL, NULL, 920003, NULL, NULL, '2026-04-30 18:00:00.000'),
     (910014, 900001, NULL, '2026-05-18 00:00:00.000', '2026-05-18 00:00:00.000',
-     'Restaurant mit Freunden', -62.30, 'EUR', 2, 5, NULL, NULL, NULL, NULL, NULL, '2026-05-18 22:00:00.000'),
+     'Restaurant mit Freunden', -62.30, 2, 5, NULL, NULL, NULL, NULL, NULL, '2026-05-18 22:00:00.000'),
     (910015, 900003, NULL, '2026-05-20 00:00:00.000', '2026-05-20 00:00:00.000',
-     'Stornierung Online-Einkauf', 80.00, 'EUR', 7, 1, NULL, NULL, 920020, NULL, NULL, '2026-05-20 12:00:00.000'),
+     'Stornierung Online-Einkauf', 80.00, 7, 1, NULL, NULL, 920020, NULL, NULL, '2026-05-20 12:00:00.000'),
     (910016, 900002, NULL, '2026-05-31 00:00:00.000', '2026-05-31 00:00:00.000',
-     'Entgelt Verwahrung', -1.50, 'EUR', 4, 1, NULL, NULL, 920040, NULL, NULL, '2026-05-31 18:00:00.000'),
+     'Entgelt Verwahrung', -1.50, 4, 1, NULL, NULL, 920040, NULL, NULL, '2026-05-31 18:00:00.000'),
     (910020, 900001, NULL, '2026-06-08 00:00:00.000', '2026-06-08 00:00:00.000',
-     'Drogerie und Haushalt', -120.00, 'EUR', 2, 1, NULL, NULL, NULL, NULL, NULL, '2026-06-08 18:00:00.000'),
+     'Drogerie und Haushalt', -120.00, 2, 1, NULL, NULL, NULL, NULL, NULL, '2026-06-08 18:00:00.000'),
     (910021, 900001, 910020, '2026-06-08 00:00:00.000', '2026-06-08 00:00:00.000',
-     'Haushaltswaren', -70.00, 'EUR', 2, 5, NULL, 930003, 920021, NULL, NULL, '2026-06-08 18:00:00.000'),
+     'Haushaltswaren', -70.00, 2, 5, NULL, 930003, 920021, NULL, NULL, '2026-06-08 18:00:00.000'),
     (910022, 900001, 910020, '2026-06-08 00:00:00.000', '2026-06-08 00:00:00.000',
-     'Apothekenartikel', -50.00, 'EUR', 2, 5, NULL, 930005, 920022, NULL, NULL, '2026-06-08 18:00:00.000'),
+     'Apothekenartikel', -50.00, 2, 5, NULL, 930005, 920022, NULL, NULL, '2026-06-08 18:00:00.000'),
     (910023, 900004, NULL, '2026-06-12 00:00:00.000', '2026-06-12 00:00:00.000',
-     'Bargeld fuer Haushaltskasse', 100.00, 'EUR', 1, 5, NULL, NULL, 920020, NULL, NULL, '2026-06-12 18:00:00.000'),
+     'Bargeld fuer Haushaltskasse', 100.00, 1, 5, NULL, NULL, 920020, NULL, NULL, '2026-06-12 18:00:00.000'),
     (910024, 900001, NULL, '2026-06-15 00:00:00.000', '2026-06-15 00:00:00.000',
-     'Ausgefuehrter Reiseauftrag', -350.00, 'EUR', 2, 6, NULL, 930004, 920031, NULL, NULL, '2026-06-15 18:00:00.000'),
+     'Ausgefuehrter Reiseauftrag', -350.00, 2, 6, NULL, 930004, 920031, NULL, NULL, '2026-06-15 18:00:00.000'),
     (910025, 900001, NULL, '2026-06-30 00:00:00.000', '2026-06-30 00:00:00.000',
-     'Vorgemerkt: Kartenzahlung Demo Cafe', -35.00, 'EUR', 2, 2, NULL, NULL, 920030, NULL, NULL, '2026-06-30 18:00:00.000');
+     'Vorgemerkt: Kartenzahlung Demo Cafe', -35.00, 2, 2, NULL, NULL, 920030, NULL, NULL, '2026-06-30 18:00:00.000');
 
 [SQL_DEMO_INSERT_ADDITIONAL_BOOKINGS]
 WITH RECURSIVE demoBooking(sequenceNumber) AS (
@@ -161,7 +161,7 @@ WITH RECURSIVE demoBooking(sequenceNumber) AS (
     WHERE sequenceNumber < 200
 )
 INSERT INTO booking (
-    id, account_id, parentBooking_id, dateBooking, dateValue, purpose, amount, currency,
+    id, account_id, parentBooking_id, dateBooking, dateValue, purpose, amount,
     bookingType, bookingSource, crossAccount_id, recipient_id, category_id,
     categoryRule_id, crossBooking_id, updatedAt
 )
@@ -189,7 +189,6 @@ SELECT
         WHEN 3 THEN 12.00 + (sequenceNumber % 90)
         ELSE 5.00 + (sequenceNumber % 45)
     END + (sequenceNumber % 100) / 100.0, 2),
-    'EUR',
     2,
     CASE WHEN sequenceNumber % 10 = 0 THEN 5 ELSE 1 END,
     NULL,
@@ -202,14 +201,14 @@ FROM demoBooking;
 
 [SQL_DEMO_INSERT_CROSS_BOOKINGS]
 INSERT INTO booking (
-    id, account_id, parentBooking_id, dateBooking, dateValue, purpose, amount, currency,
+    id, account_id, parentBooking_id, dateBooking, dateValue, purpose, amount,
     bookingType, bookingSource, crossAccount_id, recipient_id, category_id,
     categoryRule_id, crossBooking_id, updatedAt
 ) VALUES
     (910010, 900001, NULL, '2026-03-20 00:00:00.000', '2026-03-20 00:00:00.000',
-     'Umbuchung auf Tagesgeld', -500.00, 'EUR', 5, 5, 900002, NULL, 920041, NULL, NULL, '2026-03-20 18:00:00.000'),
+     'Umbuchung auf Tagesgeld', -500.00, 5, 5, 900002, NULL, 920041, NULL, NULL, '2026-03-20 18:00:00.000'),
     (910011, 900002, NULL, '2026-03-20 00:00:00.000', '2026-03-20 00:00:00.000',
-     'Umbuchung vom Girokonto', 500.00, 'EUR', 6, 5, 900001, NULL, 920041, NULL, 910010, '2026-03-20 18:00:00.000');
+     'Umbuchung vom Girokonto', 500.00, 6, 5, 900001, NULL, 920041, NULL, 910010, '2026-03-20 18:00:00.000');
 
 [SQL_DEMO_COMPLETE_CROSS_BOOKING]
 UPDATE booking
@@ -234,20 +233,29 @@ INSERT INTO bookingAdditionalNote (id, booking_id, note, review_required, update
 [SQL_DEMO_INSERT_BOOKING_ADDITIONAL_DETAILS]
 INSERT INTO bookingAdditional (
     id, booking_id, add_instref, add_gvcode, add_text, add_primanota, add_key,
-    add_is_storno, add_orig_value, add_charge_value, add_raw_data, add_is_sepa,
+    add_is_storno, add_raw_data, add_is_sepa,
     add_is_camt, add_bank_saldo, updatedAt
 ) VALUES
     (913001, 910004, 'DEMO-INST-20260210', '105', 'SEPA-BASISLASTSCHRIFT', '4711', '05',
-     0, -78.90, 0.00, 'Demo-Rohdaten fuer die Detailansicht', 1, 1, 4781.45, '2026-02-10 08:00:00.000');
+     0, 'Demo-Rohdaten fuer die Detailansicht', 1, 1, 4781.45, '2026-02-10 08:00:00.000');
 
 [SQL_DEMO_INSERT_CREDITCARD_DETAILS]
 INSERT INTO bookingAdditionalCreditcard (
     id, booking_id, creditcard_transaction_date, creditcard_type,
-    creditcard_currency_amount, creditcard_currency_rate, creditcard_currency,
     creditcard_merchant_area, creditcard_merchant_category, updatedAt
 ) VALUES
     (914001, 910012, '2026-04-12 00:00:00.000', 'VISA',
-     380.00, 1.00, 'EUR', 'Berlin', 'Hotel', '2026-04-14 18:00:00.000');
+     'New York', 'Hotel', '2026-04-14 18:00:00.000');
+
+[SQL_DEMO_INSERT_FOREIGNCURRENCY_DETAILS]
+INSERT INTO bookingAdditionalForeigncurrency (
+    id, booking_id, foreignAmount, foreignCurrency, exchangeRateToBaseCurrency, updatedAt
+) VALUES
+    (915001, 910012, -410.00, 2, 0.9268292683, '2026-04-14 18:00:00.000');
+
+[SQL_DEMO_INSERT_BOOKING_FEE]
+INSERT INTO bookingFee (id, booking_id, amount, currency, updatedAt) VALUES
+    (916001, 910012, 5.00, 1, '2026-04-14 18:00:00.000');
 
 [SQL_DEMO_INSERT_MONEY_TRANSFER_HISTORY]
 INSERT INTO moneytransfer (

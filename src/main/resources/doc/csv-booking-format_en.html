@@ -78,6 +78,8 @@
 								<tr><td><code>BUCHUNGSTYP</code></td><td>Technical type such as <code>DEPOSIT</code>, <code>REMOVAL</code>, <code>REBOOKING_IN</code> or <code>REBOOKING_OUT</code>. If omitted, it is derived from the amount's sign.</td></tr>
 								<tr><td><code>KATEGORIE</code></td><td>Category path or category name.</td></tr>
 								<tr><td><code>SEPA_CUSTOMER_REF</code>, <code>SEPA_CREDITOR_ID</code>, <code>SEPA_END_TO_END</code>, <code>SEPA_MANDATE</code>, <code>SEPA_PERSON_ID</code>, <code>SEPA_PURPOSE</code>, <code>SEPA_TYPE</code></td><td>Optional SEPA details.</td></tr>
+								<tr><td><code>FREMDWAEHRUNGSBETRAG</code>, <code>FREMDWAEHRUNG</code>, <code>WECHSELKURS_ZUR_KONTOWAEHRUNG</code></td><td>Original foreign amount and rate using the fixed direction: foreign amount times rate equals the amount in account currency.</td></tr>
+								<tr><td><code>GEBUEHR</code>, <code>GEBUEHRENWAEHRUNG</code></td><td>Optional fee and its currency. The account currency applies when the fee currency is empty.</td></tr>
 							</tbody>
 						</table>
 					</div>
@@ -94,8 +96,8 @@
 
 				<section id="complete">
 					<h2>5. Example: complete file</h2>
-					<pre>KONTO_NAME;KONTO_IBAN;KONTO_NR;KONTO_BANK;KONTO_BIC;BUCHUNGSDATUM;WERTSTELLUNG;BETRAG;WAEHRUNG;VERWENDUNGSZWECK;EMPFAENGER_NAME;EMPFAENGER_IBAN;EMPFAENGER_BIC;EMPFAENGER_KONTONR;EMPFAENGER_BLZ;EMPFAENGER_BANK;BUCHUNGSTYP;KATEGORIE;SEPA_CUSTOMER_REF;SEPA_CREDITOR_ID;SEPA_END_TO_END;SEPA_MANDATE;SEPA_PERSON_ID;SEPA_PURPOSE;SEPA_TYPE
-Checking account;DE11111111111111111111;11111111;Test bank;TESTDEFF;10.04.2026;11.04.2026;-49.90;EUR;Grocery shopping;Supermarket Ltd.;DE99999999999999999999;BANKDEFFXXX;;;;REMOVAL;Household/Groceries;;;E2E-123;;;;</pre>
+					<pre>KONTO_NAME;KONTO_IBAN;KONTO_NR;KONTO_BANK;KONTO_BIC;BUCHUNGSDATUM;WERTSTELLUNG;BETRAG;WAEHRUNG;VERWENDUNGSZWECK;EMPFAENGER_NAME;EMPFAENGER_IBAN;EMPFAENGER_BIC;EMPFAENGER_KONTONR;EMPFAENGER_BLZ;EMPFAENGER_BANK;BUCHUNGSTYP;KATEGORIE;SEPA_CUSTOMER_REF;SEPA_CREDITOR_ID;SEPA_END_TO_END;SEPA_MANDATE;SEPA_PERSON_ID;SEPA_PURPOSE;SEPA_TYPE;FREMDWAEHRUNGSBETRAG;FREMDWAEHRUNG;WECHSELKURS_ZUR_KONTOWAEHRUNG;GEBUEHR;GEBUEHRENWAEHRUNG
+Checking account;DE11111111111111111111;11111111;Test bank;TESTDEFF;10.04.2026;11.04.2026;-49.90;EUR;Grocery shopping;Supermarket Ltd.;DE99999999999999999999;BANKDEFFXXX;;;;REMOVAL;Household/Groceries;;;E2E-123;;;;;-55.00;USD;0.907272727273;1.25;EUR</pre>
 					<p class="back-to-top"><a href="#top">Back to top</a></p>
 				</section>
 

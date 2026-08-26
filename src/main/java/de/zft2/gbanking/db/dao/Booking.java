@@ -26,12 +26,13 @@ public class Booking extends Dao implements Serializable, BookingDetails {
 	private LocalDate dateValue;
 	private String purpose;
 	private BigDecimal amount;
-	private String currency;
 	private BookingSepaDetails sepaDetails;
 	private BookingNoteDetails noteDetails;
 	private BigDecimal balance;
 	private BookingAdditionalDetails additionalDetails;
 	private BookingCreditCardDetails creditCardDetails;
+	private BookingForeignCurrencyDetails foreignCurrencyDetails;
+	private BookingFee fee;
 	private BookingType bookingType;
 	private Integer crossAccountId;
 	private transient Recipient recipient;
@@ -73,6 +74,9 @@ public class Booking extends Dao implements Serializable, BookingDetails {
 		this.balance = bookingToCopy.balance;
 		this.additionalDetails = bookingToCopy.additionalDetails != null ? new BookingAdditionalDetails(bookingToCopy.additionalDetails) : null;
 		this.creditCardDetails = bookingToCopy.creditCardDetails != null ? new BookingCreditCardDetails(bookingToCopy.creditCardDetails) : null;
+		this.foreignCurrencyDetails = bookingToCopy.foreignCurrencyDetails != null
+				? new BookingForeignCurrencyDetails(bookingToCopy.foreignCurrencyDetails) : null;
+		this.fee = bookingToCopy.fee != null ? new BookingFee(bookingToCopy.fee) : null;
 		this.bookingType = bookingToCopy.bookingType;
 		this.crossAccountId = bookingToCopy.crossAccountId;
 		this.recipient = bookingToCopy.recipient;
@@ -151,14 +155,6 @@ public class Booking extends Dao implements Serializable, BookingDetails {
 
 	public void setAmount(BigDecimal amount) {
 		this.amount = amount;
-	}
-
-	public String getCurrency() {
-		return currency;
-	}
-
-	public void setCurrency(String currency) {
-		this.currency = currency;
 	}
 
 	public BookingSepaDetails getSepaDetails() {
@@ -275,6 +271,23 @@ public class Booking extends Dao implements Serializable, BookingDetails {
 
 	public void setCreditCardDetails(BookingCreditCardDetails creditCardDetails) {
 		this.creditCardDetails = creditCardDetails == null || creditCardDetails.isEmpty() ? null : new BookingCreditCardDetails(creditCardDetails);
+	}
+
+	public BookingForeignCurrencyDetails getForeignCurrencyDetails() {
+		return foreignCurrencyDetails != null ? new BookingForeignCurrencyDetails(foreignCurrencyDetails) : null;
+	}
+
+	public void setForeignCurrencyDetails(BookingForeignCurrencyDetails foreignCurrencyDetails) {
+		this.foreignCurrencyDetails = foreignCurrencyDetails == null || foreignCurrencyDetails.isEmpty() ? null
+				: new BookingForeignCurrencyDetails(foreignCurrencyDetails);
+	}
+
+	public BookingFee getFee() {
+		return fee != null ? new BookingFee(fee) : null;
+	}
+
+	public void setFee(BookingFee fee) {
+		this.fee = fee == null || fee.isEmpty() ? null : new BookingFee(fee);
 	}
 
 	public BookingType getBookingType() {

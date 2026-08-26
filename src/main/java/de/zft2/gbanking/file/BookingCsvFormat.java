@@ -39,6 +39,11 @@ public final class BookingCsvFormat {
 	public static final String SEPA_PERSON_ID = "SEPA_PERSON_ID";
 	public static final String SEPA_PURPOSE = "SEPA_PURPOSE";
 	public static final String SEPA_TYPE = "SEPA_TYPE";
+	public static final String FOREIGN_AMOUNT = "FREMDWAEHRUNGSBETRAG";
+	public static final String FOREIGN_CURRENCY = "FREMDWAEHRUNG";
+	public static final String EXCHANGE_RATE = "WECHSELKURS_ZUR_KONTOWAEHRUNG";
+	public static final String FEE_AMOUNT = "GEBUEHR";
+	public static final String FEE_CURRENCY = "GEBUEHRENWAEHRUNG";
 
 	protected static final String[] HEADERS = {
 			ACCOUNT_NAME,
@@ -65,7 +70,12 @@ public final class BookingCsvFormat {
 			SEPA_MANDATE,
 			SEPA_PERSON_ID,
 			SEPA_PURPOSE,
-			SEPA_TYPE
+			SEPA_TYPE,
+			FOREIGN_AMOUNT,
+			FOREIGN_CURRENCY,
+			EXCHANGE_RATE,
+			FEE_AMOUNT,
+			FEE_CURRENCY
 	};
 
 	private BookingCsvFormat() {

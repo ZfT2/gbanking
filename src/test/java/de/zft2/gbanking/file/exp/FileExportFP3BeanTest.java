@@ -105,7 +105,6 @@ class FileExportFP3BeanTest extends BaseFileTest {
 		booking.setDateValue(LocalDate.of(2026, Month.APRIL, 11));
 		booking.setPurpose(purpose);
 		booking.setAmount(amount);
-		booking.setCurrency("EUR");
 		booking.setSource(Source.IMPORT);
 		booking.setBookingType(bookingType);
 		return booking;

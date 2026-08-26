@@ -176,7 +176,6 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 		b1.setDateValue(d1);
 		b1.setPurpose("p1");
 		b1.setAmount(new BigDecimal("10.00"));
-		b1.setCurrency("EUR");
 		b1.setSource(Source.ONLINE);
 		db.insertOrUpdate(b1);
 
@@ -186,7 +185,6 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 		b2.setDateValue(d2);
 		b2.setPurpose("p2");
 		b2.setAmount(new BigDecimal("20.00"));
-		b2.setCurrency("EUR");
 		b2.setSource(Source.ONLINE);
 		db.insertOrUpdate(b2);
 
@@ -208,7 +206,6 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 		realBooking.setDateValue(LocalDate.of(2020, Month.JANUARY, 1));
 		realBooking.setPurpose("real booking");
 		realBooking.setAmount(new BigDecimal("10.00"));
-		realBooking.setCurrency("EUR");
 		realBooking.setSource(Source.ONLINE);
 		db.insertOrUpdate(realBooking);
 
@@ -218,7 +215,6 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 		adjustment.setDateValue(LocalDate.of(2026, Month.MAY, 12));
 		adjustment.setPurpose("adjustment");
 		adjustment.setAmount(new BigDecimal("1.00"));
-		adjustment.setCurrency("EUR");
 		adjustment.setSource(Source.AUTO_ADJUSTING);
 		db.insertOrUpdate(adjustment);
 
@@ -228,7 +224,6 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 		prenotification.setDateValue(LocalDate.of(2026, Month.MAY, 13));
 		prenotification.setPurpose("prenotification");
 		prenotification.setAmount(new BigDecimal("2.00"));
-		prenotification.setCurrency("EUR");
 		prenotification.setSource(Source.ONLINE_PRENO);
 		db.insertOrUpdate(prenotification);
 
@@ -250,7 +245,6 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 		realBooking.setDateValue(LocalDate.of(2020, Month.JANUARY, 1));
 		realBooking.setPurpose("real booking");
 		realBooking.setAmount(new BigDecimal("10.00"));
-		realBooking.setCurrency("EUR");
 		realBooking.setSource(Source.ONLINE);
 		db.insertOrUpdate(realBooking);
 
@@ -260,7 +254,6 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 		manualBooking.setDateValue(LocalDate.of(2026, Month.MAY, 12));
 		manualBooking.setPurpose("manual booking");
 		manualBooking.setAmount(new BigDecimal("1.00"));
-		manualBooking.setCurrency("EUR");
 		manualBooking.setSource(Source.MANUELL);
 		db.insertOrUpdate(manualBooking);
 
@@ -270,7 +263,6 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 		moneyTransfer.setDateValue(LocalDate.of(2026, Month.MAY, 13));
 		moneyTransfer.setPurpose("money transfer");
 		moneyTransfer.setAmount(new BigDecimal("2.00"));
-		moneyTransfer.setCurrency("EUR");
 		moneyTransfer.setSource(Source.MONEYTRANSFER);
 		db.insertOrUpdate(moneyTransfer);
 

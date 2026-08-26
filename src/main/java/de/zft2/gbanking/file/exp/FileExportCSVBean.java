@@ -14,6 +14,8 @@ import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
+import de.zft2.gbanking.db.dao.BookingFee;
+import de.zft2.gbanking.db.dao.BookingForeignCurrencyDetails;
 import de.zft2.gbanking.db.dao.BookingSepaDetails;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.exception.ExportException;
@@ -68,16 +70,23 @@ public class FileExportCSVBean extends FileExportBean {
 
 	private Object[] createCsvRow(BankAccount account, Booking booking) {
 		BookingSepaDetails sepaDetails = booking.getSepaDetails();
+		BookingForeignCurrencyDetails foreign = booking.getForeignCurrencyDetails();
+		BookingFee fee = booking.getFee();
 		String sepaType = sepaDetails != null && sepaDetails.getType() != null ? sepaDetails.getType().name() : null;
 		Object[] row = new Object[] {
 				account.getAccountName(), account.getIban(), account.getNumber(), account.getBankName(), account.getBic(),
 				BookingCsvFormat.formatDate(booking.getDateBooking()), BookingCsvFormat.formatDate(booking.getDateValue()),
-				BookingCsvFormat.formatAmount(booking.getAmount()), booking.getCurrency(), booking.getPurpose(),
+				BookingCsvFormat.formatAmount(booking.getAmount()), account.getCurrency(), booking.getPurpose(),
 				null, null, null, null, null, null,
 				booking.getBookingType() != null ? booking.getBookingType().name() : null,
 				booking.getCategory() != null ? booking.getCategory().getFullName() : null,
 				booking.getSepaCustomerRef(), booking.getSepaCreditorId(), booking.getSepaEndToEnd(), booking.getSepaMandate(),
-				booking.getSepaPersonId(), booking.getSepaPurpose(), sepaType
+				booking.getSepaPersonId(), booking.getSepaPurpose(), sepaType,
+				foreign != null ? BookingCsvFormat.formatAmount(foreign.getForeignAmount()) : null,
+				foreign != null ? foreign.getForeignCurrency() : null,
+				foreign != null ? foreign.getExchangeRateToBaseCurrency().toPlainString() : null,
+				fee != null ? BookingCsvFormat.formatAmount(fee.getAmount()) : null,
+				fee != null ? fee.getCurrency() : null
 		};
 		addRecipient(row, booking.getRecipient());
 		return row;

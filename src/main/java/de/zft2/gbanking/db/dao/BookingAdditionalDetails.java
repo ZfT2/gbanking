@@ -13,8 +13,6 @@ public class BookingAdditionalDetails implements Serializable {
 	private String primanota;
 	private String key;
 	private Boolean storno;
-	private BigDecimal origValue;
-	private BigDecimal chargeValue;
 	private String rawData;
 	private Boolean sepa;
 	private Boolean camt;
@@ -30,8 +28,6 @@ public class BookingAdditionalDetails implements Serializable {
 		this.primanota = detailsToCopy.primanota;
 		this.key = detailsToCopy.key;
 		this.storno = detailsToCopy.storno;
-		this.origValue = detailsToCopy.origValue;
-		this.chargeValue = detailsToCopy.chargeValue;
 		this.rawData = detailsToCopy.rawData;
 		this.sepa = detailsToCopy.sepa;
 		this.camt = detailsToCopy.camt;
@@ -45,8 +41,6 @@ public class BookingAdditionalDetails implements Serializable {
 				&& !hasText(primanota)
 				&& !hasText(key)
 				&& storno == null
-				&& origValue == null
-				&& chargeValue == null
 				&& !hasText(rawData)
 				&& sepa == null
 				&& camt == null
@@ -99,22 +93,6 @@ public class BookingAdditionalDetails implements Serializable {
 
 	public void setStorno(Boolean storno) {
 		this.storno = storno;
-	}
-
-	public BigDecimal getOrigValue() {
-		return origValue;
-	}
-
-	public void setOrigValue(BigDecimal origValue) {
-		this.origValue = origValue;
-	}
-
-	public BigDecimal getChargeValue() {
-		return chargeValue;
-	}
-
-	public void setChargeValue(BigDecimal chargeValue) {
-		this.chargeValue = chargeValue;
 	}
 
 	public String getRawData() {

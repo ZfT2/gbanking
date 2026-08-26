@@ -21,6 +21,7 @@ import de.zft2.gbanking.db.dao.BusinessCase;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.BookingType;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.util.TypeConverter;
 
@@ -43,7 +44,7 @@ public class HbciMapper {
 		bankAccount.setBlz(konto.blz);
 		bankAccount.setCountry(konto.country);
 		bankAccount.setCreditorid(konto.creditorid);
-		bankAccount.setCurrency(konto.curr);
+		bankAccount.setBaseCurrency(BookingCurrencyMapper.baseCurrency(konto.curr));
 		bankAccount.setCustomerid(konto.customerid);
 		bankAccount.setIban(konto.iban);
 		bankAccount.setLimit(konto.limit != null ? konto.limit.toString() : null);
@@ -81,10 +82,14 @@ public class HbciMapper {
 	}
 	
 	public static Booking mapUmsLineToBooking(int accountId, UmsLine umsLine) {
-		return mapUmsLineToBooking(accountId, umsLine, Source.ONLINE_NEW);
+		return mapUmsLineToBooking(accountId, umsLine, Currency.EUR, Source.ONLINE_NEW);
 	}
 
 	public static Booking mapUmsLineToBooking(int accountId, UmsLine umsLine, Source source) {
+		return mapUmsLineToBooking(accountId, umsLine, Currency.EUR, source);
+	}
+
+	public static Booking mapUmsLineToBooking(int accountId, UmsLine umsLine, Currency baseCurrency, Source source) {
 
 		Booking booking = new Booking();
 		
@@ -101,8 +106,11 @@ public class HbciMapper {
 		} else {
 			booking.setPurpose(umsLine.text);
 		}
-		booking.setAmount(umsLine.value != null ? umsLine.value.getBigDecimalValue() : null);
-		booking.setCurrency(umsLine.value != null ? umsLine.value.getCurr() : null);
+		BigDecimal amount = toBigDecimal(umsLine.value);
+		BookingCurrencyMapper.mapAmounts(booking, amount, currency(umsLine.value), baseCurrency,
+				toBigDecimal(umsLine.orig_value), currency(umsLine.orig_value), null);
+		booking.setFee(BookingCurrencyMapper.createFee(toBigDecimal(umsLine.charge_value),
+				currency(umsLine.charge_value), baseCurrency));
 		booking.setBookingType(resolveBookingType(booking));
 		booking.setSource(source);
 
@@ -132,8 +140,6 @@ public class HbciMapper {
 		details.setPrimanota(umsLine.primanota);
 		details.setKey(umsLine.addkey);
 		details.setStorno(umsLine.isStorno);
-		details.setOrigValue(toBigDecimal(umsLine.orig_value));
-		details.setChargeValue(toBigDecimal(umsLine.charge_value));
 		details.setRawData(umsLine.additional);
 		details.setSepa(umsLine.isSepa);
 		details.setCamt(umsLine.isCamt);
@@ -143,6 +149,10 @@ public class HbciMapper {
 
 	private static BigDecimal toBigDecimal(Value value) {
 		return value != null ? value.getBigDecimalValue() : null;
+	}
+
+	private static String currency(Value value) {
+		return value != null ? value.getCurr() : null;
 	}
 
 	private static BookingType resolveBookingType(Booking booking) {

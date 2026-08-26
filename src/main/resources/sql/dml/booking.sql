@@ -1,5 +1,5 @@
 [SQL_SELECT_BOOKING_COLUMNS]
-b.id, b.account_id, b.parentBooking_id, b.bookingType, b.bookingSource, b.dateBooking, b.dateValue, b.purpose, b.amount, b.currency, b.sepaCustomerRef, b.sepaCreditorId, b.sepaEndToEnd, b.sepaMandate, b.sepaPersonId, b.sepaPurpose, b.sepaTyp, b.bookingNote, b.bookingReviewRequired, b.addInstref, b.addGvcode, b.addText, b.addPrimanota, b.addKey, b.addIsStorno, b.addOrigValue, b.addChargeValue, b.addRawData, b.addIsSepa, b.addIsCamt, b.addBankSaldo, b.creditcardTransactionDate, b.creditcardType, b.creditcardCurrencyAmount, b.creditcardCurrencyRate, b.creditcardCurrency, b.creditcardMerchantArea, b.creditcardMerchantCategory, b.crossAccount_id, b.recipient_id, b.category_id, b.categoryRule_id, b.crossBooking_id, b.updatedAt
+b.id, b.account_id, b.parentBooking_id, b.bookingType, b.bookingSource, b.dateBooking, b.dateValue, b.purpose, b.amount, b.sepaCustomerRef, b.sepaCreditorId, b.sepaEndToEnd, b.sepaMandate, b.sepaPersonId, b.sepaPurpose, b.sepaTyp, b.bookingNote, b.bookingReviewRequired, b.addInstref, b.addGvcode, b.addText, b.addPrimanota, b.addKey, b.addIsStorno, b.addRawData, b.addIsSepa, b.addIsCamt, b.addBankSaldo, b.creditcardTransactionDate, b.creditcardType, b.creditcardMerchantArea, b.creditcardMerchantCategory, b.foreignAmount, b.foreignCurrency, b.exchangeRateToBaseCurrency, b.feeAmount, b.feeCurrency, b.crossAccount_id, b.recipient_id, b.category_id, b.categoryRule_id, b.crossBooking_id, b.updatedAt
 ;
 
 [SQL_SELECT_ALL_BOOKINGS_FULL_BASE]
@@ -61,12 +61,12 @@ FROM bookingFull b
 WHERE b.parentBooking_id IS NULL;
 
 [SQL_INSERT_BOOKING]
-INSERT INTO booking (account_id, parentBooking_id, dateBooking, dateValue, purpose, amount, currency, bookingType, bookingSource, crossAccount_id, recipient_id, category_id, categoryRule_id, crossBooking_id, updatedAt)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO booking (account_id, parentBooking_id, dateBooking, dateValue, purpose, amount, bookingType, bookingSource, crossAccount_id, recipient_id, category_id, categoryRule_id, crossBooking_id, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 [SQL_UPDATE_BOOKING]
 UPDATE booking
-SET account_id = ?, parentBooking_id = ?, dateBooking = ?, dateValue = ?, purpose = ?, amount = ?, currency = ?, bookingType = ?, bookingSource = ?, crossAccount_id = ?, recipient_id = ?, category_id = ?, categoryRule_id = ?, crossBooking_id = ?, updatedAt = ?
+SET account_id = ?, parentBooking_id = ?, dateBooking = ?, dateValue = ?, purpose = ?, amount = ?, bookingType = ?, bookingSource = ?, crossAccount_id = ?, recipient_id = ?, category_id = ?, categoryRule_id = ?, crossBooking_id = ?, updatedAt = ?
 WHERE id = ?;
 
 [SQL_INSERT_BOOKING_ADDITIONAL_SEPA]
@@ -91,8 +91,8 @@ ON CONFLICT(booking_id) DO UPDATE SET
     updatedAt = excluded.updatedAt;
 
 [SQL_INSERT_BOOKING_ADDITIONAL]
-INSERT INTO bookingAdditional (booking_id, add_instref, add_gvcode, add_text, add_primanota, add_key, add_is_storno, add_orig_value, add_charge_value, add_raw_data, add_is_sepa, add_is_camt, add_bank_saldo, updatedAt)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO bookingAdditional (booking_id, add_instref, add_gvcode, add_text, add_primanota, add_key, add_is_storno, add_raw_data, add_is_sepa, add_is_camt, add_bank_saldo, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(booking_id) DO UPDATE SET
     add_instref = excluded.add_instref,
     add_gvcode = excluded.add_gvcode,
@@ -100,8 +100,6 @@ ON CONFLICT(booking_id) DO UPDATE SET
     add_primanota = excluded.add_primanota,
     add_key = excluded.add_key,
     add_is_storno = excluded.add_is_storno,
-    add_orig_value = excluded.add_orig_value,
-    add_charge_value = excluded.add_charge_value,
     add_raw_data = excluded.add_raw_data,
     add_is_sepa = excluded.add_is_sepa,
     add_is_camt = excluded.add_is_camt,
@@ -109,16 +107,30 @@ ON CONFLICT(booking_id) DO UPDATE SET
     updatedAt = excluded.updatedAt;
 
 [SQL_INSERT_BOOKING_ADDITIONAL_CREDITCARD]
-INSERT INTO bookingAdditionalCreditcard (booking_id, creditcard_transaction_date, creditcard_type, creditcard_currency_amount, creditcard_currency_rate, creditcard_currency, creditcard_merchant_area, creditcard_merchant_category, updatedAt)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO bookingAdditionalCreditcard (booking_id, creditcard_transaction_date, creditcard_type, creditcard_merchant_area, creditcard_merchant_category, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?)
 ON CONFLICT(booking_id) DO UPDATE SET
     creditcard_transaction_date = excluded.creditcard_transaction_date,
     creditcard_type = excluded.creditcard_type,
-    creditcard_currency_amount = excluded.creditcard_currency_amount,
-    creditcard_currency_rate = excluded.creditcard_currency_rate,
-    creditcard_currency = excluded.creditcard_currency,
     creditcard_merchant_area = excluded.creditcard_merchant_area,
     creditcard_merchant_category = excluded.creditcard_merchant_category,
+    updatedAt = excluded.updatedAt;
+
+[SQL_INSERT_BOOKING_ADDITIONAL_FOREIGNCURRENCY]
+INSERT INTO bookingAdditionalForeigncurrency (booking_id, foreignAmount, foreignCurrency, exchangeRateToBaseCurrency, updatedAt)
+VALUES (?, ?, ?, ?, ?)
+ON CONFLICT(booking_id) DO UPDATE SET
+    foreignAmount = excluded.foreignAmount,
+    foreignCurrency = excluded.foreignCurrency,
+    exchangeRateToBaseCurrency = excluded.exchangeRateToBaseCurrency,
+    updatedAt = excluded.updatedAt;
+
+[SQL_INSERT_BOOKING_FEE]
+INSERT INTO bookingFee (booking_id, amount, currency, updatedAt)
+VALUES (?, ?, ?, ?)
+ON CONFLICT(booking_id) DO UPDATE SET
+    amount = excluded.amount,
+    currency = excluded.currency,
     updatedAt = excluded.updatedAt;
 
 [SQL_DELETE_BOOKING_ADDITIONAL_SEPA]
@@ -132,6 +144,12 @@ DELETE FROM bookingAdditional WHERE booking_id = ?;
 
 [SQL_DELETE_BOOKING_ADDITIONAL_CREDITCARD]
 DELETE FROM bookingAdditionalCreditcard WHERE booking_id = ?;
+
+[SQL_DELETE_BOOKING_ADDITIONAL_FOREIGNCURRENCY]
+DELETE FROM bookingAdditionalForeigncurrency WHERE booking_id = ?;
+
+[SQL_DELETE_BOOKING_FEE]
+DELETE FROM bookingFee WHERE booking_id = ?;
 
 [SQL_DELETE_BOOKING]
 DELETE FROM booking WHERE id = ?;

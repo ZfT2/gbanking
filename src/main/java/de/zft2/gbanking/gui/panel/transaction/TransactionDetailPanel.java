@@ -15,13 +15,17 @@ import java.util.Objects;
 import de.zft2.gbanking.BaseMessagesDb;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
+import de.zft2.gbanking.db.dao.BookingFee;
+import de.zft2.gbanking.db.dao.BookingForeignCurrencyDetails;
 import de.zft2.gbanking.db.dao.BookingNoteDetails;
 import de.zft2.gbanking.db.dao.BookingSepaDetails;
 import de.zft2.gbanking.db.dao.Category;
 import de.zft2.gbanking.db.dao.enu.AccountState;
 import de.zft2.gbanking.db.dao.enu.BookingType;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.Recipient;
+import de.zft2.gbanking.file.BookingCsvFormat;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.KeyboardShortcutDispatcher;
@@ -30,6 +34,7 @@ import de.zft2.gbanking.gui.panel.overview.TransactionsOverviewBasePanel;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.gui.util.FormStyleUtils.FieldWidth;
 import de.zft2.gbanking.gui.util.FxTableUtils;
+import de.zft2.gbanking.mapper.BookingCurrencyMapper;
 import de.zft2.gbanking.service.booking.BookingSplitService;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.util.TypeConverter;
@@ -77,7 +82,6 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 	private static final String UI_BUTTON_SAVE = "UI_BUTTON_SAVE";
 	private static final String ALERT_SPLIT_BOOKING_REBOOKING_PARENT = "ALERT_SPLIT_BOOKING_REBOOKING_PARENT";
 
-	private static final List<String> SUPPORTED_CURRENCIES = List.of("EUR", "USD", "CHF", "GBP", "PLN", "CZK", "NOK");
 	private static final double AMOUNT_FIELD_WIDTH = 104.0;
 	private static final double CURRENCY_FIELD_WIDTH = 90.0;
 	private static final double DETAIL_FIELD_WIDTH = 200.0;
@@ -103,7 +107,12 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 	private final DatePicker dateValuePicker = FormStyleUtils.applyWidth(new DatePicker(), FieldWidth.S);
 	private final TextArea purposeText = FormStyleUtils.prepareLargeTextArea(new TextArea(), 3);
 	private final TextField amountText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
-	private final ComboBox<String> currencyCombo = FormStyleUtils.applyWidth(new ComboBox<>(), FieldWidth.XS);
+	private final ComboBox<Currency> currencyCombo = FormStyleUtils.applyWidth(new ComboBox<>(), FieldWidth.XS);
+	private final TextField foreignAmountText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
+	private final ComboBox<Currency> foreignCurrencyCombo = FormStyleUtils.applyWidth(new ComboBox<>(), FieldWidth.XS);
+	private final TextField exchangeRateText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
+	private final TextField feeAmountText = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
+	private final ComboBox<Currency> feeCurrencyCombo = FormStyleUtils.applyWidth(new ComboBox<>(), FieldWidth.XS);
 	private final ComboBox<BookingType> bookingTypeCombo = FormStyleUtils.applyWidth(new ComboBox<>(), FieldWidth.M);
 	private final ComboBox<Source> bookingSourceCombo = FormStyleUtils.applyWidth(new ComboBox<>(), FieldWidth.M);
 	private final ComboBox<BankAccount> crossAccountCombo = FormStyleUtils.applyWidth(new ComboBox<>(), FieldWidth.M);
@@ -149,6 +158,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 	private BankAccount currentAccount;
 	private boolean splitBookingsDirty;
 	private boolean additionalNoteEditing;
+	private TitledPane currencyDetailsPane;
 
 	public TransactionDetailPanel(TransactionsOverviewBasePanel parentPanel) {
 		this(parentPanel, ServiceRegistry.getService(BookingSplitService.class));
@@ -347,14 +357,30 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		applyFixedWidth(currencyCombo, CURRENCY_FIELD_WIDTH);
 
 		TitledPane detailsPane = titled(getText("UI_PANEL_TRANSACTION_DETAILS"), grid);
+		currencyDetailsPane = titled(getText("UI_PANEL_BOOKING_CURRENCY_DETAILS"), createCurrencyDetailsGrid());
+		currencyDetailsPane.setCollapsible(true);
+		currencyDetailsPane.setExpanded(false);
 		TitledPane sepaPane = titled(getText("UI_PANEL_SEPA_INFO"), createSepaGrid());
 		sepaPane.setCollapsible(true);
 		sepaPane.setExpanded(false);
 		applyDefaultFieldWidth(dateBookingPicker, dateValuePicker, bookingTypeCombo, bookingSourceCombo, crossAccountCombo, categoryCombo, updatedAtText);
 
-		VBox content = new VBox(8, detailsPane, additionalNotePane, sepaPane);
+		VBox content = new VBox(8, detailsPane, additionalNotePane, currencyDetailsPane, sepaPane);
 		content.setFillWidth(true);
 		return content;
+	}
+
+	private Node createCurrencyDetailsGrid() {
+		GridPane grid = new GridPane();
+		grid.setHgap(10);
+		grid.setVgap(8);
+		grid.setPadding(new Insets(6));
+		addFieldAbove(grid, "UI_LABEL_FOREIGN_AMOUNT", foreignAmountText, 0, 0);
+		addFieldAbove(grid, "UI_LABEL_FOREIGN_CURRENCY", foreignCurrencyCombo, 1, 0);
+		addFieldAbove(grid, "UI_LABEL_EXCHANGE_RATE_TO_BASE", exchangeRateText, 2, 0);
+		addFieldAbove(grid, "UI_LABEL_BOOKING_FEE", feeAmountText, 0, 1);
+		addFieldAbove(grid, "UI_LABEL_FEE_CURRENCY", feeCurrencyCombo, 1, 1);
+		return grid;
 	}
 
 	private Node createSepaGrid() {
@@ -520,7 +546,9 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		configureDatePicker(dateValuePicker);
 		configureCategoryCombo();
 		bookingTypeCombo.setItems(FXCollections.observableArrayList(BookingType.values()));
-		currencyCombo.setItems(FXCollections.observableArrayList(SUPPORTED_CURRENCIES));
+		currencyCombo.setItems(FXCollections.observableArrayList(Currency.values()));
+		foreignCurrencyCombo.setItems(FXCollections.observableArrayList(Currency.values()));
+		feeCurrencyCombo.setItems(FXCollections.observableArrayList(Currency.values()));
 		refreshSourceChoices(false);
 		refreshReferenceChoices();
 	}
@@ -604,13 +632,18 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 	private void enableFields(boolean enable) {
 		boolean editable = enable && FormStyleUtils.isUserEditable(displayedBooking != null ? displayedBooking.getSource() : null);
 
-		FormStyleUtils.setEditable(editable, dateBookingPicker, dateValuePicker, purposeText, amountText, currencyCombo, bookingTypeCombo, crossAccountCombo,
+		FormStyleUtils.setEditable(editable, dateBookingPicker, dateValuePicker, purposeText, amountText, foreignAmountText,
+				foreignCurrencyCombo, feeAmountText, feeCurrencyCombo, bookingTypeCombo, crossAccountCombo,
 				categoryCombo, sepaCustomerRefText, sepaCreditorIdText, sepaEndToEndText, sepaMandateText, sepaPersonIdText, sepaPurposeText, sepaTypText,
 				recipientNameText, recipientIbanText, recipientAccountNumberText, recipientBicText, recipientBlzText, recipientBankText);
 		dateBookingPicker.setEditable(editable);
 		dateValuePicker.setEditable(editable);
 		bookingSourceCombo.setDisable(true);
 		FormStyleUtils.setReadOnlyStyle(true, bookingSourceCombo);
+		currencyCombo.setDisable(true);
+		FormStyleUtils.setReadOnlyStyle(true, currencyCombo);
+		exchangeRateText.setDisable(true);
+		FormStyleUtils.setReadOnlyStyle(true, exchangeRateText);
 
 		updatedAtText.setEditable(false);
 		updatedAtText.setDisable(true);
@@ -658,7 +691,8 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		clearSplitBookings();
 		bookingSourceCombo.setValue(Source.MANUELL);
 		dateBookingPicker.setValue(LocalDate.now(ZoneId.systemDefault()));
-		currencyCombo.setValue("EUR");
+		currencyCombo.setValue(currentAccount.getBaseCurrency());
+		feeCurrencyCombo.setValue(currentAccount.getBaseCurrency());
 		bookingSourceCombo.setValue(Source.MANUELL);
 		enableFields(true);
 		updateActionButtons();
@@ -764,8 +798,11 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		BigDecimal amount = parseAmount(amountText.getText());
 		BookingType bookingType = bookingTypeCombo.getValue();
 		Source source = context == EditContext.NEW ? Source.MANUELL : bookingSourceCombo.getValue();
+		BookingForeignCurrencyDetails foreignDetails = BookingCurrencyMapper.createForeignCurrencyDetails(amount,
+				currentAccount.getBaseCurrency(), parseAmount(foreignAmountText.getText()),
+				foreignCurrencyCombo.getValue() != null ? foreignCurrencyCombo.getValue().name() : null, null);
 
-		validateBookingInput(bookingDate, amount, bookingType, source);
+		validateBookingInput(bookingDate, amount, bookingType, source, foreignDetails != null);
 
 		displayedBooking.setAccountId(currentAccount != null ? currentAccount.getId() : displayedBooking.getAccountId());
 		displayedBooking.setDateBooking(bookingDate);
@@ -773,7 +810,10 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		displayedBooking.setDate(valueDate != null ? valueDate : bookingDate);
 		displayedBooking.setPurpose(trimToNull(purposeText.getText()));
 		displayedBooking.setAmount(amount);
-		displayedBooking.setCurrency(currencyCombo.getValue());
+		displayedBooking.setForeignCurrencyDetails(foreignDetails);
+		displayedBooking.setFee(BookingCurrencyMapper.createFee(parseAmount(feeAmountText.getText()),
+				feeCurrencyCombo.getValue() != null ? feeCurrencyCombo.getValue().name() : null,
+				currentAccount.getBaseCurrency()));
 		displayedBooking.setBookingType(bookingType);
 		displayedBooking.setSource(source);
 		int previousCategoryId = getCategoryId(displayedBooking);
@@ -810,7 +850,8 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		dateValuePicker.setValue(booking.getDateValue());
 		purposeText.setText(booking.getPurpose());
 		amountText.setText(booking.getAmountStr());
-		currencyCombo.setValue(booking.getCurrency());
+		currencyCombo.setValue(currentAccount != null ? currentAccount.getBaseCurrency() : null);
+		updateCurrencyDetails(booking);
 		bookingTypeCombo.setValue(booking.getBookingType());
 		bookingSourceCombo.setValue(booking.getSource());
 		selectCategory(booking.getCategory());
@@ -875,6 +916,18 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		reviewRequiredCheckBox.setSelected(details != null && details.isReviewRequired());
 	}
 
+	private void updateCurrencyDetails(Booking booking) {
+		BookingForeignCurrencyDetails foreign = booking.getForeignCurrencyDetails();
+		foreignAmountText.setText(foreign != null ? formatDecimal(foreign.getForeignAmount()) : null);
+		foreignCurrencyCombo.setValue(foreign != null ? foreign.getForeignCurrency() : null);
+		exchangeRateText.setText(foreign != null ? formatDecimal(foreign.getExchangeRateToBaseCurrency()) : null);
+		BookingFee fee = booking.getFee();
+		feeAmountText.setText(fee != null ? formatDecimal(fee.getAmount()) : null);
+		feeCurrencyCombo.setValue(fee != null ? fee.getCurrency()
+				: currentAccount != null ? currentAccount.getBaseCurrency() : Currency.EUR);
+		currencyDetailsPane.setExpanded(foreign != null || fee != null);
+	}
+
 	private void clearSepaFields() {
 		sepaCustomerRefText.clear();
 		sepaCreditorIdText.clear();
@@ -893,6 +946,11 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		purposeText.clear();
 		amountText.clear();
 		currencyCombo.setValue(null);
+		foreignAmountText.clear();
+		foreignCurrencyCombo.setValue(null);
+		exchangeRateText.clear();
+		feeAmountText.clear();
+		feeCurrencyCombo.setValue(null);
 		categoryCombo.setValue(null);
 
 		clearSepaFields();
@@ -1058,7 +1116,6 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		splitBooking.setDate(displayedBooking.getDate());
 		splitBooking.setPurpose(displayedBooking.getPurpose());
 		splitBooking.setAmount(calculateSplitDifference());
-		splitBooking.setCurrency(displayedBooking.getCurrency());
 		splitBooking.setSource(Source.MANUELL);
 		splitBooking.setCategory(displayedBooking.getCategory());
 		clearCategoryRuleAssignment(splitBooking);
@@ -1206,7 +1263,8 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		updateAdditionalNoteControls();
 	}
 
-	private void validateBookingInput(LocalDate bookingDate, BigDecimal amount, BookingType bookingType, Source source) {
+	private void validateBookingInput(LocalDate bookingDate, BigDecimal amount, BookingType bookingType,
+			Source source, boolean hasForeignCurrency) {
 		if (bookingDate == null || amount == null || bookingType == null || currencyCombo.getValue() == null || trimToNull(purposeText.getText()) == null) {
 			throw new IllegalArgumentException(getText("ALERT_BOOKING_REQUIRED_FIELD_MISSING"));
 		}
@@ -1221,6 +1279,14 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 
 		if (isRebookingType(bookingType) && crossAccountCombo.getValue() == null) {
 			throw new IllegalArgumentException(getText("ALERT_REBOOKING_CROSS_ACCOUNT_MISSING"));
+		}
+		if (isRebookingType(bookingType) && hasForeignCurrency) {
+			throw new IllegalArgumentException(getText("ALERT_REBOOKING_FOREIGN_CURRENCY"));
+		}
+		BankAccount crossAccount = crossAccountCombo.getValue();
+		if (isRebookingType(bookingType) && currentAccount != null && crossAccount != null
+				&& currentAccount.getBaseCurrency() != crossAccount.getBaseCurrency()) {
+			throw new IllegalArgumentException(getText("ALERT_REBOOKING_CURRENCY_MISMATCH"));
 		}
 	}
 
@@ -1283,7 +1349,11 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		if (trimmedValue == null) {
 			return null;
 		}
-		return new BigDecimal(trimmedValue.replace(',', '.'));
+		return BookingCsvFormat.parseAmount(trimmedValue);
+	}
+
+	private String formatDecimal(BigDecimal value) {
+		return value != null ? value.toPlainString().replace('.', ',') : null;
 	}
 
 	private LocalDate readDate(DatePicker picker) {

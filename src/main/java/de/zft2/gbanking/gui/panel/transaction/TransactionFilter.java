@@ -73,7 +73,10 @@ final class TransactionFilter {
 		String sourceSymbol = booking.getSource() != null ? booking.getSource().getSymbol() : null;
 		BookingNoteDetails noteDetails = booking.getNoteDetails();
 		String note = noteDetails != null ? noteDetails.getNote() : null;
-		return containsAny(filter, booking.getPurpose(), note, recipientName, categoryName, booking.getCurrency(), booking.getCrossAccountName(),
+		String foreignCurrency = booking.getForeignCurrencyDetails() != null
+				&& booking.getForeignCurrencyDetails().getForeignCurrency() != null
+						? booking.getForeignCurrencyDetails().getForeignCurrency().name() : null;
+		return containsAny(filter, booking.getPurpose(), note, recipientName, categoryName, foreignCurrency, booking.getCrossAccountName(),
 				booking.getAccountName(), sourceDescription, sourceSymbol) || matchesAmountSearch(booking.getAmount(), filter)
 				|| matchesDateSearch(booking.getDateBooking(), filter) || matchesDateSearch(booking.getDateValue(), filter)
 				|| matchesDateSearch(booking.getDate(), filter);

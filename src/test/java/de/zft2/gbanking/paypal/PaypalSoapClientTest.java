@@ -67,10 +67,34 @@ class PaypalSoapClientTest {
 		PaypalTransaction transaction = transactions.get(0);
 		assertEquals(new BigDecimal("9.50"), transaction.netAmount());
 		assertEquals(new BigDecimal("-0.50"), transaction.feeAmount());
+		assertEquals("EUR", transaction.feeCurrency());
 		assertEquals("EUR", transaction.currency());
 		assertEquals("ABC123", transaction.transactionId());
 		assertTrue(request.get().contains("<ns:TransactionClass>BalanceAffecting</ns:TransactionClass>"));
 		assertFalse(request.get().contains("<ns:CurrencyCode>"));
+	}
+
+	@Test
+	void getTransactionDetails_shouldReadSettlementAmountCurrencyAndRate() throws InterruptedException {
+		AtomicReference<String> request = new AtomicReference<>();
+		PaypalSoapClient client = client(request, """
+				<Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/" xmlns:p="urn:ebay:api:PayPalAPI"
+				 xmlns:e="urn:ebay:apis:eBLBaseComponents">
+				 <Body><p:GetTransactionDetailsResponse><e:Ack>Success</e:Ack>
+				  <p:PaymentTransactionDetails><p:PaymentInfo>
+				   <p:SettleAmount currencyID="EUR">8.75</p:SettleAmount><p:ExchangeRate>0.875</p:ExchangeRate>
+				  </p:PaymentInfo></p:PaymentTransactionDetails>
+				 </p:GetTransactionDetailsResponse></Body>
+				</Envelope>
+				""");
+
+		PaypalTransactionDetails details = client.getTransactionDetails("user", "password".toCharArray(), "signature", "USD123");
+
+		assertEquals(new BigDecimal("8.75"), details.settleAmount());
+		assertEquals("EUR", details.settleCurrency());
+		assertEquals(new BigDecimal("0.875"), details.exchangeRate());
+		assertTrue(request.get().contains("<ns:GetTransactionDetailsReq>"));
+		assertTrue(request.get().contains("<ns:TransactionID>USD123</ns:TransactionID>"));
 	}
 
 	@Test

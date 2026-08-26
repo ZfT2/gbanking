@@ -92,7 +92,7 @@ public class FileImportCSVBean extends AbstractBookingImportBean {
 		}
 
 		rejectedRows.clear();
-		importRecords(data.rows(), match.definition());
+		dbController.executeInTransaction(() -> importRecords(data.rows(), match.definition()));
 		finishImport();
 	}
 
@@ -272,12 +272,21 @@ public class FileImportCSVBean extends AbstractBookingImportBean {
 				throw new GBankingException(getText("ERROR_CSV_IMPORT_AMOUNT_MAPPING", definition.getName()));
 			}
 			if (amount == null) {
+				if (hasForeignCurrencyData(row, definition)) {
+					throw new GBankingException("Eine Fremdwährungsbuchung in Zeile " + row.lineNumber()
+							+ " enthält keinen Betrag in der Kontowährung. Der Import wurde abgebrochen.");
+				}
 				throw new CsvRowException(getText("ERROR_CSV_IMPORT_AMOUNT_MISSING", row.lineNumber()));
 			}
 			return definition.isSwapAmount() ? amount.negate() : amount;
 		} catch (NumberFormatException exception) {
 			throw new CsvRowException(getText("ERROR_CSV_IMPORT_AMOUNT_INVALID", row.lineNumber()), exception);
 		}
+	}
+
+	private boolean hasForeignCurrencyData(CsvImportData.Row row, CsvImportDefinition definition) {
+		return text(row, definition, CsvImportTarget.CREDITCARD_CURRENCY) != null
+				|| text(row, definition, CsvImportTarget.CREDITCARD_CURRENCY_AMOUNT) != null;
 	}
 
 	private BigDecimal splitAmount(CsvImportData.Row row, CsvImportDefinition definition, List<String> amountFields) {
@@ -420,9 +429,11 @@ public class FileImportCSVBean extends AbstractBookingImportBean {
 	private void mapCreditcardDetails(CsvImportData.Row row, CsvImportDefinition definition, ImportBooking booking) {
 		booking.setCreditcardTransactionDate(parseDate(row, definition, CsvImportTarget.CREDITCARD_TRANSACTION_DATE, definition.getDateOrder()));
 		booking.setCreditcardType(text(row, definition, CsvImportTarget.CREDITCARD_TYPE));
-		booking.setCreditcardCurrencyAmount(optionalDecimal(row, definition, CsvImportTarget.CREDITCARD_CURRENCY_AMOUNT));
-		booking.setCreditcardCurrencyRate(optionalDecimal(row, definition, CsvImportTarget.CREDITCARD_CURRENCY_RATE));
-		booking.setCreditcardCurrency(text(row, definition, CsvImportTarget.CREDITCARD_CURRENCY));
+		booking.setForeignAmount(optionalDecimal(row, definition, CsvImportTarget.CREDITCARD_CURRENCY_AMOUNT));
+		booking.setExchangeRateToBaseCurrency(optionalDecimal(row, definition, CsvImportTarget.CREDITCARD_CURRENCY_RATE));
+		booking.setForeignCurrency(text(row, definition, CsvImportTarget.CREDITCARD_CURRENCY));
+		booking.setFeeAmount(optionalDecimal(row, definition, CsvImportTarget.FEE_AMOUNT));
+		booking.setFeeCurrency(text(row, definition, CsvImportTarget.FEE_CURRENCY));
 		booking.setCreditcardMerchantArea(text(row, definition, CsvImportTarget.CREDITCARD_MERCHANT_AREA));
 		booking.setCreditcardMerchantCategory(text(row, definition, CsvImportTarget.CREDITCARD_MERCHANT_CATEGORY));
 	}

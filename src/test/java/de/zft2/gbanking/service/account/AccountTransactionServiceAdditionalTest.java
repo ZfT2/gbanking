@@ -57,8 +57,10 @@ import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.BankAccountRetrievalStatus;
 import de.zft2.gbanking.db.dao.Booking;
+import de.zft2.gbanking.db.dao.BookingForeignCurrencyDetails;
 import de.zft2.gbanking.db.dao.enu.AccountRetrievalStatus;
 import de.zft2.gbanking.db.dao.enu.BookingType;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.DBController;
@@ -357,7 +359,7 @@ class AccountTransactionServiceAdditionalTest {
 			assertEquals(Source.ONLINE, dbController.getByIdFull(Booking.class, previousNewBooking.getId()).getSource());
 			Booking pendingBooking = bookings.stream().filter(booking -> booking.getSource() == Source.ONLINE_PRENO_NEW).findFirst().orElseThrow();
 			assertEquals(new BigDecimal("13.37"), pendingBooking.getAmount());
-			assertEquals("EUR", pendingBooking.getCurrency());
+			assertEquals(Currency.EUR, bankAccount.getBaseCurrency());
 			assertEquals(BookingType.DEPOSIT, pendingBooking.getBookingType());
 			assertEquals(0, new BigDecimal("1242.50").compareTo(dbController.getById(BankAccount.class, bankAccount.getId()).getBalance()));
 			assertEquals(1, dbController.getAll(Recipient.class).size());
@@ -621,13 +623,17 @@ class AccountTransactionServiceAdditionalTest {
 	}
 
 	@Test
-	void reconcileAccountBalance_shouldIgnoreBookingsInOtherCurrencies() {
+	void reconcileAccountBalance_shouldUseBaseAmountOfForeignCurrencyBookings() {
 		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
 		insertBooking(dbController, bankAccount.getId(), Source.ONLINE, new BigDecimal("90.00"));
 		Booking foreignCurrencyBooking = TestData.createSampleBooking(bankAccount.getId());
-		foreignCurrencyBooking.setAmount(new BigDecimal("500.00"));
-		foreignCurrencyBooking.setCurrency("USD");
+		foreignCurrencyBooking.setAmount(new BigDecimal("5.00"));
+		BookingForeignCurrencyDetails foreignDetails = new BookingForeignCurrencyDetails();
+		foreignDetails.setForeignAmount(new BigDecimal("500.00"));
+		foreignDetails.setForeignCurrency(Currency.USD);
+		foreignDetails.setExchangeRateToBaseCurrency(new BigDecimal("0.01"));
+		foreignCurrencyBooking.setForeignCurrencyDetails(foreignDetails);
 		foreignCurrencyBooking.setSource(Source.ONLINE);
 		dbController.insertOrUpdate(foreignCurrencyBooking);
 		AccountTransactionService service = new AccountTransactionService();
@@ -636,7 +642,7 @@ class AccountTransactionServiceAdditionalTest {
 
 		List<Booking> bookings = dbController.getAllByParentFull(Booking.class, bankAccount.getId());
 		Booking adjustment = bookings.stream().filter(booking -> booking.getSource() == Source.AUTO_ADJUSTING).findFirst().orElseThrow();
-		assertEquals(new BigDecimal("10.00"), adjustment.getAmount());
+		assertEquals(new BigDecimal("5.00"), adjustment.getAmount());
 	}
 
 	private static Date toUtilDate(LocalDate date) {

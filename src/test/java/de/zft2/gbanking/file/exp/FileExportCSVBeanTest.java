@@ -23,9 +23,12 @@ import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
+import de.zft2.gbanking.db.dao.BookingFee;
+import de.zft2.gbanking.db.dao.BookingForeignCurrencyDetails;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.AccountState;
 import de.zft2.gbanking.db.dao.enu.BookingType;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.file.BaseFileTest;
 
@@ -70,6 +73,8 @@ class FileExportCSVBeanTest extends BaseFileTest {
 		assertTrue(csv.contains("Giro CSV"));
 		assertTrue(csv.contains(account.getIban()));
 		assertTrue(csv.contains(account.getNumber()));
+		assertTrue(csv.contains("FREMDWAEHRUNGSBETRAG;FREMDWAEHRUNG;WECHSELKURS_ZUR_KONTOWAEHRUNG;GEBUEHR;GEBUEHRENWAEHRUNG"));
+		assertTrue(csv.contains("100,00;USD;1.2345;1,25;EUR"));
 	}
 
 	@Test
@@ -104,12 +109,20 @@ class FileExportCSVBeanTest extends BaseFileTest {
 		booking.setDateValue(LocalDate.of(2026, Month.APRIL, 11));
 		booking.setPurpose("CSV Zweck");
 		booking.setAmount(new BigDecimal("123.45"));
-		booking.setCurrency("EUR");
 		booking.setRecipientId(recipient.getId());
 		booking.setSource(Source.IMPORT);
 		booking.setBookingType(BookingType.DEPOSIT);
 		booking.setSepaCustomerRef("KREF");
 		booking.setSepaEndToEnd("E2E");
+		BookingForeignCurrencyDetails foreign = new BookingForeignCurrencyDetails();
+		foreign.setForeignAmount(new BigDecimal("100.00"));
+		foreign.setForeignCurrency(Currency.USD);
+		foreign.setExchangeRateToBaseCurrency(new BigDecimal("1.2345"));
+		booking.setForeignCurrencyDetails(foreign);
+		BookingFee fee = new BookingFee();
+		fee.setAmount(new BigDecimal("1.25"));
+		fee.setCurrency(Currency.EUR);
+		booking.setFee(fee);
 		dbController.insertOrUpdate(booking);
 
 		return account;

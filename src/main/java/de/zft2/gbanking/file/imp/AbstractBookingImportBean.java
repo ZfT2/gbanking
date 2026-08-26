@@ -181,7 +181,7 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 
 			for (ImportBooking importBooking : importAccount.getBookings()) {
 				Booking bookingDao = ImportDaoMapper.maptoBookingDao(importBooking, account.getId(), resolveCrossAccountId(importBooking, account.getId()),
-						importBooking.getSource());
+						importBooking.getSource(), account.getBaseCurrency());
 				importBooking(crossBookingMap, importBooking, bookingDao, existingBookings, importedBookings, statistics);
 			}
 		}

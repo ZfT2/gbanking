@@ -6,6 +6,7 @@ import java.util.Locale;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferForeign;
 import de.zft2.gbanking.db.dao.Recipient;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.ForeignChargeBearer;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
@@ -18,10 +19,8 @@ import javafx.scene.control.TextField;
 
 public class MoneyTransferInputForeignPanel extends MoneyTransferInputBasePanel {
 
-	private static final List<String> CURRENCIES = List.of("EUR", "USD", "GBP", "CHF", "JPY", "CAD", "AUD", "CNY", "SEK", "NOK", "DKK", "PLN",
-			"CZK", "HUF", "TRY");
-
-	private final ComboBox<String> currencyCombo = FormStyleUtils.applyWidth(new ComboBox<>(FXCollections.observableArrayList(CURRENCIES)), FieldWidth.XS);
+	private final ComboBox<Currency> currencyCombo = FormStyleUtils.applyWidth(
+			new ComboBox<>(FXCollections.observableArrayList(Currency.values())), FieldWidth.XS);
 	private final TextField tfRecipientCountry = FormStyleUtils.applyWidth(new TextField(), FieldWidth.XS);
 	private final TextField tfRecipientAccountNumber = FormStyleUtils.applyWidth(new TextField(), FieldWidth.M);
 	private final TextField tfRecipientBankCode = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
@@ -38,7 +37,7 @@ public class MoneyTransferInputForeignPanel extends MoneyTransferInputBasePanel 
 
 	public MoneyTransferInputForeignPanel(MoneyTransferDetailListTabPanel parent) {
 		super(parent);
-		currencyCombo.setValue("EUR");
+		currencyCombo.setValue(Currency.EUR);
 		chargeBearerCombo.setValue(ForeignChargeBearer.SHARED);
 		setCurrencyField(currencyCombo);
 		bankNameLookupField.setManualEntryEditable(true);
@@ -70,7 +69,7 @@ public class MoneyTransferInputForeignPanel extends MoneyTransferInputBasePanel 
 
 	@Override
 	protected String getCurrency() {
-		return currencyCombo.getValue();
+		return currencyCombo.getValue() != null ? currencyCombo.getValue().name() : null;
 	}
 
 	@Override
@@ -94,7 +93,7 @@ public class MoneyTransferInputForeignPanel extends MoneyTransferInputBasePanel 
 
 	@Override
 	protected void resetSpecificFields() {
-		currencyCombo.setValue("EUR");
+		currencyCombo.setValue(Currency.EUR);
 		chargeBearerCombo.setValue(ForeignChargeBearer.SHARED);
 		tfRecipientCountry.clear();
 		tfRecipientAccountNumber.clear();
@@ -111,7 +110,7 @@ public class MoneyTransferInputForeignPanel extends MoneyTransferInputBasePanel 
 
 	@Override
 	protected void updateSpecificFieldValues(MoneyTransfer selectedMoneytransfer) {
-		currencyCombo.setValue(trimToNull(selectedMoneytransfer.getCurrency()) != null ? selectedMoneytransfer.getCurrency() : "EUR");
+		currencyCombo.setValue(Currency.forCodeOrDefault(selectedMoneytransfer.getCurrency(), Currency.EUR));
 		MoneyTransferForeign foreignTransfer = selectedMoneytransfer.getForeignTransfer();
 		if (foreignTransfer == null) {
 			return;
@@ -148,7 +147,7 @@ public class MoneyTransferInputForeignPanel extends MoneyTransferInputBasePanel 
 	@Override
 	protected MoneyTransferForeign buildForeignTransferDetails() {
 		MoneyTransferForeign foreignTransfer = new MoneyTransferForeign();
-		foreignTransfer.setCurrency(trimToNull(currencyCombo.getValue()) != null ? currencyCombo.getValue().trim().toUpperCase(Locale.ROOT) : "EUR");
+		foreignTransfer.setCurrency(currencyCombo.getValue() != null ? currencyCombo.getValue().name() : Currency.EUR.name());
 		foreignTransfer.setRecipientCountry(normalizeCountry(trimToNull(tfRecipientCountry.getText())));
 		foreignTransfer.setRecipientAccountNumber(trimToNull(tfRecipientAccountNumber.getText()));
 		foreignTransfer.setRecipientBankCode(trimToNull(tfRecipientBankCode.getText()));

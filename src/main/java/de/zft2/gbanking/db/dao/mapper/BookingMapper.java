@@ -13,11 +13,14 @@ import de.zft2.gbanking.db.StatementsConfig.StatementType;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingAdditionalDetails;
 import de.zft2.gbanking.db.dao.BookingCreditCardDetails;
+import de.zft2.gbanking.db.dao.BookingFee;
+import de.zft2.gbanking.db.dao.BookingForeignCurrencyDetails;
 import de.zft2.gbanking.db.dao.BookingNoteDetails;
 import de.zft2.gbanking.db.dao.BookingSepaDetails;
 import de.zft2.gbanking.db.dao.Category;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.BookingType;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.SepaType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.util.TypeConverter;
@@ -34,7 +37,6 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 		ps.setDate(index++, TypeConverter.toSqlDateShort(booking.getDateValue()));
 		ps.setString(index++, booking.getPurpose());
 		ps.setDouble(index++, booking.getAmount().doubleValue());
-		ps.setString(index++, booking.getCurrency());
 		setEnumNullable(index++, booking.getBookingType(), ps);
 		ps.setInt(index++, booking.getSource().getDbStateId());
 
@@ -76,8 +78,6 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 		ps.setString(index++, details.getPrimanota());
 		ps.setString(index++, details.getKey());
 		index = setBooleanNullable(index, details.getStorno(), ps);
-		index = setBigDecimalNullable(index, details.getOrigValue(), ps);
-		index = setBigDecimalNullable(index, details.getChargeValue(), ps);
 		ps.setString(index++, details.getRawData());
 		index = setBooleanNullable(index, details.getSepa(), ps);
 		index = setBooleanNullable(index, details.getCamt(), ps);
@@ -101,12 +101,26 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 		ps.setInt(index++, booking.getId());
 		ps.setDate(index++, TypeConverter.toSqlDateShort(details.getTransactionDate()));
 		ps.setString(index++, details.getType());
-		index = setBigDecimalNullable(index, details.getCurrencyAmount(), ps);
-		index = setBigDecimalNullable(index, details.getCurrencyRate(), ps);
-		ps.setString(index++, details.getCurrency());
 		ps.setString(index++, details.getMerchantArea());
 		ps.setString(index++, details.getMerchantCategory());
 		ps.setTimestamp(index, TypeConverter.toSqlTimestampNow());
+	}
+
+	public void setParamsForeignCurrency(Booking booking, PreparedStatement ps) throws SQLException {
+		BookingForeignCurrencyDetails details = Objects.requireNonNull(booking.getForeignCurrencyDetails(), "foreignCurrencyDetails");
+		ps.setInt(1, booking.getId());
+		setBigDecimalNullable(2, details.getForeignAmount(), ps);
+		ps.setInt(3, details.getForeignCurrency().getDbStateId());
+		setBigDecimalNullable(4, details.getExchangeRateToBaseCurrency(), ps);
+		ps.setTimestamp(5, TypeConverter.toSqlTimestampNow());
+	}
+
+	public void setParamsFee(Booking booking, PreparedStatement ps) throws SQLException {
+		BookingFee fee = Objects.requireNonNull(booking.getFee(), "fee");
+		ps.setInt(1, booking.getId());
+		setBigDecimalNullable(2, fee.getAmount(), ps);
+		ps.setInt(3, fee.getCurrency().getDbStateId());
+		ps.setTimestamp(4, TypeConverter.toSqlTimestampNow());
 	}
 
 	public boolean hasSepaData(Booking booking) {
@@ -124,6 +138,14 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 
 	public boolean hasAdditionalCreditcardData(Booking booking) {
 		return booking.getCreditCardDetails() != null && !booking.getCreditCardDetails().isEmpty();
+	}
+
+	public boolean hasForeignCurrencyData(Booking booking) {
+		return booking.getForeignCurrencyDetails() != null && !booking.getForeignCurrencyDetails().isEmpty();
+	}
+
+	public boolean hasFeeData(Booking booking) {
+		return booking.getFee() != null && !booking.getFee().isEmpty();
 	}
 
 	@Override
@@ -168,7 +190,6 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 		booking.setDateValue(TypeConverter.toLocalDateFromSqlDate(rs.getDate("dateValue")));
 		booking.setPurpose(rs.getString(SqlFields.BOOKING_PURPOSE));
 		booking.setAmount(rs.getBigDecimal(SqlFields.BOOKING_AMOUNT).setScale(2, RoundingMode.HALF_UP));
-		booking.setCurrency(rs.getString("currency"));
 
 		if (resultType == ResultType.FULL) {
 			booking.setAccountName(rs.getString("accountName"));
@@ -179,6 +200,8 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 		booking.setNoteDetails(mapNoteDetails(rs));
 		booking.setAdditionalDetails(mapAdditionalDetails(rs));
 		booking.setCreditCardDetails(mapCreditCardDetails(rs));
+		booking.setForeignCurrencyDetails(mapForeignCurrencyDetails(rs));
+		booking.setFee(mapFee(rs));
 
 		booking.setCrossAccountId(getIntegerNullable("crossAccount_id", rs));
 
@@ -245,8 +268,6 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 		details.setPrimanota(rs.getString("addPrimanota"));
 		details.setKey(rs.getString("addKey"));
 		details.setStorno(getBooleanNullable("addIsStorno", rs));
-		details.setOrigValue(getScaledBigDecimalNullable("addOrigValue", rs));
-		details.setChargeValue(getScaledBigDecimalNullable("addChargeValue", rs));
 		details.setRawData(rs.getString("addRawData"));
 		details.setSepa(getBooleanNullable("addIsSepa", rs));
 		details.setCamt(getBooleanNullable("addIsCamt", rs));
@@ -258,12 +279,24 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 		BookingCreditCardDetails details = new BookingCreditCardDetails();
 		details.setTransactionDate(TypeConverter.toLocalDateFromSqlDate(rs.getDate("creditcardTransactionDate")));
 		details.setType(rs.getString("creditcardType"));
-		details.setCurrencyAmount(getBigDecimalNullable("creditcardCurrencyAmount", rs));
-		details.setCurrencyRate(getBigDecimalNullable("creditcardCurrencyRate", rs));
-		details.setCurrency(rs.getString("creditcardCurrency"));
 		details.setMerchantArea(rs.getString("creditcardMerchantArea"));
 		details.setMerchantCategory(rs.getString("creditcardMerchantCategory"));
 		return details;
+	}
+
+	private BookingForeignCurrencyDetails mapForeignCurrencyDetails(ResultSet rs) throws SQLException {
+		BookingForeignCurrencyDetails details = new BookingForeignCurrencyDetails();
+		details.setForeignAmount(getBigDecimalNullable("foreignAmount", rs));
+		details.setForeignCurrency(getEnumNullable("foreignCurrency", Currency.class, rs));
+		details.setExchangeRateToBaseCurrency(getBigDecimalNullable("exchangeRateToBaseCurrency", rs));
+		return details;
+	}
+
+	private BookingFee mapFee(ResultSet rs) throws SQLException {
+		BookingFee fee = new BookingFee();
+		fee.setAmount(getBigDecimalNullable("feeAmount", rs));
+		fee.setCurrency(getEnumNullable("feeCurrency", Currency.class, rs));
+		return fee;
 	}
 
 	private java.math.BigDecimal getScaledBigDecimalNullable(String field, ResultSet rs) throws SQLException {

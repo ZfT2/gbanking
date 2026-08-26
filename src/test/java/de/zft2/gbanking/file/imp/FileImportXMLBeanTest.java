@@ -17,6 +17,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
+import de.zft2.fp3xmlextract.convert.Converter;
+import de.zft2.fp3xmlextract.data.Fp3XmlBankAccount;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.db.TestData;
@@ -49,6 +51,15 @@ class FileImportXMLBeanTest {
 	void cleanupDatabase() throws Exception {
 		DBControllerTestUtil.closeAndNullifyConnection();
 		DBControllerTestUtil.deleteTemporaryDir(tempDir);
+	}
+
+	@Test
+	void fp3XmlExtract_shouldExposeAccountAndBookingCurrency() throws Exception {
+		Fp3XmlBankAccount account = new Converter().convertXmlToCsvEntries(testResource("dummy_import.xml").toString())
+				.iterator().next();
+
+		assertEquals("EUR", account.getBaseCurrency());
+		assertEquals("EUR", account.getBookings().get(0).getCurrency());
 	}
 
 	@Test

@@ -93,7 +93,6 @@ class FileExportMT940BeanTest extends BaseFileTest {
 		booking.setDateValue(LocalDate.of(2026, Month.APRIL, 11));
 		booking.setPurpose("MT940 Export Zweck");
 		booking.setAmount(new BigDecimal("123.45"));
-		booking.setCurrency("EUR");
 		booking.setRecipientId(recipient.getId());
 		booking.setSource(Source.IMPORT);
 		booking.setBookingType(BookingType.DEPOSIT);

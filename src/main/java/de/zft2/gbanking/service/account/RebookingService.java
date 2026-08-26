@@ -226,6 +226,7 @@ final class RebookingService extends AbstractDbService {
 	private static void prepareBookingsForBookingCore(BankAccount account, List<Booking> bookings,
 			Map<Integer, Integer> originalCrossBookingIds, Map<Integer, Integer> originalCrossAccountIds,
 			Map<Integer, String> originalPurposes) {
+		bookings.removeIf(booking -> booking.getForeignCurrencyDetails() != null);
 		for (Booking booking : bookings) {
 			booking.setAccountName(account.getNamePP());
 			originalCrossBookingIds.put(booking.getId(), booking.getCrossBookingId());
@@ -307,7 +308,6 @@ final class RebookingService extends AbstractDbService {
 				: counterBooking.getDateValue());
 		counterBooking.setPurpose(sourceBooking.getPurpose());
 		counterBooking.setAmount(counterAmount);
-		counterBooking.setCurrency(resolveCounterBookingCurrency(sourceBooking, targetAccount));
 		counterBooking.setSource(Source.MANUELL_NEW);
 		counterBooking.setBookingType(resolveRebookingType(counterAmount));
 		counterBooking.setCrossAccountId(sourceBooking.getAccountId());
@@ -461,7 +461,9 @@ final class RebookingService extends AbstractDbService {
 			return false;
 		}
 		if (!isRebookingType(booking.getBookingType()) || booking.getCrossBooking() != null
-				|| isPrenotification(booking) || booking.getParentBookingId() != null) {
+				|| isPrenotification(booking) || booking.getParentBookingId() != null
+				|| booking.getForeignCurrencyDetails() != null
+				|| sourceAccount.getBaseCurrency() != targetAccount.getBaseCurrency()) {
 			return false;
 		}
 		Integer originalCrossBookingId = detectionContext.originalCrossBookingIds().get(booking.getId());
@@ -521,7 +523,8 @@ final class RebookingService extends AbstractDbService {
 				|| sourceBooking.getAccountId() == targetAccount.getId()) {
 			return false;
 		}
-		if (sourceBooking.getParentBookingId() != null || isPrenotification(sourceBooking)) {
+		if (sourceBooking.getParentBookingId() != null || isPrenotification(sourceBooking)
+				|| sourceBooking.getForeignCurrencyDetails() != null) {
 			return false;
 		}
 		Integer crossBookingId = sourceBooking.getCrossBookingId();
@@ -545,13 +548,6 @@ final class RebookingService extends AbstractDbService {
 		return recipient;
 	}
 
-	private static String resolveCounterBookingCurrency(Booking sourceBooking, BankAccount targetAccount) {
-		if (hasText(sourceBooking.getCurrency())) {
-			return sourceBooking.getCurrency();
-		}
-		return hasText(targetAccount.getCurrency()) ? targetAccount.getCurrency() : "EUR";
-	}
-
 	private static LocalDate defaultDate(LocalDate value, LocalDate fallback, LocalDate defaultValue) {
 		if (value != null) {
 			return value;
@@ -562,6 +558,8 @@ final class RebookingService extends AbstractDbService {
 	private static boolean canPersistRebookingPair(Booking booking, Booking crossBooking) {
 		return booking != null && crossBooking != null && booking.getId() > 0
 				&& crossBooking.getId() > 0 && booking.getId() != crossBooking.getId()
+				&& booking.getForeignCurrencyDetails() == null
+				&& crossBooking.getForeignCurrencyDetails() == null
 				&& !RebookingRules.isForbiddenSameAccountRebooking(booking.getAccountId(),
 						crossBooking.getAccountId(),
 						hasCancellationSignal(booking) || hasCancellationSignal(crossBooking));
@@ -632,6 +630,9 @@ final class RebookingService extends AbstractDbService {
 		if (isPrenotification(booking) || isPrenotification(crossBooking)) {
 			return false;
 		}
+		if (!hasSameBaseCurrency(booking, crossBooking, detectionContext.accounts())) {
+			return false;
+		}
 		if (RebookingRules.isForbiddenSameAccountRebooking(booking.getAccountId(),
 				crossBooking.getAccountId(),
 				hasCancellationSignal(booking) || hasCancellationSignal(crossBooking))) {
@@ -642,6 +643,23 @@ final class RebookingService extends AbstractDbService {
 		}
 		return hasNoConflictingLink(booking, crossBooking, detectionContext)
 				&& hasNoConflictingLink(crossBooking, booking, detectionContext);
+	}
+
+	private static boolean hasSameBaseCurrency(Booking booking, Booking crossBooking,
+			List<BankAccount> accounts) {
+		BankAccount bookingAccount = findAccount(accounts, booking.getAccountId());
+		BankAccount crossBookingAccount = findAccount(accounts, crossBooking.getAccountId());
+		return bookingAccount != null && crossBookingAccount != null
+				&& bookingAccount.getBaseCurrency() == crossBookingAccount.getBaseCurrency();
+	}
+
+	private static BankAccount findAccount(List<BankAccount> accounts, int accountId) {
+		for (BankAccount account : accounts) {
+			if (account.getId() == accountId) {
+				return account;
+			}
+		}
+		return null;
 	}
 
 	private static boolean isAlreadyLinked(Booking booking, Booking crossBooking,

@@ -41,6 +41,7 @@ import de.zft2.gbanking.db.dao.BankAccountRetrievalStatus;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.BookingType;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.BankAccessType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.enablebanking.EnablebankingAccountTransactionService;
@@ -49,6 +50,7 @@ import de.zft2.gbanking.hbci.HbciStatusMessageExtractor;
 import de.zft2.gbanking.logging.GBankingLoggingHandler;
 import de.zft2.gbanking.logging.SensitiveDataMasker;
 import de.zft2.gbanking.mapper.HbciMapper;
+import de.zft2.gbanking.mapper.BookingCurrencyMapper;
 import de.zft2.gbanking.paypal.PaypalAccountTransactionService;
 import de.zft2.gbanking.rebooking.MissingRebookingCreationSummary;
 import de.zft2.gbanking.rebooking.RebookingAssignmentSummary;
@@ -198,7 +200,7 @@ public class AccountTransactionService extends AbstractDbService {
 			return AccountTransactionRetrievalResult.failure(errorMessage);
 		}
 
-		Optional<BigDecimal> accountBalance = readSaldo(saldoJob);
+		Optional<BigDecimal> accountBalance = readSaldo(saldoJob, bankAccount.getBaseCurrency());
 		List<UmsLine> bookedUms = readBookedUms(umsatzJob);
 		Optional<List<UmsLine>> prenotificationResult = readPrenotifications(umsatzJob, vormerkpostenJob);
 		return persistRetrievedAccountData(bankAccount, accountBalance, bookedUms, prenotificationResult);
@@ -286,10 +288,7 @@ public class AccountTransactionService extends AbstractDbService {
 		}
 		for (UmsLine buchung : buchungen) {
 			logHandler.logRetrivedBookingInfo(buchung);
-			Booking newBooking = HbciMapper.mapUmsLineToBooking(bankAccount.getId(), buchung, source);
-			if (newBooking.getCurrency() == null) {
-				newBooking.setCurrency(bankAccount.getCurrency());
-			}
+			Booking newBooking = HbciMapper.mapUmsLineToBooking(bankAccount.getId(), buchung, bankAccount.getBaseCurrency(), source);
 			log.debug("Booking counterparty data present: {}", () -> SensitiveDataMasker.describePresence(buchung.other));
 			newBooking.setRecipient(HbciMapper.mapUmsLineKontoToRecipient(buchung.other));
 			mappedBookings.add(newBooking);
@@ -311,9 +310,7 @@ public class AccountTransactionService extends AbstractDbService {
 		for (Booking newBooking : bookings) {
 			newBooking.setAccountId(bankAccount.getId());
 			newBooking.setSource(source);
-			if (newBooking.getCurrency() == null) {
-				newBooking.setCurrency(bankAccount.getCurrency());
-			}
+			BookingCurrencyMapper.validate(newBooking, bankAccount.getBaseCurrency());
 
 			if (bookingDuplicateChecker.isDuplicate(newBooking, duplicateCheckBookings, processedIncomingBookings)) {
 				skippedDuplicates++;
@@ -496,7 +493,7 @@ public class AccountTransactionService extends AbstractDbService {
 				.forEach(booking -> dbController.delete(booking, null));
 	}
 
-	private Optional<BigDecimal> readSaldo(HBCIJob<GVRSaldoReq> saldoJob) {
+	private Optional<BigDecimal> readSaldo(HBCIJob<GVRSaldoReq> saldoJob, Currency baseCurrency) {
 		GVRSaldoReq saldoResult = saldoJob.getJobResult();
 		if (saldoResult == null) {
 			log.debug("No Saldo result returned.");
@@ -511,6 +508,10 @@ public class AccountTransactionService extends AbstractDbService {
 		if (saldo == null) {
 			log.debug("No booked Saldo value returned.");
 			return Optional.empty();
+		}
+		Currency saldoCurrency = Currency.forCodeOrDefault(saldo.getCurr(), baseCurrency);
+		if (saldoCurrency != baseCurrency) {
+			throw new GBankingException("Der Kontosaldo wurde nicht in der Kontowährung " + baseCurrency + " geliefert.");
 		}
 
 		log.info("Received bank balance from HBCI.");
@@ -538,13 +539,13 @@ public class AccountTransactionService extends AbstractDbService {
 
 	void reconcileAccountBalance(BankAccount bankAccount, BigDecimal accountBalance) {
 		List<Booking> bookings = getAccountBookings(bankAccount.getId());
-		BigDecimal bookingBalance = calculateBookingBalance(bookings, bankAccount.getCurrency());
+		BigDecimal bookingBalance = calculateBookingBalance(bookings);
 		BigDecimal difference = normalizeAmount(accountBalance).subtract(bookingBalance);
 		if (isZero(difference)) {
 			return;
 		}
 
-		Optional<Booking> lastAdjustment = findLastAutomaticAdjustment(bookings, bankAccount.getCurrency());
+		Optional<Booking> lastAdjustment = findLastAutomaticAdjustment(bookings);
 		if (lastAdjustment.isPresent() && sameAmount(difference.negate(), lastAdjustment.get().getAmount())) {
 			dbController.delete(lastAdjustment.get(), null);
 			log.info("Removed automatic adjustment booking {} for bank account id {}", lastAdjustment.get().getId(), bankAccount.getId());
@@ -563,25 +564,19 @@ public class AccountTransactionService extends AbstractDbService {
 		return bookings != null ? bookings : List.of();
 	}
 
-	private BigDecimal calculateBookingBalance(List<Booking> bookings, String currency) {
+	private BigDecimal calculateBookingBalance(List<Booking> bookings) {
 		return bookings.stream()
 				.filter(booking -> !isPrenotification(booking))
-				.filter(booking -> sameCurrency(currency, booking.getCurrency()))
 				.map(Booking::getAmount)
 				.filter(Objects::nonNull)
 				.reduce(BigDecimal.ZERO, BigDecimal::add)
 				.setScale(2, RoundingMode.HALF_UP);
 	}
 
-	private Optional<Booking> findLastAutomaticAdjustment(List<Booking> bookings, String currency) {
+	private Optional<Booking> findLastAutomaticAdjustment(List<Booking> bookings) {
 		return bookings.stream()
 				.filter(booking -> booking.getSource() == Source.AUTO_ADJUSTING || booking.getSource() == Source.AUTO_ADJUSTING_NEW)
-				.filter(booking -> sameCurrency(currency, booking.getCurrency()))
 				.max(Comparator.comparingInt(Booking::getId));
-	}
-
-	private boolean sameCurrency(String accountCurrency, String bookingCurrency) {
-		return accountCurrency == null ? bookingCurrency == null : accountCurrency.equalsIgnoreCase(bookingCurrency);
 	}
 
 	private Booking createAutomaticAdjustmentBooking(BankAccount bankAccount, BigDecimal amount) {
@@ -591,7 +586,6 @@ public class AccountTransactionService extends AbstractDbService {
 		booking.setDateValue(LocalDate.now(ZoneId.systemDefault()));
 		booking.setPurpose(getText("BOOKING_PURPOSE_AUTO_ADJUSTING"));
 		booking.setAmount(amount);
-		booking.setCurrency(bankAccount.getCurrency());
 		booking.setBookingType(amount.signum() < 0 ? BookingType.REMOVAL : BookingType.DEPOSIT);
 		booking.setSource(Source.AUTO_ADJUSTING);
 		booking.setUpdatedAt(LocalDate.now(ZoneId.systemDefault()));

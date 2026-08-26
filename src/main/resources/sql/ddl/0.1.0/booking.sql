@@ -28,6 +28,16 @@ DROP TABLE IF EXISTS bookingAdditionalCreditcard;
 
 ;
 
+[SQL_SETUP_DROP_BOOKING_ADDITIONAL_FOREIGNCURRENCY]
+DROP TABLE IF EXISTS bookingAdditionalForeigncurrency;
+
+;
+
+[SQL_SETUP_DROP_BOOKING_FEE]
+DROP TABLE IF EXISTS bookingFee;
+
+;
+
 [SQL_SETUP_DROP_BOOKING_CATEGORY]
 DROP TABLE IF EXISTS booking_category;
 
@@ -41,8 +51,7 @@ CREATE TABLE booking (
    dateBooking TEXT,
    dateValue TEXT,
    purpose TEXT,
-   amount REAL,
-   currency TEXT,
+   amount REAL NOT NULL,
    bookingType INTEGER,
    bookingSource INTEGER,
    crossAccount_id INTEGER,
@@ -103,8 +112,6 @@ CREATE TABLE bookingAdditional (
    add_primanota TEXT,
    add_key TEXT,
    add_is_storno INTEGER,
-   add_orig_value REAL,
-   add_charge_value REAL,
    add_raw_data TEXT,
    add_is_sepa INTEGER,
    add_is_camt INTEGER,
@@ -120,13 +127,36 @@ CREATE TABLE bookingAdditionalCreditcard (
    booking_id INTEGER NOT NULL UNIQUE,
    creditcard_transaction_date TEXT,
    creditcard_type TEXT,
-   creditcard_currency_amount REAL,
-   creditcard_currency_rate REAL,
-   creditcard_currency TEXT,
    creditcard_merchant_area TEXT,
    creditcard_merchant_category TEXT,
    updatedAt TEXT NOT NULL,
    FOREIGN KEY(booking_id) REFERENCES booking(id) ON DELETE CASCADE);
+
+;
+
+[SQL_SETUP_CREATE_BOOKING_ADDITIONAL_FOREIGNCURRENCY]
+CREATE TABLE bookingAdditionalForeigncurrency (
+   id INTEGER PRIMARY KEY,
+   booking_id INTEGER NOT NULL UNIQUE,
+   foreignAmount REAL NOT NULL,
+   foreignCurrency INTEGER NOT NULL,
+   exchangeRateToBaseCurrency REAL NOT NULL,
+   updatedAt TEXT NOT NULL,
+   FOREIGN KEY(booking_id) REFERENCES booking(id) ON DELETE CASCADE,
+   CHECK (foreignCurrency BETWEEN 1 AND 40),
+   CHECK (exchangeRateToBaseCurrency > 0));
+
+;
+
+[SQL_SETUP_CREATE_BOOKING_FEE]
+CREATE TABLE bookingFee (
+   id INTEGER PRIMARY KEY,
+   booking_id INTEGER NOT NULL UNIQUE,
+   amount REAL NOT NULL,
+   currency INTEGER NOT NULL,
+   updatedAt TEXT NOT NULL,
+   FOREIGN KEY(booking_id) REFERENCES booking(id) ON DELETE CASCADE,
+   CHECK (currency BETWEEN 1 AND 40));
 
 ;
 
@@ -139,7 +169,6 @@ SELECT b.id,
    b.dateValue,
    b.purpose,
    b.amount,
-   b.currency,
    bse.sepa_customer_ref AS sepaCustomerRef,
    bse.sepa_creditor_id AS sepaCreditorId,
    bse.sepa_end_to_end AS sepaEndToEnd,
@@ -155,19 +184,19 @@ SELECT b.id,
    bad.add_primanota AS addPrimanota,
    bad.add_key AS addKey,
    bad.add_is_storno AS addIsStorno,
-   bad.add_orig_value AS addOrigValue,
-   bad.add_charge_value AS addChargeValue,
    bad.add_raw_data AS addRawData,
    bad.add_is_sepa AS addIsSepa,
    bad.add_is_camt AS addIsCamt,
    bad.add_bank_saldo AS addBankSaldo,
    bac.creditcard_transaction_date AS creditcardTransactionDate,
    bac.creditcard_type AS creditcardType,
-   bac.creditcard_currency_amount AS creditcardCurrencyAmount,
-   bac.creditcard_currency_rate AS creditcardCurrencyRate,
-   bac.creditcard_currency AS creditcardCurrency,
    bac.creditcard_merchant_area AS creditcardMerchantArea,
    bac.creditcard_merchant_category AS creditcardMerchantCategory,
+   baf.foreignAmount,
+   baf.foreignCurrency,
+   baf.exchangeRateToBaseCurrency,
+   bf.amount AS feeAmount,
+   bf.currency AS feeCurrency,
    b.bookingType,
    b.bookingSource,
    b.crossAccount_id,
@@ -176,12 +205,14 @@ SELECT b.id,
    b.categoryRule_id,
    cgr.name AS categoryRuleName,
    b.crossBooking_id,
-   MAX(b.updatedAt, COALESCE(bse.updatedAt, b.updatedAt), COALESCE(bno.updatedAt, b.updatedAt), COALESCE(bad.updatedAt, b.updatedAt), COALESCE(bac.updatedAt, b.updatedAt)) AS updatedAt
+   MAX(b.updatedAt, COALESCE(bse.updatedAt, b.updatedAt), COALESCE(bno.updatedAt, b.updatedAt), COALESCE(bad.updatedAt, b.updatedAt), COALESCE(bac.updatedAt, b.updatedAt), COALESCE(baf.updatedAt, b.updatedAt), COALESCE(bf.updatedAt, b.updatedAt)) AS updatedAt
 FROM booking b
 LEFT JOIN bookingAdditionalSepa bse ON bse.booking_id = b.id
 LEFT JOIN bookingAdditionalNote bno ON bno.booking_id = b.id
 LEFT JOIN bookingAdditional bad ON bad.booking_id = b.id
 LEFT JOIN bookingAdditionalCreditcard bac ON bac.booking_id = b.id
+LEFT JOIN bookingAdditionalForeigncurrency baf ON baf.booking_id = b.id
+LEFT JOIN bookingFee bf ON bf.booking_id = b.id
 LEFT JOIN categoryRule cgr ON cgr.id = b.categoryRule_id;
 
 ;
@@ -217,7 +248,6 @@ WHEN OLD.bookingSource IN (1, 2, 3, 4, 10, 11, 12, 13)
       OR NEW.dateValue IS NOT OLD.dateValue
       OR NEW.purpose IS NOT OLD.purpose
       OR NEW.amount IS NOT OLD.amount
-      OR NEW.currency IS NOT OLD.currency
       OR (NEW.recipient_id IS NOT OLD.recipient_id AND OLD.recipient_id IS NOT NULL)
       OR (NEW.bookingType IS NOT OLD.bookingType AND OLD.bookingSource NOT IN (1, 10))
       OR (NEW.crossAccount_id IS NOT OLD.crossAccount_id AND OLD.bookingSource NOT IN (1, 10))

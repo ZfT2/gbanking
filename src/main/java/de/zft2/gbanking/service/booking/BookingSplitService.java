@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Source;
@@ -71,6 +72,7 @@ public class BookingSplitService extends AbstractDbService {
 	}
 
 	private void saveSplitBooking(Booking parentBooking, Booking splitBooking) {
+		validateCrossAccount(parentBooking, splitBooking);
 		prepareSplitBooking(parentBooking, splitBooking);
 		Booking savedSplitBooking = dbController.insertOrUpdate(splitBooking);
 		if (savedSplitBooking.getId() <= 0) {
@@ -79,13 +81,27 @@ public class BookingSplitService extends AbstractDbService {
 		saveOrDeleteCrossBooking(parentBooking, savedSplitBooking);
 	}
 
+	private void validateCrossAccount(Booking parentBooking, Booking splitBooking) {
+		if (!hasCrossAccount(splitBooking)) {
+			return;
+		}
+		if (parentBooking.getForeignCurrencyDetails() != null) {
+			throw new GBankingException(getText("ALERT_REBOOKING_FOREIGN_CURRENCY"));
+		}
+		BankAccount sourceAccount = dbController.getById(BankAccount.class, parentBooking.getAccountId());
+		BankAccount targetAccount = dbController.getById(BankAccount.class, splitBooking.getCrossAccountId());
+		if (sourceAccount != null && targetAccount != null
+				&& sourceAccount.getBaseCurrency() != targetAccount.getBaseCurrency()) {
+			throw new GBankingException(getText("ALERT_REBOOKING_CURRENCY_MISMATCH"));
+		}
+	}
+
 	private void prepareSplitBooking(Booking parentBooking, Booking splitBooking) {
 		splitBooking.setAccountId(parentBooking.getAccountId());
 		splitBooking.setParentBookingId(parentBooking.getId());
 		splitBooking.setDateBooking(defaultDate(splitBooking.getDateBooking(), parentBooking.getDateBooking(), parentBooking.getDate()));
 		splitBooking.setDateValue(defaultDate(splitBooking.getDateValue(), parentBooking.getDateValue(), splitBooking.getDateBooking()));
 		splitBooking.setDate(splitBooking.getDateValue());
-		splitBooking.setCurrency(defaultText(splitBooking.getCurrency(), parentBooking.getCurrency(), "EUR"));
 		splitBooking.setSource(Source.MANUELL);
 		splitBooking.setAmount(defaultAmount(splitBooking.getAmount()));
 		splitBooking.setBookingType(resolveBookingType(splitBooking.getAmount(), splitBooking.getCrossAccountId()));
@@ -125,7 +141,6 @@ public class BookingSplitService extends AbstractDbService {
 		crossBooking.setDate(splitBooking.getDate());
 		crossBooking.setPurpose(splitBooking.getPurpose());
 		crossBooking.setAmount(crossAmount);
-		crossBooking.setCurrency(splitBooking.getCurrency());
 		crossBooking.setSource(Source.MANUELL);
 		crossBooking.setBookingType(resolveBookingType(crossAmount, parentBooking.getAccountId()));
 		crossBooking.setCrossAccountId(parentBooking.getAccountId());
@@ -197,13 +212,4 @@ public class BookingSplitService extends AbstractDbService {
 		return defaultValue != null ? defaultValue : LocalDate.now(ZoneId.systemDefault());
 	}
 
-	private static String defaultText(String value, String fallback, String defaultValue) {
-		if (value != null && !value.isBlank()) {
-			return value;
-		}
-		if (fallback != null && !fallback.isBlank()) {
-			return fallback;
-		}
-		return defaultValue;
-	}
 }

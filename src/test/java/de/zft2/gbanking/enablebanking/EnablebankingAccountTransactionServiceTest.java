@@ -12,6 +12,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.db.dao.BankAccount;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.gui.dialog.hbci.HbciCallbackMessageDialog;
 import de.zft2.gbanking.messages.Messages;
@@ -49,6 +50,24 @@ class EnablebankingAccountTransactionServiceTest {
 		verify(dialog).updateCurrentAction(Messages.getInstance()
 				.getFormattedMessage("UI_DIALOG_ENABLEBANKING_STATUS_TRANSACTIONS", 2));
 		verify(dialog).updateProgress(0.45d);
+	}
+
+	@Test
+	void shouldMapInstructedAmountAsForeignCurrencyDetails() {
+		BankAccount account = new BankAccount();
+		account.setId(42);
+		account.setBaseCurrency(Currency.EUR);
+		Map<String, Object> transaction = transaction("BOOK", "DBIT", "8.75", "foreign");
+		transaction.put("exchange_rate", Map.of("exchange_rate", "0.875",
+				"instructed_amount", Map.of("amount", "10.00", "currency", "USD")));
+
+		var mapped = service.mapTransactions(account, List.of(transaction), null);
+
+		assertEquals(new java.math.BigDecimal("-8.75"), mapped.booked().get(0).getAmount());
+		assertEquals(new java.math.BigDecimal("-10.00"), mapped.booked().get(0).getForeignCurrencyDetails().getForeignAmount());
+		assertEquals(Currency.USD, mapped.booked().get(0).getForeignCurrencyDetails().getForeignCurrency());
+		assertEquals(new java.math.BigDecimal("0.875"),
+				mapped.booked().get(0).getForeignCurrencyDetails().getExchangeRateToBaseCurrency());
 	}
 
 	private Map<String, Object> transaction(String status, String indicator, String amount, String purpose) {

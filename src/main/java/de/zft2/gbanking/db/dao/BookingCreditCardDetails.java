@@ -1,7 +1,6 @@
 package de.zft2.gbanking.db.dao;
 
 import java.io.Serializable;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public class BookingCreditCardDetails implements Serializable {
@@ -10,9 +9,6 @@ public class BookingCreditCardDetails implements Serializable {
 
 	private LocalDate transactionDate;
 	private String type;
-	private BigDecimal currencyAmount;
-	private BigDecimal currencyRate;
-	private String currency;
 	private String merchantArea;
 	private String merchantCategory;
 
@@ -22,9 +18,6 @@ public class BookingCreditCardDetails implements Serializable {
 	public BookingCreditCardDetails(BookingCreditCardDetails detailsToCopy) {
 		this.transactionDate = detailsToCopy.transactionDate;
 		this.type = detailsToCopy.type;
-		this.currencyAmount = detailsToCopy.currencyAmount;
-		this.currencyRate = detailsToCopy.currencyRate;
-		this.currency = detailsToCopy.currency;
 		this.merchantArea = detailsToCopy.merchantArea;
 		this.merchantCategory = detailsToCopy.merchantCategory;
 	}
@@ -32,9 +25,6 @@ public class BookingCreditCardDetails implements Serializable {
 	public boolean isEmpty() {
 		return transactionDate == null
 				&& !hasText(type)
-				&& currencyAmount == null
-				&& currencyRate == null
-				&& !hasText(currency)
 				&& !hasText(merchantArea)
 				&& !hasText(merchantCategory);
 	}
@@ -53,30 +43,6 @@ public class BookingCreditCardDetails implements Serializable {
 
 	public void setType(String type) {
 		this.type = type;
-	}
-
-	public BigDecimal getCurrencyAmount() {
-		return currencyAmount;
-	}
-
-	public void setCurrencyAmount(BigDecimal currencyAmount) {
-		this.currencyAmount = currencyAmount;
-	}
-
-	public BigDecimal getCurrencyRate() {
-		return currencyRate;
-	}
-
-	public void setCurrencyRate(BigDecimal currencyRate) {
-		this.currencyRate = currencyRate;
-	}
-
-	public String getCurrency() {
-		return currency;
-	}
-
-	public void setCurrency(String currency) {
-		this.currency = currency;
 	}
 
 	public String getMerchantArea() {

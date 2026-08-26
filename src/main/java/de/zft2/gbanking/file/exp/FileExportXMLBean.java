@@ -115,7 +115,7 @@ public class FileExportXMLBean extends FileExportBean {
 
 				addElementTextNode(doc, bookingNode, "ZWECK", buildPurpose(booking));
 				addElementTextNode(doc, bookingNode, "BETRAG", booking.getAmountStr());
-				addElementTextNode(doc, bookingNode, TAG_WAEHRUNG, "EUR");
+				addElementTextNode(doc, bookingNode, TAG_WAEHRUNG, account.getCurrency());
 				if (booking.getCategory() != null)
 					addElementTextNode(doc, bookingNode, "KATEGORIE", booking.getCategory().getFullName());
 				addElementTextNode(doc, bookingNode, "QUELLE", "0");

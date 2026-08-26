@@ -32,9 +32,11 @@ import de.zft2.gbanking.db.dao.Psd2ClientConfiguration;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.BankAccessType;
 import de.zft2.gbanking.db.dao.enu.BookingType;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.dialog.hbci.HbciCallbackMessageDialog;
+import de.zft2.gbanking.mapper.BookingCurrencyMapper;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.account.AccountTransactionRetrievalResult;
@@ -90,7 +92,7 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 			updateStatus(statusDialog, 0.7d, "UI_DIALOG_ENABLEBANKING_STATUS_PROCESSING");
 			MappedTransactions mapped = mapTransactions(bankAccount, transactions, from);
 			updateStatus(statusDialog, 0.8d, "UI_DIALOG_ENABLEBANKING_STATUS_BALANCE");
-			Optional<BigDecimal> balance = resolveBookedBalance(client.getBalances(remoteAccount.uid()));
+			Optional<BigDecimal> balance = resolveBookedBalance(client.getBalances(remoteAccount.uid()), bankAccount.getBaseCurrency());
 			accessData.setRateLimitUntil(null);
 			dbController.insertOrUpdate(bankAccess);
 			updateStatus(statusDialog, 0.9d, "UI_DIALOG_ENABLEBANKING_STATUS_SAVING");
@@ -249,8 +251,12 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 		booking.setDateBooking(bookingDate);
 		booking.setDateValue(Optional.ofNullable(firstDate(transaction, "value_date")).orElse(bookingDate));
 		booking.setPurpose(purpose(transaction));
-		booking.setAmount(amount);
-		booking.setCurrency(firstText(transactionAmount, "currency", "currency_code"));
+		Map<String, Object> exchangeRate = object(transaction.get("exchange_rate"));
+		Map<String, Object> instructedAmount = object(exchangeRate.get("instructed_amount"));
+		BigDecimal foreignAmount = decimal(instructedAmount.get("amount"));
+		BookingCurrencyMapper.mapAmounts(booking, amount, firstText(transactionAmount, "currency", "currency_code"),
+				account.getBaseCurrency(), foreignAmount, firstText(instructedAmount, "currency", "currency_code"),
+				decimal(exchangeRate.get("exchange_rate")));
 		booking.setBookingType(amount.signum() < 0 ? BookingType.REMOVAL : BookingType.DEPOSIT);
 		booking.setSource(PENDING_STATUSES.contains(status) ? Source.ONLINE_PRENO_NEW : Source.ONLINE_NEW);
 		booking.setRecipient(recipient(transaction, amount.signum() < 0));
@@ -299,16 +305,24 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 		return firstText(transaction, "remittance_information_unstructured", "additional_information", "entry_reference");
 	}
 
-	private Optional<BigDecimal> resolveBookedBalance(List<Map<String, Object>> balances) {
+	private Optional<BigDecimal> resolveBookedBalance(List<Map<String, Object>> balances, Currency baseCurrency) {
 		Map<String, Integer> priorities = Map.of("CLBD", 1, "CLOSINGBOOKED", 1,
 				"ITBD", 2, "INTERIMBOOKED", 2, "PRCD", 3, "PREVIOUSLYCLOSEDBOOKED", 3,
 				"XPCD", 4, "EXPECTED", 4);
-		return balances.stream()
+		Map<String, Object> amount = balances.stream()
 				.filter(balance -> priorities.containsKey(upper(string(balance.get("balance_type")))))
 				.sorted(Comparator.comparingInt(balance -> priorities.get(upper(string(balance.get("balance_type"))))))
-				.map(balance -> nestedAmount(balance.get("balance_amount")))
-				.filter(java.util.Objects::nonNull)
-				.findFirst();
+				.map(balance -> object(balance.get("balance_amount")))
+				.filter(balanceAmount -> nestedAmount(balanceAmount) != null)
+				.findFirst().orElse(null);
+		if (amount == null) {
+			return Optional.empty();
+		}
+		Currency balanceCurrency = Currency.forCodeOrDefault(firstText(amount, "currency", "currency_code"), baseCurrency);
+		if (balanceCurrency != baseCurrency) {
+			throw new EnablebankingException("Der Kontosaldo wurde nicht in der Kontowährung " + baseCurrency + " geliefert.");
+		}
+		return Optional.ofNullable(nestedAmount(amount));
 	}
 
 	private String stableReference(Map<String, Object> transaction, Booking booking) {
@@ -316,7 +330,8 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 				Optional.ofNullable(string(transaction.get("transaction_id"))).orElse(""),
 				Optional.ofNullable(booking.getDateBooking()).map(LocalDate::toString).orElse(""),
 				Optional.ofNullable(booking.getDateValue()).map(LocalDate::toString).orElse(""),
-				booking.getAmount().toPlainString(), Optional.ofNullable(booking.getCurrency()).orElse(""),
+				booking.getAmount().toPlainString(),
+				Optional.ofNullable(firstText(object(transaction.get("transaction_amount")), "currency", "currency_code")).orElse(""),
 				Optional.ofNullable(booking.getPurpose()).orElse(""));
 		try {
 			byte[] hash = MessageDigest.getInstance("SHA-256").digest(source.getBytes(StandardCharsets.UTF_8));

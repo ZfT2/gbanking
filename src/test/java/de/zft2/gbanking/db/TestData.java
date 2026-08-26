@@ -99,7 +99,6 @@ public class TestData {
 		booking.setDateValue(LocalDate.now(ZoneId.systemDefault()));
 		booking.setPurpose("Miete");
 		booking.setAmount(new BigDecimal("1200.00"));
-		booking.setCurrency("EUR");
 		booking.setBookingType(BookingType.REMOVAL);
 		booking.setSource(Source.ONLINE);
 		return booking;
@@ -112,7 +111,6 @@ public class TestData {
 		booking.setDateValue(LocalDate.now(ZoneId.systemDefault()));
 		booking.setPurpose("Bareinzahlung");
 		booking.setAmount(new BigDecimal("50.00"));
-		booking.setCurrency("EUR");
 		booking.setBookingType(BookingType.DEPOSIT);
 		booking.setSource(Source.ONLINE);
 		booking.setRecipientId(recipientId);
@@ -126,7 +124,6 @@ public class TestData {
 		booking.setDateValue(LocalDate.now(ZoneId.systemDefault()));
 		booking.setPurpose("Kreditrate");
 		booking.setAmount(new BigDecimal("400.00"));
-		booking.setCurrency("EUR");
 		booking.setBookingType(BookingType.REMOVAL);
 		booking.setSource(Source.ONLINE);
 		return booking;
@@ -140,7 +137,6 @@ public class TestData {
 		booking.setDateValue(LocalDate.now(ZoneId.systemDefault()));
 		booking.setPurpose(purpose);
 		booking.setAmount(new BigDecimal(amount));
-		booking.setCurrency("EUR");
 		booking.setBookingType(bookingType);
 		booking.setSource(Source.ONLINE);
 		return booking;

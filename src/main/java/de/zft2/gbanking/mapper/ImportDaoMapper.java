@@ -1,7 +1,6 @@
 package de.zft2.gbanking.mapper;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -22,6 +21,7 @@ import de.zft2.gbanking.db.dao.Category;
 import de.zft2.gbanking.db.dao.enu.AccountState;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.BookingType;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.SepaType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.file.imp.ImportedAccountResolver;
@@ -43,7 +43,7 @@ public class ImportDaoMapper {
 		bankAccount.setBankName(importAccount.getBankName());
 		bankAccount.setCountry(getCountry(importAccount));
 		bankAccount.setCreditorid(null);
-		bankAccount.setCurrency(getCurrency(importAccount));
+		bankAccount.setBaseCurrency(BookingCurrencyMapper.baseCurrency(getCurrency(importAccount)));
 		bankAccount.setCustomerid(null);
 		bankAccount.setIban(importAccount.getIban());
 		bankAccount.setLimit(null);
@@ -97,7 +97,16 @@ public class ImportDaoMapper {
 		if (importAccount instanceof ImportBankAccount account && account.getCurrency() != null) {
 			return account.getCurrency();
 		}
-		return "EUR";
+		return importAccount instanceof de.zft2.fp3xmlextract.data.Fp3XmlBankAccount account
+				? account.getBaseCurrency() : null;
+	}
+
+	private static String getCurrency(de.zft2.core.dto.Booking importBooking) {
+		if (importBooking instanceof ImportBooking booking) {
+			return booking.getCurrency();
+		}
+		return importBooking instanceof de.zft2.fp3xmlextract.data.Fp3XmlBooking booking
+				? booking.getCurrency() : null;
 	}
 
 	private static String getOwnerName(Account<?> importAccount) {
@@ -124,7 +133,8 @@ public class ImportDaoMapper {
 	}
 
 	public static Collection<Booking> maptoBookingDaoList(String accountName, Collection<de.zft2.fp3xmlextract.data.Fp3XmlBooking> bookingXMLList,
-			Map<String, Integer> accountIdMapByAccountName, Map<String, Integer> crossAccountIdMapByIdentifier, Source source) {
+			Map<String, Integer> accountIdMapByAccountName, Map<String, Integer> crossAccountIdMapByIdentifier,
+			Map<Integer, Currency> baseCurrencyByAccountId, Source source) {
 
 		List<Booking> bookingDaoList = new ArrayList<>();
 
@@ -133,7 +143,8 @@ public class ImportDaoMapper {
 			int accountId = ImportedAccountResolver.resolveAccountId(accountName, xmlBooking, accountIdMapByAccountName);
 			Integer crossAccountId = ImportedAccountResolver.resolveCrossAccountId(xmlBooking, accountId, accountIdMapByAccountName,
 					crossAccountIdMapByIdentifier);
-			Booking booking = maptoBookingDao(xmlBooking, accountId, crossAccountId, source);
+			Booking booking = maptoBookingDao(xmlBooking, accountId, crossAccountId, source,
+					baseCurrencyByAccountId.getOrDefault(accountId, Currency.EUR));
 
 			bookingDaoList.add(booking);
 		}
@@ -141,7 +152,8 @@ public class ImportDaoMapper {
 		return bookingDaoList;
 	}
 
-	public static Booking maptoBookingDao(de.zft2.core.dto.Booking importBooking, int accountId, Integer crossAccountId, Source source) {
+	public static Booking maptoBookingDao(de.zft2.core.dto.Booking importBooking, int accountId, Integer crossAccountId,
+			Source source, Currency baseCurrency) {
 
 		Booking booking = new Booking();
 		Source bookingSource = source != null ? source : Source.IMPORT;
@@ -149,7 +161,7 @@ public class ImportDaoMapper {
 		booking.setAccountId(accountId);
 		booking.setSource(bookingSource);
 		booking.setBookingType(getBookingType(importBooking));
-		booking.setAmount(importBooking.getAmount() != null ? importBooking.getAmount().setScale(2, RoundingMode.HALF_UP) : null);
+		mapAmounts(importBooking, booking, baseCurrency, getCurrency(importBooking));
 		booking.setDateBooking(getDateBooking(importBooking));
 		booking.setDateValue(getDateValue(importBooking));
 		booking.setPurpose(importBooking.getPurpose());
@@ -160,6 +172,20 @@ public class ImportDaoMapper {
 		mapCategory(importBooking, booking);
 
 		return booking;
+	}
+
+	private static void mapAmounts(de.zft2.core.dto.Booking importBooking, Booking booking,
+			Currency baseCurrency, String amountCurrency) {
+		if (importBooking instanceof ImportBooking importBookingDto) {
+			BookingCurrencyMapper.mapAmounts(booking, importBooking.getAmount(), amountCurrency, baseCurrency,
+					importBookingDto.getForeignAmount(), importBookingDto.getForeignCurrency(),
+					importBookingDto.getExchangeRateToBaseCurrency());
+			booking.setFee(BookingCurrencyMapper.createFee(importBookingDto.getFeeAmount(),
+					importBookingDto.getFeeCurrency(), baseCurrency));
+			return;
+		}
+		BookingCurrencyMapper.mapAmounts(booking, importBooking.getAmount(), amountCurrency, baseCurrency,
+				null, null, null);
 	}
 
 	private static BookingType getBookingType(de.zft2.core.dto.Booking importBooking) {
@@ -225,7 +251,6 @@ public class ImportDaoMapper {
 	}
 
 	private static void mapAdditionalFields(ImportBooking importBooking, Booking booking) {
-		booking.setCurrency(importBooking.getCurrency());
 		booking.setBalance(importBooking.getBalance());
 		booking.setAdditionalDetails(mapAdditionalDetails(importBooking));
 		booking.setCreditCardDetails(mapCreditCardDetails(importBooking));
@@ -241,8 +266,6 @@ public class ImportDaoMapper {
 		details.setPrimanota(importBooking.getAddPrimanota());
 		details.setKey(importBooking.getAddKey());
 		details.setStorno(importBooking.getAddIsStorno());
-		details.setOrigValue(importBooking.getAddOrigValue());
-		details.setChargeValue(importBooking.getAddChargeValue());
 		details.setRawData(importBooking.getAddRawData());
 		details.setSepa(importBooking.getAddIsSepa());
 		details.setCamt(importBooking.getAddIsCamt());
@@ -253,9 +276,6 @@ public class ImportDaoMapper {
 		BookingCreditCardDetails details = new BookingCreditCardDetails();
 		details.setTransactionDate(importBooking.getCreditcardTransactionDate());
 		details.setType(importBooking.getCreditcardType());
-		details.setCurrencyAmount(importBooking.getCreditcardCurrencyAmount());
-		details.setCurrencyRate(importBooking.getCreditcardCurrencyRate());
-		details.setCurrency(importBooking.getCreditcardCurrency());
 		details.setMerchantArea(importBooking.getCreditcardMerchantArea());
 		details.setMerchantCategory(importBooking.getCreditcardMerchantCategory());
 		return details;

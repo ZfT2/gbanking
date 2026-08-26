@@ -3,6 +3,7 @@ package de.zft2.gbanking.service.booking;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
@@ -21,12 +22,15 @@ import org.junit.jupiter.api.TestInstance;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
+import de.zft2.gbanking.db.dao.BookingForeignCurrencyDetails;
 import de.zft2.gbanking.db.dao.enu.AccountState;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.BookingType;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.service.ServiceRegistry;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -145,6 +149,33 @@ class BookingSplitServiceTest {
 		assertTrue(dbController.getAllByParentFull(Booking.class, offlineAccount.getId()).isEmpty());
 	}
 
+	@Test
+	void shouldRejectCounterBookingForForeignCurrencyParent() {
+		BankAccount sourceAccount = insertAccount("Onlinekonto", false);
+		BankAccount targetAccount = insertAccount("Offlinekonto", true);
+		Booking parentBooking = insertParentBooking(sourceAccount, new BigDecimal("-80.00"));
+		BookingForeignCurrencyDetails foreign = new BookingForeignCurrencyDetails();
+		foreign.setForeignAmount(new BigDecimal("-100.00"));
+		foreign.setForeignCurrency(Currency.USD);
+		foreign.setExchangeRateToBaseCurrency(new BigDecimal("0.8"));
+		parentBooking.setForeignCurrencyDetails(foreign);
+
+		assertThrows(GBankingException.class, () -> service.saveSplitBookings(parentBooking,
+				List.of(createSplitBooking(new BigDecimal("-80.00"), targetAccount.getId())), List.of()));
+	}
+
+	@Test
+	void shouldRejectCounterBookingBetweenDifferentBaseCurrencies() {
+		BankAccount sourceAccount = insertAccount("Onlinekonto", false);
+		BankAccount targetAccount = insertAccount("Offlinekonto", true);
+		targetAccount.setBaseCurrency(Currency.USD);
+		dbController.insertOrUpdate(targetAccount);
+		Booking parentBooking = insertParentBooking(sourceAccount, new BigDecimal("-80.00"));
+
+		assertThrows(GBankingException.class, () -> service.saveSplitBookings(parentBooking,
+				List.of(createSplitBooking(new BigDecimal("-80.00"), targetAccount.getId())), List.of()));
+	}
+
 	private BankAccount insertAccount(String name, boolean offline) {
 		BankAccount account = new BankAccount();
 		account.setAccountName(name);
@@ -167,7 +198,6 @@ class BookingSplitServiceTest {
 		booking.setDateValue(LocalDate.of(2026, Month.MAY, 19));
 		booking.setPurpose("Ausgangsbuchung");
 		booking.setAmount(amount);
-		booking.setCurrency("EUR");
 		booking.setBookingType(BookingType.REMOVAL);
 		booking.setSource(Source.ONLINE);
 		return dbController.insertOrUpdate(booking);
@@ -177,7 +207,6 @@ class BookingSplitServiceTest {
 		Booking booking = new Booking();
 		booking.setPurpose("Teilbuchung");
 		booking.setAmount(amount);
-		booking.setCurrency("EUR");
 		booking.setCrossAccountId(crossAccountId);
 		return booking;
 	}

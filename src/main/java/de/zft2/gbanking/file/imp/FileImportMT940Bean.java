@@ -67,7 +67,7 @@ public class FileImportMT940Bean extends AbstractBookingImportBean {
 	public void importFileToDatabase(String importFile) throws IOException {
 		Path importPath = prepareImportFile(importFile, "UI_PROGRESS_READ_MT940_FILE");
 		List<BTag> statementDays = parseStatementDays(Files.readString(importPath, StandardCharsets.ISO_8859_1));
-		importStatementDays(statementDays);
+		dbController.executeInTransaction(() -> importStatementDays(statementDays));
 		finishImport();
 	}
 
@@ -177,8 +177,10 @@ public class FileImportMT940Bean extends AbstractBookingImportBean {
 		booking.setAddPrimanota(line.primanota);
 		booking.setAddKey(line.addkey);
 		booking.setAddIsStorno(line.isStorno);
-		booking.setAddOrigValue(toBigDecimal(line.orig_value));
-		booking.setAddChargeValue(toBigDecimal(line.charge_value));
+		booking.setForeignAmount(toBigDecimal(line.orig_value));
+		booking.setForeignCurrency(currency(line.orig_value));
+		booking.setFeeAmount(toBigDecimal(line.charge_value));
+		booking.setFeeCurrency(currency(line.charge_value));
 		booking.setAddRawData(line.additional);
 		booking.setAddIsSepa(line.isSepa);
 		booking.setAddIsCamt(line.isCamt);
@@ -187,6 +189,10 @@ public class FileImportMT940Bean extends AbstractBookingImportBean {
 
 	private BigDecimal toBigDecimal(Value value) {
 		return value != null ? value.getBigDecimalValue() : null;
+	}
+
+	private String currency(Value value) {
+		return value != null ? value.getCurr() : null;
 	}
 
 	private void mapRecipient(ImportBooking booking, Konto other) {

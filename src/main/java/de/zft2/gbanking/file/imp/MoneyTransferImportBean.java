@@ -16,6 +16,7 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.Recipient;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.Source;
@@ -144,7 +145,7 @@ public abstract class MoneyTransferImportBean implements BaseMessagesDb {
 		moneyTransfer.setPurposeCode(transfer.purposeCode());
 		moneyTransfer.setEndToEndId(transfer.endToEndId());
 		moneyTransfer.setAmount(transfer.amount());
-		moneyTransfer.setCurrency(transfer.currency());
+		moneyTransfer.setCurrency(Currency.forCodeOrDefault(transfer.currency(), Currency.EUR).name());
 		moneyTransfer.setExecutionDate(transfer.executionDate());
 		moneyTransfer.setMoneytransferStatus(importStatus);
 		MoneyTransfer persistedTransfer = dbController.insertOrUpdate(moneyTransfer);

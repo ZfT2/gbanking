@@ -67,40 +67,29 @@ public class StatementsLogicBooking extends StatementsLogicDefault<Booking> impl
 	}
 
 	private void upsertBookingDetails(Booking booking, BookingMapper mapper) throws SQLException {
-		if (mapper.hasSepaData(booking)) {
-			try (PreparedStatement ps = connection.prepareStatement(DaoSqlStatements.SQL_INSERT_BOOKING_ADDITIONAL_SEPA)) {
-				mapper.setParamsSepa(booking, ps);
-				ps.executeUpdate();
-			}
-		} else {
-			deleteBookingDetails(DaoSqlStatements.SQL_DELETE_BOOKING_ADDITIONAL_SEPA, booking);
-		}
+		upsertBookingDetail(booking, mapper.hasSepaData(booking), DaoSqlStatements.SQL_INSERT_BOOKING_ADDITIONAL_SEPA,
+				DaoSqlStatements.SQL_DELETE_BOOKING_ADDITIONAL_SEPA, ps -> mapper.setParamsSepa(booking, ps));
+		upsertBookingDetail(booking, mapper.hasAdditionalData(booking), DaoSqlStatements.SQL_INSERT_BOOKING_ADDITIONAL,
+				DaoSqlStatements.SQL_DELETE_BOOKING_ADDITIONAL, ps -> mapper.setParamsAdditional(booking, ps));
+		upsertBookingDetail(booking, mapper.hasAdditionalNoteData(booking), DaoSqlStatements.SQL_INSERT_BOOKING_ADDITIONAL_NOTE,
+				DaoSqlStatements.SQL_DELETE_BOOKING_ADDITIONAL_NOTE, ps -> mapper.setParamsAdditionalNote(booking, ps));
+		upsertBookingDetail(booking, mapper.hasAdditionalCreditcardData(booking), DaoSqlStatements.SQL_INSERT_BOOKING_ADDITIONAL_CREDITCARD,
+				DaoSqlStatements.SQL_DELETE_BOOKING_ADDITIONAL_CREDITCARD, ps -> mapper.setParamsAdditionalCreditcard(booking, ps));
+		upsertBookingDetail(booking, mapper.hasForeignCurrencyData(booking), DaoSqlStatements.SQL_INSERT_BOOKING_ADDITIONAL_FOREIGNCURRENCY,
+				DaoSqlStatements.SQL_DELETE_BOOKING_ADDITIONAL_FOREIGNCURRENCY, ps -> mapper.setParamsForeignCurrency(booking, ps));
+		upsertBookingDetail(booking, mapper.hasFeeData(booking), DaoSqlStatements.SQL_INSERT_BOOKING_FEE,
+				DaoSqlStatements.SQL_DELETE_BOOKING_FEE, ps -> mapper.setParamsFee(booking, ps));
+	}
 
-		if (mapper.hasAdditionalData(booking)) {
-			try (PreparedStatement ps = connection.prepareStatement(DaoSqlStatements.SQL_INSERT_BOOKING_ADDITIONAL)) {
-				mapper.setParamsAdditional(booking, ps);
-				ps.executeUpdate();
-			}
-		} else {
-			deleteBookingDetails(DaoSqlStatements.SQL_DELETE_BOOKING_ADDITIONAL, booking);
+	private void upsertBookingDetail(Booking booking, boolean hasData, String insertSql, String deleteSql,
+			DetailParameterSetter parameterSetter) throws SQLException {
+		if (!hasData) {
+			deleteBookingDetails(deleteSql, booking);
+			return;
 		}
-
-		if (mapper.hasAdditionalNoteData(booking)) {
-			try (PreparedStatement ps = connection.prepareStatement(DaoSqlStatements.SQL_INSERT_BOOKING_ADDITIONAL_NOTE)) {
-				mapper.setParamsAdditionalNote(booking, ps);
-				ps.executeUpdate();
-			}
-		} else {
-			deleteBookingDetails(DaoSqlStatements.SQL_DELETE_BOOKING_ADDITIONAL_NOTE, booking);
-		}
-
-		if (mapper.hasAdditionalCreditcardData(booking)) {
-			try (PreparedStatement ps = connection.prepareStatement(DaoSqlStatements.SQL_INSERT_BOOKING_ADDITIONAL_CREDITCARD)) {
-				mapper.setParamsAdditionalCreditcard(booking, ps);
-				ps.executeUpdate();
-			}
-		} else {
-			deleteBookingDetails(DaoSqlStatements.SQL_DELETE_BOOKING_ADDITIONAL_CREDITCARD, booking);
+		try (PreparedStatement ps = connection.prepareStatement(insertSql)) {
+			parameterSetter.setParams(ps);
+			ps.executeUpdate();
 		}
 	}
 
@@ -119,6 +108,11 @@ public class StatementsLogicBooking extends StatementsLogicDefault<Booking> impl
 			}
 		}
 		throw new SQLException(getText(SqlErrors.ERROR_DB_NO_ID, booking.getClass().getName()));
+	}
+
+	@FunctionalInterface
+	private interface DetailParameterSetter {
+		void setParams(PreparedStatement ps) throws SQLException;
 	}
 
 }

@@ -42,10 +42,12 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.BankAccountIdentifier;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingAdditionalDetails;
+import de.zft2.gbanking.db.dao.BookingForeignCurrencyDetails;
 import de.zft2.gbanking.db.dao.enu.AccountIdentifierType;
 import de.zft2.gbanking.db.dao.enu.AccountState;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.BookingType;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.InstituteStatus;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.ImportHistory;
@@ -138,7 +140,6 @@ class AccountTransactionServiceTest {
 		assertEquals(existingRecipient.getId(), booking01.getRecipientId());
 		assertEquals(existingRecipient.getIban(), booking01.getRecipient().getIban());
 		assertEquals(Source.ONLINE_NEW, booking01.getSource());
-		assertEquals("EUR", booking01.getCurrency());
 		assertEquals(BookingType.DEPOSIT, booking01.getBookingType());
 		BookingAdditionalDetails details = booking01.getAdditionalDetails();
 		assertNotNull(details);
@@ -148,8 +149,8 @@ class AccountTransactionServiceTest {
 		assertEquals("PN123", details.getPrimanota());
 		assertEquals("ADDKEY", details.getKey());
 		assertEquals(Boolean.TRUE, details.getStorno());
-		assertEquals(new BigDecimal("123.45"), details.getOrigValue());
-		assertEquals(new BigDecimal("1.23"), details.getChargeValue());
+		assertNull(booking01.getForeignCurrencyDetails());
+		assertEquals(new BigDecimal("1.23"), booking01.getFee().getAmount());
 		assertEquals("raw bank data", details.getRawData());
 		assertEquals(Boolean.TRUE, details.getSepa());
 		assertEquals(Boolean.TRUE, details.getCamt());
@@ -169,7 +170,6 @@ class AccountTransactionServiceTest {
 		importedRebooking.setBookingType(BookingType.REBOOKING_OUT);
 		importedRebooking.setCrossAccountId(crossAccount.getId());
 		importedRebooking.setRecipientId(recipient.getId());
-		importedRebooking.setCurrency(null);
 		dbController.insertOrUpdate(importedRebooking);
 
 		UmsLine onlineRemoval = createUmsLine(createKonto("Max Mustermann", "DE99999999999999999999", "TESTDEFFXXX", "99887766", "50010517"),
@@ -216,7 +216,6 @@ class AccountTransactionServiceTest {
 		importedRebooking.setBookingType(BookingType.REBOOKING_IN);
 		importedRebooking.setCrossAccountId(crossAccount.getId());
 		importedRebooking.setRecipientId(recipient.getId());
-		importedRebooking.setCurrency(null);
 		dbController.insertOrUpdate(importedRebooking);
 
 		UmsLine onlineDeposit = createUmsLine(createKonto("Max Mustermann", "DE99999999999999999999", "TESTDEFFXXX", "99887766", "50010517"),
@@ -462,6 +461,32 @@ class AccountTransactionServiceTest {
 	}
 
 	@Test
+	void adjustRebookingsShouldSkipForeignCurrencyBookings() {
+		AccountTransactionService service = new AccountTransactionService();
+		DBController dbController = DBController.getInstance(tempDir.toString());
+		BankAccount account = createAccount("DE12345678901234567890", "12345678");
+		BankAccount crossAccount = createAccount("DE22222222222222222222", "22222222");
+		LocalDate rebookingDate = LocalDate.of(2026, Month.JUNE, 1);
+		Booking removal = createBooking(account, "Umbuchung Tagesgeld", new BigDecimal("-42.00"), Source.ONLINE_NEW);
+		removal.setDateBooking(rebookingDate);
+		removal.setDateValue(rebookingDate);
+		BookingForeignCurrencyDetails foreign = new BookingForeignCurrencyDetails();
+		foreign.setForeignAmount(new BigDecimal("-50.00"));
+		foreign.setForeignCurrency(Currency.USD);
+		foreign.setExchangeRateToBaseCurrency(new BigDecimal("0.84"));
+		removal.setForeignCurrencyDetails(foreign);
+		removal = dbController.insertOrUpdate(removal);
+		Booking deposit = createBooking(crossAccount, "Umbuchung Tagesgeld", new BigDecimal("42.00"), Source.ONLINE);
+		deposit.setDateBooking(rebookingDate);
+		deposit.setDateValue(rebookingDate);
+		deposit = dbController.insertOrUpdate(deposit);
+
+		assertEquals(0, service.adjustRebookings(account));
+		assertNull(dbController.getByIdFull(Booking.class, removal.getId()).getCrossBookingId());
+		assertNull(dbController.getByIdFull(Booking.class, deposit.getId()).getCrossBookingId());
+	}
+
+	@Test
 	void detectMissingRebookingsShouldCreateManualNewCounterBookingAfterConfirmation() {
 		AccountTransactionService service = new AccountTransactionService();
 		DBController dbController = DBController.getInstance(tempDir.toString());
@@ -640,7 +665,6 @@ class AccountTransactionServiceTest {
 		booking.setDateValue(LocalDate.now(ZoneId.systemDefault()));
 		booking.setPurpose(purpose);
 		booking.setAmount(amount);
-		booking.setCurrency("EUR");
 		booking.setBookingType(amount.signum() < 0 ? BookingType.REMOVAL : BookingType.DEPOSIT);
 		booking.setSource(source);
 		booking.setUpdatedAt(LocalDate.now(ZoneId.systemDefault()));

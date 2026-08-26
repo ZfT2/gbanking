@@ -1,5 +1,6 @@
 package de.zft2.gbanking.paypal;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -15,9 +16,11 @@ import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingAdditionalDetails;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.mapper.BookingCurrencyMapper;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.HbciSessionRunner;
 import de.zft2.gbanking.service.ServiceRegistry;
@@ -49,12 +52,11 @@ public class PaypalAccountTransactionService extends AbstractDbService {
 						getText("ERROR_ACCOUNT_TRANSACTION_RETRIEVAL_NO_BANK_ACCESS")));
 			}
 
-			PaypalBalance balance = getPrimaryBalance(bankAccess, apiPassword);
-			bankAccount.setCurrency(balance.currency());
+			PaypalBalance balance = getBalance(bankAccess, apiPassword, bankAccount.getBaseCurrency());
 			Instant end = Instant.now();
 			Instant start = resolveStart(bankAccount, end);
 			List<PaypalTransaction> transactions = retrieveAll(bankAccess, apiPassword, start, end);
-			List<Booking> bookings = distinct(transactions).stream().map(transaction -> mapBooking(bankAccount, transaction)).toList();
+			List<Booking> bookings = mapBookings(bankAccess, apiPassword, bankAccount, distinct(transactions));
 			return accountTransactionService.persistExternalAccountData(bankAccount, balance.amount(), bookings);
 		} catch (InterruptedException exception) {
 			Thread.currentThread().interrupt();
@@ -82,10 +84,29 @@ public class PaypalAccountTransactionService extends AbstractDbService {
 		return PaypalSupport.isPaypal(bankAccess) && bankAccess.isActive() ? bankAccess : null;
 	}
 
-	private PaypalBalance getPrimaryBalance(BankAccess bankAccess, char[] apiPassword) throws InterruptedException {
-		return client.getBalances(bankAccess.getPaypal().getApiUsername(), apiPassword, bankAccess.getPaypal().getApiSignature()).stream()
+	private PaypalBalance getBalance(BankAccess bankAccess, char[] apiPassword, Currency baseCurrency) throws InterruptedException {
+		List<PaypalBalance> balances = client.getBalances(bankAccess.getPaypal().getApiUsername(), apiPassword,
+				bankAccess.getPaypal().getApiSignature());
+		for (PaypalBalance balance : balances) {
+			Currency.forCode(balance.currency());
+		}
+		return balances.stream()
+				.filter(balance -> baseCurrency == Currency.forCode(balance.currency()))
 				.findFirst()
 				.orElseThrow(() -> new PaypalApiException(getText("ERROR_PAYPAL_NO_BALANCES"), false));
+	}
+
+	private List<Booking> mapBookings(BankAccess bankAccess, char[] apiPassword, BankAccount bankAccount,
+			List<PaypalTransaction> transactions) throws InterruptedException {
+		List<Booking> bookings = new ArrayList<>(transactions.size());
+		for (PaypalTransaction transaction : transactions) {
+			Currency transactionCurrency = Currency.forCode(transaction.currency());
+			PaypalTransactionDetails details = transactionCurrency == bankAccount.getBaseCurrency() ? null
+					: client.getTransactionDetails(bankAccess.getPaypal().getApiUsername(), apiPassword,
+							bankAccess.getPaypal().getApiSignature(), transaction.transactionId());
+			bookings.add(mapBooking(bankAccount, transaction, details));
+		}
+		return bookings;
 	}
 
 	Instant resolveStart(BankAccount bankAccount, Instant end) {
@@ -126,15 +147,26 @@ public class PaypalAccountTransactionService extends AbstractDbService {
 	}
 
 	Booking mapBooking(BankAccount bankAccount, PaypalTransaction transaction) {
+		return mapBooking(bankAccount, transaction, null);
+	}
+
+	Booking mapBooking(BankAccount bankAccount, PaypalTransaction transaction, PaypalTransactionDetails transactionDetails) {
 		Booking booking = new Booking();
 		LocalDate bookingDate = transaction.timestamp().atZone(ZoneId.systemDefault()).toLocalDate();
 		booking.setAccountId(bankAccount.getId());
 		booking.setDateBooking(bookingDate);
 		booking.setDateValue(bookingDate);
 		booking.setPurpose(purpose(transaction));
-		booking.setAmount(transaction.netAmount());
-		booking.setCurrency(transaction.currency());
-		booking.setBookingType(transaction.netAmount().signum() < 0 ? BookingType.REMOVAL : BookingType.DEPOSIT);
+		BigDecimal baseAmount = transactionDetails != null
+				? signedAmount(transactionDetails.settleAmount(), transaction.netAmount().signum()) : transaction.netAmount();
+		String baseAmountCurrency = transactionDetails != null ? transactionDetails.settleCurrency() : transaction.currency();
+		BigDecimal foreignAmount = transactionDetails != null ? transaction.netAmount() : null;
+		String foreignCurrency = transactionDetails != null ? transaction.currency() : null;
+		BigDecimal exchangeRate = transactionDetails != null ? transactionDetails.exchangeRate() : null;
+		BookingCurrencyMapper.mapAmounts(booking, baseAmount, baseAmountCurrency, bankAccount.getBaseCurrency(),
+				foreignAmount, foreignCurrency, exchangeRate);
+		booking.setFee(BookingCurrencyMapper.createFee(transaction.feeAmount(), transaction.feeCurrency(), bankAccount.getBaseCurrency()));
+		booking.setBookingType(booking.getAmount().signum() < 0 ? BookingType.REMOVAL : BookingType.DEPOSIT);
 		booking.setSource(Source.ONLINE_NEW);
 		booking.setAdditionalDetails(additionalDetails(transaction));
 		booking.setRecipient(recipient(transaction));
@@ -146,7 +178,6 @@ public class PaypalAccountTransactionService extends AbstractDbService {
 		details.setInstref(stableReference(transaction));
 		details.setGvcode(transaction.type());
 		details.setText(transaction.status());
-		details.setChargeValue(transaction.feeAmount());
 		return details;
 	}
 
@@ -185,6 +216,10 @@ public class PaypalAccountTransactionService extends AbstractDbService {
 
 	private boolean hasText(String value) {
 		return value != null && !value.isBlank();
+	}
+
+	private BigDecimal signedAmount(BigDecimal amount, int sign) {
+		return amount == null ? null : sign < 0 ? amount.abs().negate() : amount.abs();
 	}
 
 	private AccountTransactionRetrievalResult persist(BankAccount account, AccountTransactionRetrievalResult result) {
