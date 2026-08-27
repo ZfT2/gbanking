@@ -22,6 +22,9 @@ INSERT OR IGNORE INTO setting (attribute, `value`, dataType, editable, visible, 
 [SQL_SETUP_INSERT_SETTING_GBANKING_LOG_LEVEL]
 INSERT OR IGNORE INTO setting (attribute, `value`, dataType, editable, visible, comment, updatedAt) VALUES ('gbanking.log.level', 'INFO', 7, 1, 1, 'GBanking-Loglevel', datetime());
 
+[SQL_SETUP_INSERT_SETTING_IMPORT_EMPTY_XML_ACCOUNTS]
+INSERT OR IGNORE INTO setting (attribute, `value`, dataType, editable, visible, comment, updatedAt) VALUES ('import.xml.emptyAccounts', 'true', 5, 1, 1, 'Auch leere Konten aus XML-Importdateien importieren', datetime());
+
 [SQL_SETUP_INSERT_SETTING_ACCOUNT_STATEMENT_AUTO_ACKNOWLEDGE]
 INSERT OR IGNORE INTO setting (attribute, `value`, dataType, editable, visible, comment, updatedAt) VALUES ('accountstatement.auto.acknowledge', 'true', 5, 1, 1, 'Kontoauszuege nach erfolgreichem Speichern automatisch bei der Bank quittieren', datetime());
 

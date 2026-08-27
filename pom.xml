@@ -60,8 +60,8 @@
 		<commonscsv.version>1.14.1</commonscsv.version>
 		<hbci4j.version>4.1.12</hbci4j.version>
 
-		<fp3xmlextract.version>0.7.5</fp3xmlextract.version>
-		<bookingcore.version>0.2.3</bookingcore.version>
+		<fp3xmlextract.version>0.7.6</fp3xmlextract.version>
+		<bookingcore.version>0.2.4</bookingcore.version>
 
 		<junit.version>5.14.4</junit.version>
 		<mockito.version>5.23.0</mockito.version>

@@ -155,6 +155,7 @@ public class FileImportBean implements BaseMessagesDb {
 		if (isFp3Import(importFilePath)) {
 			fp32CsvBookingList = converter.convertFp3ToCsvEntries(importFilePath);
 		} else {
+			converter.getConfig().setWithEmptyAccounts(FileImportSettings.isEmptyXmlAccountImportEnabled());
 			converter.checkAndCorrectInputFile(importFilePath);
 			xml2CsvKontoList = converter.convertXmlToCsvEntries(importFilePath);
 			Fp3XmlBookingProcessor bookingProcessor = new Fp3XmlBookingProcessor();
