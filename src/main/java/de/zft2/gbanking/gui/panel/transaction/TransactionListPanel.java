@@ -788,6 +788,9 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 		BookingRunningBalanceCalculator.applyTo(bookingList);
 		applyCompactColumnWidths();
 		replaceItems(bookingList);
+		if (parentPanel.getPageContext() == PageContext.ALL_TRANSACTIONS) {
+			setPanelTitle(getText("UI_PANEL_TRANSACTIONS") + " (" + masterData.size() + ")");
+		}
 		refreshFilterChoices();
 	}
 
