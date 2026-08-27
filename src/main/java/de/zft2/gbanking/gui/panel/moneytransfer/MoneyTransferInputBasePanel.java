@@ -44,16 +44,20 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputControl;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
+import javafx.scene.text.Font;
 
 public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPanel {
 
 	private static final String UI_LABEL_AMOUNT = "UI_LABEL_AMOUNT";
 	private static final String UI_BUTTON_YES = "UI_BUTTON_YES";
 	private static final String UI_BUTTON_NO = "UI_BUTTON_NO";
+	private static final String IBAN_VALID_SYMBOL = "\u2713";
+	private static final String IBAN_INVALID_SYMBOL = "\u2717";
 
 	private static final double BIC_COLUMN_WIDTH = 110.0;
 	private static final double CURRENCY_COLUMN_WIDTH = 90.0;
@@ -64,6 +68,8 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 
 	protected final TextField tfRecipientName = FormStyleUtils.applyWidth(new TextField(), FieldWidth.L);
 	protected final TextField tfIBAN = FormStyleUtils.applyWidth(new TextField(), FieldWidth.L);
+	private final Label ibanValidationStatus = new Label();
+	private final HBox ibanFieldHolder = new HBox(6, tfIBAN, ibanValidationStatus);
 	protected final TextField tfBIC = FormStyleUtils.applyWidth(new TextField(), FieldWidth.XS);
 	protected final BankNameLookupField bankNameLookupField = new BankNameLookupField();
 	protected final TextField tfAmount = FormStyleUtils.applyWidth(new TextField(), FieldWidth.S);
@@ -100,9 +106,10 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 	private void createBasePanel() {
 		configureFormGridColumns();
 		FormControlUtils.prepareWrapping(tfPurpose, 3);
+		configureIbanValidationStatus();
 
 		addFieldAbove("UI_LABEL_TRANSFER_RECIPIENT", tfRecipientName, 0, 0, 3);
-		addFieldAbove("UI_LABEL_TRANSFER_IBAN", tfIBAN, 0, 1, 3);
+		addFieldAbove("UI_LABEL_TRANSFER_IBAN", ibanFieldHolder, 0, 1, 3);
 		addFieldAbove("UI_LABEL_BIC_OR_BLZ", tfBIC, 0, 2);
 		addFieldAbove("UI_LABEL_BANK", bankNameLookupField, 1, 2, 2);
 		addFieldAbove("UI_LABEL_CURRENCY", currencyFieldHolder, 1, 3);
@@ -118,9 +125,11 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 		tfIBAN.focusedProperty().addListener((observable, oldValue, newValue) -> {
 			if (Boolean.FALSE.equals(newValue)) {
 				updateBankDataFromIban(false);
+				updateIbanValidationStatus();
 				maybePromptForIbanCalculationAfterFocusChange();
 			}
 		});
+		tfIBAN.textProperty().addListener((observable, oldValue, newValue) -> clearIbanValidationStatus());
 		tfBIC.focusedProperty().addListener((observable, oldValue, newValue) -> {
 			if (Boolean.TRUE.equals(newValue)) {
 				bankNameLookupSuspendedUntilBankCodeFocus = false;
@@ -191,6 +200,9 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, validationError);
 			return;
 		}
+		if (!confirmInvalidIban()) {
+			return;
+		}
 
 		formatAmountField();
 		MoneyTransferForm moneyTransfer = buildMoneyTransferForm(account);
@@ -198,6 +210,47 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 		currentMoneytransfer = moneyTransferService.saveMoneyTransferToDB(moneyTransfer, existingMoneyTransfer);
 		parentPanel.reloadListPanels();
 		updateDeleteButtonState();
+	}
+
+	private void configureIbanValidationStatus() {
+		ibanFieldHolder.setAlignment(Pos.CENTER_LEFT);
+		HBox.setHgrow(tfIBAN, Priority.ALWAYS);
+		ibanValidationStatus.getStyleClass().add("iban-validation-status");
+		ibanValidationStatus.setMinWidth(20);
+		ibanValidationStatus.setPrefWidth(20);
+		ibanValidationStatus.setVisible(false);
+	}
+
+	private void updateIbanValidationStatus() {
+		String iban = trimToNull(tfIBAN.getText());
+		if (iban == null) {
+			clearIbanValidationStatus();
+			return;
+		}
+
+		boolean valid = IbanCalculator.isValidIban(iban);
+		ibanValidationStatus.setText(valid ? IBAN_VALID_SYMBOL : IBAN_INVALID_SYMBOL);
+		Tooltip tooltip = new Tooltip(getText(valid ? "TOOLTIP_IBAN_VALID" : "TOOLTIP_IBAN_INVALID"));
+		tooltip.setFont(Font.getDefault());
+		ibanValidationStatus.setTooltip(tooltip);
+		ibanValidationStatus.getStyleClass().setAll("iban-validation-status", valid ? "iban-valid" : "iban-invalid");
+		ibanValidationStatus.setVisible(true);
+	}
+
+	private void clearIbanValidationStatus() {
+		ibanValidationStatus.setVisible(false);
+	}
+
+	private boolean confirmInvalidIban() {
+		String iban = trimToNull(tfIBAN.getText());
+		if (iban == null || IbanCalculator.isValidIban(iban)) {
+			return true;
+		}
+
+		ButtonType yesButton = new ButtonType(getText(UI_BUTTON_YES), ButtonBar.ButtonData.YES);
+		ButtonType noButton = new ButtonType(getText(UI_BUTTON_NO), ButtonBar.ButtonData.NO);
+		return DialogWindowSupport.showConfirmation(getOwnerWindow(), AlertType.WARNING, getText("ALERT_MONEYTRANSFER_INVALID_IBAN_TITLE"),
+				getText("ALERT_MONEYTRANSFER_INVALID_IBAN_HEADER"), getText("ALERT_MONEYTRANSFER_INVALID_IBAN_TEXT"), yesButton, noButton);
 	}
 
 	private boolean confirmCreateNewTransferForArchivedOrder() {
@@ -530,6 +583,7 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 		if (shouldApplyIban) {
 			tfIBAN.setText(calculatedIban);
 			updateBankDataFromIban(false, true);
+			updateIbanValidationStatus();
 		}
 	}
 

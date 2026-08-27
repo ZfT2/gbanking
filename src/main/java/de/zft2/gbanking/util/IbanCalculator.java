@@ -1,6 +1,10 @@
 package de.zft2.gbanking.util;
 
+import java.util.Locale;
+import java.util.regex.Pattern;
+
 public class IbanCalculator {
+	private static final Pattern IBAN_PATTERN = Pattern.compile("[A-Z]{2}\\d{2}[A-Z0-9]{11,30}");
 
 	private IbanCalculator() {
 		/* This utility class should not be instantiated */
@@ -45,17 +49,32 @@ public class IbanCalculator {
 		return "DE" + String.format("%02d", checkDigits) + bban;
 	}
 
-	private static int mod97(String numericString) {
+	public static boolean isValidIban(String iban) {
+		if (iban == null) {
+			return false;
+		}
+
+		String normalizedIban = iban.trim().replace(" ", "").replace("\u00A0", "").toUpperCase(Locale.ROOT);
+		if (!IBAN_PATTERN.matcher(normalizedIban).matches()) {
+			return false;
+		}
+
+		String rearrangedIban = normalizedIban.substring(4) + normalizedIban.substring(0, 4);
+		return mod97(rearrangedIban) == 1;
+	}
+
+	private static int mod97(String value) {
 		int remainder = 0;
 
-		for (int i = 0; i < numericString.length(); i++) {
-			char c = numericString.charAt(i);
-
-			if (!Character.isDigit(c)) {
+		for (int i = 0; i < value.length(); i++) {
+			char character = value.charAt(i);
+			if (Character.isDigit(character)) {
+				remainder = (remainder * 10 + (character - '0')) % 97;
+			} else if (character >= 'A' && character <= 'Z') {
+				remainder = (remainder * 100 + character - 'A' + 10) % 97;
+			} else {
 				return -1;
 			}
-
-			remainder = (remainder * 10 + (c - '0')) % 97;
 		}
 
 		return remainder;
