@@ -132,6 +132,10 @@ class InstituteFileImportDkIntegrationTest extends BaseInstituteFileImportTest {
 		restoreFile(importDir, archiveDir, FILE_NAME);
 
 		int countAfterFirstImport = dbController.getAll(Institute.class).size();
+		dropInstituteLookupIndex();
+		DBController.resetConnection();
+		dbController = DBController.getInstance(tempDir.toString());
+		assertFalse(instituteLookupIndexExists(), "Opening an existing institute database must not modify it");
 
 		// Second import (identical file)
 		importer.runImport();
@@ -144,6 +148,7 @@ class InstituteFileImportDkIntegrationTest extends BaseInstituteFileImportTest {
 		long archivedCount = all.stream().filter(i -> i.getStateType() == InstituteStatus.ARCHIVED).count();
 
 		assertEquals(0, archivedCount, "No records should be archived when file is unchanged");
+		assertTrue(instituteLookupIndexExists(), "An unchanged import must restore the lookup index");
 	}
 
 	// ---------------------------------------------------------

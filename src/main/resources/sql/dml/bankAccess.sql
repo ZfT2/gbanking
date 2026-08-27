@@ -1,5 +1,8 @@
 [SQL_SELECT_ID_BANKACCESS_BY_BLZ]
-SELECT ba.id FROM bankAccess ba JOIN bankAccessFints bf ON bf.bankAccess_id = ba.id WHERE bf.blz = ?;
+SELECT ba.id
+FROM bankAccess ba
+JOIN bankAccessFints bf ON bf.bankAccess_id = ba.id
+WHERE bf.blz = ? AND bf.userId IS ?;
 ;
 
 [SQL_INSERT_BANKACCESS]
@@ -131,5 +134,16 @@ SELECT ba.id, ba.bankAccess_id, ba.parentAccount_id, ba.providerAccountId, ba.ac
   ba.accountType, ba.accountSource, ba.iban, ba.bic, ba.number, ba.subNumber, ba.bankName, ba.blz,
   ba.hbciAccountType, ba.accountLimit, ba.customerId, ba.ownerName, ba.ownerName2, ba.country,
   ba.creditorId, ba.isSepaAccount, ba.isOfflineAccount, ba.accountState, ba.balance, ba.createdAt, ba.updatedAt
-FROM bankAccount ba WHERE ba.bankAccess_id = ?;
+FROM bankAccount ba
+WHERE ba.bankAccess_id = ?
+ORDER BY ba.id;
 ;
+
+[SQL_SELECT_BANKACCOUNTS_BY_BANKACCESS_IDS]
+SELECT ba.id, ba.bankAccess_id, ba.parentAccount_id, ba.providerAccountId, ba.accountName, ba.baseCurrency,
+  ba.accountType, ba.accountSource, ba.iban, ba.bic, ba.number, ba.subNumber, ba.bankName, ba.blz,
+  ba.hbciAccountType, ba.accountLimit, ba.customerId, ba.ownerName, ba.ownerName2, ba.country,
+  ba.creditorId, ba.isSepaAccount, ba.isOfflineAccount, ba.accountState, ba.balance, ba.createdAt, ba.updatedAt
+FROM bankAccount ba
+WHERE ba.bankAccess_id IN (%s)
+ORDER BY ba.bankAccess_id, ba.id;

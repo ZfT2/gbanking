@@ -13,6 +13,10 @@ import de.zft2.gbanking.util.TypeConverter;
 
 public class RecipientMapper extends AbstractDaoMapper<Recipient, Void> {
 
+	public RecipientMapper() {
+		super(Recipient::new);
+	}
+
 	@Override
 	public void setParamsFull(Recipient recipient, PreparedStatement ps) throws SQLException {
 		ps.setString(1, recipient.getName());

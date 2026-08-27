@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS institute_db.institute (
   updatedAt TEXT NOT NULL,
   FOREIGN KEY (stateType) REFERENCES instituteStatus(id),
   FOREIGN KEY (importFile) REFERENCES importHistory(id),
-  CHECK (blz IS NOT NULL OR bic IS NOT NULL)
+  CHECK (blz IS NOT NULL OR bic IS NOT NULL),
   CHECK (stateType BETWEEN 1 AND 3));
 ;
 
@@ -145,6 +145,11 @@ CREATE TABLE IF NOT EXISTS institute_db.instituteDbbReachable (
   CHECK (serviceCor1 IN (0, 1)),
   CHECK (serviceB2b IN (0, 1)),
   CHECK (serviceScc IN (0, 1)));
+;
+
+[SQL_SETUP_CREATE_INDEX_INSTITUTE_BLZ_STATE]
+CREATE INDEX IF NOT EXISTS institute_db.idx_institute_blz_state
+ON institute (blz, stateType);
 ;
 
 [SQL_SETUP_CREATE_TRIGGER_INSTITUTEDK_VALIDATE_UNIQUE_BLZ_IMPORTNUMBER_INSERT]

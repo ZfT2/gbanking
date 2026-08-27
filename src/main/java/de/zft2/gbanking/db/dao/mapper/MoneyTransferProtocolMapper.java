@@ -13,6 +13,10 @@ import de.zft2.gbanking.util.TypeConverter;
 
 public class MoneyTransferProtocolMapper extends AbstractDaoMapper<MoneyTransferProtocol, Void> {
 
+	public MoneyTransferProtocolMapper() {
+		super(MoneyTransferProtocol::new);
+	}
+
 	@Override
 	public void setParamsFull(MoneyTransferProtocol protocol, PreparedStatement ps) throws SQLException {
 		ps.setInt(1, protocol.getMoneyTransferId());

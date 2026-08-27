@@ -30,9 +30,20 @@ LEFT JOIN categoryFull cg on b.category_id = cg.id;
 [SQL_SELECT_ALL_BOOKINGS_FULL]
 ${SQL_SELECT_ALL_BOOKINGS_FULL_BASE} WHERE b.parentBooking_id IS NULL;
 
+[SQL_SELECT_BOOKINGS_FULL_FOR_ACCOUNT_RELATIONS]
+${SQL_SELECT_ALL_BOOKINGS_FULL_BASE} WHERE b.parentBooking_id IS NULL
+ORDER BY b.account_id, b.id DESC;
+
+[SQL_SELECT_BOOKING_FULL_BY_ID]
+${SQL_SELECT_ALL_BOOKINGS_FULL_BASE} WHERE b.id = ?;
+
 [SQL_SELECT_ALL_BOOKINGS_FULL_BY_ACCOUNT]
 ${SQL_SELECT_ALL_BOOKINGS_FULL_BASE} WHERE b.account_id = ? AND b.parentBooking_id IS NULL
 ORDER BY b.id desc;
+
+[SQL_SELECT_BOOKINGS_FULL_BY_ACCOUNT_IDS]
+${SQL_SELECT_ALL_BOOKINGS_FULL_BASE} WHERE b.account_id IN (%s) AND b.parentBooking_id IS NULL
+ORDER BY b.account_id, b.id DESC;
 
 [SQL_SELECT_ALL_BOOKINGS_FULL_BY_ACCOUNT_AND_DATE_RANGE]
 ${SQL_SELECT_ALL_BOOKINGS_FULL_BASE} WHERE b.account_id = ?
@@ -45,24 +56,32 @@ ${SQL_SELECT_ALL_BOOKINGS_FULL_BASE} WHERE b.parentBooking_id = ?
 ORDER BY b.id;
 
 [SQL_FIND_CROSS_BOOKINGS_FULL]
-${SQL_SELECT_ALL_BOOKINGS_FULL_BASE} WHERE (ba.iban LIKE ? OR ba.number LIKE ?)
+${SQL_SELECT_ALL_BOOKINGS_FULL_BASE} WHERE (ba.iban = ? OR ba.number = ?)
 AND b.amount = ?
 AND b.dateBooking = ?
 AND b.parentBooking_id IS NULL
-AND b.bookingType NOT IN ('REBOOKING_IN', 'REBOOKING_OUT')
-ORDER BY b.id desc;
+AND b.bookingType NOT IN (?, ?)
+ORDER BY b.id DESC
+LIMIT 1;
 
 [SQL_SELECT_ACCOUNT_LAST_BOOKING_DATE]
 SELECT MAX(b.dateBooking) AS lastBookingDate FROM booking b where b.account_id = ? AND b.parentBooking_id IS NULL AND b.bookingSource IN (1, 7, 8, 10, 16, 17);
 
 [SQL_SELECT_ALL_BOOKINGS]
-SELECT ${SQL_SELECT_BOOKING_COLUMNS}
+SELECT ${SQL_SELECT_BOOKING_COLUMNS}, NULL AS categoryRuleName
 FROM bookingFull b
 WHERE b.parentBooking_id IS NULL;
 
 [SQL_INSERT_BOOKING]
 INSERT INTO booking (account_id, parentBooking_id, dateBooking, dateValue, purpose, amount, bookingType, bookingSource, crossAccount_id, recipient_id, category_id, categoryRule_id, crossBooking_id, updatedAt)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+[SQL_INSERT_BOOKING_BATCH]
+INSERT INTO booking (id, account_id, parentBooking_id, dateBooking, dateValue, purpose, amount, bookingType, bookingSource, crossAccount_id, recipient_id, category_id, categoryRule_id, crossBooking_id, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+[SQL_SELECT_MAX_BOOKING_ID]
+SELECT COALESCE(MAX(id), 0) FROM booking;
 
 [SQL_UPDATE_BOOKING]
 UPDATE booking

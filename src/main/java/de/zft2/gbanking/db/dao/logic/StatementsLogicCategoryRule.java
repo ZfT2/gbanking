@@ -28,12 +28,6 @@ public class StatementsLogicCategoryRule extends StatementsLogicDefault<Category
 		return savedRule;
 	}
 
-	@Override
-	public void addOneToOneRelations(CategoryRule categoryRule) {
-		categoryRule.setBankAccountList(executeSqlSelectStatementForList(
-				DaoSqlStatements.SQL_SELECT_BANKACCOUNTS_BY_CATEGORYRULE, BankAccount.class, List.of(categoryRule.getId())));
-	}
-
 	private void syncBankAccounts(CategoryRule categoryRule) {
 		executeSqlDeleteStatement(DaoSqlStatements.SQL_DELETE_CATEGORYRULE_BANKACCOUNT, categoryRule);
 

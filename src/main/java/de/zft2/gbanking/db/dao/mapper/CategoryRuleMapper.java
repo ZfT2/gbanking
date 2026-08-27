@@ -12,6 +12,10 @@ import de.zft2.gbanking.util.TypeConverter;
 
 public class CategoryRuleMapper extends AbstractDaoMapper<CategoryRule, Void> {
 
+	public CategoryRuleMapper() {
+		super(CategoryRule::new);
+	}
+
 	@Override
 	public void setParamsFull(CategoryRule categoryRule, PreparedStatement ps) throws SQLException {
 		int index = 1;
@@ -37,14 +41,11 @@ public class CategoryRuleMapper extends AbstractDaoMapper<CategoryRule, Void> {
 
 	@Override
 	public void mapDao(CategoryRule categoryRule, ResultType resultType, ResultSet rs) throws SQLException {
-		categoryRule.setName(hasColumn(rs, "ruleName") ? rs.getString("ruleName") : rs.getString("name"));
+		categoryRule.setName(rs.getString("name"));
 		int categoryId = rs.getInt("category_id");
 		if (categoryId > 0) {
-			String fullName = hasColumn(rs, "fullName") ? rs.getString("fullName") : null;
-			Category category = new Category(categoryId, fullName);
-			if (hasColumn(rs, "categoryName")) {
-				category.setName(rs.getString("categoryName"));
-			}
+			Category category = new Category(categoryId, rs.getString("fullName"));
+			category.setName(rs.getString("categoryName"));
 			categoryRule.setCategory(category);
 		}
 		categoryRule.setFilterDateFrom((TypeConverter.toLocalDateFromSqlDate(rs.getDate("filterDateFrom"))));

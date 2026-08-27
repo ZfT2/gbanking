@@ -11,6 +11,10 @@ import de.zft2.gbanking.util.TypeConverter;
 
 public class Psd2ClientConfigurationMapper extends AbstractDaoMapper<Psd2ClientConfiguration, Void> {
 
+	public Psd2ClientConfigurationMapper() {
+		super(Psd2ClientConfiguration::new);
+	}
+
 	@Override
 	public void setParamsFull(Psd2ClientConfiguration configuration, PreparedStatement ps) throws SQLException {
 		ps.setInt(1, configuration.getClientMode().getDbStateId());

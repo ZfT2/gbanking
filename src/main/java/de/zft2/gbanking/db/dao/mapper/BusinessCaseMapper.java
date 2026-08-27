@@ -10,6 +10,10 @@ import de.zft2.gbanking.util.TypeConverter;
 
 public class BusinessCaseMapper extends AbstractDaoMapper<BusinessCase, Void> {
 
+	public BusinessCaseMapper() {
+		super(BusinessCase::new);
+	}
+
 	@Override
 	public void setParamsFull(BusinessCase businessCase, PreparedStatement ps) throws SQLException {
 		ps.setString(1, businessCase.getCaseValue());

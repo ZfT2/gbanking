@@ -11,6 +11,10 @@ import de.zft2.gbanking.util.TypeConverter;
 
 public class MoneyTransferForeignMapper extends AbstractDaoMapper<MoneyTransferForeign, Void> {
 
+	public MoneyTransferForeignMapper() {
+		super(MoneyTransferForeign::new);
+	}
+
 	@Override
 	public void setParamsFull(MoneyTransferForeign foreignTransfer, PreparedStatement ps) throws SQLException {
 		int index = 1;

@@ -47,23 +47,27 @@ ${SQL_SELECT_ALL_RECIPIENTS_BASE} WHERE ${SQL_WHERE_RECIPIENT_BY_ACCOUNT_IDENTIF
 ${SQL_SELECT_ALL_RECIPIENTS_BASE} WHERE ${SQL_WHERE_RECIPIENT_BY_ACCOUNT_IDENTIFIER} ${SQL_WHERE_RECIPIENT_BY_ID_IF_NOT_REFERENCED} ORDER BY name IS NULL, name;
 
 [SQL_SELECT_PREFERRED_RECIPIENT_BY_IBAN]
-${SQL_SELECT_FIELD_LIST_BASE}
-FROM recipient r
-LEFT JOIN (
-    SELECT recipient_id, MAX(usedAt) AS lastUsedAt
+WITH candidates AS (
+    ${SQL_SELECT_ALL_RECIPIENTS_BASE}
+    WHERE NULLIF(TRIM(?), '') IS NOT NULL
+      AND TRIM(r.iban) COLLATE NOCASE = TRIM(?)
+),
+recipientUsage AS (
+    SELECT usage.recipient_id, MAX(usage.usedAt) AS lastUsedAt
     FROM (
-        SELECT recipient_id, COALESCE(dateValue, dateBooking, updatedAt) AS usedAt
-        FROM booking
-        WHERE recipient_id IS NOT NULL
+        SELECT b.recipient_id, COALESCE(b.dateValue, b.dateBooking, b.updatedAt) AS usedAt
+        FROM booking b
+        JOIN candidates candidate ON candidate.id = b.recipient_id
         UNION ALL
-        SELECT recipient_id, COALESCE(executionDate, updatedAt) AS usedAt
-        FROM moneytransfer
-        WHERE recipient_id IS NOT NULL
-    ) recipientUsage
-    GROUP BY recipient_id
-) usage ON usage.recipient_id = r.id
-WHERE NULLIF(TRIM(?), '') IS NOT NULL
-  AND TRIM(r.iban) COLLATE NOCASE = TRIM(?)
+        SELECT mt.recipient_id, COALESCE(mt.executionDate, mt.updatedAt) AS usedAt
+        FROM moneytransfer mt
+        JOIN candidates candidate ON candidate.id = mt.recipient_id
+    ) usage
+    GROUP BY usage.recipient_id
+)
+${SQL_SELECT_FIELD_LIST_BASE}
+FROM candidates r
+LEFT JOIN recipientUsage usage ON usage.recipient_id = r.id
 ORDER BY r.isDefault DESC,
          usage.lastUsedAt IS NULL,
          usage.lastUsedAt DESC,

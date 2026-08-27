@@ -38,8 +38,17 @@ CREATE TABLE moneytransfer (
 
 ;
 
-[SQL_SETUP_CREATE_INDEX_MONEYTRANSFER_RECIPIENT]
-CREATE INDEX idx_moneytransfer_recipient_id ON moneytransfer (recipient_id);
+[SQL_SETUP_CREATE_INDEX_MONEYTRANSFER_ACCOUNT_STATUS]
+CREATE INDEX IF NOT EXISTS idx_moneytransfer_account_status ON moneytransfer (account_id, moneytransferStatus);
+;
+
+[SQL_SETUP_CREATE_INDEX_MONEYTRANSFER_RECIPIENT_USAGE]
+CREATE INDEX IF NOT EXISTS idx_moneytransfer_recipient_usage
+ON moneytransfer (recipient_id, COALESCE(executionDate, updatedAt) DESC);
+;
+
+[SQL_SETUP_CREATE_INDEX_MONEYTRANSFER_HISTORY]
+CREATE INDEX IF NOT EXISTS idx_moneytransfer_history ON moneytransfer (historyorder_id);
 
 ;
 
@@ -66,11 +75,6 @@ CREATE TABLE moneytransferForeign (
 
 ;
 
-[SQL_SETUP_CREATE_INDEX_MONEYTRANSFER_FOREIGN_TRANSFER]
-CREATE INDEX idx_moneytransferforeign_moneytransfer_id ON moneytransferForeign (moneytransfer_id);
-
-;
-
 [SQL_SETUP_CREATE_MONEYTRANSFER_PROTOCOL]
 CREATE TABLE moneytransferProtocol (
   id INTEGER PRIMARY KEY,
@@ -82,6 +86,11 @@ CREATE TABLE moneytransferProtocol (
   updatedAt TEXT NOT NULL,
   FOREIGN KEY(moneytransfer_id) REFERENCES moneytransfer(id) ON DELETE CASCADE,
   CHECK (moneytransferStatus BETWEEN 0 AND 6));
+;
+
+[SQL_SETUP_CREATE_INDEX_MONEYTRANSFER_PROTOCOL_TRANSFER]
+CREATE INDEX IF NOT EXISTS idx_moneytransferprotocol_transfer
+ON moneytransferProtocol (moneytransfer_id, timeStart DESC, id DESC);
 ;
 
 [SQL_SETUP_CREATE_TRIGGER_MONEYTRANSFER_BLOCK_UPDATE]

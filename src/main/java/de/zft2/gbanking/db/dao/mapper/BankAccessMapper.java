@@ -18,6 +18,10 @@ import de.zft2.gbanking.util.TypeConverter;
 
 public class BankAccessMapper extends AbstractDaoMapper<BankAccess, Void> {
 
+	public BankAccessMapper() {
+		super(BankAccess::new);
+	}
+
 	@Override
 	public void setParamsFull(BankAccess bankAccess, PreparedStatement ps) throws SQLException {
 		ps.setString(1, bankAccess.getBankName());

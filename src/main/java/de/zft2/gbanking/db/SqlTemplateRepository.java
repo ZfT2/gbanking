@@ -28,6 +28,7 @@ public final class SqlTemplateRepository {
     private static final String RESOURCE_SEPARATOR = "/";
     private static final TemplateBundle DML = loadBundle(listSqlResources("sql/dml", false));
     private static final VersionedTemplateBundle DDL = loadVersionedBundle("sql/ddl");
+    private static final TemplateBundle CONFIG = loadBundle(List.of("sql/config/sqlite.sql"));
 
     private SqlTemplateRepository() {
     }
@@ -40,12 +41,20 @@ public final class SqlTemplateRepository {
         return DDL.get(key);
     }
 
+    static String getConfig(String key) {
+        return CONFIG.get(key);
+    }
+
     public static List<String> getDemoStatements() {
         return DemoTemplates.BUNDLE.statements();
     }
 
     static List<String> getBaselineStatements() {
         return DDL.baselineStatements();
+    }
+
+    static List<String> getMainBaselineStatements() {
+        return DDL.mainBaselineStatements();
     }
 
     static VersionScript getBaselineVersionScript() {
@@ -62,12 +71,18 @@ public final class SqlTemplateRepository {
 
 		Comparator<String> versionComparator = (left, right) -> (DbMigrationRunner.compareVersions(left, right));
 		TreeMap<String, List<String>> baselineStatementsByVersion = new TreeMap<>(versionComparator);
+		TreeMap<String, List<String>> mainBaselineStatementsByVersion = new TreeMap<>(versionComparator);
 		TreeMap<String, List<String>> migrationStatementsByVersion = new TreeMap<>(versionComparator);
 
         for (String resource : resources) {
             String version = extractVersion(directory, resource);
+            List<String> baselineStatements = bundle.executableStatementsFor(resource, StatementMode.BASELINE);
             baselineStatementsByVersion.computeIfAbsent(version, key -> new ArrayList<>())
-                    .addAll(bundle.executableStatementsFor(resource, StatementMode.BASELINE));
+                    .addAll(baselineStatements);
+            if (!resource.endsWith("/institute.sql")) {
+                mainBaselineStatementsByVersion.computeIfAbsent(version, key -> new ArrayList<>())
+                        .addAll(baselineStatements);
+            }
             migrationStatementsByVersion.computeIfAbsent(version, key -> new ArrayList<>())
                     .addAll(bundle.executableStatementsFor(resource, StatementMode.MIGRATION));
         }
@@ -75,10 +90,13 @@ public final class SqlTemplateRepository {
         List<VersionScript> versionScripts = migrationStatementsByVersion.entrySet().stream()
                 .map(entry -> new VersionScript(entry.getKey(), entry.getValue()))
                 .toList();
-        List<String> baselineStatements = baselineStatementsByVersion.isEmpty()
-                ? List.of()
-                : List.copyOf(baselineStatementsByVersion.firstEntry().getValue());
-        return new VersionedTemplateBundle(bundle, versionScripts, baselineStatements);
+        List<String> baselineStatements = baselineStatementsByVersion.values().stream()
+                .flatMap(List::stream)
+                .toList();
+        List<String> mainBaselineStatements = mainBaselineStatementsByVersion.values().stream()
+                .flatMap(List::stream)
+                .toList();
+        return new VersionedTemplateBundle(bundle, versionScripts, baselineStatements, mainBaselineStatements);
     }
 
     private static String extractVersion(String rootDirectory, String resource) {
@@ -403,11 +421,14 @@ public final class SqlTemplateRepository {
     private static final class VersionedTemplateBundle extends TemplateBundle {
         private final List<VersionScript> versionScripts;
         private final List<String> baselineStatements;
+        private final List<String> mainBaselineStatements;
 
-        private VersionedTemplateBundle(TemplateBundle delegate, List<VersionScript> versionScripts, List<String> baselineStatements) {
+        private VersionedTemplateBundle(TemplateBundle delegate, List<VersionScript> versionScripts, List<String> baselineStatements,
+                List<String> mainBaselineStatements) {
             super(delegate.resolvedValues, delegate.resourceByKey, delegate.keyOrder);
             this.versionScripts = List.copyOf(versionScripts);
             this.baselineStatements = List.copyOf(baselineStatements);
+            this.mainBaselineStatements = List.copyOf(mainBaselineStatements);
         }
 
         VersionScript baselineScript() {
@@ -420,6 +441,10 @@ public final class SqlTemplateRepository {
 
         List<String> baselineStatements() {
             return baselineStatements;
+        }
+
+        List<String> mainBaselineStatements() {
+            return mainBaselineStatements;
         }
     }
 

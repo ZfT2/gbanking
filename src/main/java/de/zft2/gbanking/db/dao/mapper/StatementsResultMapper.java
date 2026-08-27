@@ -16,10 +16,7 @@ public class StatementsResultMapper {
 
 		AbstractDaoMapper<T, V> mapper = StatementsConfig.getMapperForDaoType(type);
 
-		T result = mapper.initResultDao(type, rs);
-		mapper.mapDao(result, resultType, rs);
-
-		return result;
+		return mapper.map(rs, resultType);
 	}
 
 }

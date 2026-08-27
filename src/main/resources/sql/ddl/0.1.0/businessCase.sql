@@ -27,6 +27,3 @@ CREATE TABLE bankAccount_businessCase (
   FOREIGN KEY(businessCase_id) REFERENCES businessCase(id) ON DELETE CASCADE,
   UNIQUE (account_id, businessCase_id));
 ;
-
-[SQL_SETUP_CREATE_UNIQUE_INDEX_BANKACCOUNT_BUSINESSCASE]
-CREATE UNIQUE INDEX IF NOT EXISTS uk_bankaccount_businesscase ON bankAccount_businessCase (account_id, businessCase_id);

@@ -4,8 +4,12 @@ FROM bankAccount ba
 WHERE (ba.iban = ? OR ba.number = ?);
 
 [SQL_SELECT_ALL_BANKACCOUNTS]
-SELECT ba.id, ba.bankAccess_id, ba.parentAccount_id, ba.providerAccountId, ba.accountName, ba.baseCurrency, ba.accountType, ba.accountSource, ba.iban, ba.bic, ba.number, ba.subNumber, ba.bankName, ba.blz, ba.hbciAccountType, ba.accountLimit, ba.customerId, ba.ownerName, ba.ownerName2, ba.country, ba.creditorId, ba.isSepaAccount, ba.isOfflineAccount, ba.accountState, ba.balance, ba.createdAt, ba.updatedAt
-FROM bankAccount ba;
+SELECT ba.id, ba.bankAccess_id, ba.parentAccount_id, ba.providerAccountId, ba.accountName, ba.baseCurrency,
+  ba.accountType, ba.accountSource, ba.iban, ba.bic, ba.number, ba.subNumber, ba.bankName, ba.blz,
+  ba.hbciAccountType, ba.accountLimit, ba.customerId, ba.ownerName, ba.ownerName2, ba.country,
+  ba.creditorId, ba.isSepaAccount, ba.isOfflineAccount, ba.accountState, ba.balance, ba.createdAt, ba.updatedAt
+FROM bankAccount ba
+ORDER BY ba.bankAccess_id, ba.id;
 
 [SQL_SELECT_ALL_ONLINE_BANKACCOUNTS]
 SELECT ba.id, ba.bankAccess_id, ba.parentAccount_id, ba.providerAccountId, ba.accountName, ba.baseCurrency, ba.accountType, ba.accountSource, ba.iban, ba.bic, ba.number, ba.subNumber, ba.bankName, ba.blz, ba.hbciAccountType, ba.accountLimit, ba.customerId, ba.ownerName, ba.ownerName2, ba.country, ba.creditorId, ba.isSepaAccount, ba.isOfflineAccount, ba.accountState, ba.balance, ba.createdAt, ba.updatedAt
@@ -57,3 +61,17 @@ VALUES (?, ?, ?);
 [SQL_DELETE_BANKACCOUNT_IDENTIFIERS_BY_ACCOUNT]
 DELETE FROM bankAccountIdentifiers
 WHERE account_id = ?;
+
+[SQL_SELECT_BANKACCOUNT_IDS_BY_ACCOUNT_NAME]
+SELECT id, accountName AS identifier
+FROM bankAccount
+WHERE accountName IS NOT NULL;
+
+[SQL_SELECT_BANKACCOUNT_IDS_BY_IBAN_OR_NUMBER]
+SELECT id, iban AS identifier
+FROM bankAccount
+WHERE iban IS NOT NULL
+UNION
+SELECT id, number AS identifier
+FROM bankAccount
+WHERE number IS NOT NULL;

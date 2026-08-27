@@ -24,6 +24,9 @@ ${SQL_SELECT_ALL_MONEYTRANSFERS_BASE} AND m.account_id = ? AND moneytransferstat
 [SQL_SELECT_ID_MONEYTRANSFER_BY_ID_AND_ACCOUNT_ID]
 SELECT id FROM moneytransfer WHERE id = ? AND account_id = ?;
 
+[SQL_SELECT_MONEYTRANSFER_STATUS_BY_ID]
+SELECT moneytransferStatus FROM moneytransfer WHERE id = ?;
+
 [SQL_INSERT_MONEYTRANSFER]
 INSERT INTO moneytransfer (account_id, moneytransferType, recipient_id, purpose, purposeCode, endToEndId, amount, executionDate, executionDay, moneytransferStatus, standingorderMode, bankOrderId, historyorder_id, updatedAt)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);;

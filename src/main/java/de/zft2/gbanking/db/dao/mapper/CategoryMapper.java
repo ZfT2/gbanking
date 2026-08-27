@@ -10,6 +10,10 @@ import de.zft2.gbanking.util.TypeConverter;
 
 public class CategoryMapper extends AbstractDaoMapper<Category, Void> {
 
+	public CategoryMapper() {
+		super(() -> new Category((String) null));
+	}
+
 	@Override
 	public void setParamsFull(Category category, PreparedStatement ps) throws SQLException {
 		ps.setString(1, category.getName());
@@ -34,24 +38,17 @@ public class CategoryMapper extends AbstractDaoMapper<Category, Void> {
 	}
 
 	@Override
-	Category initResultDao(Class<Category> type, ResultSet rs) throws SQLException {
-		Category category = new Category(rs.getString("name"));
-		initDefaultFields(category, rs);
-		return category;
-	}
-
-	@Override
 	void mapDao(Category category, ResultType resultType, ResultSet rs) throws SQLException {
 
 		if (rs.getInt("parent_id") > 0) {
 			category.setParentId(rs.getInt("parent_id"));
 		}
-		if (rs.getString("name") != null) {
-			category.setName(rs.getString("name"));
+		String name = rs.getString("name");
+		if (name != null) {
+			category.setName(name);
 		}
-		if (rs.getString("fullName") != null) {
-			category.setFullName(rs.getString("fullName"));
-		}
+		String fullName = rs.getString("fullName");
+		category.setFullName(fullName != null ? fullName : name);
 	}
 
 }

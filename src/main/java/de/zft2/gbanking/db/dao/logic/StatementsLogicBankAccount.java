@@ -6,21 +6,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import de.zft2.gbanking.db.DaoSqlStatements;
-import de.zft2.gbanking.db.StatementsConfig;
+import de.zft2.gbanking.db.SqlFields;
 import de.zft2.gbanking.db.StatementsConfig.StatementType;
 import de.zft2.gbanking.db.dao.BankAccount;
-import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BusinessCase;
-import de.zft2.gbanking.db.dao.Dao;
+import de.zft2.gbanking.exception.GBankingException;
 
 public class StatementsLogicBankAccount extends StatementsLogicDefault<BankAccount> implements StatementsLogic<BankAccount> {
 
-	private static Logger log = LogManager.getLogger(StatementsLogicBankAccount.class);
-	
 	@Override
 	public SqlParameter getSqlParameter(BankAccount bC) {
 		if (bC.getId() > 0 || bC.getIban() == null || bC.getNumber() == null) {
@@ -31,17 +25,21 @@ public class StatementsLogicBankAccount extends StatementsLogicDefault<BankAccou
 
 	@Override
 	public Map<String, Integer> getTableIds(Class<BankAccount> type, String field, String optionalField) {
-
-		Map<String, Integer> idMap;
-
-		String statement = "SELECT id, " + field + " AS identifier FROM " + StatementsConfig.getTableViewName(type) + " WHERE identifier IS NOT NULL ";
-		if (optionalField != null) {
-			statement = statement + "UNION SELECT id, " + optionalField + " AS identifier FROM " + StatementsConfig.getTableViewName(type) + " WHERE identifier IS NOT NULL";
+		if (type != BankAccount.class) {
+			throw new GBankingException("Unsupported DAO type for bank account identifiers: " + type);
 		}
-		log.debug("getTableIds: {}", statement);
-		idMap = executeSqlSelectStatementForMap(statement, null, "identifier", String.class, "id", Integer.class);
+		String sql = getTableIdsSql(field, optionalField);
+		return executeSqlSelectStatementForMap(sql, null, "identifier", String.class, "id", Integer.class);
+	}
 
-		return idMap;
+	private String getTableIdsSql(String field, String optionalField) {
+		if (SqlFields.ACCOUNT_ACCOUNTNAME.equals(field) && optionalField == null) {
+			return DaoSqlStatements.SQL_SELECT_BANKACCOUNT_IDS_BY_ACCOUNT_NAME;
+		}
+		if ("iban".equals(field) && "number".equals(optionalField)) {
+			return DaoSqlStatements.SQL_SELECT_BANKACCOUNT_IDS_BY_IBAN_OR_NUMBER;
+		}
+		throw new GBankingException("Unsupported bank account identifier fields: " + field + ", " + optionalField);
 	}
 
 	@Override
@@ -92,10 +90,4 @@ public class StatementsLogicBankAccount extends StatementsLogicDefault<BankAccou
 		executeStatementList(DaoSqlStatements.SQL_INSERT_BANKACCOUNT_BUSINESSCASE, businessCaseIdList, bankAccount, MnDao.class);
 	}
 	
-	@Override
-	public void addOneToManyRelations(BankAccount bankAccount, List<? extends Dao> childrenList) {
-		
-		bankAccount.setBookings(convertToTypedList(childrenList, new ArrayList<Booking>(), Booking.class));
-		bankAccount.setAllowedBusinessCases(getResultList(BusinessCase.class, bankAccount.getId(), StatementType.SELECT_WITH_PARENT, null, null));
-	}
 }

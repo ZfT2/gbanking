@@ -3,8 +3,10 @@ package de.zft2.gbanking.db;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -14,6 +16,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.tenant.TenantPaths;
 
 class DbRuntimeContextTest {
 
@@ -44,6 +47,102 @@ class DbRuntimeContextTest {
 
 		assertEquals(Paths.get("db", "tenant-c").toString(), resolved);
 		assertEquals(Paths.get("db", "tenant-c").toString(), DbRuntimeContext.getCurrentDbDirectory());
+	}
+
+	@Test
+	void resolveDbDirectoryWithoutActivationShouldNotUpdateCurrentDirectory() {
+		DbRuntimeContext.setCurrentDbDirectory("db/tenant-a");
+
+		String resolved = DbRuntimeContext.resolveDbDirectoryWithoutActivation("db/tenant-b/../tenant-c");
+
+		assertEquals(Paths.get("db", "tenant-c").toString(), resolved);
+		assertEquals(Paths.get("db", "tenant-a").toString(), DbRuntimeContext.getCurrentDbDirectory());
+	}
+
+	@Test
+	void settingIdenticalDatabaseContextShouldPreserveGeneration() {
+		DbRuntimeContext.setCurrentDbDirectory("db/tenant-a");
+		long generation = DbRuntimeContext.currentSessionGeneration();
+
+		DbRuntimeContext.setCurrentDbDirectory("db/tenant-a");
+
+		assertEquals(generation, DbRuntimeContext.currentSessionGeneration());
+	}
+
+	@Test
+	void settingIdenticalTenantContextShouldPreserveGeneration() {
+		TenantPaths paths = new TenantPaths(
+				Path.of("data", TenantPaths.TENANT_DIRECTORY_NAME, "tenant-a"), Path.of("tenant-db"));
+		DbRuntimeContext.setCurrentTenantPaths(paths);
+		long generation = DbRuntimeContext.currentSessionGeneration();
+
+		DbRuntimeContext.setCurrentTenantPaths(paths);
+
+		assertEquals(generation, DbRuntimeContext.currentSessionGeneration());
+	}
+
+	@Test
+	void invalidTenantPathsShouldNotPartiallyChangeContext() {
+		DbRuntimeContext.setCurrentDbDirectory("db/tenant-a");
+		String activeDirectory = DbRuntimeContext.getCurrentDbDirectory();
+		long generation = DbRuntimeContext.currentSessionGeneration();
+		TenantPaths invalidPaths = new TenantPaths(Path.of("tenant"), Path.of("other-db"));
+
+		assertThrows(IllegalStateException.class,
+				() -> DbRuntimeContext.setCurrentTenantPaths(invalidPaths));
+
+		assertEquals(activeDirectory, DbRuntimeContext.getCurrentDbDirectory());
+		assertEquals(generation, DbRuntimeContext.currentSessionGeneration());
+	}
+
+	@Test
+	void backgroundTaskShouldNotChangeTenantDirectoriesForSameDatabase() throws Exception {
+		Path sharedDatabaseDirectory = Path.of("shared-db");
+		TenantPaths activePaths = new TenantPaths(
+				Path.of("data-a", TenantPaths.TENANT_DIRECTORY_NAME, "tenant-a"), sharedDatabaseDirectory);
+		TenantPaths otherPaths = new TenantPaths(
+				Path.of("data-b", TenantPaths.TENANT_DIRECTORY_NAME, "tenant-b"), sharedDatabaseDirectory);
+		DbRuntimeContext.setCurrentTenantPaths(activePaths);
+		AtomicReference<Throwable> failure = new AtomicReference<>();
+
+		Thread thread = DbRuntimeContext.startBackgroundThread(() -> {
+			try {
+				DbRuntimeContext.setCurrentTenantPaths(otherPaths);
+			} catch (Throwable exception) {
+				failure.set(exception);
+			}
+		}, "tenant-context-change-guard-test");
+		thread.join(2_000);
+
+		assertFalse(thread.isAlive());
+		assertInstanceOf(GBankingException.class, failure.get());
+		assertEquals(activePaths.dataDirectory().toAbsolutePath().normalize(),
+				DbRuntimeContext.getCurrentDataDirectory().orElseThrow());
+	}
+
+	@Test
+	void staleBackgroundTaskShouldNotCheckPendingMigrations() throws Exception {
+		DbRuntimeContext.setCurrentDbDirectory("db/tenant-a");
+		CountDownLatch taskStarted = new CountDownLatch(1);
+		CountDownLatch continueTask = new CountDownLatch(1);
+		AtomicReference<Throwable> failure = new AtomicReference<>();
+		Thread thread = DbRuntimeContext.startBackgroundThread(() -> {
+			taskStarted.countDown();
+			await(continueTask);
+			try {
+				DBController.hasPendingMigrations(".");
+			} catch (Throwable exception) {
+				failure.set(exception);
+			}
+		}, "stale-migration-check-guard-test");
+
+		assertTrue(taskStarted.await(2, TimeUnit.SECONDS));
+		DbRuntimeContext.setCurrentDbDirectory("db/tenant-b");
+		continueTask.countDown();
+		thread.join(2_000);
+
+		assertFalse(thread.isAlive());
+		assertInstanceOf(GBankingException.class, failure.get());
 	}
 
 	@Test

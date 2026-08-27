@@ -22,6 +22,3 @@ CREATE TABLE IF NOT EXISTS bankAccountStatement (
   updatedAt TEXT NOT NULL,
   FOREIGN KEY(account_id) REFERENCES bankAccount(id) ON DELETE CASCADE,
   UNIQUE(fileName));
-
-[SQL_SETUP_CREATE_INDEX_BANKACCOUNTSTATEMENT_ACCOUNT]
-CREATE INDEX IF NOT EXISTS idx_bankaccountstatement_account ON bankAccountStatement (account_id, statementDate, retrievedAt);

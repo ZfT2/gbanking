@@ -14,3 +14,17 @@ SELECT id FROM setting WHERE id = ?;
 [SQL_UPDATE_SETTING]
 UPDATE setting SET attribute = ?, `value` = ?, dataType = ?, editable = ?, visible = ?, comment = ?, updatedAt = ? 
 WHERE id = ?;
+
+[SQL_SELECT_SETTING_BY_ATTRIBUTE]
+SELECT 1 FROM setting WHERE attribute = ?;
+
+[SQL_UPSERT_HIDDEN_SETTING]
+INSERT INTO setting (attribute, value, dataType, editable, visible, comment, updatedAt)
+VALUES (?, ?, ?, 0, 0, ?, datetime())
+ON CONFLICT(attribute) DO UPDATE SET
+    value = excluded.value,
+    dataType = excluded.dataType,
+    editable = excluded.editable,
+    visible = excluded.visible,
+    comment = excluded.comment,
+    updatedAt = excluded.updatedAt;
