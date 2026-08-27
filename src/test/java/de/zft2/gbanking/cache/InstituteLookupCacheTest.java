@@ -95,6 +95,24 @@ class InstituteLookupCacheTest {
 	}
 
 	@Test
+	void findBankNameForBankData_shouldTreatBic8AndPrimaryOfficeBic11AsEquivalent() {
+		db.insertOrUpdate(createInstitute("11111111", "Bank with BIC8", "CHASLULX", 1));
+		db.insertOrUpdate(createInstitute("22222222", "Bank with BIC11", "BICADEFFXXX", 1));
+
+		assertEquals("Bank with BIC8", InstituteLookupCache.findBankNameForBankData("CHASLULXXXX", null).orElseThrow());
+		assertEquals("Bank with BIC11", InstituteLookupCache.findBankNameForBankData("BICADEFF", null).orElseThrow());
+	}
+
+	@Test
+	void getEntriesForBic_shouldKeepSpecificBranchCodesDistinct() {
+		db.insertOrUpdate(createInstitute("33333333", "Head office", "CHASLULX", 1));
+		db.insertOrUpdate(createInstitute("44444444", "Specific branch", "CHASLULX123", 1));
+
+		assertEquals("Specific branch", InstituteLookupCache.getEntriesForBic("CHASLULX123").get(0).bankName());
+		assertTrue(InstituteLookupCache.getEntriesForBic("CHASLULX999").isEmpty());
+	}
+
+	@Test
 	void getEntriesForBankCode_shouldResolveBlzAndBic() {
 		db.insertOrUpdate(createInstitute("50010517", "Bank A", "BICADEFFXXX", 1));
 

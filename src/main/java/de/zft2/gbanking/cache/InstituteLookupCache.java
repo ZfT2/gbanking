@@ -14,6 +14,8 @@ import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.Institute;
 
 public final class InstituteLookupCache {
+	private static final int BIC8_LENGTH = 8;
+	private static final int BIC11_LENGTH = 11;
 
 	public record InstituteLookupEntry(String bankName, String bic, int importNumber) {
 	}
@@ -184,7 +186,12 @@ public final class InstituteLookupCache {
 
 	private static String normalizeBicKey(String bic) {
 		String trimmed = trimToNull(bic);
-		return trimmed != null ? trimmed.replace(" ", "").toUpperCase(Locale.ROOT) : null;
+		if (trimmed == null) {
+			return null;
+		}
+		String normalizedBic = trimmed.replace(" ", "").toUpperCase(Locale.ROOT);
+		return normalizedBic.length() == BIC11_LENGTH && normalizedBic.endsWith("XXX")
+				? normalizedBic.substring(0, BIC8_LENGTH) : normalizedBic;
 	}
 
 	private static String trimToNull(String value) {
