@@ -115,7 +115,7 @@ public class HbciMapper {
 		booking.setSource(source);
 
 		booking.setSepaDetails(mapSepaDetails(umsLine));
-		booking.setAdditionalDetails(mapAdditionalFields(umsLine));
+		booking.setAdditionalDetails(mapAdditionalFields(umsLine, source));
 		
 		booking.setUpdatedAt(LocalDate.now(ZoneId.systemDefault()));
 
@@ -132,7 +132,7 @@ public class HbciMapper {
 		return details;
 	}
 
-	private static BookingAdditionalDetails mapAdditionalFields(UmsLine umsLine) {
+	private static BookingAdditionalDetails mapAdditionalFields(UmsLine umsLine, Source source) {
 		BookingAdditionalDetails details = new BookingAdditionalDetails();
 		details.setInstref(umsLine.instref);
 		details.setGvcode(umsLine.gvcode);
@@ -143,7 +143,9 @@ public class HbciMapper {
 		details.setRawData(umsLine.additional);
 		details.setSepa(umsLine.isSepa);
 		details.setCamt(umsLine.isCamt);
-		details.setBankSaldo(umsLine.saldo != null ? toBigDecimal(umsLine.saldo.value) : null);
+		if (source == null || !source.isPrenotification()) {
+			details.setBankSaldo(umsLine.saldo != null ? toBigDecimal(umsLine.saldo.value) : null);
+		}
 		return details;
 	}
 

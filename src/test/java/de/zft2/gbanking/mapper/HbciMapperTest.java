@@ -1,6 +1,7 @@
 package de.zft2.gbanking.mapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.math.BigDecimal;
@@ -10,6 +11,7 @@ import java.util.Date;
 import org.junit.jupiter.api.Test;
 import org.kapott.hbci.GV_Result.GVRKUms.UmsLine;
 import org.kapott.hbci.structures.Konto;
+import org.kapott.hbci.structures.Saldo;
 import org.kapott.hbci.structures.Value;
 
 import de.zft2.gbanking.db.dao.BankAccount;
@@ -64,6 +66,20 @@ class HbciMapperTest {
 		assertEquals(new BigDecimal("0.875"), booking.getForeignCurrencyDetails().getExchangeRateToBaseCurrency());
 		assertEquals(new BigDecimal("0.25"), booking.getFee().getAmount());
 		assertEquals(Currency.USD, booking.getFee().getCurrency());
+	}
+
+	@Test
+	void mapUmsLineToBooking_shouldIgnoreSyntheticBalanceForPrenotification() {
+		UmsLine line = new UmsLine();
+		line.bdate = new Date();
+		line.valuta = new Date();
+		line.value = new Value(new BigDecimal("-8.75"), "EUR");
+		line.saldo = new Saldo();
+		line.saldo.value = new Value(new BigDecimal("-8.75"), "EUR");
+
+		Booking booking = HbciMapper.mapUmsLineToBooking(42, line, Currency.EUR, Source.ONLINE_PRENO_NEW);
+
+		assertNull(booking.getAdditionalDetails().getBankSaldo());
 	}
 
 	@Test
