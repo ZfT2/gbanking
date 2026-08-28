@@ -18,7 +18,6 @@ import de.zft2.gbanking.messages.Messages;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.ChoiceDialog;
 import javafx.stage.Window;
 
 public final class CsvImportDialogSupport {
@@ -74,12 +73,8 @@ public final class CsvImportDialogSupport {
 		if (matches.size() == 1) {
 			return Optional.of(matches.get(0));
 		}
-		ChoiceDialog<Match> dialog = new ChoiceDialog<>(matches.get(0), matches);
-		dialog.initOwner(owner);
-		dialog.setTitle(text("UI_CSV_IMPORT_TITLE"));
-		dialog.setHeaderText(text("UI_CSV_IMPORT_FILTER_SELECT_HEADER"));
-		dialog.setContentText(text("UI_CSV_IMPORT_FILTER_SELECT_TEXT"));
-		return dialog.showAndWait();
+		return DialogWindowSupport.showSelection(owner, text("UI_CSV_IMPORT_TITLE"), text("UI_CSV_IMPORT_FILTER_SELECT_HEADER"),
+				text("UI_CSV_IMPORT_FILTER_SELECT_TEXT"), matches.get(0), matches);
 	}
 
 	private static boolean confirmHeaderDifferences(Window owner, Match match) {
@@ -108,12 +103,8 @@ public final class CsvImportDialogSupport {
 			return Optional.empty();
 		}
 		BankAccount defaultAccount = findSuggestedAccount(accounts, suggestedAccount);
-		ChoiceDialog<BankAccount> dialog = new ChoiceDialog<>(defaultAccount, accounts);
-		dialog.initOwner(owner);
-		dialog.setTitle(text("UI_CSV_IMPORT_TITLE"));
-		dialog.setHeaderText(text("UI_CSV_IMPORT_ACCOUNT_SELECT_HEADER", definitionName));
-		dialog.setContentText(text("UI_CSV_IMPORT_ACCOUNT_SELECT_TEXT"));
-		return dialog.showAndWait();
+		return DialogWindowSupport.showSelection(owner, text("UI_CSV_IMPORT_TITLE"),
+				text("UI_CSV_IMPORT_ACCOUNT_SELECT_HEADER", definitionName), text("UI_CSV_IMPORT_ACCOUNT_SELECT_TEXT"), defaultAccount, accounts);
 	}
 
 	private static BankAccount findSuggestedAccount(List<BankAccount> accounts, BankAccount suggestedAccount) {

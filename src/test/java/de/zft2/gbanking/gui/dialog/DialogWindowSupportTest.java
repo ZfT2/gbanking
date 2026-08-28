@@ -10,13 +10,18 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.gui.JavaFxTestSupport;
+import javafx.application.Platform;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 
 class DialogWindowSupportTest {
 
@@ -100,5 +105,40 @@ class DialogWindowSupportTest {
 
 		assertTrue(owner.isPresent());
 		assertEquals(stage, owner.get());
+	}
+
+	@Test
+	void showConfirmationShouldRecognizeCustomConfirmButton() {
+		ButtonType confirmButton = new ButtonType("Continue", ButtonBar.ButtonData.OK_DONE);
+
+		boolean confirmed = JavaFxTestSupport.callFx(() -> {
+			Platform.runLater(() -> fireDialogButton(confirmButton));
+			return DialogWindowSupport.showConfirmation(null, "Question", confirmButton, ButtonType.CANCEL);
+		});
+
+		assertTrue(confirmed);
+	}
+
+	@Test
+	void showSelectionShouldReturnSelectedValue() {
+		var selection = JavaFxTestSupport.callFx(() -> {
+			Platform.runLater(() -> fireDialogButton(ButtonType.OK));
+			return DialogWindowSupport.showSelection(null, "Title", "Header", "Text", "Second",
+					java.util.List.of("First", "Second"));
+		});
+
+		assertEquals("Second", selection.orElseThrow());
+	}
+
+	private static void fireDialogButton(ButtonType buttonType) {
+		for (Window window : Window.getWindows()) {
+			if (window.isShowing() && window.getScene() != null && window.getScene().getRoot() instanceof DialogPane dialogPane) {
+				if (dialogPane.lookupButton(buttonType) instanceof Button button) {
+					button.fire();
+					return;
+				}
+			}
+		}
+		throw new IllegalStateException("No open JavaFX dialog found");
 	}
 }

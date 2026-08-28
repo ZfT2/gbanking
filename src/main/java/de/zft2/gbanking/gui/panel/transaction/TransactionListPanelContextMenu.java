@@ -27,12 +27,10 @@ import de.zft2.gbanking.service.ServiceRegistry;
 import javafx.collections.ObservableList;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.layout.Region;
 
 class TransactionListPanelContextMenu extends ContextMenu implements BaseMessagesBean {
 
@@ -314,15 +312,9 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 		List<CategoryOption> categoryOptions = categories.stream().map(CategoryOption::new).toList();
 		CategoryOption defaultOption = resolvePreselectedCategoryOption(categoryOptions, actionBookings).orElse(categoryOptions.get(0));
 
-		ChoiceDialog<CategoryOption> dialog = new ChoiceDialog<>(defaultOption, categoryOptions);
-		if (panelTransactionList.getTableWindow() != null) {
-			dialog.initOwner(panelTransactionList.getTableWindow());
-		}
-		dialog.setTitle(getText("ALERT_BOOKING_ASSIGN_CATEGORY_TITLE"));
-		dialog.setHeaderText(getText("ALERT_BOOKING_ASSIGN_CATEGORY_HEADER"));
-		dialog.setContentText(getText("ALERT_BOOKING_ASSIGN_CATEGORY_TEXT"));
-		dialog.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
-		return dialog.showAndWait().map(CategoryOption::category);
+		return DialogWindowSupport.showSelection(panelTransactionList.getTableWindow(), getText("ALERT_BOOKING_ASSIGN_CATEGORY_TITLE"),
+				getText("ALERT_BOOKING_ASSIGN_CATEGORY_HEADER"), getText("ALERT_BOOKING_ASSIGN_CATEGORY_TEXT"), defaultOption, categoryOptions)
+				.map(CategoryOption::category);
 	}
 
 	private Optional<CategoryOption> resolvePreselectedCategoryOption(List<CategoryOption> categoryOptions, List<Booking> actionBookings) {
