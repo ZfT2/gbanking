@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-31
+
+### Added
+- Sepa instant status inquiry
+- Optical IBAN validation at moneytransfer forms
+- Add withEmptyAccounts option to settings for XML converter
+- show number of items on All Accounts and All Bookings pages
+
+### Fixed
+- JUnit Test
+- try to fix prenotification booking retrival
+- normalize BIC for bank name lookup
+
+### Changed
+- JUnit Tests test data centralisation
+- Dialogs code
+
+### Maintenance
+- release: prepare next development version 0.4.1-SNAPSHOT
+
 ## [0.4.0] - 2026-08-26
 
 ### Added
@@ -465,29 +485,4 @@ All notable changes to this project will be documented in this file.
 ### Maintenance
 - Update libs
 - release: prepare next development version 0.5.1-SNAPSHOT
-
-## [0.5.0] - 2026-05-08
-
-### Added
-- Account editing
-- Archive tab for moneytransfers
-- Protocol for moneytransfers
-- Progress monitor for DB migration
-- Standing orders and sheduled money transfers
-- Recipient name in booking detail
-
-### Fixed
-- NPE on adjustRebookings
-- Icon handling
-- updatedAt to timestamp type
-- sonar findings
-- repair warnings etc
-- avoid online transfer if no baankaccess is configured for account
-
-### Changed
-- Code refactoring
-
-### Maintenance
-- Update libs
-- release: prepare next development version 0.4.1-SNAPSHOT
 
