@@ -1159,16 +1159,10 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 
 		ButtonType deleteCrossButton = new ButtonType(getText("UI_BUTTON_YES"), ButtonBar.ButtonData.YES);
 		ButtonType keepCrossButton = new ButtonType(getText("UI_BUTTON_NO"), ButtonBar.ButtonData.NO);
-		Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-		var owner = getOwnerWindow();
-		if (owner != null) {
-			alert.initOwner(owner);
-		}
-		alert.setTitle(getText("ALERT_SPLIT_BOOKING_DELETE_CROSS_TITLE"));
-		alert.setHeaderText(getText("ALERT_SPLIT_BOOKING_DELETE_CROSS_HEADER"));
-		alert.setContentText(getText("ALERT_SPLIT_BOOKING_DELETE_CROSS_TEXT"));
-		alert.getButtonTypes().setAll(deleteCrossButton, keepCrossButton, ButtonType.CANCEL);
-		ButtonType result = alert.showAndWait().orElse(ButtonType.CANCEL);
+		ButtonType result = DialogWindowSupport.showChoice(getOwnerWindow(), Alert.AlertType.CONFIRMATION,
+				getText("ALERT_SPLIT_BOOKING_DELETE_CROSS_TITLE"), getText("ALERT_SPLIT_BOOKING_DELETE_CROSS_HEADER"),
+				getText("ALERT_SPLIT_BOOKING_DELETE_CROSS_TEXT"), deleteCrossButton, keepCrossButton, ButtonType.CANCEL)
+				.orElse(ButtonType.CANCEL);
 		if (result == deleteCrossButton) {
 			return CrossBookingDeleteChoice.DELETE_CROSS;
 		}

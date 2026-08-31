@@ -19,8 +19,8 @@ import org.kapott.hbci.manager.HBCIUtils;
 
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccess;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class HBCIPassportPinTanDBTest {
@@ -52,7 +52,7 @@ class HBCIPassportPinTanDBTest {
 		bpd.setProperty("BPA.version", "12");
 		Properties upd = new Properties();
 		upd.setProperty("UPA.version", "34");
-		BankAccess bankAccess = TestData.createSampleBankAccess("12345678");
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("12345678");
 		bankAccess.getFints().setBpd(bpd);
 		bankAccess.getFints().setUpd(upd);
 		bankAccess = dbController.insertOrUpdate(bankAccess);
@@ -80,7 +80,7 @@ class HBCIPassportPinTanDBTest {
 		Properties upd = new Properties();
 		upd.setProperty("UPA.version", "34");
 		upd.setProperty("KInfo.customerid", "");
-		BankAccess bankAccess = TestData.createSampleBankAccess("87654321");
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("87654321");
 		bankAccess.getFints().setBpd(bpd);
 		bankAccess.getFints().setUpd(upd);
 		bankAccess = dbController.insertOrUpdate(bankAccess);
@@ -98,7 +98,7 @@ class HBCIPassportPinTanDBTest {
 
 	@Test
 	void readAndSaveChanges_shouldNormalizeBlankPassportValues() {
-		BankAccess bankAccess = TestData.createSampleBankAccess("11223344");
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("11223344");
 		bankAccess.getFints().setCustomerId(" ");
 		bankAccess.getFints().setSysId("");
 		bankAccess.getFints().setHbciVersion(" ");

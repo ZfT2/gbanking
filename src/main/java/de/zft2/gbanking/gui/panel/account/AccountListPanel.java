@@ -328,6 +328,9 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 		if (accountListScope == AccountListScope.FOLLOW_VIEW_SETTING && GuiContext.isOnlyOnlineAccountsVisible()) {
 			title += " " + getText(UI_PANEL_ACCOUNT_ONLINE_ONLY_SUFFIX);
 		}
+		if (parentPanel.getPageContext() == PageContext.ALL_ACCOUNTS) {
+			title += " (" + masterData.size() + ")";
+		}
 		setPanelTitle(title);
 	}
 

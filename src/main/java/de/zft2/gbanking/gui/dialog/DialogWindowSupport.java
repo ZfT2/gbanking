@@ -1,6 +1,7 @@
 package de.zft2.gbanking.gui.dialog;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -14,6 +15,8 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ChoiceDialog;
+import javafx.scene.control.Dialog;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -116,12 +119,12 @@ public final class DialogWindowSupport implements BaseMessages {
 		alert.showAndWait();
 	}
 
-	public static boolean showConfirmation(Window parentWindow, String text, ButtonType... buttonTypes) {
-		Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION, text, buttonTypes);
+	public static boolean showConfirmation(Window parentWindow, String text, ButtonType confirmButton, ButtonType cancelButton) {
+		Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION, text, confirmButton, cancelButton);
 		initOwner(confirmation, parentWindow);
 		confirmation.setHeaderText(null);
 		confirmation.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
-		return confirmation.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
+		return confirmation.showAndWait().filter(confirmButton::equals).isPresent();
 	}
 
 	public static boolean showConfirmation(Window parentWindow, Alert.AlertType alertType, String title, String header, String text,
@@ -138,6 +141,17 @@ public final class DialogWindowSupport implements BaseMessages {
 		alert.setContentText(text);
 		alert.getButtonTypes().setAll(buttonTypes);
 		return alert.showAndWait();
+	}
+
+	public static <T> Optional<T> showSelection(Window parentWindow, String title, String header, String text, T defaultValue,
+			Collection<T> values) {
+		ChoiceDialog<T> dialog = new ChoiceDialog<>(defaultValue, values);
+		initOwner(dialog, parentWindow);
+		dialog.setTitle(title);
+		dialog.setHeaderText(header);
+		dialog.setContentText(text);
+		dialog.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
+		return dialog.showAndWait();
 	}
 
 	public static boolean showConfirmation(Window parentWindow, Alert.AlertType alertType, String title, String header, Node content,
@@ -168,10 +182,10 @@ public final class DialogWindowSupport implements BaseMessages {
 		return alert;
 	}
 
-	private static void initOwner(Alert alert, Window parentWindow) {
+	private static void initOwner(Dialog<?> dialog, Window parentWindow) {
 		Optional<Window> owner = resolveDialogOwner(parentWindow);
 		if (owner.isPresent()) {
-			alert.initOwner(owner.get());
+			dialog.initOwner(owner.get());
 		}
 	}
 

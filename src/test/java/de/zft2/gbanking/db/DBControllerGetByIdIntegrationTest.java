@@ -20,14 +20,15 @@ import de.zft2.gbanking.db.dao.enu.ForeignChargeBearer;
 import de.zft2.gbanking.db.dao.enu.InstituteStatus;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class DBControllerGetByIdIntegrationTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void getByIdShouldMapMoneyTransferRecipientAndForeignDetails() {
-		BankAccess bankAccess = db.insertOrUpdate(TestData.createSampleBankAccess("12345678"));
-		BankAccount account = db.insertOrUpdate(TestData.createSampleAccount(bankAccess.getId()));
-		Recipient recipient = db.insertOrUpdate(TestData.createSampleRecipient01());
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("12345678"));
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
+		Recipient recipient = db.insertOrUpdate(TestDataFactory.createSampleRecipient01());
 
 		MoneyTransferForeign foreignDetails = new MoneyTransferForeign();
 		foreignDetails.setCurrency("USD");

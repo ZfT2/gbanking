@@ -18,14 +18,15 @@ import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.service.account.AccountTransactionRetrievalResult;
 import de.zft2.gbanking.service.account.AccountTransactionService;
 import de.zft2.gbanking.service.account.PendingBookingSnapshot;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class ExternalPendingBookingPersistenceTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void completeSnapshotShouldOnlyReplacePendingBookingsInCoveredPeriod() {
-		BankAccess access = TestData.createSampleBankAccess("12345678");
+		BankAccess access = TestDataFactory.createSampleBankAccess("12345678");
 		db.insertOrUpdate(access);
-		BankAccount account = TestData.createSampleAccount(access.getId());
+		BankAccount account = TestDataFactory.createSampleAccount(access.getId());
 		db.insertOrUpdate(account);
 		db.insertOrUpdate(pending(account, LocalDate.of(2026, 7, 1), "old"));
 		db.insertOrUpdate(pending(account, LocalDate.of(2026, 8, 10), "replace"));

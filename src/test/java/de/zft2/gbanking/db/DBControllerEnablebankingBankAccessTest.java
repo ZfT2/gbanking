@@ -23,6 +23,7 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Psd2ClientConfiguration;
 import de.zft2.gbanking.db.dao.enu.BankAccessType;
 import de.zft2.gbanking.db.dao.enu.Psd2ClientMode;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class DBControllerEnablebankingBankAccessTest extends DBControllerIntegrationBaseTest {
 
@@ -37,7 +38,7 @@ class DBControllerEnablebankingBankAccessTest extends DBControllerIntegrationBas
 
 		BankAccess access = enablebankingAccess(configuration.getId());
 		db.insertOrUpdate(access);
-		BankAccount account = TestData.createSampleAccount(access.getId());
+		BankAccount account = TestDataFactory.createSampleAccount(access.getId());
 		account.setProviderAccountId("stable-identification-hash");
 		db.insertOrUpdate(account);
 
@@ -97,7 +98,7 @@ class DBControllerEnablebankingBankAccessTest extends DBControllerIntegrationBas
 
 	@Test
 	void changingBankAccessTypeShouldRemoveObsoleteDetailRows() throws Exception {
-		BankAccess access = db.insertOrUpdate(TestData.createSampleBankAccess("44444444"));
+		BankAccess access = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("44444444"));
 		assertDetailRowCounts(access.getId(), 1, 0, 0);
 
 		BankAccessPaypal paypal = new BankAccessPaypal();

@@ -19,7 +19,9 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.CategoryRule;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
+import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.enu.OrderType;
+import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.demo.DemoDataInstaller;
 import de.zft2.gbanking.service.BankingCapabilityService;
@@ -58,8 +60,11 @@ class DemoDataInstallerTest extends DBControllerIntegrationBaseTest {
 		assertEquals(7, transfers.size());
 		MoneyTransfer scheduledTransfer = transfers.stream().filter(transfer -> transfer.getId() == 940004).findFirst().orElseThrow();
 		assertEquals(LocalDate.of(2026, Month.SEPTEMBER, 15), scheduledTransfer.getExecutionDate());
+		assertEquals("DEMO-SCHEDULED-001", scheduledTransfer.getBankOrderId());
+		MoneyTransferProtocol instantPaymentProtocol = db.getAllByParent(MoneyTransferProtocol.class, 940002).get(0);
+		assertEquals(SepaOrderStatus.COMPLETED, instantPaymentProtocol.getSepaOrderStatus());
 		assertEquals(1, countRows("moneytransferForeign"));
-		assertEquals(4, countRows("moneytransferProtocol"));
+		assertEquals(6, countRows("moneytransferProtocol"));
 	}
 
 	private void assertAdditionalCategoriesAreUsed() throws SQLException {

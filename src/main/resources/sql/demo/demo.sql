@@ -259,31 +259,31 @@ INSERT INTO bookingFee (id, booking_id, amount, currency, updatedAt) VALUES
 
 [SQL_DEMO_INSERT_MONEY_TRANSFER_HISTORY]
 INSERT INTO moneytransfer (
-    id, account_id, moneytransferType, recipient_id, purpose, purposeCode, amount,
-    executionDate, executionDay, moneytransferStatus, standingorderMode,
-    bankOrderId, historyorder_id, updatedAt
+	 id, account_id, moneytransferType, recipient_id, purpose, purposeCode, amount,
+	 executionDate, executionDay, moneytransferStatus, standingorderMode,
+	 historyorder_id, updatedAt
 ) VALUES
-    (940006, 900001, 4, 930002, 'Alter Stromabschlag', 'SUPP', 75.00,
-     '10.01.26', 10, 8, 1, 'DEMO-STANDING-001', NULL, '2026-02-01 10:00:00.000');
+	 (940006, 900001, 4, 930002, 'Alter Stromabschlag', 'SUPP', 75.00,
+	  '10.01.26', 10, 8, 1, NULL, '2026-02-01 10:00:00.000');
 
 [SQL_DEMO_INSERT_MONEY_TRANSFERS]
 INSERT INTO moneytransfer (
-    id, account_id, moneytransferType, recipient_id, purpose, purposeCode, amount,
-    executionDate, executionDay, moneytransferStatus, standingorderMode,
-    bankOrderId, historyorder_id, updatedAt
+	 id, account_id, moneytransferType, recipient_id, purpose, purposeCode, amount,
+	 executionDate, executionDay, moneytransferStatus, standingorderMode,
+	 historyorder_id, updatedAt
 ) VALUES
-    (940001, 900001, 1, 930004, 'Restzahlung Sommerurlaub', 'OTHR', 650.00,
-     NULL, NULL, 1, NULL, NULL, NULL, '2026-06-25 10:00:00.000'),
-    (940002, 900001, 2, 930005, 'Sofortige Kostenerstattung', 'GDDS', 42.50,
-     NULL, NULL, 2, NULL, NULL, NULL, '2026-06-20 10:00:00.000'),
-    (940003, 900001, 6, 930006, 'Dringende Ersatzteillieferung', 'GDSV', 185.75,
-     NULL, NULL, 4, NULL, NULL, NULL, '2026-06-21 10:00:00.000'),
-    (940004, 900001, 3, 930004, 'Anzahlung Winterurlaub', 'OTHR', 300.00,
-     '15.09.26', NULL, 5, NULL, 'DEMO-SCHEDULED-001', NULL, '2026-06-22 10:00:00.000'),
-    (940005, 900001, 4, 930002, 'Stromabschlag aktuell', 'SUPP', 82.00,
-     '10.03.26', 10, 5, 1, 'DEMO-STANDING-001', 940006, '2026-06-23 10:00:00.000'),
-    (940007, 900001, 5, 930006, 'Internationale Warenlieferung', 'GDDS', 275.00,
-     NULL, NULL, 1, NULL, NULL, NULL, '2026-06-24 10:00:00.000');
+	 (940001, 900001, 1, 930004, 'Restzahlung Sommerurlaub', 'OTHR', 650.00,
+	  NULL, NULL, 1, NULL, NULL, '2026-06-25 10:00:00.000'),
+	 (940002, 900001, 2, 930005, 'Sofortige Kostenerstattung', 'GDDS', 42.50,
+	  NULL, NULL, 2, NULL, NULL, '2026-06-20 10:00:00.000'),
+	 (940003, 900001, 6, 930006, 'Dringende Ersatzteillieferung', 'GDSV', 185.75,
+	  NULL, NULL, 4, NULL, NULL, '2026-06-21 10:00:00.000'),
+	 (940004, 900001, 3, 930004, 'Anzahlung Winterurlaub', 'OTHR', 300.00,
+	  '15.09.26', NULL, 5, NULL, NULL, '2026-06-22 10:00:00.000'),
+	 (940005, 900001, 4, 930002, 'Stromabschlag aktuell', 'SUPP', 82.00,
+	  '10.03.26', 10, 5, 1, 940006, '2026-06-23 10:00:00.000'),
+	 (940007, 900001, 5, 930006, 'Internationale Warenlieferung', 'GDDS', 275.00,
+	  NULL, NULL, 1, NULL, NULL, '2026-06-24 10:00:00.000');
 
 [SQL_DEMO_INSERT_FOREIGN_TRANSFER_DETAILS]
 INSERT INTO moneytransferForeign (
@@ -298,16 +298,21 @@ INSERT INTO moneytransferForeign (
 
 [SQL_DEMO_INSERT_MONEY_TRANSFER_PROTOCOLS]
 INSERT INTO moneytransferProtocol (
-    id, moneytransfer_id, moneytransferStatus, timeStart, timeFinish, protocolText, updatedAt
+	 id, moneytransfer_id, moneytransferStatus, timeStart, timeFinish, bankOrderId,
+	 sepaOrderStatus, sepaCancellationCode, protocolText, updatedAt
 ) VALUES
-    (942001, 940001, 1, '2026-06-25 10:00:00.000', '2026-06-25 10:00:01.000',
-     'Demo-Auftrag wurde lokal gespeichert.', '2026-06-25 10:00:01.000'),
-    (942002, 940002, 2, '2026-06-20 10:00:00.000', '2026-06-20 10:00:02.000',
-     'Demo-Bankmeldung: Auftrag angenommen.', '2026-06-20 10:00:02.000'),
-    (942003, 940003, 4, '2026-06-21 10:00:00.000', '2026-06-21 10:00:03.000',
-     'Demo-Bankmeldung: Auftrag konnte nicht ausgefuehrt werden.', '2026-06-21 10:00:03.000'),
-    (942004, 940005, 5, '2026-06-23 10:00:00.000', '2026-06-23 10:00:04.000',
-     'Demo-Bestand: Dauerauftrag wurde abgeglichen.', '2026-06-23 10:00:04.000');
+	 (942001, 940001, 1, '2026-06-25T10:00:00', '2026-06-25T10:00:01', NULL, NULL, NULL,
+	  'Demo-Auftrag wurde lokal gespeichert.', '2026-06-25 10:00:01.000'),
+	 (942002, 940002, 2, '2026-06-20T10:00:00', '2026-06-20T10:00:02', 'DEMO-INSTANT-001', 7, NULL,
+	  'Demo-Bankmeldung: Auftrag angenommen.', '2026-06-20 10:00:02.000'),
+	 (942003, 940003, 4, '2026-06-21T10:00:00', '2026-06-21T10:00:03', NULL, NULL, NULL,
+	  'Demo-Bankmeldung: Auftrag konnte nicht ausgefuehrt werden.', '2026-06-21 10:00:03.000'),
+	 (942004, 940005, 5, '2026-06-23T10:00:00', '2026-06-23T10:00:04', 'DEMO-STANDING-001', NULL, NULL,
+	  'Demo-Bestand: Dauerauftrag wurde abgeglichen.', '2026-06-23 10:00:04.000'),
+	 (942005, 940006, 8, '2026-02-01T10:00:00', '2026-02-01T10:00:00', 'DEMO-STANDING-001', NULL, NULL,
+	  'Demo-Bestand: Historischer Dauerauftrag.', '2026-02-01 10:00:00.000'),
+	 (942006, 940004, 5, '2026-06-22T10:00:00', '2026-06-22T10:00:00', 'DEMO-SCHEDULED-001', NULL, NULL,
+	  'Demo-Bestand: Terminauftrag wurde abgeglichen.', '2026-06-22 10:00:00.000');
 
 [SQL_DEMO_INSERT_PARAMETER_DATA]
 INSERT INTO parameterData (id, pdKey, pdType, updatedAt) VALUES

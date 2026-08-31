@@ -23,13 +23,13 @@ import org.kapott.hbci.manager.HBCIUtils;
 
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.file.BaseFileTest;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FileExportMT940BeanTest extends BaseFileTest {
@@ -77,7 +77,7 @@ class FileExportMT940BeanTest extends BaseFileTest {
 	}
 
 	private BankAccount createAccountWithBooking() {
-		BankAccount account = TestData.createSampleAccount(null);
+		BankAccount account = TestDataFactory.createSampleAccount(null);
 		account.setAccountName("Giro MT940");
 		account.setIban("DE11111111111111111111");
 		account.setNumber("11111111");

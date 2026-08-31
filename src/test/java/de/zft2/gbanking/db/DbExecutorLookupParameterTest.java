@@ -9,18 +9,19 @@ import org.junit.jupiter.api.Test;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class DbExecutorLookupParameterTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void insertOrUpdateBankAccount_shouldBindIdenticalLookupValuesToEveryPosition() {
 		String sharedIdentifier = "SHARED-LOOKUP-VALUE";
-		BankAccount existingAccount = TestData.createSampleAccount(null);
+		BankAccount existingAccount = TestDataFactory.createSampleAccount(null);
 		existingAccount.setIban("DIFFERENT-IBAN");
 		existingAccount.setNumber(sharedIdentifier);
 		db.insertOrUpdate(existingAccount);
 
-		BankAccount matchingAccount = TestData.createSampleAccount(null);
+		BankAccount matchingAccount = TestDataFactory.createSampleAccount(null);
 		matchingAccount.setIban(sharedIdentifier);
 		matchingAccount.setNumber(sharedIdentifier);
 		db.insertOrUpdate(matchingAccount);
@@ -31,17 +32,17 @@ class DbExecutorLookupParameterTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void insertOrUpdateBankAccount_shouldRejectAmbiguousLookup() {
-		BankAccount firstAccount = TestData.createSampleAccount(null);
+		BankAccount firstAccount = TestDataFactory.createSampleAccount(null);
 		firstAccount.setIban("FIRST-IBAN");
 		firstAccount.setNumber("FIRST-NUMBER");
 		db.insertOrUpdate(firstAccount);
 
-		BankAccount secondAccount = TestData.createSampleAccount(null);
+		BankAccount secondAccount = TestDataFactory.createSampleAccount(null);
 		secondAccount.setIban("SECOND-IBAN");
 		secondAccount.setNumber("SECOND-NUMBER");
 		db.insertOrUpdate(secondAccount);
 
-		BankAccount ambiguousAccount = TestData.createSampleAccount(null);
+		BankAccount ambiguousAccount = TestDataFactory.createSampleAccount(null);
 		ambiguousAccount.setIban(firstAccount.getIban());
 		ambiguousAccount.setNumber(secondAccount.getNumber());
 
@@ -52,11 +53,11 @@ class DbExecutorLookupParameterTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void insertOrUpdateBankAccess_shouldUseBankCodeAndUserIdAsIdentity() {
-		BankAccess firstAccess = TestData.createSampleBankAccess("12345678");
+		BankAccess firstAccess = TestDataFactory.createSampleBankAccess("12345678");
 		firstAccess.getFints().setUserId("first-user");
 		db.insertOrUpdate(firstAccess);
 
-		BankAccess secondAccess = TestData.createSampleBankAccess("12345678");
+		BankAccess secondAccess = TestDataFactory.createSampleBankAccess("12345678");
 		secondAccess.getFints().setUserId("second-user");
 		db.insertOrUpdate(secondAccess);
 
@@ -69,13 +70,13 @@ class DbExecutorLookupParameterTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void accountIdentifierMaps_shouldRejectAmbiguousKeys() {
-		BankAccount firstAccount = TestData.createSampleAccount(null);
+		BankAccount firstAccount = TestDataFactory.createSampleAccount(null);
 		firstAccount.setAccountName("Duplicate account");
 		firstAccount.setIban("FIRST-UNIQUE-IBAN");
 		firstAccount.setNumber("FIRST-UNIQUE-NUMBER");
 		db.insertOrUpdate(firstAccount);
 
-		BankAccount secondAccount = TestData.createSampleAccount(null);
+		BankAccount secondAccount = TestDataFactory.createSampleAccount(null);
 		secondAccount.setAccountName(firstAccount.getAccountName());
 		secondAccount.setIban("SECOND-UNIQUE-IBAN");
 		secondAccount.setNumber("SECOND-UNIQUE-NUMBER");

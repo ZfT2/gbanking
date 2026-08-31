@@ -1,6 +1,7 @@
 package de.zft2.gbanking.db.dao.logic;
 
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -10,6 +11,7 @@ import de.zft2.gbanking.db.StatementsConfig;
 import de.zft2.gbanking.db.StatementsConfig.StatementType;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferForeign;
+import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.enu.ForeignChargeBearer;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
@@ -28,16 +30,33 @@ public class StatementsLogicMoneyTransfer extends StatementsLogicDefault<MoneyTr
 
 	@Override
 	public MoneyTransfer insertOrUpdateSingle(MoneyTransfer moneyTransfer) {
-		rejectArchivedMoneyTransferUpdate(moneyTransfer);
+		MoneyTransferStatus existingStatus = validateAndGetExistingStatus(moneyTransfer);
 		MoneyTransfer persistedTransfer = null;
 		if (moneyTransfer != null) {
+			boolean insert = moneyTransfer.getId() <= 0;
+			boolean initiallyReferencedInventory = !insert && moneyTransfer.getMoneytransferStatus() == MoneyTransferStatus.INVENTORY
+					&& existingStatus == MoneyTransferStatus.NEW;
 			if (moneyTransfer.getId() > 0 && moneyTransfer.getOrderType() != OrderType.FOREIGN_TRANSFER) {
 				deleteForeignTransferDetails(moneyTransfer);
 			}
 			persistedTransfer = super.insertOrUpdateSingle(moneyTransfer);
+			if (insert || initiallyReferencedInventory) {
+				persistInitialBankOrderReference(persistedTransfer);
+			}
 		}
 		persistForeignTransferDetails(persistedTransfer);
 		return persistedTransfer;
+	}
+
+	private void persistInitialBankOrderReference(MoneyTransfer moneyTransfer) {
+		if (moneyTransfer == null || moneyTransfer.getId() <= 0 || moneyTransfer.getBankOrderId() == null
+				|| moneyTransfer.getBankOrderId().isBlank()) {
+			return;
+		}
+		LocalDateTime now = LocalDateTime.now();
+		MoneyTransferProtocol protocol = new MoneyTransferProtocol(moneyTransfer.getId(), moneyTransfer.getMoneytransferStatus(), now, now);
+		protocol.setBankOrderId(moneyTransfer.getBankOrderId().trim());
+		new StatementsLogicMoneyTransferProtocol().insertOrUpdateSingle(protocol);
 	}
 
 	private void persistForeignTransferDetails(MoneyTransfer moneyTransfer) {
@@ -84,14 +103,15 @@ public class StatementsLogicMoneyTransfer extends StatementsLogicDefault<MoneyTr
 		}
 	}
 
-	private void rejectArchivedMoneyTransferUpdate(MoneyTransfer moneyTransfer) {
+	private MoneyTransferStatus validateAndGetExistingStatus(MoneyTransfer moneyTransfer) {
 		if (moneyTransfer == null || moneyTransfer.getId() <= 0) {
-			return;
+			return null;
 		}
 		MoneyTransferStatus existingStatus = getExistingMoneyTransferStatus(moneyTransfer.getId());
-		if (isArchivedStatus(existingStatus)) {
+		if (existingStatus != null && existingStatus.isArchiveStatus()) {
 			throw new GBankingException("Archived money transfers must not be changed");
 		}
+		return existingStatus;
 	}
 
 	private MoneyTransferStatus getExistingMoneyTransferStatus(int moneyTransferId) {
@@ -105,11 +125,6 @@ public class StatementsLogicMoneyTransfer extends StatementsLogicDefault<MoneyTr
 		} catch (SQLException exception) {
 			throw new GBankingException("Error reading money transfer status", exception);
 		}
-	}
-
-	private boolean isArchivedStatus(MoneyTransferStatus status) {
-		return status == MoneyTransferStatus.SENT || status == MoneyTransferStatus.DELETED || status == MoneyTransferStatus.IMPORTED
-				|| status == MoneyTransferStatus.SUPERSEDED || status == MoneyTransferStatus.NOT_IN_BANK_INVENTORY;
 	}
 
 }

@@ -28,7 +28,6 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
@@ -218,12 +217,8 @@ public class BankAccessDialogHolder extends BasePanel {
 		List<BankAccount> choices = new ArrayList<>();
 		choices.add(newAccountChoice);
 		choices.addAll(candidates);
-		ChoiceDialog<BankAccount> choiceDialog = new ChoiceDialog<>(newAccountChoice, choices);
-		choiceDialog.initOwner(owner);
-		choiceDialog.setTitle(getText("UI_PAYPAL_ACCOUNT_LINK_TITLE"));
-		choiceDialog.setHeaderText(getText("UI_PAYPAL_ACCOUNT_LINK_HEADER"));
-		choiceDialog.setContentText(getText("UI_PAYPAL_ACCOUNT_LINK_PROMPT"));
-		choiceDialog.showAndWait()
+		DialogWindowSupport.showSelection(owner, getText("UI_PAYPAL_ACCOUNT_LINK_TITLE"), getText("UI_PAYPAL_ACCOUNT_LINK_HEADER"),
+				getText("UI_PAYPAL_ACCOUNT_LINK_PROMPT"), newAccountChoice, choices)
 				.filter(account -> account.getId() > 0)
 				.ifPresent(account -> bankAccessService.linkPaypalAccount(bankAccess, account));
 	}

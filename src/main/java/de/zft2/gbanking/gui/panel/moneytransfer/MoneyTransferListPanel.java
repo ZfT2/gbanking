@@ -2,6 +2,7 @@ package de.zft2.gbanking.gui.panel.moneytransfer;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -15,6 +16,7 @@ import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
+import de.zft2.gbanking.gui.BackgroundActionCoordinator;
 import de.zft2.gbanking.gui.EnvironmentOptions;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.dialog.MoneyTransferImportStatusDialog;
@@ -22,16 +24,21 @@ import de.zft2.gbanking.gui.dialog.MoneyTransferProtocolDialog;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.gui.enu.FileType;
 import de.zft2.gbanking.gui.panel.AbstractFilterableTablePanel;
+import de.zft2.gbanking.gui.panel.action.PinAskDialog;
 import de.zft2.gbanking.gui.progress.MoneyTransferImportProgressBarPanel;
 import de.zft2.gbanking.gui.util.FileChooserDirectorySupport;
 import de.zft2.gbanking.gui.util.FxTableUtils;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
+import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.service.moneytransfer.MoneyTransferService;
 import javafx.collections.FXCollections;
+import javafx.concurrent.Task;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableColumn;
 import javafx.stage.FileChooser;
+import javafx.stage.Stage;
 
 public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTransfer> {
 
@@ -42,6 +49,8 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 	private static final double PURPOSE_COLUMN_PREF_WIDTH = 420;
 	private static final double AMOUNT_COLUMN_MIN_WIDTH = 110;
 	private static final double AMOUNT_COLUMN_PREF_WIDTH = 120;
+	private static final double INSTANT_STATUS_COLUMN_MIN_WIDTH = 180;
+	private static final double INSTANT_STATUS_COLUMN_PREF_WIDTH = 230;
 
 	private final MoneyTransferDetailListTabPanel parentPanel;
 	private final OrderType orderType;
@@ -84,8 +93,11 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 				transfer -> transfer.getRecipient() != null ? transfer.getRecipient().getBank() : "", 150, 180);
 		TableColumn<MoneyTransfer, String> statusCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_STATUS"),
 				transfer -> transfer.getMoneytransferStatus() != null ? transfer.getMoneytransferStatus().toString() : "", 120);
+		TableColumn<MoneyTransfer, String> instantStatusCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_INSTANT_PAYMENT_STATUS"),
+				transfer -> transfer.getSepaOrderStatus() != null ? transfer.getSepaOrderStatus().toString() : "", INSTANT_STATUS_COLUMN_MIN_WIDTH,
+				INSTANT_STATUS_COLUMN_PREF_WIDTH);
 
-		return List.of(selectedCol, dateCol, recipientCol, purposeCol, amountCol, ibanCol, bankCol, statusCol);
+		return List.of(selectedCol, dateCol, recipientCol, purposeCol, amountCol, ibanCol, bankCol, statusCol, instantStatusCol);
 	}
 
 	private void configureContextMenu() {
@@ -105,8 +117,10 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 	private ContextMenu createContextMenu() {
 		MenuItem showProtocolItem = new MenuItem(getText("UI_MENU_MONEYTRANSFER_PROTOCOL_SHOW"));
 		showProtocolItem.setOnAction(event -> showSelectedProtocol());
+		MenuItem retrieveInstantStatusItem = new MenuItem(getText("UI_MENU_MONEYTRANSFER_INSTANT_STATUS_RETRIEVE"));
+		retrieveInstantStatusItem.setOnAction(event -> retrieveSelectedInstantPaymentStatuses());
 
-		ContextMenu contextMenu = new ContextMenu(showProtocolItem);
+		ContextMenu contextMenu = new ContextMenu(showProtocolItem, retrieveInstantStatusItem);
 		MenuItem importCsvItem = createImportCsvItem();
 		if (importCsvItem != null) {
 			contextMenu.getItems().add(importCsvItem);
@@ -114,11 +128,80 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 
 		contextMenu.setOnShowing(event -> {
 			showProtocolItem.setDisable(getSelectedMoneyTransfer() == null);
+			retrieveInstantStatusItem.setDisable(!canRetrieveInstantPaymentStatus(getStatusQuerySelection()));
 			if (importCsvItem != null) {
 				importCsvItem.setDisable(parentPanel.getSelectedAccount() == null);
 			}
 		});
 		return contextMenu;
+	}
+
+	private void retrieveSelectedInstantPaymentStatuses() {
+		List<MoneyTransfer> selectedTransfers = getStatusQuerySelection();
+		if (!canRetrieveInstantPaymentStatus(selectedTransfers)) {
+			return;
+		}
+		if (selectedTransfers.stream().anyMatch(transfer -> transfer.getBankOrderId() == null || transfer.getBankOrderId().isBlank())) {
+			showWarning(getText("ALERT_MONEYTRANSFER_INSTANT_STATUS_REFERENCE_MISSING"));
+			return;
+		}
+
+		BankAccount selectedAccount = parentPanel.getSelectedAccount();
+		if (selectedAccount == null || selectedAccount.getBankAccessId() == null) {
+			showWarning(getText("ALERT_MONEYTRANSFER_INSTANT_STATUS_BANK_ACCESS_MISSING"));
+			return;
+		}
+
+		char[] pin = requestPin(selectedAccount);
+		if (pin == null || pin.length == 0) {
+			return;
+		}
+		startInstantPaymentStatusTask(selectedTransfers, selectedAccount, pin);
+	}
+
+	private char[] requestPin(BankAccount account) {
+		PinAskDialog pinWindow = new PinAskDialog(getTableWindow());
+		pinWindow.setBankInfo(account.getBlz(), account.getBankName());
+		Stage pinDialog = pinWindow.createNewPinAskDialog();
+		pinDialog.showAndWait();
+		return pinWindow.getPin();
+	}
+
+	private void startInstantPaymentStatusTask(List<MoneyTransfer> selectedTransfers, BankAccount account, char[] pin) {
+		Task<Integer> task = new Task<>() {
+			@Override
+			protected Integer call() {
+				return ServiceRegistry.getService(MoneyTransferService.class).retrieveInstantPaymentStatuses(selectedTransfers, account, pin);
+			}
+		};
+		task.setOnSucceeded(event -> handleInstantPaymentStatusResult(task.getValue(), selectedTransfers.size()));
+		task.setOnFailed(event -> {
+			Arrays.fill(pin, '\0');
+			log.error("Instant payment status retrieval failed", task.getException());
+			showWarning(getText("ALERT_MONEYTRANSFER_INSTANT_STATUS_RETRIEVAL_FAILED"));
+		});
+		task.setOnCancelled(event -> Arrays.fill(pin, '\0'));
+		if (!BackgroundActionCoordinator.getInstance().start(task, "gbanking-hbci-instant-payment-status")) {
+			Arrays.fill(pin, '\0');
+		}
+	}
+
+	private void handleInstantPaymentStatusResult(int successfulRequests, int requestedTransfers) {
+		parentPanel.reloadListPanels();
+		Alert.AlertType alertType = successfulRequests == requestedTransfers ? Alert.AlertType.INFORMATION : Alert.AlertType.WARNING;
+		DialogWindowSupport.showAlert(getTableWindow(), alertType, getText("UI_INFO_MONEYTRANSFER_INSTANT_STATUS_RESULT",
+				Integer.toString(successfulRequests), Integer.toString(requestedTransfers)));
+	}
+
+	private List<MoneyTransfer> getStatusQuerySelection() {
+		List<MoneyTransfer> checkedTransfers = tableView.getItems().stream().filter(transfer -> transfer.isSelected()).toList();
+		MoneyTransfer selectedTransfer = getSelectedMoneyTransfer();
+		return checkedTransfers.isEmpty() && selectedTransfer != null ? List.of(selectedTransfer) : checkedTransfers;
+	}
+
+	static boolean canRetrieveInstantPaymentStatus(List<MoneyTransfer> moneyTransfers) {
+		return moneyTransfers != null && !moneyTransfers.isEmpty()
+				&& moneyTransfers.stream().allMatch(transfer -> transfer != null && transfer.getOrderType() == OrderType.REALTIME_TRANSFER);
 	}
 
 	private MenuItem createImportCsvItem() {
@@ -187,8 +270,9 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 		String iban = transfer.getRecipient() != null ? transfer.getRecipient().getIban() : "";
 		String bank = transfer.getRecipient() != null ? transfer.getRecipient().getBank() : "";
 		String status = transfer.getMoneytransferStatus() != null ? transfer.getMoneytransferStatus().toString() : "";
+		String instantStatus = transfer.getSepaOrderStatus() != null ? transfer.getSepaOrderStatus().toString() : "";
 
-		return matchesAny(filter, recipientName, transfer.getPurpose(), iban, bank, status);
+		return matchesAny(filter, recipientName, transfer.getPurpose(), iban, bank, status, instantStatus);
 	}
 
 	public void updateModelMoneytransfer(List<MoneyTransfer> orderList) {

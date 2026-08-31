@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.db.StatementsConfig.StatementType;
 import de.zft2.gbanking.db.dao.BankAccess;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class JdbcDaoRepositoryTest {
 
@@ -59,7 +60,7 @@ class JdbcDaoRepositoryTest {
 		PreparedStatement statement = mock(PreparedStatement.class);
 		when(connection.prepareStatement(anyString())).thenReturn(statement);
 		when(statement.executeUpdate()).thenReturn(0);
-		BankAccess bankAccess = TestData.createSampleBankAccess("10020030");
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("10020030");
 		bankAccess.setId(42);
 
 		try (DbSession session = new DbSession(Path.of("repository-update-test.db"), connection)) {

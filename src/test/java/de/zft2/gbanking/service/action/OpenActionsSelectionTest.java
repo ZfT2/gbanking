@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class OpenActionsSelectionTest {
 
@@ -39,8 +40,6 @@ class OpenActionsSelectionTest {
 	}
 
 	private BankAccount account(int id) {
-		BankAccount account = new BankAccount();
-		account.setId(id);
-		return account;
+		return TestDataFactory.createWithId(id);
 	}
 }

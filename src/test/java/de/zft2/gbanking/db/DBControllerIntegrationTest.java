@@ -30,6 +30,7 @@ import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.StandingorderMode;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 /**
  * Integration tests for DBController.
@@ -46,7 +47,7 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 	// ------------------------------------------------------------
 	@Test
 	void insertAndQueryBankAccess_shouldWork() {
-		BankAccess ba = TestData.createSampleBankAccess("11111111");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("11111111");
 		db.insertOrUpdate(ba);
 
 		assertTrue(ba.getId() > 0, "BankAccess id gesetzt");
@@ -62,7 +63,7 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void insertUpdateBankAccess_shouldUpdate() {
-		BankAccess ba = TestData.createSampleBankAccess("22222222");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("22222222");
 		db.insertOrUpdate(ba);
 		int idBefore = ba.getId();
 		assertTrue(idBefore > 0);
@@ -83,10 +84,10 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 	// ------------------------------------------------------------
 	@Test
 	void insertAndQueryBankAccount_shouldWork() {
-		BankAccess ba = TestData.createSampleBankAccess("33333333");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("33333333");
 		db.insertOrUpdate(ba);
 
-		BankAccount acc = TestData.createSampleAccount(ba.getId());
+		BankAccount acc = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc);
 
 		assertTrue(acc.getId() > 0);
@@ -100,7 +101,7 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 	void insertAccountWithoutBankAccess_shouldSucceedOrSetNullBankAccess() {
 		// BankAccount.bankAccess_id is nullable (schema: ON DELETE SET NULL) —
 		// test that insert works even when bankAccessId is null.
-		BankAccount acc = TestData.createSampleAccount(null);
+		BankAccount acc = TestDataFactory.createSampleAccount(null);
 		// ensure no NPE: set updatedAt inherited via Dao if required
 		acc.setUpdatedAt(LocalDate.now(ZoneId.systemDefault()));
 		db.insertOrUpdate(acc);
@@ -115,13 +116,13 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void insertBooking_and_updateBookingWithRecipientAndCategory_shouldWork() {
 		// Erzeuge BankAccess + Account
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc = TestData.createSampleAccount(ba.getId());
+		BankAccount acc = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc);
 
 		// Erzeuge Booking(s) über insertOrUpdate
-		Booking booking = TestData.createSampleBooking(acc.getId());
+		Booking booking = TestDataFactory.createSampleBooking(acc.getId());
 		db.insertOrUpdate(booking);
 
 		assertTrue(booking.getId() > 0);
@@ -162,9 +163,9 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void getAccountLastBookingDate_shouldReturnLatestDate() {
-		BankAccess ba = TestData.createSampleBankAccess("55555555");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("55555555");
 		db.insertOrUpdate(ba);
-		BankAccount acc = TestData.createSampleAccount(ba.getId());
+		BankAccount acc = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc);
 
 		LocalDate d1 = LocalDate.of(2020, Month.JANUARY, 1);
@@ -195,9 +196,9 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void getAccountLastBookingDate_shouldIgnoreAutomaticAdjustmentAndPrenotificationBookings() {
-		BankAccess ba = TestData.createSampleBankAccess("55555556");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("55555556");
 		db.insertOrUpdate(ba);
-		BankAccount acc = TestData.createSampleAccount(ba.getId());
+		BankAccount acc = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc);
 
 		Booking realBooking = new Booking();
@@ -234,9 +235,9 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void getAccountLastBookingDate_shouldIgnoreManualAndMoneyTransferBookings() {
-		BankAccess ba = TestData.createSampleBankAccess("55555557");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("55555557");
 		db.insertOrUpdate(ba);
-		BankAccount acc = TestData.createSampleAccount(ba.getId());
+		BankAccount acc = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc);
 
 		Booking realBooking = new Booking();
@@ -276,9 +277,9 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 	// ------------------------------------------------------------
 	@Test
 	void insertBusinessCases_fromAccount_shouldInsertMissingAndLink() {
-		BankAccess ba = TestData.createSampleBankAccess("66666666");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("66666666");
 		db.insertOrUpdate(ba);
-		BankAccount acc = TestData.createSampleAccount(ba.getId());
+		BankAccount acc = TestDataFactory.createSampleAccount(ba.getId());
 
 		BusinessCase bc1 = new BusinessCase();
 		bc1.setCaseValue("ZahlungSEPA");
@@ -313,9 +314,9 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 	// ------------------------------------------------------------
 	@Test
 	void insertAndQueryMoneyTransfer_shouldWork() {
-		BankAccess ba = TestData.createSampleBankAccess("77777777");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("77777777");
 		db.insertOrUpdate(ba);
-		BankAccount acc = TestData.createSampleAccount(ba.getId());
+		BankAccount acc = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc);
 
 		Recipient rec = new Recipient();
@@ -352,7 +353,7 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 	// ------------------------------------------------------------
 	@Test
 	void deleteBankAccess_shouldRemove() {
-		BankAccess ba = TestData.createSampleBankAccess("99999999");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("99999999");
 		db.insertOrUpdate(ba);
 		assertFalse(db.getAll(BankAccess.class).isEmpty());
 

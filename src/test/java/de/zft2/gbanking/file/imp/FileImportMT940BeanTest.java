@@ -17,12 +17,12 @@ import org.junit.jupiter.api.TestInstance;
 
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingAdditionalDetails;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FileImportMT940BeanTest {
@@ -88,7 +88,7 @@ class FileImportMT940BeanTest {
 	}
 
 	private BankAccount createAccount(String name, String iban, String number) {
-		BankAccount account = TestData.createSampleAccount(null);
+		BankAccount account = TestDataFactory.createSampleAccount(null);
 		account.setAccountName(name);
 		account.setIban(iban);
 		account.setNumber(number);

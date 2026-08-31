@@ -50,7 +50,6 @@ import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
@@ -59,6 +58,7 @@ import de.zft2.gbanking.service.GBankingService;
 import de.zft2.gbanking.service.Service;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.ServiceStubbingUtil;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MoneyTransferInventoryServiceTest {
@@ -95,9 +95,9 @@ class MoneyTransferInventoryServiceTest {
 
 	@Test
 	void retrieveInventory_shouldPersistStandingOrdersAndSkipDuplicates() {
-		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
-		BankAccess bankAccess = TestData.createSampleBankAccess("10020030");
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("10020030");
 		HBCIPassport passport = mock(HBCIPassport.class);
 		HBCIHandler handle = mock(HBCIHandler.class);
 		Konto senderAccount = new Konto();
@@ -145,9 +145,9 @@ class MoneyTransferInventoryServiceTest {
 
 	@Test
 	void retrieveInventory_shouldPersistScheduledTransfers() {
-		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
-		BankAccess bankAccess = TestData.createSampleBankAccess("10020030");
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("10020030");
 		HBCIPassport passport = mock(HBCIPassport.class);
 		HBCIHandler handle = mock(HBCIHandler.class);
 		Konto senderAccount = new Konto();
@@ -197,7 +197,7 @@ class MoneyTransferInventoryServiceTest {
 
 	@Test
 	void saveRetrievedTransfers_shouldRollBackWholeBatchWhenLaterTransferFails() {
-		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		MoneyTransfer validTransfer = inventoryTransfer(bankAccount, "First recipient", "DE11111111111111111111", new BigDecimal("12.34"));
 		MoneyTransfer invalidTransfer = inventoryTransfer(bankAccount, "Second recipient", "DE22222222222222222222", new BigDecimal("-1.00"));
 		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
@@ -213,7 +213,7 @@ class MoneyTransferInventoryServiceTest {
 
 	@Test
 	void saveRetrievedTransfers_shouldArchiveChangedBankOrderAndLinkNewVersion() {
-		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
 		MoneyTransfer initial = inventoryTransfer(bankAccount, "Initial recipient", "DE11111111111111111111", new BigDecimal("12.34"));
 		initial.setBankOrderId("scheduled-4711");
@@ -238,7 +238,7 @@ class MoneyTransferInventoryServiceTest {
 
 	@Test
 	void saveRetrievedTransfers_shouldMarkOrdersMissingFromCompleteInventory() {
-		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
 		MoneyTransfer transfer = inventoryTransfer(bankAccount, "Missing recipient", "DE33333333333333333333", new BigDecimal("12.34"));
 		transfer.setBankOrderId("missing-1");
@@ -253,7 +253,7 @@ class MoneyTransferInventoryServiceTest {
 
 	@Test
 	void saveRetrievedTransfers_shouldLinkReappearingOrderToMissingVersion() {
-		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
 		MoneyTransfer initial = inventoryTransfer(bankAccount, "Recipient", "DE44444444444444444444", new BigDecimal("12.34"));
 		initial.setBankOrderId("reappearing-1");
@@ -273,7 +273,7 @@ class MoneyTransferInventoryServiceTest {
 
 	@Test
 	void saveRetrievedTransfers_shouldReconcileOnlyRequestedOrderType() {
-		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
 		MoneyTransfer scheduled = inventoryTransfer(bankAccount, "Scheduled recipient", "DE55555555555555555555", new BigDecimal("12.34"));
 		scheduled.setBankOrderId("scheduled-1");
@@ -287,7 +287,7 @@ class MoneyTransferInventoryServiceTest {
 
 	@Test
 	void saveRetrievedTransfers_shouldPreserveConfirmedVersionWhileEditIsPending() {
-		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
 		MoneyTransfer confirmed = inventoryTransfer(bankAccount, "Confirmed recipient", "DE56565656565656565656", new BigDecimal("12.34"));
 		confirmed.setBankOrderId("pending-edit-1");
@@ -315,7 +315,7 @@ class MoneyTransferInventoryServiceTest {
 
 	@Test
 	void saveRetrievedTransfers_shouldNotDuplicateOrderWhileDeletionIsPending() {
-		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
 		MoneyTransfer pendingDeletion = inventoryTransfer(bankAccount, "Deletion recipient", "DE58585858585858585858", new BigDecimal("12.34"));
 		pendingDeletion.setBankOrderId("pending-delete-1");
@@ -334,7 +334,7 @@ class MoneyTransferInventoryServiceTest {
 
 	@Test
 	void saveRetrievedTransfers_shouldRollBackArchiveAndSuccessorWhenLaterInsertFails() {
-		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
 		MoneyTransfer initial = inventoryTransfer(bankAccount, "Initial recipient", "DE66666666666666666666", new BigDecimal("12.34"));
 		initial.setBankOrderId("existing-1");
@@ -356,14 +356,14 @@ class MoneyTransferInventoryServiceTest {
 
 	@Test
 	void retrieveInventory_shouldNotMarkExistingOrdersMissingWhenResponseEntryIsIncomplete() {
-		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		BankAccessService hbciSupport = mock(BankAccessService.class);
 
 		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
 		MoneyTransfer existing = inventoryTransfer(bankAccount, "Existing recipient", "DE99999999999999999999", new BigDecimal("12.34"));
 		existing.setBankOrderId("existing-1");
 		service.saveRetrievedTransfers(bankAccount, OrderType.SCHEDULED_TRANSFER, List.of(existing));
-		BankAccess bankAccess = TestData.createSampleBankAccess("10020030");
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("10020030");
 		HBCIPassport passport = mock(HBCIPassport.class);
 		HBCIHandler handle = mock(HBCIHandler.class);
 		GVRTermUebList result = mock(GVRTermUebList.class);

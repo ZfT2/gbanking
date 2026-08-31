@@ -198,3 +198,17 @@
     -fx-background-color: -gb-bg-readonly;
     -fx-opacity: 1.0;
 }
+
+.iban-validation-status {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-alignment: center;
+}
+
+.iban-validation-status.iban-valid {
+    -fx-text-fill: -gb-amount-positive;
+}
+
+.iban-validation-status.iban-invalid {
+    -fx-text-fill: -gb-amount-negative;
+}

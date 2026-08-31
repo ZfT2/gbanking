@@ -30,6 +30,7 @@ import de.zft2.gbanking.db.dao.Category;
 import de.zft2.gbanking.db.dao.CategoryRule;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.tenant.TenantPaths;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class DbTransactionManagerTest extends DBControllerIntegrationBaseTest {
 
@@ -62,8 +63,8 @@ class DbTransactionManagerTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void caughtNestedFailureShouldRollBackWholeTransactionAndRestoreIds() {
-		BankAccess validBankAccess = TestData.createSampleBankAccess("11111111");
-		BankAccess invalidBankAccess = TestData.createSampleBankAccess("22222222");
+		BankAccess validBankAccess = TestDataFactory.createSampleBankAccess("11111111");
+		BankAccess invalidBankAccess = TestDataFactory.createSampleBankAccess("22222222");
 		invalidBankAccess.setBankName(null);
 
 		assertThrows(GBankingException.class, () -> DbTransactionManager.inTransaction(() -> {
@@ -82,7 +83,7 @@ class DbTransactionManagerTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void relationFailureShouldRollBackParentInsert() {
-		Category category = db.insertOrUpdate(TestData.createSampleCategory("Mobilitaet:Bahn"));
+		Category category = db.insertOrUpdate(TestDataFactory.createSampleCategory("Mobilitaet:Bahn"));
 		BankAccount missingAccount = new BankAccount();
 		missingAccount.setId(Integer.MAX_VALUE);
 		CategoryRule categoryRule = new CategoryRule();
@@ -98,7 +99,7 @@ class DbTransactionManagerTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void cancellationShouldRollBackTransactionAndRestoreEntityState() {
-		BankAccess bankAccess = TestData.createSampleBankAccess("33333333");
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("33333333");
 		AtomicBoolean cancellationRequested = new AtomicBoolean();
 
 		assertThrows(CancellationException.class, () -> CancellationSupport.runWithCancellation(cancellationRequested::get,

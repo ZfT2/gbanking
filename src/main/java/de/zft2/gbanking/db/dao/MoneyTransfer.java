@@ -5,6 +5,7 @@ import java.time.LocalDate;
 
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
+import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
 import de.zft2.gbanking.db.dao.enu.StandingorderMode;
 
 public class MoneyTransfer extends Dao {
@@ -21,7 +22,8 @@ public class MoneyTransfer extends Dao {
 	private Integer executionDay;
 	private MoneyTransferStatus moneytransferStatus;
 	private StandingorderMode standingorderMode;
-	private String bankOrderId;
+	private transient String bankOrderId;
+	private transient SepaOrderStatus sepaOrderStatus;
 	private Integer historyorderId;
 	private MoneyTransferForeign foreignTransfer;
 	
@@ -147,6 +149,14 @@ public class MoneyTransfer extends Dao {
 
 	public void setBankOrderId(String bankOrderId) {
 		this.bankOrderId = bankOrderId;
+	}
+
+	public SepaOrderStatus getSepaOrderStatus() {
+		return sepaOrderStatus;
+	}
+
+	public void setSepaOrderStatus(SepaOrderStatus sepaOrderStatus) {
+		this.sepaOrderStatus = sepaOrderStatus;
 	}
 
 	public Integer getHistoryorderId() {

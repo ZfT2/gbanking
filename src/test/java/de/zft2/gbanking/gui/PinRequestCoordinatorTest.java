@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.db.dao.BankAccount;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class PinRequestCoordinatorTest {
 
@@ -99,9 +100,6 @@ class PinRequestCoordinatorTest {
 	}
 
 	private static BankAccount account(int id, int bankAccessId) {
-		BankAccount account = new BankAccount();
-		account.setId(id);
-		account.setBankAccessId(bankAccessId);
-		return account;
+		return TestDataFactory.createWithIdAndBankAccess(id, bankAccessId);
 	}
 }

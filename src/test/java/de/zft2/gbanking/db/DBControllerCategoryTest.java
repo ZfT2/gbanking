@@ -21,6 +21,7 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Category;
 import de.zft2.gbanking.db.dao.CategoryRule;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 
@@ -31,7 +32,7 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void insertSingleCategory_shouldWork() {
 
-		Category cg = TestData.createSampleCategory("Auto");
+		Category cg = TestDataFactory.createSampleCategory("Auto");
 		db.insertOrUpdate(cg);
 		assertTrue(cg.getId() > 0);
 		
@@ -47,7 +48,7 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void deleteCategory_shouldUseCategoryTableInsteadOfView() {
 
-		Category category = db.insertOrUpdate(TestData.createSampleCategory("Loeschtest"));
+		Category category = db.insertOrUpdate(TestDataFactory.createSampleCategory("Loeschtest"));
 
 		assertTrue(db.delete(category, null));
 		assertFalse(db.getAll(Category.class).stream().anyMatch(existingCategory -> existingCategory.getId() == category.getId()));
@@ -55,10 +56,10 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void deleteCategoryShouldClearBookingCategoryAndDeleteCategoryRules() {
-		BankAccount account = db.insertOrUpdate(TestData.createSampleAccount(null));
-		Category category = db.insertOrUpdate(TestData.createSampleCategory("Loeschtest"));
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(null));
+		Category category = db.insertOrUpdate(TestDataFactory.createSampleCategory("Loeschtest"));
 
-		Booking booking = TestData.createSampleBooking(account.getId());
+		Booking booking = TestDataFactory.createSampleBooking(account.getId());
 		booking.setCategory(category);
 		booking = db.insertOrUpdate(booking);
 
@@ -127,7 +128,7 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void insertCategoryRule_shouldWork() {
 		
-		Category cg = TestData.createSampleCategory("Bahn");
+		Category cg = TestDataFactory.createSampleCategory("Bahn");
 		cg = db.insertOrUpdate(cg);
 		
 		CategoryRule cr = new CategoryRule();
@@ -154,7 +155,7 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void insertCategoryRulesWithBlankNames_shouldGenerateUniqueNames() {
 
-		Category category = db.insertOrUpdate(TestData.createSampleCategory("Bahn"));
+		Category category = db.insertOrUpdate(TestDataFactory.createSampleCategory("Bahn"));
 
 		CategoryRule firstRule = new CategoryRule();
 		firstRule.setCategory(category);
@@ -179,10 +180,10 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void deleteCategoryRuleShouldClearRuleReferenceAndKeepBookingCategory() {
-		BankAccount account = db.insertOrUpdate(TestData.createSampleAccount(null));
-		Category category = db.insertOrUpdate(TestData.createSampleCategory("Bahn"));
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(null));
+		Category category = db.insertOrUpdate(TestDataFactory.createSampleCategory("Bahn"));
 
-		Booking booking = TestData.createSampleBooking(account.getId());
+		Booking booking = TestDataFactory.createSampleBooking(account.getId());
 		booking = db.insertOrUpdate(booking);
 
 		CategoryRule categoryRule = new CategoryRule();
@@ -208,7 +209,7 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void getAllCategoryRules_shouldIncludeCategoryDetails() {
 
-		Category cg = db.insertOrUpdate(TestData.createSampleCategory("Mobilitaet:Bahn"));
+		Category cg = db.insertOrUpdate(TestDataFactory.createSampleCategory("Mobilitaet:Bahn"));
 
 		CategoryRule cr = new CategoryRule();
 		cr.setCategory(cg);
@@ -225,10 +226,10 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void insertCategoryRule_shouldPersistBankAccounts() {
 
-		BankAccess bankAccess = db.insertOrUpdate(TestData.createSampleBankAccess("12345678"));
-		BankAccount account01 = db.insertOrUpdate(TestData.createSampleAccount(bankAccess.getId()));
-		BankAccount account02 = db.insertOrUpdate(TestData.createSampleAccount(bankAccess.getId()));
-		Category category = db.insertOrUpdate(TestData.createSampleCategory("Mobilitaet:Bahn"));
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("12345678"));
+		BankAccount account01 = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
+		BankAccount account02 = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
+		Category category = db.insertOrUpdate(TestDataFactory.createSampleCategory("Mobilitaet:Bahn"));
 
 		CategoryRule categoryRule = new CategoryRule();
 		categoryRule.setCategory(category);

@@ -24,9 +24,9 @@ import org.kapott.hbci.passport.HBCIPassport;
 
 import de.zft2.gbanking.BaseMessagesDb;
 import de.zft2.gbanking.db.dao.BankAccess;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class HbciSessionRunnerTest {
 
@@ -46,7 +46,7 @@ class HbciSessionRunnerTest {
 	void run_shouldSerializeHbciOperationsForSameBankAccess() throws Exception {
 		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 		HbciSessionRunner runner = new HbciSessionRunner(ignored -> mock(GBankingHBCICallback.class));
-		BankAccess bankAccess = TestData.createSampleBankAccess("10020030");
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("10020030");
 		CountDownLatch firstOperationStarted = new CountDownLatch(1);
 		CountDownLatch releaseFirstOperation = new CountDownLatch(1);
 		AtomicInteger activeOperations = new AtomicInteger();
@@ -81,8 +81,8 @@ class HbciSessionRunnerTest {
 	void run_shouldSerializeHbciOperationsAcrossDifferentBankAccesses() throws Exception {
 		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 		HbciSessionRunner runner = new HbciSessionRunner(ignored -> mock(GBankingHBCICallback.class));
-		BankAccess firstBankAccess = TestData.createSampleBankAccess("10020030");
-		BankAccess secondBankAccess = TestData.createSampleBankAccess("40050060");
+		BankAccess firstBankAccess = TestDataFactory.createSampleBankAccess("10020030");
+		BankAccess secondBankAccess = TestDataFactory.createSampleBankAccess("40050060");
 		CountDownLatch firstOperationStarted = new CountDownLatch(1);
 		CountDownLatch releaseFirstOperation = new CountDownLatch(1);
 		AtomicInteger activeOperations = new AtomicInteger();

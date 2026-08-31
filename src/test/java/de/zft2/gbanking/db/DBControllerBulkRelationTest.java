@@ -16,17 +16,18 @@ import de.zft2.gbanking.db.dao.BusinessCase;
 import de.zft2.gbanking.db.dao.Category;
 import de.zft2.gbanking.db.dao.CategoryRule;
 import de.zft2.gbanking.db.dao.Recipient;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class DBControllerBulkRelationTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void fullBankAccessListShouldLoadAccountGraphsWithFourQueries() {
-		BankAccess firstAccess = db.insertOrUpdate(TestData.createSampleBankAccess("12345678"));
-		BankAccess secondAccess = db.insertOrUpdate(TestData.createSampleBankAccess("87654321"));
-		BankAccount firstAccount = db.insertOrUpdate(TestData.createSampleAccount(firstAccess.getId()));
-		BankAccount secondAccount = db.insertOrUpdate(TestData.createSampleAccount(firstAccess.getId()));
-		BankAccount thirdAccount = db.insertOrUpdate(TestData.createSampleAccount(secondAccess.getId()));
-		Booking booking = db.insertOrUpdate(TestData.createSampleBooking(firstAccount.getId()));
+		BankAccess firstAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("12345678"));
+		BankAccess secondAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("87654321"));
+		BankAccount firstAccount = db.insertOrUpdate(TestDataFactory.createSampleAccount(firstAccess.getId()));
+		BankAccount secondAccount = db.insertOrUpdate(TestDataFactory.createSampleAccount(firstAccess.getId()));
+		BankAccount thirdAccount = db.insertOrUpdate(TestDataFactory.createSampleAccount(secondAccess.getId()));
+		Booking booking = db.insertOrUpdate(TestDataFactory.createSampleBooking(firstAccount.getId()));
 		linkBusinessCase(secondAccount, "ZahlungSEPA");
 
 		DatabaseQueryCounter.Measurement<List<BankAccess>> measurement =
@@ -45,16 +46,16 @@ class DBControllerBulkRelationTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void fullBankAccountListShouldLoadBookingsAndBusinessCasesWithThreeQueries() {
-		BankAccess bankAccess = db.insertOrUpdate(TestData.createSampleBankAccess("12345678"));
-		BankAccount firstAccount = db.insertOrUpdate(TestData.createSampleAccount(bankAccess.getId()));
-		BankAccount secondAccount = db.insertOrUpdate(TestData.createSampleAccount(bankAccess.getId()));
-		Recipient recipient = db.insertOrUpdate(TestData.createSampleRecipient01());
-		Category category = db.insertOrUpdate(TestData.createSampleCategory("Wohnen:Miete"));
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("12345678"));
+		BankAccount firstAccount = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
+		BankAccount secondAccount = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
+		Recipient recipient = db.insertOrUpdate(TestDataFactory.createSampleRecipient01());
+		Category category = db.insertOrUpdate(TestDataFactory.createSampleCategory("Wohnen:Miete"));
 
-		Booking firstBooking = TestData.createSampleBookingWithRecipient(firstAccount.getId(), recipient.getId());
+		Booking firstBooking = TestDataFactory.createSampleBookingWithRecipient(firstAccount.getId(), recipient.getId());
 		firstBooking.setCategory(category);
 		db.insertOrUpdate(firstBooking);
-		Booking secondBooking = db.insertOrUpdate(TestData.createSampleBooking(secondAccount.getId()));
+		Booking secondBooking = db.insertOrUpdate(TestDataFactory.createSampleBooking(secondAccount.getId()));
 
 		linkBusinessCase(firstAccount, "ZahlungSEPA");
 		linkBusinessCase(secondAccount, "Dauerauftrag");
@@ -80,14 +81,14 @@ class DBControllerBulkRelationTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void fullBankAccountListShouldOrderBookingsByDescendingIdPerAccount() {
-		BankAccess bankAccess = db.insertOrUpdate(TestData.createSampleBankAccess("12345678"));
-		BankAccount firstAccount = db.insertOrUpdate(TestData.createSampleAccount(bankAccess.getId()));
-		BankAccount secondAccount = db.insertOrUpdate(TestData.createSampleAccount(bankAccess.getId()));
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("12345678"));
+		BankAccount firstAccount = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
+		BankAccount secondAccount = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
 
-		Booking firstAccountOlder = db.insertOrUpdate(TestData.createSampleBooking(firstAccount.getId()));
-		Booking secondAccountOlder = db.insertOrUpdate(TestData.createSampleBooking(secondAccount.getId()));
-		Booking firstAccountNewer = db.insertOrUpdate(TestData.createSampleBooking(firstAccount.getId()));
-		Booking secondAccountNewer = db.insertOrUpdate(TestData.createSampleBooking(secondAccount.getId()));
+		Booking firstAccountOlder = db.insertOrUpdate(TestDataFactory.createSampleBooking(firstAccount.getId()));
+		Booking secondAccountOlder = db.insertOrUpdate(TestDataFactory.createSampleBooking(secondAccount.getId()));
+		Booking firstAccountNewer = db.insertOrUpdate(TestDataFactory.createSampleBooking(firstAccount.getId()));
+		Booking secondAccountNewer = db.insertOrUpdate(TestDataFactory.createSampleBooking(secondAccount.getId()));
 
 		List<BankAccount> storedAccounts = db.getAllFull(BankAccount.class);
 
@@ -99,13 +100,13 @@ class DBControllerBulkRelationTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void fullCategoryRuleListShouldLoadAccountGraphsWithFourQueries() {
-		BankAccess bankAccess = db.insertOrUpdate(TestData.createSampleBankAccess("12345678"));
-		BankAccount firstAccount = db.insertOrUpdate(TestData.createSampleAccount(bankAccess.getId()));
-		BankAccount secondAccount = db.insertOrUpdate(TestData.createSampleAccount(bankAccess.getId()));
-		Category category = db.insertOrUpdate(TestData.createSampleCategory("Mobilitaet:Bahn"));
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("12345678"));
+		BankAccount firstAccount = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
+		BankAccount secondAccount = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
+		Category category = db.insertOrUpdate(TestDataFactory.createSampleCategory("Mobilitaet:Bahn"));
 		CategoryRule firstRule = insertRule("Bahn", category, List.of(firstAccount));
 		CategoryRule secondRule = insertRule("Taxi", category, List.of(firstAccount, secondAccount));
-		Booking booking = db.insertOrUpdate(TestData.createSampleBooking(firstAccount.getId()));
+		Booking booking = db.insertOrUpdate(TestDataFactory.createSampleBooking(firstAccount.getId()));
 		linkBusinessCase(secondAccount, "Dauerauftrag");
 
 		DatabaseQueryCounter.Measurement<List<CategoryRule>> measurement =
@@ -127,11 +128,11 @@ class DBControllerBulkRelationTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void fullAggregateLookupByIdShouldLoadNestedAccountRelations() {
-		BankAccess bankAccess = db.insertOrUpdate(TestData.createSampleBankAccess("12345678"));
-		BankAccount account = db.insertOrUpdate(TestData.createSampleAccount(bankAccess.getId()));
-		Booking booking = db.insertOrUpdate(TestData.createSampleBooking(account.getId()));
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("12345678"));
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
+		Booking booking = db.insertOrUpdate(TestDataFactory.createSampleBooking(account.getId()));
 		linkBusinessCase(account, "ZahlungSEPA");
-		Category category = db.insertOrUpdate(TestData.createSampleCategory("Wohnen:Miete"));
+		Category category = db.insertOrUpdate(TestDataFactory.createSampleCategory("Wohnen:Miete"));
 		CategoryRule rule = insertRule("Miete", category, List.of(account));
 
 		BankAccount accountFromAccess = db.getByIdFull(BankAccess.class, bankAccess.getId()).getAccounts().get(0);

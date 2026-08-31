@@ -23,7 +23,6 @@ import org.junit.jupiter.api.TestInstance;
 
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
-import de.zft2.gbanking.db.dao.BusinessCase;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.Source;
@@ -32,13 +31,14 @@ import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
 import de.zft2.gbanking.service.BankingCapabilityService;
 import de.zft2.gbanking.service.GBankingService;
 import de.zft2.gbanking.service.Service;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.ServiceStubbingUtil;
+import de.zft2.gbanking.testdata.TestDataFactory;
+import de.zft2.gbanking.testdata.HbciParameterTestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MoneyTransferExecutionServiceTest {
@@ -81,7 +81,7 @@ class MoneyTransferExecutionServiceTest {
 		BankingCapabilityService bankingCapabilityService = ServiceRegistry.getService(BankingCapabilityService.class);
 
 		BankAccount bankAccount = insertBankAccount();
-		bankAccount.setAllowedBusinessCases(List.of(createBusinessCase("UebSEPA")));
+		bankAccount.setAllowedBusinessCases(List.of(TestDataFactory.createBusinessCase("UebSEPA")));
 		when(bankingCapabilityService.supportsTransferOrderType(any(BankAccount.class), eq(OrderType.STANDING_ORDER))).thenReturn(false);
 
 		MoneyTransfer moneyTransfer = createMoneyTransfer(OrderType.STANDING_ORDER, bankAccount.getId());
@@ -99,7 +99,7 @@ class MoneyTransferExecutionServiceTest {
 		BankingCapabilityService bankingCapabilityService = ServiceRegistry.getService(BankingCapabilityService.class);
 		MoneyTransferExecutionService service = ServiceRegistry.getService(MoneyTransferExecutionService.class);
 		BankAccount bankAccount = insertBankAccount();
-		bankAccount.setAllowedBusinessCases(List.of(createBusinessCase("UebSEPA")));
+		bankAccount.setAllowedBusinessCases(List.of(TestDataFactory.createBusinessCase("UebSEPA")));
 
 		when(bankingCapabilityService.supportsTransferOrderType(any(BankAccount.class), eq(OrderType.TRANSFER))).thenReturn(true);
 		when(hbciSupport.initBankAccess(any(BankAccount.class), isNull())).thenReturn(null);
@@ -119,9 +119,8 @@ class MoneyTransferExecutionServiceTest {
 		MoneyTransferExecutionService service = ServiceRegistry.getService(MoneyTransferExecutionService.class);
 
 		BankAccess bankAccess = insertBankAccessWithBpd("HKCDE", "HKIPZ");
-		BankAccount bankAccount = new BankAccount();
-		bankAccount.setBankAccessId(bankAccess.getId());
-		bankAccount.setAllowedBusinessCases(List.of(createBusinessCase("  hkcde "), createBusinessCase(" instuebsepa ")));
+		BankAccount bankAccount = TestDataFactory.createForBankAccess(bankAccess.getId());
+		bankAccount.setAllowedBusinessCases(List.of(TestDataFactory.createBusinessCase("  hkcde "), TestDataFactory.createBusinessCase(" instuebsepa ")));
 
 		assertTrue(service.supportsTransferOrderType(bankAccount, OrderType.STANDING_ORDER));
 		assertTrue(service.supportsTransferOrderType(bankAccount, OrderType.REALTIME_TRANSFER));
@@ -130,14 +129,14 @@ class MoneyTransferExecutionServiceTest {
 
 	private BankAccess insertBankAccessWithBpd(String... businessCases) {
 		DBController dbController = DBController.getInstance(tempDir.toString());
-		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("10020030"));
-		bankAccess.getFints().setBpd(TestData.buildCapabilityBPD(businessCases));
+		BankAccess bankAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("10020030"));
+		bankAccess.getFints().setBpd(HbciParameterTestDataFactory.buildCapabilityBpd(businessCases));
 		dbController.insertOrUpdatePD(bankAccess);
 		return bankAccess;
 	}
 
 	private BankAccount insertBankAccount() {
-		return DBController.getInstance(tempDir.toString()).insertOrUpdate(TestData.createSampleAccount(null));
+		return DBController.getInstance(tempDir.toString()).insertOrUpdate(TestDataFactory.createSampleAccount(null));
 	}
 
 	private MoneyTransfer createMoneyTransfer(OrderType orderType, int accountId) {
@@ -163,9 +162,4 @@ class MoneyTransferExecutionServiceTest {
 		return moneyTransfer;
 	}
 
-	private static BusinessCase createBusinessCase(String caseValue) {
-		BusinessCase businessCase = new BusinessCase();
-		businessCase.setCaseValue(caseValue);
-		return businessCase;
-	}
 }

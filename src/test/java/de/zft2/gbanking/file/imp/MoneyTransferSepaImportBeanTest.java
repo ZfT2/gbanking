@@ -17,11 +17,11 @@ import org.junit.jupiter.api.TestInstance;
 
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MoneyTransferSepaImportBeanTest {
@@ -111,7 +111,7 @@ class MoneyTransferSepaImportBeanTest {
 	}
 
 	private BankAccount insertAccount(String iban) {
-		BankAccount account = TestData.createSampleAccount(null);
+		BankAccount account = TestDataFactory.createSampleAccount(null);
 		account.setIban(iban);
 		return dbController.insertOrUpdate(account);
 	}

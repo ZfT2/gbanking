@@ -26,6 +26,8 @@ import org.apache.logging.log4j.Logger;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
+import de.zft2.gbanking.db.dao.enu.SepaCancellationCode;
+import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.file.exp.FileExportBean.ExportConstants;
 import de.zft2.gbanking.gui.BaseWorker;
@@ -135,15 +137,19 @@ public class MoneyTransferCsvImportBean extends MoneyTransferImportBean {
 		String status = header(headersByNormalizedName, ExportConstants.PROTOCOL_STATUS);
 		String timeStart = header(headersByNormalizedName, ExportConstants.PROTOCOL_TIME_START);
 		String timeFinish = header(headersByNormalizedName, ExportConstants.PROTOCOL_TIME_FINISH);
+		String bankOrderId = header(headersByNormalizedName, ExportConstants.PROTOCOL_BANK_ORDER_ID);
+		String sepaOrderStatus = header(headersByNormalizedName, ExportConstants.PROTOCOL_SEPA_ORDER_STATUS);
+		String sepaCancellationCode = header(headersByNormalizedName, ExportConstants.PROTOCOL_SEPA_CANCELLATION_CODE);
 		String protocolText = header(headersByNormalizedName, ExportConstants.PROTOCOL_TEXT);
-		boolean anyProtocolHeader = status != null || timeStart != null || timeFinish != null || protocolText != null;
+		boolean anyProtocolHeader = status != null || timeStart != null || timeFinish != null || bankOrderId != null || sepaOrderStatus != null
+				|| sepaCancellationCode != null || protocolText != null;
 		if (!anyProtocolHeader) {
 			return null;
 		}
 		if (status == null || timeStart == null || timeFinish == null || protocolText == null) {
 			throw new GBankingException(getText("ERROR_MONEYTRANSFER_IMPORT_INVALID_HEADER"));
 		}
-		return new ProtocolHeaders(status, timeStart, timeFinish, protocolText);
+		return new ProtocolHeaders(status, timeStart, timeFinish, bankOrderId, sepaOrderStatus, sepaCancellationCode, protocolText);
 	}
 
 	private boolean headerExists(Map<String, String> headersByNormalizedName, ExportConstants header) {
@@ -216,15 +222,32 @@ public class MoneyTransferCsvImportBean extends MoneyTransferImportBean {
 		String status = readField(csvRecord, protocolHeaders.status());
 		String timeStart = readField(csvRecord, protocolHeaders.timeStart());
 		String timeFinish = readField(csvRecord, protocolHeaders.timeFinish());
+		String bankOrderId = readField(csvRecord, protocolHeaders.bankOrderId());
+		String sepaOrderStatus = readField(csvRecord, protocolHeaders.sepaOrderStatus());
+		String sepaCancellationCode = readField(csvRecord, protocolHeaders.sepaCancellationCode());
 		String protocolText = readField(csvRecord, protocolHeaders.protocolText());
-		if (status == null && timeStart == null && timeFinish == null && protocolText == null) {
+		if (status == null && timeStart == null && timeFinish == null && bankOrderId == null && sepaOrderStatus == null
+				&& sepaCancellationCode == null && protocolText == null) {
 			return List.of();
 		}
 		return List.of(new ParsedProtocol(parseProtocolStatus(requireField(csvRecord, protocolHeaders.status(),
 				ExportConstants.PROTOCOL_STATUS.toString()), csvRecord),
 				parseLocalDateTime(requireField(csvRecord, protocolHeaders.timeStart(), ExportConstants.PROTOCOL_TIME_START.toString()), csvRecord,
 						ExportConstants.PROTOCOL_TIME_START.toString()),
-				parseOptionalLocalDateTime(timeFinish, csvRecord, ExportConstants.PROTOCOL_TIME_FINISH.toString()), protocolText));
+				parseOptionalLocalDateTime(timeFinish, csvRecord, ExportConstants.PROTOCOL_TIME_FINISH.toString()), bankOrderId,
+				parseEnum(sepaOrderStatus, SepaOrderStatus.class, ExportConstants.PROTOCOL_SEPA_ORDER_STATUS, csvRecord),
+				parseEnum(sepaCancellationCode, SepaCancellationCode.class, ExportConstants.PROTOCOL_SEPA_CANCELLATION_CODE, csvRecord), protocolText));
+	}
+
+	private <T extends Enum<T>> T parseEnum(String value, Class<T> enumType, ExportConstants field, CSVRecord csvRecord) {
+		if (value == null) {
+			return null;
+		}
+		try {
+			return Enum.valueOf(enumType, value.trim().toUpperCase(Locale.ROOT));
+		} catch (IllegalArgumentException exception) {
+			throw invalidFieldValue(csvRecord, field.toString(), value, exception);
+		}
 	}
 
 	private LocalDateTime parseOptionalLocalDateTime(String value, CSVRecord csvRecord, String fieldName) {
@@ -258,7 +281,8 @@ public class MoneyTransferCsvImportBean extends MoneyTransferImportBean {
 			String purposeCode, String endToEndId, String senderAccountNumber, ProtocolHeaders protocolHeaders) {
 	}
 
-	private record ProtocolHeaders(String status, String timeStart, String timeFinish, String protocolText) {
+	private record ProtocolHeaders(String status, String timeStart, String timeFinish, String bankOrderId, String sepaOrderStatus,
+			String sepaCancellationCode, String protocolText) {
 	}
 
 }

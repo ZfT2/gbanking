@@ -22,7 +22,6 @@ import org.w3c.dom.NodeList;
 
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.Recipient;
@@ -31,6 +30,7 @@ import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.StandingorderMode;
 import de.zft2.gbanking.exception.ExportException;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FileExportOrdersSepaBeanTest {
@@ -105,7 +105,7 @@ class FileExportOrdersSepaBeanTest {
 	}
 
 	private BankAccount insertAccount() {
-		BankAccount account = TestData.createSampleAccount(null);
+		BankAccount account = TestDataFactory.createSampleAccount(null);
 		account.setIban(ACCOUNT_IBAN);
 		account.setBic("BYLADEM1001");
 		account.setOwnerName("Max Mustermann");

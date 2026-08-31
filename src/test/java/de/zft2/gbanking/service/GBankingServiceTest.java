@@ -29,11 +29,8 @@ import org.kapott.hbci.structures.Value;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
-import de.zft2.gbanking.db.dao.BusinessCase;
 import de.zft2.gbanking.db.dao.Category;
 import de.zft2.gbanking.db.dao.CategoryRule;
-import de.zft2.gbanking.db.dao.enu.AccountState;
-import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.ForeignChargeBearer;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
@@ -45,7 +42,6 @@ import de.zft2.gbanking.db.dao.MoneyTransferForeign;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.gui.dto.MoneyTransferForm;
 import de.zft2.gbanking.service.account.AccountTransactionService;
 import de.zft2.gbanking.service.booking.BookingCategoryService;
@@ -55,6 +51,8 @@ import de.zft2.gbanking.service.moneytransfer.BankOrderOperation;
 import de.zft2.gbanking.service.moneytransfer.MoneyTransferService;
 import de.zft2.gbanking.service.recipient.RecipientService;
 import de.zft2.gbanking.util.TypeConverter;
+import de.zft2.gbanking.testdata.TestDataFactory;
+import de.zft2.gbanking.testdata.HbciParameterTestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class GBankingServiceTest {
@@ -98,14 +96,7 @@ class GBankingServiceTest {
 	@Test
 	void testGenerateRebookings_Success() {
 
-		BankAccount bankAccount01 = new BankAccount();
-		bankAccount01.setIban("DE00000000000000000001");
-		bankAccount01.setNumber("00000001");
-		bankAccount01.setBic("BANKDE00001");
-		bankAccount01.setCurrency("EUR");
-		bankAccount01.setAccountType(AccountType.CURRENT_ACCOUNT);
-		bankAccount01.setSource(Source.IMPORT_INITIAL);
-		bankAccount01.setAccountState(AccountState.ACTIVE);
+		BankAccount bankAccount01 = TestDataFactory.createImportedAccount("DE00000000000000000001", "00000001", "BANKDE00001");
 
 		bankAccount01 = dbController.insertOrUpdate(bankAccount01);
 
@@ -154,14 +145,7 @@ class GBankingServiceTest {
 		bookingAccount0103.setSource(Source.ONLINE);
 		dbController.insertOrUpdate(bookingAccount0103);
 
-		BankAccount bankAccount02 = new BankAccount();
-		bankAccount02.setIban("DE00000000000000000002");
-		bankAccount02.setNumber("00000002");
-		bankAccount02.setBic("BANKDE00002");
-		bankAccount02.setCurrency("EUR");
-		bankAccount02.setAccountType(AccountType.CURRENT_ACCOUNT);
-		bankAccount02.setSource(Source.IMPORT_INITIAL);
-		bankAccount02.setAccountState(AccountState.ACTIVE);
+		BankAccount bankAccount02 = TestDataFactory.createImportedAccount("DE00000000000000000002", "00000002", "BANKDE00002");
 
 		bankAccount02 = dbController.insertOrUpdate(bankAccount02);
 
@@ -216,14 +200,7 @@ class GBankingServiceTest {
 	@Test
 	void testSaveHbciBookingsForAccount_Success() {
 
-		BankAccount bankAccount01 = new BankAccount();
-		bankAccount01.setIban("DE00000000000000000001");
-		bankAccount01.setNumber("00000001");
-		bankAccount01.setBic("BANKDE00001");
-		bankAccount01.setCurrency("EUR");
-		bankAccount01.setAccountType(AccountType.CURRENT_ACCOUNT);
-		bankAccount01.setSource(Source.IMPORT_INITIAL);
-		bankAccount01.setAccountState(AccountState.ACTIVE);
+		BankAccount bankAccount01 = TestDataFactory.createImportedAccount("DE00000000000000000001", "00000001", "BANKDE00001");
 
 		bankAccount01 = dbController.insertOrUpdate(bankAccount01);
 
@@ -257,7 +234,7 @@ class GBankingServiceTest {
 
 	@Test
 	void testUnreferencedRecipientIsEditable() {
-		Recipient r1 = TestData.createSampleRecipient01();
+		Recipient r1 = TestDataFactory.createSampleRecipient01();
 		dbController.insertOrUpdate(r1);
 
 		boolean editable = recipientService.isRecipientEditable(r1);
@@ -267,12 +244,12 @@ class GBankingServiceTest {
 
 	@Test
 	void testReferencedRecipientIsNotEditable() {
-		Recipient r1 = TestData.createSampleRecipient01();
+		Recipient r1 = TestDataFactory.createSampleRecipient01();
 		dbController.insertOrUpdate(r1);
 
-		BankAccount acc1 = TestData.createSampleAccount(null);
+		BankAccount acc1 = TestDataFactory.createSampleAccount(null);
 		dbController.insertOrUpdate(acc1);
-		Booking b1 = TestData.createSampleBookingWithRecipient(acc1.getId(), r1.getId());
+		Booking b1 = TestDataFactory.createSampleBookingWithRecipient(acc1.getId(), r1.getId());
 		dbController.insertOrUpdate(b1);
 
 		boolean editable = recipientService.isRecipientEditable(r1);
@@ -282,7 +259,7 @@ class GBankingServiceTest {
 
 	@Test
 	void testApplyCategoryRule_WithAndFilter_SetsCategoryOnlyForMatchingBooking() {
-		BankAccount account = TestData.createSampleAccount(null);
+		BankAccount account = TestDataFactory.createSampleAccount(null);
 		account = dbController.insertOrUpdate(account);
 
 		Recipient matchRecipient = new Recipient("Supermarkt Nord", "DE00000000000000001000");
@@ -317,7 +294,7 @@ class GBankingServiceTest {
 		nonMatchingBooking.setRecipientId(otherRecipient.getId());
 		nonMatchingBooking = dbController.insertOrUpdate(nonMatchingBooking);
 
-		Category category = dbController.insertOrUpdate(TestData.createSampleCategory("Lebensmittel"));
+		Category category = dbController.insertOrUpdate(TestDataFactory.createSampleCategory("Lebensmittel"));
 
 		CategoryRule categoryRule = new CategoryRule();
 		categoryRule.setCategory(category);
@@ -340,18 +317,18 @@ class GBankingServiceTest {
 
 	@Test
 	void testApplyCategoryRulesToBookings_RespectsOverwriteExistingCategoriesChoice() {
-		BankAccount account = TestData.createSampleAccount(null);
+		BankAccount account = TestDataFactory.createSampleAccount(null);
 		account = dbController.insertOrUpdate(account);
 
-		Category existingCategory = dbController.insertOrUpdate(TestData.createSampleCategory("Alt"));
-		Category targetCategory = dbController.insertOrUpdate(TestData.createSampleCategory("Neu"));
+		Category existingCategory = dbController.insertOrUpdate(TestDataFactory.createSampleCategory("Alt"));
+		Category targetCategory = dbController.insertOrUpdate(TestDataFactory.createSampleCategory("Neu"));
 
-		Booking categorizedBooking = TestData.createSampleBooking(account.getId());
+		Booking categorizedBooking = TestDataFactory.createSampleBooking(account.getId());
 		categorizedBooking.setPurpose("Ticket Monatskarte");
 		categorizedBooking.setCategory(existingCategory);
 		categorizedBooking = dbController.insertOrUpdate(categorizedBooking);
 
-		Booking uncategorizedBooking = TestData.createSampleBooking(account.getId());
+		Booking uncategorizedBooking = TestDataFactory.createSampleBooking(account.getId());
 		uncategorizedBooking.setPurpose("Ticket Einzelfahrt");
 		uncategorizedBooking = dbController.insertOrUpdate(uncategorizedBooking);
 
@@ -385,16 +362,16 @@ class GBankingServiceTest {
 
 	@Test
 	void assignCategoryToBookings_ShouldAssignSelectedCategoryOnlyToGivenBookings() {
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
-		Category oldCategory = dbController.insertOrUpdate(TestData.createSampleCategory("Alt"));
-		Category newCategory = dbController.insertOrUpdate(TestData.createSampleCategory("Neu"));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
+		Category oldCategory = dbController.insertOrUpdate(TestDataFactory.createSampleCategory("Alt"));
+		Category newCategory = dbController.insertOrUpdate(TestDataFactory.createSampleCategory("Neu"));
 
-		Booking categorizedBooking = TestData.createSampleBooking(account.getId());
+		Booking categorizedBooking = TestDataFactory.createSampleBooking(account.getId());
 		categorizedBooking.setCategory(oldCategory);
 		categorizedBooking = dbController.insertOrUpdate(categorizedBooking);
 
-		Booking uncategorizedBooking = dbController.insertOrUpdate(TestData.createSampleBooking2(account.getId()));
-		Booking untouchedBooking = dbController.insertOrUpdate(TestData.createSampleBooking(account.getId()));
+		Booking uncategorizedBooking = dbController.insertOrUpdate(TestDataFactory.createSampleBooking2(account.getId()));
+		Booking untouchedBooking = dbController.insertOrUpdate(TestDataFactory.createSampleBooking(account.getId()));
 
 		int updatedBookings = bookingCategoryService.assignCategoryToBookings(newCategory, List.of(categorizedBooking, uncategorizedBooking));
 
@@ -409,16 +386,16 @@ class GBankingServiceTest {
 
 	@Test
 	void clearCategoryFromBookings_ShouldRemoveOnlyExistingCategoriesFromGivenBookings() {
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
-		Category category = dbController.insertOrUpdate(TestData.createSampleCategory("Kategorie"));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
+		Category category = dbController.insertOrUpdate(TestDataFactory.createSampleCategory("Kategorie"));
 
-		Booking categorizedBooking = TestData.createSampleBooking(account.getId());
+		Booking categorizedBooking = TestDataFactory.createSampleBooking(account.getId());
 		categorizedBooking.setCategory(category);
 		categorizedBooking = dbController.insertOrUpdate(categorizedBooking);
 
-		Booking uncategorizedBooking = dbController.insertOrUpdate(TestData.createSampleBooking2(account.getId()));
+		Booking uncategorizedBooking = dbController.insertOrUpdate(TestDataFactory.createSampleBooking2(account.getId()));
 
-		Booking untouchedBooking = TestData.createSampleBooking(account.getId());
+		Booking untouchedBooking = TestDataFactory.createSampleBooking(account.getId());
 		untouchedBooking.setCategory(category);
 		untouchedBooking = dbController.insertOrUpdate(untouchedBooking);
 
@@ -436,20 +413,20 @@ class GBankingServiceTest {
 
 	@Test
 	void getCategoryDeleteImpact_ShouldCountBookingsAndRulesInCategoryTree() {
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Category parentCategory = dbController.insertOrUpdate(new Category("Mobilitaet", null));
 		Category childCategory = dbController.insertOrUpdate(new Category("Bahn", parentCategory.getId()));
-		Category otherCategory = dbController.insertOrUpdate(TestData.createSampleCategory("Freizeit"));
+		Category otherCategory = dbController.insertOrUpdate(TestDataFactory.createSampleCategory("Freizeit"));
 
-		Booking parentBooking = TestData.createSampleBooking(account.getId());
+		Booking parentBooking = TestDataFactory.createSampleBooking(account.getId());
 		parentBooking.setCategory(parentCategory);
 		parentBooking = dbController.insertOrUpdate(parentBooking);
 
-		Booking childBooking = TestData.createSampleBooking2(account.getId());
+		Booking childBooking = TestDataFactory.createSampleBooking2(account.getId());
 		childBooking.setCategory(childCategory);
 		childBooking = dbController.insertOrUpdate(childBooking);
 
-		Booking otherBooking = TestData.createSampleBooking(account.getId());
+		Booking otherBooking = TestDataFactory.createSampleBooking(account.getId());
 		otherBooking.setCategory(otherCategory);
 		otherBooking = dbController.insertOrUpdate(otherBooking);
 
@@ -480,7 +457,7 @@ class GBankingServiceTest {
 
 	@Test
 	void testPostRetrieveActions_AppliesMatchingCategoryRules() {
-		BankAccount account = TestData.createSampleAccount(null);
+		BankAccount account = TestDataFactory.createSampleAccount(null);
 		account = dbController.insertOrUpdate(account);
 
 		Recipient recipient = new Recipient("Supermarkt Sued", "DE00000000000000003000");
@@ -498,7 +475,7 @@ class GBankingServiceTest {
 		booking.setRecipientId(recipient.getId());
 		booking = dbController.insertOrUpdate(booking);
 
-		Category category = dbController.insertOrUpdate(TestData.createSampleCategory("Lebensmittel"));
+		Category category = dbController.insertOrUpdate(TestDataFactory.createSampleCategory("Lebensmittel"));
 
 		CategoryRule categoryRule = new CategoryRule();
 		categoryRule.setCategory(category);
@@ -524,7 +501,7 @@ class GBankingServiceTest {
 
 	@Test
 	void testSaveMoneyTransferToDB_WithStandingOrderData_PersistsExtendedFields() {
-		BankAccount account = TestData.createSampleAccount(null);
+		BankAccount account = TestDataFactory.createSampleAccount(null);
 		account = dbController.insertOrUpdate(account);
 
 		Recipient recipient = new Recipient("Stromanbieter", "DE12345678901234567890", "TESTDEFFXXX", null, null, "Testbank", Source.ONLINE);
@@ -547,7 +524,7 @@ class GBankingServiceTest {
 
 	@Test
 	void testSaveMoneyTransferToDB_WithRecipientBlz_PersistsBlzInsteadOfBic() {
-		BankAccount account = TestData.createSampleAccount(null);
+		BankAccount account = TestDataFactory.createSampleAccount(null);
 		account = dbController.insertOrUpdate(account);
 
 		Recipient recipient = new Recipient("Domestic Recipient", "DE12345678901234567890", null, null, null, "Testbank", Source.ONLINE);
@@ -566,7 +543,7 @@ class GBankingServiceTest {
 
 	@Test
 	void testSaveMoneyTransferToDB_WithForeignTransfer_PersistsCurrencyAndRecipientBank() {
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		dbController.insertOrUpdate(new Recipient("Foreign Recipient", "GB29NWBK60161331926819", null, null, null, null, Source.MONEYTRANSFER));
 
 		Recipient foreignRecipient = new Recipient("Foreign Recipient", "GB29NWBK60161331926819", "BICCODE", null, null, "Recipient Bank", Source.ONLINE);
@@ -599,9 +576,8 @@ class GBankingServiceTest {
 	@Test
 	void testSupportsTransferOrderType_WithAllowedBusinessCases_ReturnsExpectedResult() {
 		BankAccess bankAccess = insertBankAccessWithBpd("UebSEPA", "InstUebSEPA", "UebEil");
-		BankAccount account = new BankAccount();
-		account.setBankAccessId(bankAccess.getId());
-		account.setAllowedBusinessCases(List.of(createBusinessCase("UebSEPA"), createBusinessCase("InstUebSEPA"), createBusinessCase("UebEil")));
+		BankAccount account = TestDataFactory.createForBankAccess(bankAccess.getId());
+		account.setAllowedBusinessCases(List.of(TestDataFactory.createBusinessCase("UebSEPA"), TestDataFactory.createBusinessCase("InstUebSEPA"), TestDataFactory.createBusinessCase("UebEil")));
 
 		assertTrue(bankingCapabilityService.supportsTransferOrderType(account, OrderType.TRANSFER));
 		assertTrue(bankingCapabilityService.supportsTransferOrderType(account, OrderType.REALTIME_TRANSFER));
@@ -613,8 +589,7 @@ class GBankingServiceTest {
 	@Test
 	void testSupportsTransferOrderType_WithoutBusinessCases_BlocksTransfer() {
 		BankAccess bankAccess = insertBankAccessWithBpd("UebSEPA", "DauerSEPANew");
-		BankAccount account = new BankAccount();
-		account.setBankAccessId(bankAccess.getId());
+		BankAccount account = TestDataFactory.createForBankAccess(bankAccess.getId());
 
 		assertFalse(bankingCapabilityService.supportsTransferOrderType(account, OrderType.TRANSFER));
 		assertFalse(bankingCapabilityService.supportsTransferOrderType(account, OrderType.STANDING_ORDER));
@@ -623,8 +598,7 @@ class GBankingServiceTest {
 	@Test
 	void testSupportsTransferOrderType_WithUpd_UsesUpdAsFallback() {
 		BankAccess bankAccess = insertBankAccessWithBpdAndUpd(new String[] { "HKCCS", "HKCDE" }, new String[] { "HKCCS" });
-		BankAccount account = new BankAccount();
-		account.setBankAccessId(bankAccess.getId());
+		BankAccount account = TestDataFactory.createForBankAccess(bankAccess.getId());
 
 		assertTrue(bankingCapabilityService.supportsTransferOrderType(account, OrderType.TRANSFER));
 		assertFalse(bankingCapabilityService.supportsTransferOrderType(account, OrderType.STANDING_ORDER));
@@ -633,9 +607,8 @@ class GBankingServiceTest {
 	@Test
 	void testSupportsTransferOrderType_WithAccountBusinessCaseAndPartialUpd_KeepsStandingOrderEnabled() {
 		BankAccess bankAccess = insertBankAccessWithBpdAndUpd(new String[] { "HKCCS", "HKCDE" }, new String[] { "HKCCS" });
-		BankAccount account = new BankAccount();
-		account.setBankAccessId(bankAccess.getId());
-		account.setAllowedBusinessCases(List.of(createBusinessCase("HKCDE")));
+		BankAccount account = TestDataFactory.createForBankAccess(bankAccess.getId());
+		account.setAllowedBusinessCases(List.of(TestDataFactory.createBusinessCase("HKCDE")));
 
 		assertTrue(bankingCapabilityService.supportsTransferOrderType(account, OrderType.TRANSFER));
 		assertTrue(bankingCapabilityService.supportsTransferOrderType(account, OrderType.STANDING_ORDER));
@@ -644,8 +617,7 @@ class GBankingServiceTest {
 	@Test
 	void testSupportsTransferOrderType_WithAtruviaStandingOrderCode_ReturnsTrue() {
 		BankAccess bankAccess = insertBankAccessWithBpdAndUpd(new String[] { "HKCDE" }, new String[] { "HKCDE" });
-		BankAccount account = new BankAccount();
-		account.setBankAccessId(bankAccess.getId());
+		BankAccount account = TestDataFactory.createForBankAccess(bankAccess.getId());
 
 		assertTrue(bankingCapabilityService.supportsTransferOrderType(account, OrderType.STANDING_ORDER));
 	}
@@ -653,8 +625,7 @@ class GBankingServiceTest {
 	@Test
 	void testSupportsTransferOrderType_WithUrgentTransferCode_ReturnsTrue() {
 		BankAccess bankAccess = insertBankAccessWithBpdAndUpd(new String[] { "HKEIL" }, new String[] { "HKEIL" });
-		BankAccount account = new BankAccount();
-		account.setBankAccessId(bankAccess.getId());
+		BankAccount account = TestDataFactory.createForBankAccess(bankAccess.getId());
 
 		assertTrue(bankingCapabilityService.supportsTransferOrderType(account, OrderType.URGENT_TRANSFER));
 	}
@@ -662,8 +633,7 @@ class GBankingServiceTest {
 	@Test
 	void testSupportsTransferOrderType_WithSepaDirectDebitCode_DoesNotEnableStandingOrder() {
 		BankAccess bankAccess = insertBankAccessWithBpdAndUpd(new String[] { "HKDSE" }, new String[] { "HKDSE" });
-		BankAccount account = new BankAccount();
-		account.setBankAccessId(bankAccess.getId());
+		BankAccount account = TestDataFactory.createForBankAccess(bankAccess.getId());
 
 		assertFalse(bankingCapabilityService.supportsTransferOrderType(account, OrderType.STANDING_ORDER));
 	}
@@ -671,8 +641,7 @@ class GBankingServiceTest {
 	@Test
 	void testSupportsOrderInventory_WithAtruviaInventoryCodes_ReturnsTrue() {
 		BankAccess bankAccess = insertBankAccessWithBpdAndUpd(new String[] { "HKCDB", "HKCSB" }, new String[] { "HKCDB", "HKCSB" });
-		BankAccount account = new BankAccount();
-		account.setBankAccessId(bankAccess.getId());
+		BankAccount account = TestDataFactory.createForBankAccess(bankAccess.getId());
 
 		assertTrue(bankingCapabilityService.supportsOrderInventory(account, OrderType.STANDING_ORDER));
 		assertTrue(bankingCapabilityService.supportsOrderInventory(account, OrderType.SCHEDULED_TRANSFER));
@@ -682,8 +651,7 @@ class GBankingServiceTest {
 	void testSupportsBankOrderOperation_WithEditAndDeleteCodes_ReturnsExpectedResult() {
 		String[] operationCodes = { "HKCDN", "HKCDL", "HKCSA", "HKCSL" };
 		BankAccess bankAccess = insertBankAccessWithBpdAndUpd(operationCodes, operationCodes);
-		BankAccount account = new BankAccount();
-		account.setBankAccessId(bankAccess.getId());
+		BankAccount account = TestDataFactory.createForBankAccess(bankAccess.getId());
 
 		assertTrue(bankingCapabilityService.supportsBankOrderOperation(account, OrderType.STANDING_ORDER, BankOrderOperation.EDIT));
 		assertTrue(bankingCapabilityService.supportsBankOrderOperation(account, OrderType.STANDING_ORDER, BankOrderOperation.DELETE));
@@ -695,8 +663,7 @@ class GBankingServiceTest {
 	@Test
 	void testSupportsAccountStatements_WithHkekaAndHkekpCodes_ReturnsTrue() {
 		BankAccess bankAccess = insertBankAccessWithBpdAndUpd(new String[] { "HKEKA", "HKEKP" }, new String[] { "HKEKA" });
-		BankAccount account = new BankAccount();
-		account.setBankAccessId(bankAccess.getId());
+		BankAccount account = TestDataFactory.createForBankAccess(bankAccess.getId());
 
 		assertTrue(bankingCapabilityService.supportsAccountStatements(account));
 	}
@@ -727,8 +694,7 @@ class GBankingServiceTest {
 	@Test
 	void testSupportsTransferOrderType_WithAtruviaForeignTransferCode_ReturnsTrue() {
 		BankAccess bankAccess = insertBankAccessWithBpdAndUpd(new String[] { "HKAUB" }, new String[] { "HKAUB" });
-		BankAccount account = new BankAccount();
-		account.setBankAccessId(bankAccess.getId());
+		BankAccount account = TestDataFactory.createForBankAccess(bankAccess.getId());
 
 		assertTrue(bankingCapabilityService.supportsTransferOrderType(account, OrderType.FOREIGN_TRANSFER));
 	}
@@ -736,16 +702,15 @@ class GBankingServiceTest {
 	@Test
 	void testSupportsTransferOrderType_WithForeignTransferOnlyInBpd_ReturnsFalse() {
 		BankAccess bankAccess = insertBankAccessWithBpd("HKAUB");
-		BankAccount account = new BankAccount();
-		account.setBankAccessId(bankAccess.getId());
+		BankAccount account = TestDataFactory.createForBankAccess(bankAccess.getId());
 
 		assertFalse(bankingCapabilityService.supportsTransferOrderType(account, OrderType.FOREIGN_TRANSFER));
 	}
 
 	@Test
 	void testSupportsTransferOrderType_WithMultipleUpdAccounts_UsesMatchingAccountOnly() {
-		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("51390000"));
-		bankAccess.getFints().setBpd(TestData.buildCapabilityBPD("HKCCS", "HKCDE"));
+		BankAccess bankAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("51390000"));
+		bankAccess.getFints().setBpd(HbciParameterTestDataFactory.buildCapabilityBpd("HKCCS", "HKCDE"));
 
 		Properties upd = new Properties();
 		upd.setProperty("KInfo.iban", "DE11111111111111111111");
@@ -759,14 +724,12 @@ class GBankingServiceTest {
 		bankAccess.getFints().setUpd(upd);
 		dbController.insertOrUpdatePD(bankAccess);
 
-		BankAccount standingOrderAccount = new BankAccount();
-		standingOrderAccount.setBankAccessId(bankAccess.getId());
+		BankAccount standingOrderAccount = TestDataFactory.createForBankAccess(bankAccess.getId());
 		standingOrderAccount.setIban("DE11111111111111111111");
 		standingOrderAccount.setNumber("11111111");
 		standingOrderAccount.setBlz("51390000");
 
-		BankAccount transferOnlyAccount = new BankAccount();
-		transferOnlyAccount.setBankAccessId(bankAccess.getId());
+		BankAccount transferOnlyAccount = TestDataFactory.createForBankAccess(bankAccess.getId());
 		transferOnlyAccount.setIban("DE22222222222222222222");
 		transferOnlyAccount.setNumber("22222222");
 		transferOnlyAccount.setBlz("51390000");
@@ -778,8 +741,8 @@ class GBankingServiceTest {
 
 	@Test
 	void testSupportsTransferOrderType_WithConflictingUpdIban_PrefersAccountNumberAndBlz() {
-		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("51390000"));
-		bankAccess.getFints().setBpd(TestData.buildCapabilityBPD("HKCCS", "HKIPZ"));
+		BankAccess bankAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("51390000"));
+		bankAccess.getFints().setBpd(HbciParameterTestDataFactory.buildCapabilityBpd("HKCCS", "HKIPZ"));
 
 		Properties upd = new Properties();
 		upd.setProperty("KInfo.iban", "DE11111111111111111111");
@@ -795,8 +758,7 @@ class GBankingServiceTest {
 		bankAccess.getFints().setUpd(upd);
 		dbController.insertOrUpdatePD(bankAccess);
 
-		BankAccount giroAccount = new BankAccount();
-		giroAccount.setBankAccessId(bankAccess.getId());
+		BankAccount giroAccount = TestDataFactory.createForBankAccess(bankAccess.getId());
 		giroAccount.setAccountName("Kontokorrent - 11111111");
 		giroAccount.setIban("DE22222222222222222222");
 		giroAccount.setNumber("11111111");
@@ -811,10 +773,10 @@ class GBankingServiceTest {
 	}
 
 	private BankAccess insertBankAccessWithBpdAndUpd(String[] bpdBusinessCases, String[] updBusinessCases) {
-		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("10020030"));
-		bankAccess.getFints().setBpd(TestData.buildCapabilityBPD(bpdBusinessCases));
+		BankAccess bankAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("10020030"));
+		bankAccess.getFints().setBpd(HbciParameterTestDataFactory.buildCapabilityBpd(bpdBusinessCases));
 		if (updBusinessCases.length > 0) {
-			bankAccess.getFints().setUpd(TestData.buildCapabilityUPD(updBusinessCases));
+			bankAccess.getFints().setUpd(HbciParameterTestDataFactory.buildCapabilityUpd(updBusinessCases));
 		}
 		dbController.insertOrUpdatePD(bankAccess);
 		return bankAccess;
@@ -828,12 +790,6 @@ class GBankingServiceTest {
 		konto.name = name1;
 
 		return konto;
-	}
-
-	private BusinessCase createBusinessCase(String caseValue) {
-		BusinessCase businessCase = new BusinessCase();
-		businessCase.setCaseValue(caseValue);
-		return businessCase;
 	}
 
 	private UmsLine createUmsLine(Date date, String customerref, String gvcode, String primanota, String currency, Double balance, Double amount, String text,

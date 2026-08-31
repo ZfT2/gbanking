@@ -65,13 +65,13 @@ import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
 import de.zft2.gbanking.messages.Messages;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
 import de.zft2.gbanking.service.Service;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.ServiceStubbingUtil;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AccountTransactionServiceAdditionalTest {
@@ -219,7 +219,7 @@ class AccountTransactionServiceAdditionalTest {
 	void retrieveAccountTransactions_shouldReturnFalseAndClearPinWhenBankAccessIsMissing() {
 		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 		AccountTransactionService service = new AccountTransactionService();
-		BankAccount bankAccount = TestData.createSampleAccount(null);
+		BankAccount bankAccount = TestDataFactory.createSampleAccount(null);
 		char[] pin = "1234".toCharArray();
 
 		when(hbciSupport.initBankAccess(bankAccount, pin)).thenReturn(null);
@@ -234,17 +234,17 @@ class AccountTransactionServiceAdditionalTest {
 	@Test
 	void retrieveAccountTransactionsWithResult_shouldFlagWrongPinStatus() {
 		DBController dbController = DBController.getInstance(tempDir.toString());
-		BankAccount bankAccount = TestData.createSampleAccount(null);
+		BankAccount bankAccount = TestDataFactory.createSampleAccount(null);
 		bankAccount.setIban("DE44500105175407324931");
 		bankAccount.setNumber("987654321");
 		bankAccount = dbController.insertOrUpdate(bankAccount);
-		Booking previousNewBooking = TestData.createSampleBooking(bankAccount.getId());
+		Booking previousNewBooking = TestDataFactory.createSampleBooking(bankAccount.getId());
 		previousNewBooking.setSource(Source.ONLINE_NEW);
 		previousNewBooking = dbController.insertOrUpdate(previousNewBooking);
 
 		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 		AccountTransactionService service = new AccountTransactionService();
-		BankAccess bankAccess = TestData.createSampleBankAccess("10020030");
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("10020030");
 		char[] pin = "1234".toCharArray();
 		HBCIPassport passport = mock(HBCIPassport.class);
 		HBCIHandler handle = mock(HBCIHandler.class);
@@ -283,10 +283,10 @@ class AccountTransactionServiceAdditionalTest {
 	@Test
 	void retrieveAccountTransactionsWithResult_shouldFlagWrongPinTransportFailure() {
 		DBController dbController = DBController.getInstance(tempDir.toString());
-		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 		AccountTransactionService service = new AccountTransactionService();
-		BankAccess bankAccess = TestData.createSampleBankAccess("10020030");
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("10020030");
 		char[] pin = "1234".toCharArray();
 		HBCI_Exception exception = new HBCI_Exception("Fehler beim Empfangen der Daten vom HBCI-Server",
 				new IOException("Server returned HTTP response code: 400 for URL: https://fints.dkb.de:443/fints"));
@@ -308,11 +308,11 @@ class AccountTransactionServiceAdditionalTest {
 	@Test
 	void retrieveAccountTransactions_shouldExecuteMatchingJobsPersistBookingsAndClearPin() {
 		DBController dbController = DBController.getInstance(tempDir.toString());
-		BankAccount bankAccount = TestData.createSampleAccount(null);
+		BankAccount bankAccount = TestDataFactory.createSampleAccount(null);
 		bankAccount.setIban("DE44500105175407324931");
 		bankAccount.setNumber("987654321");
 		bankAccount = dbController.insertOrUpdate(bankAccount);
-		Booking previousNewBooking = TestData.createSampleBooking(bankAccount.getId());
+		Booking previousNewBooking = TestDataFactory.createSampleBooking(bankAccount.getId());
 		LocalDate existingBookingDate = LocalDate.now(ZoneId.systemDefault()).minusDays(10);
 		previousNewBooking.setDateBooking(existingBookingDate);
 		previousNewBooking.setDateValue(existingBookingDate);
@@ -321,7 +321,7 @@ class AccountTransactionServiceAdditionalTest {
 
 		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 		AccountTransactionService service = new AccountTransactionService();
-		BankAccess bankAccess = TestData.createSampleBankAccess("10020030");
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("10020030");
 		char[] pin = "1234".toCharArray();
 		HBCIPassport passport = mock(HBCIPassport.class);
 		HBCIHandler handle = mock(HBCIHandler.class);
@@ -382,7 +382,7 @@ class AccountTransactionServiceAdditionalTest {
 	@Test
 	void retrieveAccountTransactions_shouldPersistLowlevelPrenotificationsWhenSupported() {
 		DBController dbController = DBController.getInstance(tempDir.toString());
-		BankAccount bankAccount = TestData.createSampleAccount(null);
+		BankAccount bankAccount = TestDataFactory.createSampleAccount(null);
 		bankAccount.setIban("DE44500105175407324931");
 		bankAccount.setNumber("987654321");
 		bankAccount.setBlz("10020030");
@@ -390,7 +390,7 @@ class AccountTransactionServiceAdditionalTest {
 
 		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 		AccountTransactionService service = new AccountTransactionService();
-		BankAccess bankAccess = TestData.createSampleBankAccess("10020030");
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("10020030");
 		char[] pin = "1234".toCharArray();
 		HBCIPassport passport = mock(HBCIPassport.class);
 		HBCIHandler handle = mock(HBCIHandler.class);
@@ -452,7 +452,7 @@ class AccountTransactionServiceAdditionalTest {
 	@Test
 	void retrieveAccountTransactions_shouldKeepExistingPrenotificationsWhenLowlevelResultFails() {
 		DBController dbController = DBController.getInstance(tempDir.toString());
-		BankAccount bankAccount = TestData.createSampleAccount(null);
+		BankAccount bankAccount = TestDataFactory.createSampleAccount(null);
 		bankAccount.setIban("DE44500105175407324931");
 		bankAccount.setNumber("987654321");
 		bankAccount.setBlz("10020030");
@@ -461,7 +461,7 @@ class AccountTransactionServiceAdditionalTest {
 
 		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 		AccountTransactionService service = new AccountTransactionService();
-		BankAccess bankAccess = TestData.createSampleBankAccess("10020030");
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("10020030");
 		char[] pin = "1234".toCharArray();
 		HBCIPassport passport = mock(HBCIPassport.class);
 		HBCIHandler handle = mock(HBCIHandler.class);
@@ -509,7 +509,7 @@ class AccountTransactionServiceAdditionalTest {
 	@Test
 	void retrieveAccountTransactions_shouldNotPersistPartialDataWhenOverallStatusFails() {
 		DBController dbController = DBController.getInstance(tempDir.toString());
-		BankAccount bankAccount = TestData.createSampleAccount(null);
+		BankAccount bankAccount = TestDataFactory.createSampleAccount(null);
 		bankAccount.setIban("DE44500105175407324931");
 		bankAccount.setNumber("987654321");
 		bankAccount.setBlz("10020030");
@@ -518,7 +518,7 @@ class AccountTransactionServiceAdditionalTest {
 
 		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 		AccountTransactionService service = new AccountTransactionService();
-		BankAccess bankAccess = TestData.createSampleBankAccess("10020030");
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("10020030");
 		char[] pin = "1234".toCharArray();
 		HBCIPassport passport = mock(HBCIPassport.class);
 		HBCIHandler handle = mock(HBCIHandler.class);
@@ -575,7 +575,7 @@ class AccountTransactionServiceAdditionalTest {
 	@Test
 	void reconcileAccountBalance_shouldCreateAutomaticAdjustmentBookingWhenSaldoDiffersFromBookingBalance() {
 		DBController dbController = DBController.getInstance(tempDir.toString());
-		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		insertBooking(dbController, bankAccount.getId(), Source.ONLINE, new BigDecimal("90.00"));
 		AccountTransactionService service = new AccountTransactionService();
 
@@ -594,7 +594,7 @@ class AccountTransactionServiceAdditionalTest {
 	@Test
 	void reconcileAccountBalance_shouldRemoveLastAutomaticAdjustmentWhenItMatchesNewDifference() {
 		DBController dbController = DBController.getInstance(tempDir.toString());
-		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		insertBooking(dbController, bankAccount.getId(), Source.ONLINE, new BigDecimal("100.00"));
 		Booking adjustment = insertBooking(dbController, bankAccount.getId(), Source.AUTO_ADJUSTING, new BigDecimal("10.00"));
 		AccountTransactionService service = new AccountTransactionService();
@@ -610,7 +610,7 @@ class AccountTransactionServiceAdditionalTest {
 	@Test
 	void reconcileAccountBalance_shouldIgnorePrenotifications() {
 		DBController dbController = DBController.getInstance(tempDir.toString());
-		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		insertBooking(dbController, bankAccount.getId(), Source.ONLINE, new BigDecimal("90.00"));
 		insertBooking(dbController, bankAccount.getId(), Source.ONLINE_PRENO, new BigDecimal("500.00"));
 		AccountTransactionService service = new AccountTransactionService();
@@ -625,9 +625,9 @@ class AccountTransactionServiceAdditionalTest {
 	@Test
 	void reconcileAccountBalance_shouldUseBaseAmountOfForeignCurrencyBookings() {
 		DBController dbController = DBController.getInstance(tempDir.toString());
-		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		insertBooking(dbController, bankAccount.getId(), Source.ONLINE, new BigDecimal("90.00"));
-		Booking foreignCurrencyBooking = TestData.createSampleBooking(bankAccount.getId());
+		Booking foreignCurrencyBooking = TestDataFactory.createSampleBooking(bankAccount.getId());
 		foreignCurrencyBooking.setAmount(new BigDecimal("5.00"));
 		BookingForeignCurrencyDetails foreignDetails = new BookingForeignCurrencyDetails();
 		foreignDetails.setForeignAmount(new BigDecimal("500.00"));
@@ -703,7 +703,7 @@ class AccountTransactionServiceAdditionalTest {
 	}
 
 	private static Booking insertBooking(DBController dbController, int accountId, Source source, BigDecimal amount) {
-		Booking booking = TestData.createSampleBooking(accountId);
+		Booking booking = TestDataFactory.createSampleBooking(accountId);
 		booking.setAmount(amount);
 		booking.setBookingType(amount.signum() < 0 ? BookingType.REMOVAL : BookingType.DEPOSIT);
 		booking.setSource(source);

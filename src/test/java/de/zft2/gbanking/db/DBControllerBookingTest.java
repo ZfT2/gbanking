@@ -45,6 +45,7 @@ import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.SepaType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 
@@ -55,12 +56,12 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void insertBooking_shouldWork() throws Exception {
 
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc = TestData.createSampleAccount(ba.getId());
+		BankAccount acc = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc);
 
-		Booking booking = TestData.createSampleBooking(acc.getId());
+		Booking booking = TestDataFactory.createSampleBooking(acc.getId());
 		db.insertOrUpdate(booking);
 
 		assertTrue(booking.getId() > 0);
@@ -81,12 +82,12 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void insertBookingWithSepaInformation_shouldWork() {
 
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc = TestData.createSampleAccount(ba.getId());
+		BankAccount acc = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc);
 
-		Booking booking = TestData.createSampleBooking(acc.getId());
+		Booking booking = TestDataFactory.createSampleBooking(acc.getId());
 		booking.setSepaDetails(createSepaDetails());
 
 		db.insertOrUpdate(booking);
@@ -109,12 +110,12 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void insertBookingWithSepaAndAdditionalInformation_shouldPersistInSubTables() throws Exception {
 
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc = TestData.createSampleAccount(ba.getId());
+		BankAccount acc = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc);
 
-		Booking booking = TestData.createSampleBooking(acc.getId());
+		Booking booking = TestDataFactory.createSampleBooking(acc.getId());
 		booking.setSepaDetails(createSepaDetails());
 		booking.setAdditionalDetails(createAdditionalDetails());
 		booking.setCreditCardDetails(createCreditCardDetails());
@@ -269,12 +270,12 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void insertBookingWithoutDetailData_shouldNotCreateSubTableRows() throws Exception {
 
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc = TestData.createSampleAccount(ba.getId());
+		BankAccount acc = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc);
 
-		Booking booking = TestData.createSampleBooking(acc.getId());
+		Booking booking = TestDataFactory.createSampleBooking(acc.getId());
 		BookingSepaDetails sepaDetails = new BookingSepaDetails();
 		sepaDetails.setCustomerRef(" ");
 		sepaDetails.setPurpose("");
@@ -305,12 +306,12 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void updateBookingWithoutDetailData_shouldRemoveSubTableRows() throws Exception {
 
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc = TestData.createSampleAccount(ba.getId());
+		BankAccount acc = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc);
 
-		Booking booking = TestData.createSampleBooking(acc.getId());
+		Booking booking = TestDataFactory.createSampleBooking(acc.getId());
 		booking.setSepaCustomerRef("Customer");
 		BookingAdditionalDetails additionalDetails = new BookingAdditionalDetails();
 		additionalDetails.setInstref("INST-1");
@@ -334,12 +335,12 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void deleteBooking_shouldCascadeToSubTables() throws Exception {
 
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc = TestData.createSampleAccount(ba.getId());
+		BankAccount acc = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc);
 
-		Booking booking = TestData.createSampleBooking(acc.getId());
+		Booking booking = TestDataFactory.createSampleBooking(acc.getId());
 		booking.setSepaCustomerRef("Customer");
 		BookingAdditionalDetails additionalDetails = new BookingAdditionalDetails();
 		additionalDetails.setInstref("INST-1");
@@ -359,12 +360,12 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void updateBookingAdditionalNote_shouldOnlyUpdateAnnotationForOnlineBooking() throws Exception {
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc = TestData.createSampleAccount(ba.getId());
+		BankAccount acc = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc);
 
-		Booking booking = TestData.createSampleBooking(acc.getId());
+		Booking booking = TestDataFactory.createSampleBooking(acc.getId());
 		db.insertOrUpdate(booking);
 		booking.setNoteDetails(createNoteDetails("Rechnung zuordnen", true));
 
@@ -393,14 +394,14 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void updateBookingSourceOneAccount_shouldPersistEveryBooking() {
 
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc01 = TestData.createSampleAccount(ba.getId());
+		BankAccount acc01 = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc01);
 		
-		Booking booking01 = TestData.createSampleBooking(acc01.getId());
+		Booking booking01 = TestDataFactory.createSampleBooking(acc01.getId());
 		db.insertOrUpdate(booking01);
-		Booking booking02 = TestData.createSampleBooking(acc01.getId());
+		Booking booking02 = TestDataFactory.createSampleBooking(acc01.getId());
 		db.insertOrUpdate(booking02);
 		
 		BankAccount accountWithBookings = db.getByIdFull(BankAccount.class, acc01.getId());
@@ -417,19 +418,19 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void updateBookingSourceMultipleAccounts_shouldPersistEveryBooking() {
 
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc01 = TestData.createSampleAccount(ba.getId());
+		BankAccount acc01 = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc01);
 
-		BankAccount acc02 = TestData.createSampleAccount(ba.getId());
+		BankAccount acc02 = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc02);
 		
-		Booking booking01 = TestData.createSampleBooking(acc01.getId());
+		Booking booking01 = TestDataFactory.createSampleBooking(acc01.getId());
 		db.insertOrUpdate(booking01);
-		Booking booking02 = TestData.createSampleBooking(acc01.getId());
+		Booking booking02 = TestDataFactory.createSampleBooking(acc01.getId());
 		db.insertOrUpdate(booking02);
-		Booking booking03 = TestData.createSampleBooking(acc02.getId());
+		Booking booking03 = TestDataFactory.createSampleBooking(acc02.getId());
 		db.insertOrUpdate(booking03);
 		
 		BankAccount firstAccountWithBookings = db.getByIdFull(BankAccount.class, acc01.getId());
@@ -448,16 +449,16 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void updateBookingsWithRecipients_shouldOnlyAssignMissingRecipient() {
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc = TestData.createSampleAccount(ba.getId());
+		BankAccount acc = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc);
-		Recipient recipient01 = TestData.createRecipientWithParams("Max Mustermann", Source.ONLINE, "DE12345678001");
+		Recipient recipient01 = TestDataFactory.createRecipientWithParams("Max Mustermann", Source.ONLINE, "DE12345678001");
 		db.insertOrUpdate(recipient01);
-		Recipient recipient02 = TestData.createRecipientWithParams("Erika Mustermann", Source.ONLINE, "DE12345678002");
+		Recipient recipient02 = TestDataFactory.createRecipientWithParams("Erika Mustermann", Source.ONLINE, "DE12345678002");
 		db.insertOrUpdate(recipient02);
 
-		Booking booking = TestData.createSampleBooking(acc.getId());
+		Booking booking = TestDataFactory.createSampleBooking(acc.getId());
 		db.insertOrUpdate(booking);
 
 		assertTrue(db.updateBookingsWithRecipients(Map.of(recipient01, Set.of(booking.getId()))));
@@ -470,14 +471,14 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void updateBookingsWithRecipients_shouldRollbackPartialUpdate() {
-		BankAccess bankAccess = db.insertOrUpdate(TestData.createSampleBankAccess("44444444"));
-		BankAccount account = db.insertOrUpdate(TestData.createSampleAccount(bankAccess.getId()));
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("44444444"));
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
 		Recipient currentRecipient = db.insertOrUpdate(
-				TestData.createRecipientWithParams("Max Mustermann", Source.ONLINE, "DE12345678001"));
+				TestDataFactory.createRecipientWithParams("Max Mustermann", Source.ONLINE, "DE12345678001"));
 		Recipient newRecipient = db.insertOrUpdate(
-				TestData.createRecipientWithParams("Erika Mustermann", Source.ONLINE, "DE12345678002"));
-		Booking assignedBooking = db.insertOrUpdate(TestData.createSampleBooking(account.getId()));
-		Booking unassignedBooking = db.insertOrUpdate(TestData.createSampleBooking2(account.getId()));
+				TestDataFactory.createRecipientWithParams("Erika Mustermann", Source.ONLINE, "DE12345678002"));
+		Booking assignedBooking = db.insertOrUpdate(TestDataFactory.createSampleBooking(account.getId()));
+		Booking unassignedBooking = db.insertOrUpdate(TestDataFactory.createSampleBooking2(account.getId()));
 		db.updateBookingsWithRecipients(Map.of(currentRecipient, Set.of(assignedBooking.getId())));
 
 		assertThrows(GBankingException.class, () -> db.updateBookingsWithRecipients(
@@ -489,11 +490,11 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void updateBookingsWithCategories_shouldRollbackPartialUpdate() {
-		BankAccess bankAccess = db.insertOrUpdate(TestData.createSampleBankAccess("44444444"));
-		BankAccount account = db.insertOrUpdate(TestData.createSampleAccount(bankAccess.getId()));
-		Category currentCategory = db.insertOrUpdate(TestData.createSampleCategory("Current"));
-		Category newCategory = db.insertOrUpdate(TestData.createSampleCategory("New"));
-		Booking booking = db.insertOrUpdate(TestData.createSampleBooking(account.getId()));
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("44444444"));
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
+		Category currentCategory = db.insertOrUpdate(TestDataFactory.createSampleCategory("Current"));
+		Category newCategory = db.insertOrUpdate(TestDataFactory.createSampleCategory("New"));
+		Booking booking = db.insertOrUpdate(TestDataFactory.createSampleBooking(account.getId()));
 		db.updateBookingsWithCategories(Map.of(currentCategory, Set.of(booking.getId())));
 
 		assertThrows(GBankingException.class, () -> db.updateBookingsWithCategories(
@@ -504,12 +505,12 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void updateBookingsWithCategories_shouldProcessMoreThanOneSqliteParameterChunk() {
-		BankAccess bankAccess = db.insertOrUpdate(TestData.createSampleBankAccess("44444444"));
-		BankAccount account = db.insertOrUpdate(TestData.createSampleAccount(bankAccess.getId()));
-		Category category = db.insertOrUpdate(TestData.createSampleCategory("Bulk"));
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("44444444"));
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
+		Category category = db.insertOrUpdate(TestDataFactory.createSampleCategory("Bulk"));
 		Set<Booking> bookings = new HashSet<>();
 		for (int index = 0; index < 901; index++) {
-			Booking booking = TestData.createSampleBooking(account.getId());
+			Booking booking = TestDataFactory.createSampleBooking(account.getId());
 			booking.setPurpose("Bulk " + index);
 			bookings.add(booking);
 		}
@@ -525,16 +526,16 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void systemBooking_shouldRejectRecipientReplacementAfterInitialAssignment() {
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc = TestData.createSampleAccount(ba.getId());
+		BankAccount acc = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc);
-		Recipient recipient01 = TestData.createRecipientWithParams("Max Mustermann", Source.ONLINE, "DE12345678001");
+		Recipient recipient01 = TestDataFactory.createRecipientWithParams("Max Mustermann", Source.ONLINE, "DE12345678001");
 		db.insertOrUpdate(recipient01);
-		Recipient recipient02 = TestData.createRecipientWithParams("Erika Mustermann", Source.ONLINE, "DE12345678002");
+		Recipient recipient02 = TestDataFactory.createRecipientWithParams("Erika Mustermann", Source.ONLINE, "DE12345678002");
 		db.insertOrUpdate(recipient02);
 
-		Booking booking = TestData.createSampleBooking(acc.getId());
+		Booking booking = TestDataFactory.createSampleBooking(acc.getId());
 		db.insertOrUpdate(booking);
 		db.updateBookingsWithRecipients(Map.of(recipient01, Set.of(booking.getId())));
 
@@ -548,16 +549,16 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void manualBooking_shouldAllowRecipientReplacement() {
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc = TestData.createSampleAccount(ba.getId());
+		BankAccount acc = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc);
-		Recipient recipient01 = TestData.createRecipientWithParams("Max Mustermann", Source.MANUELL, "DE12345678001");
+		Recipient recipient01 = TestDataFactory.createRecipientWithParams("Max Mustermann", Source.MANUELL, "DE12345678001");
 		db.insertOrUpdate(recipient01);
-		Recipient recipient02 = TestData.createRecipientWithParams("Erika Mustermann", Source.MANUELL, "DE12345678002");
+		Recipient recipient02 = TestDataFactory.createRecipientWithParams("Erika Mustermann", Source.MANUELL, "DE12345678002");
 		db.insertOrUpdate(recipient02);
 
-		Booking booking = TestData.createSampleBooking(acc.getId());
+		Booking booking = TestDataFactory.createSampleBooking(acc.getId());
 		booking.setSource(Source.MANUELL);
 		booking.setRecipientId(recipient01.getId());
 		db.insertOrUpdate(booking);
@@ -571,15 +572,15 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void insertMultipleBookings01_shouldWork() {
 
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc = TestData.createSampleAccount(ba.getId());
+		BankAccount acc = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc);
 
-		Booking booking01 = TestData.createSampleBooking(acc.getId());
+		Booking booking01 = TestDataFactory.createSampleBooking(acc.getId());
 		booking01.setSepaDetails(createSepaDetails());
 		
-		Booking booking02 = TestData.createSampleBooking2(acc.getId());
+		Booking booking02 = TestDataFactory.createSampleBooking2(acc.getId());
 
 		boolean result = db.insertAccountBookings(Arrays.asList(booking01, booking02));
 
@@ -614,9 +615,9 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void insertMultipleBookingsShouldRejectUnknownUpdateIds() {
-		BankAccess bankAccess = db.insertOrUpdate(TestData.createSampleBankAccess("44444444"));
-		BankAccount account = db.insertOrUpdate(TestData.createSampleAccount(bankAccess.getId()));
-		Booking booking = TestData.createSampleBooking(account.getId());
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("44444444"));
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
+		Booking booking = TestDataFactory.createSampleBooking(account.getId());
 		booking.setId(Integer.MAX_VALUE);
 
 		assertThrows(GBankingException.class, () -> db.insertAll(Set.of(booking)));
@@ -626,23 +627,23 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void fullBookingList_shouldReuseJoinedRelationsWithoutAdditionalQueries() {
-		BankAccess bankAccess = db.insertOrUpdate(TestData.createSampleBankAccess("44444444"));
-		BankAccount account = db.insertOrUpdate(TestData.createSampleAccount(bankAccess.getId()));
-		Recipient recipient = TestData.createSampleRecipient01();
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("44444444"));
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
+		Recipient recipient = TestDataFactory.createSampleRecipient01();
 		recipient.setAccountNumber("4711");
 		recipient.setBlz("10010010");
 		recipient.setBank("Testbank");
 		recipient.setNote("Bevorzugter Empfänger");
 		recipient.setDefault(true);
 		recipient = db.insertOrUpdate(recipient);
-		Category category = db.insertOrUpdate(TestData.createSampleCategory("Wohnen:Miete"));
+		Category category = db.insertOrUpdate(TestDataFactory.createSampleCategory("Wohnen:Miete"));
 		Recipient expectedRecipient = db.getById(Recipient.class, recipient.getId());
 		Category expectedCategory = db.getById(Category.class, category.getId());
 
-		Booking firstBooking = TestData.createSampleBookingWithRecipient(account.getId(), recipient.getId());
+		Booking firstBooking = TestDataFactory.createSampleBookingWithRecipient(account.getId(), recipient.getId());
 		firstBooking.setCategory(category);
 		db.insertOrUpdate(firstBooking);
-		Booking secondBooking = TestData.createSampleBookingWithRecipient(account.getId(), recipient.getId());
+		Booking secondBooking = TestDataFactory.createSampleBookingWithRecipient(account.getId(), recipient.getId());
 		secondBooking.setCategory(category);
 		db.insertOrUpdate(secondBooking);
 
@@ -664,10 +665,10 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void getByIdFull_shouldPreserveCancellationDuringRelationLoading() {
-		BankAccess bankAccess = db.insertOrUpdate(TestData.createSampleBankAccess("44444444"));
-		BankAccount account = db.insertOrUpdate(TestData.createSampleAccount(bankAccess.getId()));
-		Recipient recipient = db.insertOrUpdate(TestData.createSampleRecipient01());
-		Booking booking = db.insertOrUpdate(TestData.createSampleBookingWithRecipient(account.getId(), recipient.getId()));
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("44444444"));
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
+		Recipient recipient = db.insertOrUpdate(TestDataFactory.createSampleRecipient01());
+		Booking booking = db.insertOrUpdate(TestDataFactory.createSampleBookingWithRecipient(account.getId(), recipient.getId()));
 		AtomicInteger cancellationChecks = new AtomicInteger();
 
 		assertThrows(CancellationException.class,
@@ -678,15 +679,15 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void insertMultipleBookings02_shouldWork() {
 
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc = TestData.createSampleAccount(ba.getId());
+		BankAccount acc = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc);
 
-		Booking booking01 = TestData.createSampleBooking(acc.getId());
+		Booking booking01 = TestDataFactory.createSampleBooking(acc.getId());
 		booking01.setSepaDetails(createSepaDetails());
 		
-		Booking booking02 = TestData.createSampleBooking2(acc.getId());
+		Booking booking02 = TestDataFactory.createSampleBooking2(acc.getId());
 
 		Set<Booking> bookingSet = db.insertAll(new HashSet<>(Arrays.asList(booking01, booking02)));
 
@@ -719,9 +720,9 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void insertAllShouldPersistUpdateAndRemoveForeignCurrencyAndFeeDetails() {
-		BankAccess bankAccess = db.insertOrUpdate(TestData.createSampleBankAccess("44444444"));
-		BankAccount account = db.insertOrUpdate(TestData.createSampleAccount(bankAccess.getId()));
-		Booking booking = TestData.createSampleBooking(account.getId());
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("44444444"));
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
+		Booking booking = TestDataFactory.createSampleBooking(account.getId());
 		booking.setForeignCurrencyDetails(createForeignCurrencyDetails());
 		booking.setFee(createFee());
 
@@ -766,23 +767,23 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void findCrossBooking_shouldWork() {
 
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
 		
-		BankAccount acc01 = TestData.createAccountWithParams(ba.getId(), "Girokonto 01", Source.ONLINE, AccountType.CURRENT_ACCOUNT, AccountState.ACTIVE, "Max Mustermann", "DE12345678001");
+		BankAccount acc01 = TestDataFactory.createAccountWithParams(ba.getId(), "Girokonto 01", Source.ONLINE, AccountType.CURRENT_ACCOUNT, AccountState.ACTIVE, "Max Mustermann", "DE12345678001");
 		db.insertOrUpdate(acc01);
-		BankAccount acc02 = TestData.createAccountWithParams(ba.getId(), "Tagesgeld 01", Source.ONLINE, AccountType.OVERNIGHT_MONEY, AccountState.ACTIVE, "Max Mustermann", "DE12345678002");
+		BankAccount acc02 = TestDataFactory.createAccountWithParams(ba.getId(), "Tagesgeld 01", Source.ONLINE, AccountType.OVERNIGHT_MONEY, AccountState.ACTIVE, "Max Mustermann", "DE12345678002");
 		db.insertOrUpdate(acc02);
 		
-		Recipient recipient01 = TestData.createRecipientWithParams("Max Mustermann", Source.ONLINE, "DE12345678002");
+		Recipient recipient01 = TestDataFactory.createRecipientWithParams("Max Mustermann", Source.ONLINE, "DE12345678002");
 		db.insertOrUpdate(recipient01);
-		Booking booking01 = TestData.createBookingWithParams(acc01.getId(), recipient01.getId(), "Umbuchung auf TG", -500.00, BookingType.REMOVAL);
+		Booking booking01 = TestDataFactory.createBookingWithParams(acc01.getId(), recipient01.getId(), "Umbuchung auf TG", -500, BookingType.REMOVAL);
 		db.insertOrUpdate(booking01);
 		booking01 = db.getByIdFull(Booking.class, booking01.getId());
 		
-		Recipient recipient02 = TestData.createRecipientWithParams("Max Mustermann", Source.ONLINE, "DE12345678001");
+		Recipient recipient02 = TestDataFactory.createRecipientWithParams("Max Mustermann", Source.ONLINE, "DE12345678001");
 		db.insertOrUpdate(recipient02);
-		Booking booking02 = TestData.createBookingWithParams(acc02.getId(), recipient02.getId(), "Umbuchung auf TG", 500.00, BookingType.DEPOSIT);
+		Booking booking02 = TestDataFactory.createBookingWithParams(acc02.getId(), recipient02.getId(), "Umbuchung auf TG", 500, BookingType.DEPOSIT);
 		db.insertOrUpdate(booking02);
 		booking02 = db.getByIdFull(Booking.class, booking02.getId());
 		
@@ -804,28 +805,28 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void findCrossBooking_shouldReturnNewestCandidate() {
-		BankAccess bankAccess = db.insertOrUpdate(TestData.createSampleBankAccess("55555555"));
-		BankAccount sourceAccount = TestData.createAccountWithParams(bankAccess.getId(), "Source", Source.ONLINE,
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("55555555"));
+		BankAccount sourceAccount = TestDataFactory.createAccountWithParams(bankAccess.getId(), "Source", Source.ONLINE,
 				AccountType.CURRENT_ACCOUNT, AccountState.ACTIVE, "Max Mustermann", "DE12345678011");
 		db.insertOrUpdate(sourceAccount);
-		BankAccount targetAccount = TestData.createAccountWithParams(bankAccess.getId(), "Target", Source.ONLINE,
+		BankAccount targetAccount = TestDataFactory.createAccountWithParams(bankAccess.getId(), "Target", Source.ONLINE,
 				AccountType.OVERNIGHT_MONEY, AccountState.ACTIVE, "Max Mustermann", "DE12345678012");
 		db.insertOrUpdate(targetAccount);
 
-		Recipient sourceRecipient = TestData.createRecipientWithParams("Target", Source.ONLINE, targetAccount.getIban());
+		Recipient sourceRecipient = TestDataFactory.createRecipientWithParams("Target", Source.ONLINE, targetAccount.getIban());
 		db.insertOrUpdate(sourceRecipient);
-		Booking sourceBooking = TestData.createBookingWithParams(sourceAccount.getId(), sourceRecipient.getId(),
-				"Source booking", -500.00, BookingType.REMOVAL);
+		Booking sourceBooking = TestDataFactory.createBookingWithParams(sourceAccount.getId(), sourceRecipient.getId(),
+				"Source booking", -500, BookingType.REMOVAL);
 		db.insertOrUpdate(sourceBooking);
 		sourceBooking = db.getByIdFull(Booking.class, sourceBooking.getId());
 
-		Recipient targetRecipient = TestData.createRecipientWithParams("Source", Source.ONLINE, sourceAccount.getIban());
+		Recipient targetRecipient = TestDataFactory.createRecipientWithParams("Source", Source.ONLINE, sourceAccount.getIban());
 		db.insertOrUpdate(targetRecipient);
-		Booking olderCandidate = TestData.createBookingWithParams(targetAccount.getId(), targetRecipient.getId(),
-				"Older candidate", 500.00, BookingType.DEPOSIT);
+		Booking olderCandidate = TestDataFactory.createBookingWithParams(targetAccount.getId(), targetRecipient.getId(),
+				"Older candidate", 500, BookingType.DEPOSIT);
 		db.insertOrUpdate(olderCandidate);
-		Booking newerCandidate = TestData.createBookingWithParams(targetAccount.getId(), targetRecipient.getId(),
-				"Newer candidate", 500.00, BookingType.DEPOSIT);
+		Booking newerCandidate = TestDataFactory.createBookingWithParams(targetAccount.getId(), targetRecipient.getId(),
+				"Newer candidate", 500, BookingType.DEPOSIT);
 		db.insertOrUpdate(newerCandidate);
 
 		Booking crossBooking = db.findCrossBooking(sourceBooking);

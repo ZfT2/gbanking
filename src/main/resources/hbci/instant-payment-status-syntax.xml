@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hbciSyntaxExtension>
+    <definitions target="DEGs">
+        <DEGdef id="SuppSepaPainMessages">
+            <DE name="format" type="AN" maxsize="256" maxnum="99"/>
+        </DEGdef>
+        <DEGdef id="ParInstUebSEPAStatus">
+            <DE name="minwait" type="Num" maxsize="2"/>
+            <DE name="suppformats" type="AN" maxsize="256" minnum="0" maxnum="9"/>
+        </DEGdef>
+    </definitions>
+    <definitions target="SEGs">
+        <SEGdef id="InstUebSEPAStatus1">
+            <DEG type="SegHeadUser" name="SegHead"/>
+            <DEG type="KTVInt" name="My"/>
+            <DEG type="SuppSepaPainMessages" name="formats"/>
+            <DE name="orderid" type="AN" maxsize="99"/>
+            <value path="SegHead.code">HKIPS</value>
+            <value path="SegHead.version">1</value>
+        </SEGdef>
+        <SEGdef id="InstUebSEPAStatusRes1">
+            <DEG type="SegHeadInst" name="SegHead"/>
+            <DEG type="KTVInt" name="My"/>
+            <DE name="sepadescr" type="AN" maxsize="256" minnum="0"/>
+            <DE name="sepapain" type="Bin" maxsize="0" minnum="0"/>
+            <DE name="orderid" type="AN" maxsize="99"/>
+            <DE name="ccode" type="Code" maxsize="1" minnum="0"/>
+            <DE name="orderstatus" type="Code" maxsize="1" minnum="0"/>
+            <valids path="ccode">
+                <validvalue>1</validvalue>
+                <validvalue>2</validvalue>
+                <validvalue>3</validvalue>
+                <validvalue>4</validvalue>
+            </valids>
+            <valids path="orderstatus">
+                <validvalue>1</validvalue>
+                <validvalue>2</validvalue>
+                <validvalue>3</validvalue>
+                <validvalue>4</validvalue>
+                <validvalue>5</validvalue>
+                <validvalue>6</validvalue>
+                <validvalue>7</validvalue>
+                <validvalue>8</validvalue>
+                <validvalue>9</validvalue>
+            </valids>
+            <value path="SegHead.code">HIIPS</value>
+            <value path="SegHead.version">1</value>
+        </SEGdef>
+        <SEGdef id="InstUebSEPAStatusPar1">
+            <DEG type="SegHeadInst" name="SegHead"/>
+            <DE name="maxnum" type="Num" maxsize="3"/>
+            <DE name="minsigs" type="Num" maxsize="1"/>
+            <DE name="secclass" type="Code" maxsize="1"/>
+            <DEG type="ParInstUebSEPAStatus"/>
+            <valids path="secclass">
+                <validvalue>0</validvalue>
+                <validvalue>1</validvalue>
+                <validvalue>2</validvalue>
+                <validvalue>3</validvalue>
+                <validvalue>4</validvalue>
+            </valids>
+            <value path="SegHead.code">HIIPSS</value>
+            <value path="SegHead.version">1</value>
+        </SEGdef>
+    </definitions>
+    <references target="GV" after="InstUebSEPA1">
+        <SEG type="InstUebSEPAStatus1" minnum="0"/>
+    </references>
+    <references target="GVRes" after="InstUebSEPARes1">
+        <SEG type="InstUebSEPAStatusRes1" minnum="0"/>
+    </references>
+    <references target="Params" after="InstUebSEPAPar1">
+        <SEG type="InstUebSEPAStatusPar1" minnum="0"/>
+    </references>
+</hbciSyntaxExtension>

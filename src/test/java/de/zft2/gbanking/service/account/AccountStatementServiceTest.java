@@ -25,9 +25,9 @@ import org.kapott.hbci.GV_Result.GVRKontoauszug.Format;
 import org.kapott.hbci.GV_Result.GVRKontoauszug.GVRKontoauszugEntry;
 
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.BankAccountStatement;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class AccountStatementServiceTest {
 
@@ -100,7 +100,7 @@ class AccountStatementServiceTest {
 	@Test
 	void saveStatementsShouldSkipDuplicateEntriesInRetrievalSession() throws Exception {
 		DBController dbController = DBController.getInstance(tempDir.resolve("db").toString());
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		AccountStatementService service = new AccountStatementService(tempDir);
 		GVRKontoauszugEntry entry = createEntry("statement".getBytes(StandardCharsets.ISO_8859_1));
 
@@ -114,7 +114,7 @@ class AccountStatementServiceTest {
 	@Test
 	void saveStatementsShouldRestoreMissingKnownStatementWithOriginalFileName() throws Exception {
 		DBController dbController = DBController.getInstance(tempDir.resolve("db").toString());
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		AccountStatementService service = new AccountStatementService(tempDir);
 		BankAccountStatement storedStatement = dbController.insertOrUpdate(createStoredStatement(account, true));
 		GVRKontoauszugEntry entry = createEntry("restored statement".getBytes(StandardCharsets.ISO_8859_1));
@@ -134,7 +134,7 @@ class AccountStatementServiceTest {
 	@Test
 	void saveStatementsShouldSkipKnownStatementWhenFileAlreadyExists() throws Exception {
 		DBController dbController = DBController.getInstance(tempDir.resolve("db").toString());
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		AccountStatementService service = new AccountStatementService(tempDir);
 		BankAccountStatement storedStatement = dbController.insertOrUpdate(createStoredStatement(account, true));
 		Files.write(tempDir.resolve(storedStatement.getFileName()), "existing".getBytes(StandardCharsets.ISO_8859_1));

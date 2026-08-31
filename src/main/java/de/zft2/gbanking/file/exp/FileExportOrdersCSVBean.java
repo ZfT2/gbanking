@@ -101,6 +101,9 @@ public class FileExportOrdersCSVBean extends FileExportBean {
 				protocol != null ? getTechnicalName(protocol.getMoneytransferStatus()) : null,
 				protocol != null ? protocol.getTimeStart() : null,
 				protocol != null ? protocol.getTimeFinish() : null,
+				protocol != null ? protocol.getBankOrderId() : null,
+				protocol != null && protocol.getSepaOrderStatus() != null ? protocol.getSepaOrderStatus().name() : null,
+				protocol != null && protocol.getSepaCancellationCode() != null ? protocol.getSepaCancellationCode().name() : null,
 				protocol != null ? protocol.getProtocolText() : null
 				};
 		// @formatter:on
@@ -133,7 +136,9 @@ public class FileExportOrdersCSVBean extends FileExportBean {
 				ExportConstants.STATE.toString(), ExportConstants.RECIPIENT_NAME.toString(), ExportConstants.RECIPIENT_IBAN.toString(),
 				ExportConstants.RECIPIENT_BIC.toString(), ExportConstants.RECIPIENT_ACCOUNT_NUMBER.toString(), ExportConstants.BLZ.toString(),
 				ExportConstants.NOTICE.toString(), ExportConstants.RECIPIENT_SOURCE.toString(), ExportConstants.PROTOCOL_STATUS.toString(),
-				ExportConstants.PROTOCOL_TIME_START.toString(), ExportConstants.PROTOCOL_TIME_FINISH.toString(), ExportConstants.PROTOCOL_TEXT.toString());
+				ExportConstants.PROTOCOL_TIME_START.toString(), ExportConstants.PROTOCOL_TIME_FINISH.toString(),
+				ExportConstants.PROTOCOL_BANK_ORDER_ID.toString(), ExportConstants.PROTOCOL_SEPA_ORDER_STATUS.toString(),
+				ExportConstants.PROTOCOL_SEPA_CANCELLATION_CODE.toString(), ExportConstants.PROTOCOL_TEXT.toString());
 		return builder;
 	}
 

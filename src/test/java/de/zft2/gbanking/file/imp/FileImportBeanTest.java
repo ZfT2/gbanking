@@ -34,6 +34,7 @@ import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Recipient;
+import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.gui.BaseWorker;
 import de.zft2.gbanking.messages.Messages;
@@ -386,16 +387,32 @@ class FileImportBeanTest extends CoreBookingUtil {
 	}
 
 	@Test
-	void testImportMinimalFile_Success() throws URISyntaxException {
+	void testImportMinimalFile_WithEmptyAccountsEnabled() throws URISyntaxException {
 
 		fileImportBean.importFile(verifyFileName("MinimalAccount.xml"));
 
 		List<BankAccount> dbAccountList = dbController.getAllFull(BankAccount.class);
-		assertEquals(0, dbAccountList.size());
+		assertEquals(1, dbAccountList.size());
+		assertEquals("Sbank - MasterCard", dbAccountList.get(0).getAccountName());
 
 		List<Booking> dbBookingList = dbController.getAllFull(Booking.class);
 		assertEquals(0, dbBookingList.size());
+	}
 
+	@Test
+	void testImportMinimalFile_WithEmptyAccountsDisabled() throws URISyntaxException {
+		FileImportSettings.ensureSettingsExist();
+		Setting setting = dbController.getAll(Setting.class).stream()
+				.filter(candidate -> FileImportSettings.SETTING_IMPORT_EMPTY_XML_ACCOUNTS.equals(candidate.getAttribute()))
+				.findFirst()
+				.orElseThrow();
+		setting.setValue("false");
+		dbController.insertOrUpdate(setting);
+
+		fileImportBean.importFile(verifyFileName("MinimalAccount.xml"));
+
+		assertEquals(0, dbController.getAllFull(BankAccount.class).size());
+		assertEquals(0, dbController.getAllFull(Booking.class).size());
 	}
 
 	@Test
@@ -404,7 +421,7 @@ class FileImportBeanTest extends CoreBookingUtil {
 		fileImportBean.importFile(verifyFileName("ExampleAccounts.xml"));
 
 		List<BankAccount> dbAccountList = dbController.getAllFull(BankAccount.class);
-		assertEquals(26, dbAccountList.size());
+		assertEquals(28, dbAccountList.size());
 
 		List<Booking> dbBookingList = dbController.getAllFull(Booking.class);
 		assertEquals(788, dbBookingList.size());

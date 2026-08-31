@@ -17,6 +17,7 @@ import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.db.dao.enu.DataType;
 import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.db.DBController;
+import de.zft2.gbanking.file.imp.FileImportSettings;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.EnvironmentOptions;
 import de.zft2.gbanking.gui.GuiLayoutState;
@@ -201,6 +202,7 @@ public class SettingsDialog implements BaseMessages {
 	private List<Setting> loadVisibleSettings() {
 		AccountStatementSettings.ensureSettingsExist();
 		ChipTanUsbSupport.ensureSettingsExist();
+		FileImportSettings.ensureSettingsExist();
 		LoggingSettings.ensureSettingsExist();
 
 		List<Setting> allSettings = dbController.getAll(Setting.class);

@@ -20,7 +20,6 @@ import org.junit.jupiter.api.TestInstance;
 
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingFee;
@@ -31,6 +30,7 @@ import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.file.BaseFileTest;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FileExportCSVBeanTest extends BaseFileTest {
@@ -79,7 +79,7 @@ class FileExportCSVBeanTest extends BaseFileTest {
 
 	@Test
 	void exportFileFromDatatbase_shouldCreateEmptyCsvWithHeaderForAccountsWithoutBookings() throws Exception {
-		BankAccount account = TestData.createSampleAccount(null);
+		BankAccount account = TestDataFactory.createSampleAccount(null);
 		account.setAccountName("Leeres Konto");
 		account = dbController.insertOrUpdate(account);
 		Path exportFile = tempDir.resolve("empty.csv");
@@ -93,7 +93,7 @@ class FileExportCSVBeanTest extends BaseFileTest {
 	}
 
 	private BankAccount createAccountWithBooking() {
-		BankAccount account = TestData.createSampleAccount(null);
+		BankAccount account = TestDataFactory.createSampleAccount(null);
 		account.setAccountName("Giro CSV");
 		account.setAccountState(AccountState.ACTIVE);
 		account = dbController.insertOrUpdate(account);

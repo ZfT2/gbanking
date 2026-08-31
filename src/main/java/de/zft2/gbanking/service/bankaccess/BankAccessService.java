@@ -32,7 +32,9 @@ import de.zft2.gbanking.db.dao.enu.HbciEncodingFilterType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
+import de.zft2.gbanking.hbci.GBankingKUmsAllCamt;
 import de.zft2.gbanking.hbci.HbciProperties;
+import de.zft2.gbanking.hbci.InstantPaymentStatusSyntaxExtension;
 import de.zft2.gbanking.logging.GBankingLoggingHandler;
 import de.zft2.gbanking.logging.LoggingSettings;
 import de.zft2.gbanking.logging.SensitiveDataMasker;
@@ -45,17 +47,23 @@ import de.zft2.gbanking.service.ServiceRegistry;
 
 public class BankAccessService extends AbstractDbService {
 
+	private static final String CAMT_TRANSACTION_JOB = "KUmsAllCamt";
 	private static Logger log = LogManager.getLogger(BankAccessService.class);
 
 	private static GBankingLoggingHandler logHandler = GBankingLoggingHandler.getInstance();
 	private final PaypalAccountService paypalAccountService = ServiceRegistry.getService(PaypalAccountService.class);
 
 	public HBCIHandler createHBCIHandler(String versionId, HBCIPassport passport) {
-		return new HBCIHandler(versionId, passport);
+		HBCIHandler handler = new HBCIHandler(versionId, passport);
+		InstantPaymentStatusSyntaxExtension.apply(handler);
+		return handler;
 	}
 
 	@SuppressWarnings("unchecked")
 	public <T extends HBCIJobResult> HBCIJob<T> newHbciJob(HBCIHandler handle, String jobDescription) {
+		if (CAMT_TRANSACTION_JOB.equals(jobDescription)) {
+			return (HBCIJob<T>) new GBankingKUmsAllCamt(handle);
+		}
 		return handle.newJob(jobDescription);
 	}
 
