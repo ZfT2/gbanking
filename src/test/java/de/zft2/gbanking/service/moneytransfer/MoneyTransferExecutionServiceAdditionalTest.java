@@ -567,8 +567,10 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		HBCIJobResult initialResult = mock(HBCIJobResult.class);
 		when(initialResult.getJobStatus()).thenReturn(jobStatus);
 
+		boolean refreshWhenUnsupported = (boolean) invokePrivate(service, "requiresStatusRequest",
+				new Class<?>[] { SepaOrderStatus.class, HBCIJobResult.class }, null, initialResult);
 		boolean supported = (boolean) invokePrivate(service, "ensureStatusRequestSupported",
-				new Class<?>[] { HBCIHandler.class, HBCIJobResult.class }, handler, initialResult);
+				new Class<?>[] { HBCIHandler.class, boolean.class }, handler, refreshWhenUnsupported);
 
 		assertTrue(supported);
 		verify(handler).refreshXPD(HBCIHandler.REFRESH_BPD);
