@@ -9,6 +9,8 @@ import java.time.LocalDateTime;
 import de.zft2.gbanking.db.StatementsConfig.ResultType;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
+import de.zft2.gbanking.db.dao.enu.SepaCancellationCode;
+import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
 import de.zft2.gbanking.util.TypeConverter;
 
 public class MoneyTransferProtocolMapper extends AbstractDaoMapper<MoneyTransferProtocol, Void> {
@@ -23,8 +25,11 @@ public class MoneyTransferProtocolMapper extends AbstractDaoMapper<MoneyTransfer
 		} else {
 			ps.setNull(4, Types.VARCHAR);
 		}
-		ps.setString(5, protocol.getProtocolText());
-		ps.setTimestamp(6, TypeConverter.toSqlTimestampNow());
+		ps.setString(5, protocol.getBankOrderId());
+		setEnumNullable(6, protocol.getSepaOrderStatus(), ps);
+		setEnumNullable(7, protocol.getSepaCancellationCode(), ps);
+		ps.setString(8, protocol.getProtocolText());
+		ps.setTimestamp(9, TypeConverter.toSqlTimestampNow());
 	}
 
 	@Override
@@ -33,6 +38,9 @@ public class MoneyTransferProtocolMapper extends AbstractDaoMapper<MoneyTransfer
 		protocol.setMoneytransferStatus(MoneyTransferStatus.forInt(rs.getInt("moneytransferStatus")));
 		protocol.setTimeStart(parse(rs.getString("timeStart")));
 		protocol.setTimeFinish(parse(rs.getString("timeFinish")));
+		protocol.setBankOrderId(rs.getString("bankOrderId"));
+		protocol.setSepaOrderStatus(getEnumNullable("sepaOrderStatus", SepaOrderStatus.class, rs));
+		protocol.setSepaCancellationCode(getEnumNullable("sepaCancellationCode", SepaCancellationCode.class, rs));
 		protocol.setProtocolText(rs.getString("protocolText"));
 	}
 

@@ -22,7 +22,6 @@ CREATE TABLE moneytransfer (
   executionDay INTEGER,
   moneytransferStatus INTEGER NOT NULL,
   standingorderMode INTEGER,
-  bankOrderId TEXT,
   historyorder_id INTEGER,
   updatedAt TEXT NOT NULL,
   FOREIGN KEY(account_id) REFERENCES bankAccount(id) ON DELETE CASCADE,
@@ -78,10 +77,22 @@ CREATE TABLE moneytransferProtocol (
   moneytransferStatus INTEGER NOT NULL,
   timeStart TEXT NOT NULL,
   timeFinish TEXT,
+  bankOrderId TEXT,
+  sepaOrderStatus INTEGER,
+  sepaCancellationCode INTEGER,
   protocolText TEXT,
   updatedAt TEXT NOT NULL,
   FOREIGN KEY(moneytransfer_id) REFERENCES moneytransfer(id) ON DELETE CASCADE,
-  CHECK (moneytransferStatus BETWEEN 0 AND 6));
+  CHECK (moneytransferStatus BETWEEN 1 AND 10),
+  CHECK (bankOrderId IS NULL OR length(trim(bankOrderId)) > 0),
+  CHECK (sepaOrderStatus IS NULL OR sepaOrderStatus BETWEEN 1 AND 9),
+  CHECK (sepaCancellationCode IS NULL OR sepaCancellationCode BETWEEN 1 AND 4));
+;
+
+[SQL_SETUP_CREATE_INDEX_MONEYTRANSFER_PROTOCOL_REFERENCE]
+CREATE INDEX idx_moneytransferprotocol_reference
+ON moneytransferProtocol (moneytransfer_id, timeStart DESC, id DESC);
+
 ;
 
 [SQL_SETUP_CREATE_TRIGGER_MONEYTRANSFER_BLOCK_UPDATE]

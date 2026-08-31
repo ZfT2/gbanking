@@ -6,6 +6,7 @@ import static de.zft2.gbanking.util.TextValues.trimToNull;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Locale;
 
 import org.apache.logging.log4j.LogManager;
@@ -13,6 +14,7 @@ import org.apache.logging.log4j.Logger;
 import org.kapott.hbci.GV.HBCIJob;
 import org.kapott.hbci.GV_Result.GVRDauerEdit;
 import org.kapott.hbci.GV_Result.GVRDauerNew;
+import org.kapott.hbci.GV_Result.GVRInstUebSEPA;
 import org.kapott.hbci.GV_Result.GVRTermUeb;
 import org.kapott.hbci.GV_Result.GVRTermUebEdit;
 import org.kapott.hbci.GV_Result.HBCIJobResult;
@@ -29,6 +31,8 @@ import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.db.dao.enu.SepaCancellationCode;
+import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
 import de.zft2.gbanking.db.dao.enu.StandingorderMode;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
@@ -44,9 +48,11 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 	private static final Logger log = LogManager.getLogger(MoneyTransferExecutionService.class);
 
 	private final HbciSessionRunner hbciSessionRunner;
+	private final InstantPaymentStatusService instantPaymentStatusService;
 
 	public MoneyTransferExecutionService() {
 		this.hbciSessionRunner = new HbciSessionRunner();
+		this.instantPaymentStatusService = new InstantPaymentStatusService();
 	}
 
 	boolean executeTransfer(MoneyTransfer moneyTransfer, BankAccount bankAccount, char[] pin) {
@@ -96,7 +102,7 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 			if (communicationState.start != null) {
 				applyFailedOperationStatus(moneyTransfer, operation);
 				persistExecutionResult(moneyTransfer, operation, false, communicationState.start, communicationState.finish,
-						MoneyTransferStatus.ERROR, createProtocolText(communicationState.status, communicationState.jobResult, ex));
+						MoneyTransferStatus.ERROR, createProtocolText(communicationState.status, communicationState.jobResult, ex), BankResponseData.EMPTY);
 			}
 			log.error("Money transfer execution failed. transferId={}, type={}, accountId={}", moneyTransfer.getId(), moneyTransfer.getOrderType(),
 					transferAccount.getId(), ex);
@@ -106,6 +112,50 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		log.info("Finished money transfer execution. transferId={}, type={}, accountId={}, success={}, status={}", moneyTransfer.getId(),
 				moneyTransfer.getOrderType(), transferAccount.getId(), result, moneyTransfer.getMoneytransferStatus());
 		return result;
+	}
+
+	int retrieveInstantPaymentStatuses(List<MoneyTransfer> moneyTransfers, BankAccount bankAccount, char[] pin) {
+		try {
+			BankAccount transferAccount = resolveBankAccountForTransfer(bankAccount);
+			if (!isValidStatusRequest(moneyTransfers, transferAccount)) {
+				return 0;
+			}
+
+			BankAccessService bankAccessService = ServiceRegistry.getService(BankAccessService.class);
+			BankAccess bankAccess = bankAccessService.initBankAccess(transferAccount, pin);
+			if (bankAccess == null) {
+				return 0;
+			}
+			return hbciSessionRunner.run(bankAccess, pin,
+					session -> retrieveInstantPaymentStatuses(moneyTransfers, transferAccount, session));
+		} catch (InterruptedException exception) {
+			Thread.currentThread().interrupt();
+			throw new GBankingException(getText("EXCEPTION_MONEYTRANSFER_INSTANT_STATUS_RETRIEVAL"), exception);
+		} finally {
+			clearSecret(pin);
+		}
+	}
+
+	private int retrieveInstantPaymentStatuses(List<MoneyTransfer> moneyTransfers, BankAccount bankAccount,
+			HbciSessionRunner.HbciSession session) {
+		MoneyTransferService moneyTransferService = ServiceRegistry.getService(MoneyTransferService.class);
+		Konto senderAccount = moneyTransferService.getSenderAccount(session.passport(), bankAccount);
+		int successfulRequests = 0;
+		for (MoneyTransfer moneyTransfer : moneyTransfers) {
+			if (Thread.currentThread().isInterrupted()) {
+				break;
+			}
+			if (instantPaymentStatusService.retrieveStatus(session.handler(), session.callback(), moneyTransfer, senderAccount)) {
+				successfulRequests++;
+			}
+		}
+		return successfulRequests;
+	}
+
+	private boolean isValidStatusRequest(List<MoneyTransfer> moneyTransfers, BankAccount bankAccount) {
+		return bankAccount != null && moneyTransfers != null && !moneyTransfers.isEmpty()
+				&& moneyTransfers.stream().allMatch(transfer -> transfer != null && transfer.getAccountId() == bankAccount.getId()
+						&& transfer.getOrderType() == OrderType.REALTIME_TRANSFER);
 	}
 
 	private boolean executeTransfer(MoneyTransfer moneyTransfer, BankAccount transferAccount, BankOrderOperation operation,
@@ -129,10 +179,15 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 
 		boolean result = communicationState.status.isOK() && (communicationState.jobResult == null || communicationState.jobResult.isOK());
 		applyRecipientNameFromVoP(moneyTransfer, session.callback());
-		updateMoneyTransferAfterExecution(moneyTransfer, operation, session.callback(), communicationState.status, communicationState.jobResult, result);
+		BankResponseData bankResponse = updateMoneyTransferAfterExecution(moneyTransfer, operation, session.callback(), communicationState.status,
+				communicationState.jobResult, result);
 		persistExecutionResult(moneyTransfer, operation, result, communicationState.start, communicationState.finish,
 				result ? moneyTransfer.getMoneytransferStatus() : MoneyTransferStatus.ERROR,
-				createProtocolText(communicationState.status, communicationState.jobResult, null));
+				createProtocolText(communicationState.status, communicationState.jobResult, null), bankResponse);
+		if (result && operation == BankOrderOperation.CREATE && moneyTransfer.getOrderType() == OrderType.REALTIME_TRANSFER) {
+			instantPaymentStatusService.retrieveStatusIfNecessary(session.handler(), session.callback(), moneyTransfer, hbciSenderAccount,
+					bankResponse.sepaOrderStatus(), communicationState.jobResult);
+		}
 		return result;
 	}
 
@@ -430,7 +485,7 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		HbciSessionRunner.clearSecret(secret);
 	}
 
-	private void updateMoneyTransferAfterExecution(MoneyTransfer moneyTransfer, BankOrderOperation operation, GBankingHBCICallback hbciCallback,
+	private BankResponseData updateMoneyTransferAfterExecution(MoneyTransfer moneyTransfer, BankOrderOperation operation, GBankingHBCICallback hbciCallback,
 			HBCIExecStatus status,
 			HBCIJobResult jobResult, boolean success) {
 		if (!success) {
@@ -441,7 +496,7 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 			hbciCallback.handleFailure(status.getErrorString());
 			applyFailedOperationStatus(moneyTransfer, operation);
 			log.info("Money transfer execution ended with error. transferId={}", moneyTransfer.getId());
-			return;
+			return BankResponseData.EMPTY;
 		}
 
 		if (operation == BankOrderOperation.CREATE && (moneyTransfer.getOrderType() == OrderType.TRANSFER
@@ -450,10 +505,14 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 				|| moneyTransfer.getOrderType() == OrderType.FOREIGN_TRANSFER)) {
 			moneyTransfer.setExecutionDate(LocalDate.now(ZoneId.systemDefault()));
 		}
-		applyReturnedBankOrderId(moneyTransfer, operation, jobResult);
+		BankResponseData bankResponse = extractBankResponse(operation, jobResult);
+		if (bankResponse.bankOrderId() != null) {
+			moneyTransfer.setBankOrderId(bankResponse.bankOrderId());
+		}
 		moneyTransfer.setMoneytransferStatus(resolveSuccessfulStatus(operation));
 		log.info("Money transfer operation was accepted by bank. transferId={}, type={}, operation={}", moneyTransfer.getId(),
 				moneyTransfer.getOrderType(), operation);
+		return bankResponse;
 	}
 
 	private void applyFailedOperationStatus(MoneyTransfer moneyTransfer, BankOrderOperation operation) {
@@ -473,31 +532,34 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		};
 	}
 
-	private void applyReturnedBankOrderId(MoneyTransfer moneyTransfer, BankOrderOperation operation, HBCIJobResult jobResult) {
+	private BankResponseData extractBankResponse(BankOrderOperation operation, HBCIJobResult jobResult) {
 		String returnedOrderId = null;
+		SepaOrderStatus sepaOrderStatus = null;
+		SepaCancellationCode sepaCancellationCode = null;
 		if (operation == BankOrderOperation.CREATE && jobResult instanceof GVRDauerNew standingOrderResult) {
 			returnedOrderId = standingOrderResult.getOrderId();
 		} else if (operation == BankOrderOperation.CREATE && jobResult instanceof GVRTermUeb scheduledTransferResult) {
 			returnedOrderId = scheduledTransferResult.getOrderId();
+		} else if (operation == BankOrderOperation.CREATE && jobResult instanceof GVRInstUebSEPA instantPaymentResult) {
+			returnedOrderId = instantPaymentResult.getOrderId();
+			sepaOrderStatus = SepaOrderStatus.forCode(instantPaymentResult.getOrderStatus());
+			sepaCancellationCode = SepaCancellationCode.forCode(instantPaymentResult.getCancellationCode());
 		} else if (operation == BankOrderOperation.EDIT && jobResult instanceof GVRDauerEdit standingOrderResult) {
 			returnedOrderId = standingOrderResult.getOrderId();
 		} else if (operation == BankOrderOperation.EDIT && jobResult instanceof GVRTermUebEdit scheduledTransferResult) {
 			returnedOrderId = scheduledTransferResult.getOrderId();
 		}
-		String normalizedOrderId = trimToNull(returnedOrderId);
-		if (normalizedOrderId != null) {
-			moneyTransfer.setBankOrderId(normalizedOrderId);
-		}
+		return new BankResponseData(trimToNull(returnedOrderId), sepaOrderStatus, sepaCancellationCode);
 	}
 
 	private void persistExecutionResult(MoneyTransfer moneyTransfer, BankOrderOperation operation, boolean success, LocalDateTime start,
-			LocalDateTime finish, MoneyTransferStatus protocolStatus, String protocolText) {
+			LocalDateTime finish, MoneyTransferStatus protocolStatus, String protocolText, BankResponseData bankResponse) {
 		dbController.executeInTransaction(() -> {
 			if (success && operation == BankOrderOperation.EDIT) {
 				archiveHistoryPredecessor(moneyTransfer);
 			}
 			dbController.insertOrUpdate(moneyTransfer);
-			saveProtocol(moneyTransfer, start, finish, protocolStatus, protocolText);
+			saveProtocol(moneyTransfer, start, finish, protocolStatus, protocolText, bankResponse);
 		});
 	}
 
@@ -516,16 +578,15 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 	}
 
 	private void saveProtocol(MoneyTransfer moneyTransfer, LocalDateTime start, LocalDateTime finish, MoneyTransferStatus protocolStatus,
-			String protocolText) {
+			String protocolText, BankResponseData bankResponse) {
 		if (start == null || moneyTransfer.getId() <= 0) {
 			return;
 		}
 
-		MoneyTransferProtocol protocol = new MoneyTransferProtocol();
-		protocol.setMoneyTransferId(moneyTransfer.getId());
-		protocol.setMoneytransferStatus(protocolStatus);
-		protocol.setTimeStart(start);
-		protocol.setTimeFinish(finish);
+		MoneyTransferProtocol protocol = new MoneyTransferProtocol(moneyTransfer.getId(), protocolStatus, start, finish);
+		protocol.setBankOrderId(firstNonBlank(bankResponse.bankOrderId(), moneyTransfer.getBankOrderId()));
+		protocol.setSepaOrderStatus(bankResponse.sepaOrderStatus());
+		protocol.setSepaCancellationCode(bankResponse.sepaCancellationCode());
 		protocol.setProtocolText(protocolText);
 		dbController.insertOrUpdate(protocol);
 		log.debug("Saved money transfer protocol for transferId={}, status={}", moneyTransfer.getId(), moneyTransfer.getMoneytransferStatus());
@@ -563,5 +624,10 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		private LocalDateTime finish;
 		private HBCIExecStatus status;
 		private HBCIJobResult jobResult;
+	}
+
+	private record BankResponseData(String bankOrderId, SepaOrderStatus sepaOrderStatus, SepaCancellationCode sepaCancellationCode) {
+
+		private static final BankResponseData EMPTY = new BankResponseData(null, null, null);
 	}
 }

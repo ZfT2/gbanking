@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.Month;
 import java.util.List;
 
@@ -20,7 +21,9 @@ import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
+import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.Recipient;
+import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.db.TestData;
@@ -143,6 +146,23 @@ class GBankingBeanMoneyTransferStatusTest {
 	}
 
 	@Test
+	void getAllByParentShouldLoadLatestBankReferenceAndLatestKnownInstantStatus() {
+		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		Recipient recipient = dbController.insertOrUpdate(
+				new Recipient("Instant Recipient", "DE77777777777777777777", "TESTDEFFXXX", null, null, "Testbank", Source.MONEYTRANSFER));
+		MoneyTransfer transfer = dbController.insertOrUpdate(new MoneyTransfer(account.getId(), OrderType.REALTIME_TRANSFER, recipient.getId(),
+				"Instant transfer", new BigDecimal("12.34"), LocalDate.of(2026, Month.AUGUST, 22), MoneyTransferStatus.SENT));
+		LocalDateTime firstRequest = LocalDateTime.of(2026, Month.AUGUST, 22, 10, 0);
+		insertProtocol(transfer, "instant-old", SepaOrderStatus.PROCESSING, firstRequest);
+		insertProtocol(transfer, "instant-current", null, firstRequest.plusMinutes(5));
+
+		MoneyTransfer reloaded = dbController.getAllByParent(MoneyTransfer.class, account.getId()).get(0);
+
+		assertEquals("instant-current", reloaded.getBankOrderId());
+		assertEquals(SepaOrderStatus.PROCESSING, reloaded.getSepaOrderStatus());
+	}
+
+	@Test
 	void requestAndCancelBankOrderDeletion_shouldKeepOrderRetryable() {
 		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
 		Recipient recipient = dbController
@@ -195,5 +215,16 @@ class GBankingBeanMoneyTransferStatusTest {
 		moneyTransfer.setExecutionDate(LocalDate.of(2026, Month.AUGUST, 10));
 		moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.INVENTORY);
 		return moneyTransfer;
+	}
+
+	private void insertProtocol(MoneyTransfer transfer, String bankOrderId, SepaOrderStatus status, LocalDateTime time) {
+		MoneyTransferProtocol protocol = new MoneyTransferProtocol();
+		protocol.setMoneyTransferId(transfer.getId());
+		protocol.setMoneytransferStatus(transfer.getMoneytransferStatus());
+		protocol.setTimeStart(time);
+		protocol.setTimeFinish(time.plusSeconds(1));
+		protocol.setBankOrderId(bankOrderId);
+		protocol.setSepaOrderStatus(status);
+		dbController.insertOrUpdate(protocol);
 	}
 }

@@ -19,6 +19,8 @@ import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
+import de.zft2.gbanking.db.dao.enu.SepaCancellationCode;
+import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.BaseWorker;
@@ -154,22 +156,24 @@ public abstract class MoneyTransferImportBean implements BaseMessagesDb {
 	}
 
 	private void persistProtocol(MoneyTransfer moneyTransfer, ParsedProtocol parsedProtocol) {
-		MoneyTransferProtocol protocol = new MoneyTransferProtocol();
-		protocol.setMoneyTransferId(moneyTransfer.getId());
-		protocol.setMoneytransferStatus(parsedProtocol.moneytransferStatus());
-		protocol.setTimeStart(parsedProtocol.timeStart());
-		protocol.setTimeFinish(parsedProtocol.timeFinish());
+		MoneyTransferProtocol protocol = new MoneyTransferProtocol(moneyTransfer.getId(), parsedProtocol.moneytransferStatus(),
+				parsedProtocol.timeStart(), parsedProtocol.timeFinish());
+		protocol.setBankOrderId(parsedProtocol.bankOrderId());
+		protocol.setSepaOrderStatus(parsedProtocol.sepaOrderStatus());
+		protocol.setSepaCancellationCode(parsedProtocol.sepaCancellationCode());
 		protocol.setProtocolText(parsedProtocol.protocolText());
 		dbController.insertOrUpdate(protocol);
 	}
 
 	private ProtocolKey toProtocolKey(MoneyTransferProtocol protocol) {
-		return new ProtocolKey(protocol.getMoneytransferStatus(), protocol.getTimeStart(), protocol.getTimeFinish(),
+		return new ProtocolKey(protocol.getMoneytransferStatus(), protocol.getTimeStart(), protocol.getTimeFinish(), protocol.getBankOrderId(),
+				protocol.getSepaOrderStatus(), protocol.getSepaCancellationCode(),
 				normalizeText(protocol.getProtocolText()));
 	}
 
 	private ProtocolKey toProtocolKey(ParsedProtocol protocol) {
-		return new ProtocolKey(protocol.moneytransferStatus(), protocol.timeStart(), protocol.timeFinish(), normalizeText(protocol.protocolText()));
+		return new ProtocolKey(protocol.moneytransferStatus(), protocol.timeStart(), protocol.timeFinish(), protocol.bankOrderId(),
+				protocol.sepaOrderStatus(), protocol.sepaCancellationCode(), normalizeText(protocol.protocolText()));
 	}
 
 	private TransferKey toTransferKey(ImportCandidate candidate) {
@@ -223,7 +227,7 @@ public abstract class MoneyTransferImportBean implements BaseMessagesDb {
 	}
 
 	protected record ParsedProtocol(MoneyTransferStatus moneytransferStatus, LocalDateTime timeStart, LocalDateTime timeFinish,
-			String protocolText) {
+			String bankOrderId, SepaOrderStatus sepaOrderStatus, SepaCancellationCode sepaCancellationCode, String protocolText) {
 	}
 
 	private record ImportCandidate(BankAccount account, ParsedTransfer transfer) {
@@ -233,6 +237,7 @@ public abstract class MoneyTransferImportBean implements BaseMessagesDb {
 			BigDecimal amount, LocalDate executionDate, String purpose, String purposeCode, String endToEndId) {
 	}
 
-	private record ProtocolKey(MoneyTransferStatus moneytransferStatus, LocalDateTime timeStart, LocalDateTime timeFinish, String protocolText) {
+	private record ProtocolKey(MoneyTransferStatus moneytransferStatus, LocalDateTime timeStart, LocalDateTime timeFinish, String bankOrderId,
+			SepaOrderStatus sepaOrderStatus, SepaCancellationCode sepaCancellationCode, String protocolText) {
 	}
 }

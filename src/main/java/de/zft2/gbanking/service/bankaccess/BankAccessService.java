@@ -34,6 +34,7 @@ import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
 import de.zft2.gbanking.hbci.GBankingKUmsAllCamt;
 import de.zft2.gbanking.hbci.HbciProperties;
+import de.zft2.gbanking.hbci.InstantPaymentStatusSyntaxExtension;
 import de.zft2.gbanking.logging.GBankingLoggingHandler;
 import de.zft2.gbanking.logging.LoggingSettings;
 import de.zft2.gbanking.logging.SensitiveDataMasker;
@@ -53,7 +54,9 @@ public class BankAccessService extends AbstractDbService {
 	private final PaypalAccountService paypalAccountService = ServiceRegistry.getService(PaypalAccountService.class);
 
 	public HBCIHandler createHBCIHandler(String versionId, HBCIPassport passport) {
-		return new HBCIHandler(versionId, passport);
+		HBCIHandler handler = new HBCIHandler(versionId, passport);
+		InstantPaymentStatusSyntaxExtension.apply(handler);
+		return handler;
 	}
 
 	@SuppressWarnings("unchecked")

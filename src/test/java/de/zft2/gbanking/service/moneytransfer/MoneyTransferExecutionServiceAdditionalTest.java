@@ -1,5 +1,6 @@
 package de.zft2.gbanking.service.moneytransfer;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -8,12 +9,14 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -28,6 +31,7 @@ import java.time.Month;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
+import java.util.Properties;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -37,10 +41,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.kapott.hbci.GV.HBCIJob;
 import org.kapott.hbci.GV_Result.GVRDauerEdit;
+import org.kapott.hbci.GV_Result.GVRInstUebSEPA;
 import org.kapott.hbci.GV_Result.HBCIJobResult;
 import org.kapott.hbci.manager.HBCIHandler;
 import org.kapott.hbci.passport.HBCIPassport;
+import org.kapott.hbci.status.HBCIDialogStatus;
 import org.kapott.hbci.status.HBCIExecStatus;
+import org.kapott.hbci.status.HBCIRetVal;
+import org.kapott.hbci.status.HBCIStatus;
 import org.kapott.hbci.structures.Konto;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
@@ -52,6 +60,8 @@ import de.zft2.gbanking.db.dao.BusinessCase;
 import de.zft2.gbanking.db.dao.enu.ForeignChargeBearer;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
+import de.zft2.gbanking.db.dao.enu.SepaCancellationCode;
+import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
 import de.zft2.gbanking.db.dao.enu.StandingorderMode;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferForeign;
@@ -464,6 +474,121 @@ class MoneyTransferExecutionServiceAdditionalTest {
 	}
 
 	@Test
+	void updateMoneyTransferAfterExecution_shouldExtractInstantPaymentResponse() throws Exception {
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
+		MoneyTransfer moneyTransfer = createMoneyTransfer(OrderType.REALTIME_TRANSFER);
+		GVRInstUebSEPA result = new GVRInstUebSEPA();
+		result.setOrderId("instant-4711");
+		result.setOrderStatus("3");
+		result.setCancellationCode("4");
+
+		Object response = invokePrivate(service, "updateMoneyTransferAfterExecution",
+				new Class<?>[] { MoneyTransfer.class, BankOrderOperation.class, GBankingHBCICallback.class, HBCIExecStatus.class, HBCIJobResult.class,
+						boolean.class },
+				moneyTransfer, BankOrderOperation.CREATE, mock(GBankingHBCICallback.class), mock(HBCIExecStatus.class), result, true);
+
+		assertEquals("instant-4711", moneyTransfer.getBankOrderId());
+		assertEquals(SepaOrderStatus.PROCESSING, invokePrivate(response, "sepaOrderStatus", new Class<?>[0]));
+		assertEquals(SepaCancellationCode.RECALL, invokePrivate(response, "sepaCancellationCode", new Class<?>[0]));
+	}
+
+	@Test
+	void instantPaymentStatusService_shouldRetrieveAndPersistFinalStatus() {
+		DBController dbController = DBController.getInstance(tempDir.toString());
+		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		Recipient recipient = dbController.insertOrUpdate(new Recipient("Recipient Name", "DE12345678901234567890", "TESTDEFFXXX", null, null,
+				"Testbank", de.zft2.gbanking.db.dao.enu.Source.MONEYTRANSFER));
+		MoneyTransfer moneyTransfer = createMoneyTransfer(OrderType.REALTIME_TRANSFER);
+		moneyTransfer.setAccountId(account.getId());
+		moneyTransfer.setRecipientId(recipient.getId());
+		moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.SENT);
+		moneyTransfer = dbController.insertOrUpdate(moneyTransfer);
+		moneyTransfer.setBankOrderId("instant-4711");
+
+		HBCIHandler handler = mock(HBCIHandler.class);
+		Properties supportedJobs = new Properties();
+		supportedJobs.setProperty(InstantPaymentStatusService.JOB_NAME, "1");
+		when(handler.getSupportedLowlevelJobs()).thenReturn(supportedJobs);
+		Properties restrictions = new Properties();
+		restrictions.setProperty("suppformats", "urn:iso:std:iso:20022:tech:xsd:pain.001.001.03");
+		when(handler.getLowlevelJobRestrictions(InstantPaymentStatusService.JOB_NAME)).thenReturn(restrictions);
+		HBCIExecStatus executionStatus = mock(HBCIExecStatus.class);
+		when(executionStatus.isOK()).thenReturn(true);
+		when(handler.execute()).thenReturn(executionStatus);
+
+		@SuppressWarnings("unchecked")
+		HBCIJob<HBCIJobResult> job = mock(HBCIJob.class);
+		HBCIJobResult result = mock(HBCIJobResult.class);
+		Properties resultData = new Properties();
+		resultData.setProperty("content.orderid", "instant-4711");
+		resultData.setProperty("content.orderstatus", "7");
+		resultData.setProperty("content.ccode", "4");
+		when(result.getResultData()).thenReturn(resultData);
+		when(result.isOK()).thenReturn(true);
+		when(job.getJobResult()).thenReturn(result);
+		BankAccessService bankAccessService = ServiceRegistry.getService(BankAccessService.class);
+		when(bankAccessService.newLowlevelHbciJob(handler, InstantPaymentStatusService.JOB_NAME)).thenReturn(job);
+		Konto senderAccount = new Konto();
+		senderAccount.iban = "DE44500105175407324931";
+		senderAccount.bic = "INGDDEFFXXX";
+		GBankingHBCICallback callback = mock(GBankingHBCICallback.class);
+
+		InstantPaymentStatusService statusService = new InstantPaymentStatusService();
+		statusService.retrieveStatusIfNecessary(handler, callback, moneyTransfer, senderAccount,
+				SepaOrderStatus.PROCESSING, null);
+		assertTrue(statusService.retrieveStatus(handler, callback, moneyTransfer, senderAccount));
+
+		verify(job, times(2)).setParam("My.iban", senderAccount.iban);
+		verify(job, times(2)).setParam("formats.format", "urn:iso:std:iso:20022:tech:xsd:pain.001.001.03");
+		verify(job, times(2)).setParam("orderid", "instant-4711");
+		verify(job, times(2)).addToQueue();
+		verify(callback, times(2)).registerJobDescription(same(job), anyString());
+		MoneyTransferProtocol protocol = dbController.getAllByParent(MoneyTransferProtocol.class, moneyTransfer.getId()).get(0);
+		assertEquals("instant-4711", protocol.getBankOrderId());
+		assertEquals(SepaOrderStatus.COMPLETED, protocol.getSepaOrderStatus());
+		assertEquals(SepaCancellationCode.RECALL, protocol.getSepaCancellationCode());
+		assertEquals(2, dbController.getAllByParent(MoneyTransferProtocol.class, moneyTransfer.getId()).size());
+	}
+
+	@Test
+	void instantPaymentStatusService_shouldRefreshLegacyBpdWhenBankRequestsStatusQuery() throws Exception {
+		InstantPaymentStatusService service = new InstantPaymentStatusService();
+		HBCIHandler handler = mock(HBCIHandler.class);
+		Properties supportedJobs = new Properties();
+		supportedJobs.setProperty(InstantPaymentStatusService.JOB_NAME, "1");
+		when(handler.getSupportedLowlevelJobs()).thenReturn(new Properties(), supportedJobs);
+
+		HBCIPassport passport = mock(HBCIPassport.class);
+		when(passport.getBPD()).thenReturn(new Properties());
+		when(handler.getPassport()).thenReturn(passport);
+		HBCIDialogStatus refreshStatus = mock(HBCIDialogStatus.class);
+		when(refreshStatus.isOK()).thenReturn(true);
+		when(handler.refreshXPD(HBCIHandler.REFRESH_BPD)).thenReturn(refreshStatus);
+
+		HBCIStatus jobStatus = new HBCIStatus();
+		jobStatus.addRetVal(new HBCIRetVal(null, null, null, "3045", "Status query required", null));
+		HBCIJobResult initialResult = mock(HBCIJobResult.class);
+		when(initialResult.getJobStatus()).thenReturn(jobStatus);
+
+		boolean supported = (boolean) invokePrivate(service, "ensureStatusRequestSupported",
+				new Class<?>[] { HBCIHandler.class, HBCIJobResult.class }, handler, initialResult);
+
+		assertTrue(supported);
+		verify(handler).refreshXPD(HBCIHandler.REFRESH_BPD);
+	}
+
+	@Test
+	void retrieveInstantPaymentStatuses_shouldRejectRegularTransfersAndClearPin() {
+		char[] pin = "secret".toCharArray();
+
+		int successfulRequests = new MoneyTransferExecutionService().retrieveInstantPaymentStatuses(
+				List.of(createMoneyTransfer(OrderType.TRANSFER)), new BankAccount(), pin);
+
+		assertEquals(0, successfulRequests);
+		assertArrayEquals(new char[pin.length], pin);
+	}
+
+	@Test
 	void updateMoneyTransferAfterExecution_shouldNotOverwriteScheduledExecutionDate() throws Exception {
 		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		MoneyTransfer moneyTransfer = createMoneyTransfer(OrderType.SCHEDULED_TRANSFER);
@@ -515,15 +640,15 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		result.setOrderId("standing-new-1");
 		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 
-		invokePrivate(service, "updateMoneyTransferAfterExecution",
+		Object bankResponse = invokePrivate(service, "updateMoneyTransferAfterExecution",
 				new Class<?>[] { MoneyTransfer.class, BankOrderOperation.class, GBankingHBCICallback.class, HBCIExecStatus.class, HBCIJobResult.class,
 						boolean.class },
 				changedTransfer, BankOrderOperation.EDIT, mock(GBankingHBCICallback.class), mock(HBCIExecStatus.class), result, true);
 		LocalDateTime start = LocalDateTime.now();
 		invokePrivate(service, "persistExecutionResult",
 				new Class<?>[] { MoneyTransfer.class, BankOrderOperation.class, boolean.class, LocalDateTime.class, LocalDateTime.class,
-						MoneyTransferStatus.class, String.class },
-				changedTransfer, BankOrderOperation.EDIT, true, start, start.plusSeconds(1), MoneyTransferStatus.INVENTORY, "accepted");
+						MoneyTransferStatus.class, String.class, bankResponse.getClass() },
+				changedTransfer, BankOrderOperation.EDIT, true, start, start.plusSeconds(1), MoneyTransferStatus.INVENTORY, "accepted", bankResponse);
 
 		List<MoneyTransfer> transfers = dbController.getAllByParent(MoneyTransfer.class, account.getId());
 		assertEquals(MoneyTransferStatus.SUPERSEDED,

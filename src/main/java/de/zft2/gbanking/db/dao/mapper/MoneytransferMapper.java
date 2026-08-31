@@ -12,6 +12,7 @@ import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.ForeignChargeBearer;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
+import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.StandingorderMode;
 import de.zft2.gbanking.util.TypeConverter;
@@ -35,15 +36,14 @@ public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> 
 		}
 		ps.setInt(10, moneytransfer.getMoneytransferStatus().getDbStateId());
 		setEnumNullable(11, moneytransfer.getStandingorderMode(), ps);
-		ps.setString(12, moneytransfer.getBankOrderId());
 		if (moneytransfer.getHistoryorderId() != null) {
-			ps.setInt(13, moneytransfer.getHistoryorderId());
+			ps.setInt(12, moneytransfer.getHistoryorderId());
 		} else {
-			ps.setNull(13, java.sql.Types.INTEGER);
+			ps.setNull(12, java.sql.Types.INTEGER);
 		}
-		ps.setTimestamp(14, TypeConverter.toSqlTimestampNow());
+		ps.setTimestamp(13, TypeConverter.toSqlTimestampNow());
 		if (moneytransfer.getId() > 0)
-			ps.setInt(15, moneytransfer.getId());
+			ps.setInt(14, moneytransfer.getId());
 	}
 
 	@Override
@@ -62,6 +62,7 @@ public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> 
 		moneytransfer.setMoneytransferStatus(MoneyTransferStatus.forInt(rs.getInt("moneytransferStatus")));
 		moneytransfer.setStandingorderMode(getEnumNullable("standingorderMode", StandingorderMode.class, rs));
 		moneytransfer.setBankOrderId(rs.getString("bankOrderId"));
+		moneytransfer.setSepaOrderStatus(getEnumNullable("sepaOrderStatus", SepaOrderStatus.class, rs));
 		int historyOrderId = rs.getInt("historyorder_id");
 		moneytransfer.setHistoryorderId(rs.wasNull() ? null : historyOrderId);
 

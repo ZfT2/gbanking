@@ -49,6 +49,10 @@ public class MoneyTransferService extends AbstractDbService {
 		return moneyTransferExecutionService.executeTransfer(moneyTransfer, bankAccount, pin);
 	}
 
+	public int retrieveInstantPaymentStatuses(List<MoneyTransfer> moneyTransfers, BankAccount bankAccount, char[] pin) {
+		return moneyTransferExecutionService.retrieveInstantPaymentStatuses(moneyTransfers, bankAccount, pin);
+	}
+
 	public boolean retrieveMoneyTransferInventory(BankAccount bankAccount, OrderType orderType, char[] pin) {
 		return moneyTransferInventoryService.retrieveInventory(bankAccount, orderType, pin);
 	}

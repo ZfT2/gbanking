@@ -29,6 +29,8 @@ import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
+import de.zft2.gbanking.db.dao.enu.SepaCancellationCode;
+import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.file.exp.FileExportBean.ExportConstants;
@@ -86,9 +88,10 @@ class MoneyTransferCsvImportBeanTest {
 	@Test
 	void importFile_shouldPersistOptionalProtocolData() throws Exception {
 		BankAccount account = insertAccount(SENDER_IBAN, "5407324931");
-		String header = HEADER + ";" + protocolHeader();
+		String header = HEADER + ";" + structuredProtocolHeader();
 		Path csvFile = writeCsvWithHeader(header, SENDER_IBAN
-				+ ";Max Empfaenger;DE11100100101234567890;MARKDEF1100;123,45;Rechnung 4711;GDDS;gesendet;2026-01-02T03:04:05;2026-01-02T03:05:06;OK");
+				+ ";Max Empfaenger;DE11100100101234567890;MARKDEF1100;123,45;Rechnung 4711;GDDS;gesendet;2026-01-02T03:04:05;"
+				+ "2026-01-02T03:05:06;instant-4711;COMPLETED;RECALL;OK");
 
 		MoneyTransferCsvImportBean.ImportResult result = new MoneyTransferCsvImportBean().importFile(csvFile);
 
@@ -102,11 +105,14 @@ class MoneyTransferCsvImportBeanTest {
 		assertEquals(MoneyTransferStatus.SENT, protocol.getMoneytransferStatus());
 		assertEquals(LocalDateTime.of(2026, Month.JANUARY, 2, 3, 4, 5), protocol.getTimeStart());
 		assertEquals(LocalDateTime.of(2026, Month.JANUARY, 2, 3, 5, 6), protocol.getTimeFinish());
+		assertEquals("instant-4711", protocol.getBankOrderId());
+		assertEquals(SepaOrderStatus.COMPLETED, protocol.getSepaOrderStatus());
+		assertEquals(SepaCancellationCode.RECALL, protocol.getSepaCancellationCode());
 		assertEquals("OK", protocol.getProtocolText());
 	}
 
 	@Test
-	void importFile_shouldReadGBankingExportFormatAndAppendMultipleProtocolsToOneTransfer() throws Exception {
+	void importFile_shouldReadLegacyGBankingExportAndAppendMultipleProtocolsToOneTransfer() throws Exception {
 		BankAccount account = insertAccount(SENDER_IBAN, "5407324931");
 		String header = gbankingExportHeader();
 		String baseRow = String.join(";", account.getAccountName(), account.getIban(), account.getNumber(), "", OrderType.TRANSFER.toString(),
@@ -165,6 +171,9 @@ class MoneyTransferCsvImportBeanTest {
 		assertTrue(result);
 		assertTrue(csv.contains(ExportConstants.PROTOCOL_STATUS.toString()));
 		assertTrue(csv.contains(ExportConstants.PROTOCOL_TIME_START.toString()));
+		assertTrue(csv.contains("instant-export-1"));
+		assertTrue(csv.contains(SepaOrderStatus.COMPLETED.name()));
+		assertTrue(csv.contains(SepaCancellationCode.RECALL.name()));
 		assertTrue(csv.contains("Export-Protokoll"));
 		assertTrue(csv.contains("SEPA-Überweisung"));
 		assertTrue(csv.contains("gesendet"));
@@ -287,6 +296,9 @@ class MoneyTransferCsvImportBeanTest {
 		protocol.setMoneytransferStatus(MoneyTransferStatus.SENT);
 		protocol.setTimeStart(LocalDateTime.of(2026, Month.JANUARY, 2, 3, 4, 5));
 		protocol.setTimeFinish(LocalDateTime.of(2026, Month.JANUARY, 2, 3, 5, 6));
+		protocol.setBankOrderId("instant-export-1");
+		protocol.setSepaOrderStatus(SepaOrderStatus.COMPLETED);
+		protocol.setSepaCancellationCode(SepaCancellationCode.RECALL);
 		protocol.setProtocolText(protocolText);
 		dbController.insertOrUpdate(protocol);
 	}
@@ -310,6 +322,13 @@ class MoneyTransferCsvImportBeanTest {
 	private String protocolHeader() {
 		return String.join(";", ExportConstants.PROTOCOL_STATUS.toString(), ExportConstants.PROTOCOL_TIME_START.toString(),
 				ExportConstants.PROTOCOL_TIME_FINISH.toString(), ExportConstants.PROTOCOL_TEXT.toString());
+	}
+
+	private String structuredProtocolHeader() {
+		return String.join(";", ExportConstants.PROTOCOL_STATUS.toString(), ExportConstants.PROTOCOL_TIME_START.toString(),
+				ExportConstants.PROTOCOL_TIME_FINISH.toString(), ExportConstants.PROTOCOL_BANK_ORDER_ID.toString(),
+				ExportConstants.PROTOCOL_SEPA_ORDER_STATUS.toString(), ExportConstants.PROTOCOL_SEPA_CANCELLATION_CODE.toString(),
+				ExportConstants.PROTOCOL_TEXT.toString());
 	}
 
 	private String gbankingExportHeader() {
