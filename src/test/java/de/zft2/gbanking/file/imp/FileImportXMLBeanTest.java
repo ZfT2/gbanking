@@ -21,7 +21,6 @@ import de.zft2.fp3xmlextract.convert.Converter;
 import de.zft2.fp3xmlextract.data.Fp3XmlBankAccount;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.AccountType;
@@ -29,6 +28,7 @@ import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
 import de.zft2.gbanking.gui.enu.ExportType;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FileImportXMLBeanTest {
@@ -108,7 +108,7 @@ class FileImportXMLBeanTest {
 	@Test
 	void fileImportTask_shouldRouteFp3XmlFileThroughFp3XmlExtract() throws Exception {
 		Path fp3File = testResource("fp100.xml");
-		BankAccount account = TestData.createSampleAccount(null);
+		BankAccount account = TestDataFactory.createSampleAccount(null);
 		account.setAccountName("Vertragssparen - 2000510044");
 		account.setIban("DE09120300002000510044");
 		account.setNumber("2000510044");

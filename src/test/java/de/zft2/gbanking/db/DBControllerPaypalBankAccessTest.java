@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.enu.BankAccessType;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class DBControllerPaypalBankAccessTest extends DBControllerIntegrationBaseTest {
 
@@ -26,7 +27,7 @@ class DBControllerPaypalBankAccessTest extends DBControllerIntegrationBaseTest {
 	}
 
 	private BankAccess paypalAccess(String email, String apiUsername, String apiSignature) {
-		BankAccess access = TestData.createSampleBankAccess("PAYPAL");
+		BankAccess access = TestDataFactory.createSampleBankAccess("PAYPAL");
 		access.setBankName("PayPal");
 		access.getPaypal().setUserId(email);
 		access.setAccessType(BankAccessType.PAYPAL);

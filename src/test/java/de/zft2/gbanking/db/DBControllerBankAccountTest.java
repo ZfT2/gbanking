@@ -29,6 +29,7 @@ import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.AccountRetrievalStatus;
 import de.zft2.gbanking.db.dao.enu.AccountIdentifierType;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class DBControllerBankAccountTest extends DBControllerIntegrationBaseTest {
 
@@ -39,12 +40,12 @@ class DBControllerBankAccountTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void updateBankAccountSource_shouldWork() {
 
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc01 = TestData.createSampleAccount(ba.getId());
+		BankAccount acc01 = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc01);
 
-		BankAccount acc02 = TestData.createSampleAccount(ba.getId());
+		BankAccount acc02 = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc02);
 
 		assertEquals(Source.ONLINE, acc01.getSource());
@@ -92,7 +93,7 @@ class DBControllerBankAccountTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void insertUpdateBankAccount_shouldSetCreatedAtOnce() {
 
-		BankAccount account = TestData.createSampleAccount(null);
+		BankAccount account = TestDataFactory.createSampleAccount(null);
 		db.insertOrUpdate(account);
 
 		BankAccount createdAccount = db.getById(BankAccount.class, account.getId());
@@ -109,8 +110,8 @@ class DBControllerBankAccountTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void hbciAccountType_shouldSurviveInsertLoadsAndUpdates() {
-		BankAccess bankAccess = db.insertOrUpdate(TestData.createSampleBankAccess("44444444"));
-		BankAccount account = TestData.createSampleAccount(bankAccess.getId());
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("44444444"));
+		BankAccount account = TestDataFactory.createSampleAccount(bankAccess.getId());
 		account.setHbciAccountType(7);
 		db.insertOrUpdate(account);
 
@@ -132,7 +133,7 @@ class DBControllerBankAccountTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void bankAccountRetrievalStatus_shouldBeInsertedUpdatedAndDeletedWithAccount() {
-		BankAccount account = db.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		LocalDateTime firstRetrieval = LocalDateTime.of(2026, Month.JULY, 16, 10, 15, 30, 123_000_000);
 		db.upsertBankAccountRetrievalStatus(new BankAccountRetrievalStatus(account.getId(), firstRetrieval,
 				AccountRetrievalStatus.FAILED, 0, 0, "Bank temporarily unavailable"));
@@ -159,7 +160,7 @@ class DBControllerBankAccountTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void bankAccountIdentifiers_shouldBeReplacedNormalizedAndDeletedWithAccount() throws SQLException {
-		BankAccount account = db.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		db.replaceBankAccountIdentifiers(account.getId(), List.of(
 				new BankAccountIdentifier(0, account.getId(), AccountIdentifierType.ACCOUNT, "  Special-123  "),
 				new BankAccountIdentifier(0, account.getId(), AccountIdentifierType.ACCOUNT, "special-123"),
@@ -189,7 +190,7 @@ class DBControllerBankAccountTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void insertManualBankAccountWithoutBankIdentifiers_shouldWork() {
-		BankAccount account = TestData.createSampleAccount(null);
+		BankAccount account = TestDataFactory.createSampleAccount(null);
 		account.setIban(null);
 		account.setNumber(null);
 		account.setSource(Source.MANUELL);
@@ -205,12 +206,12 @@ class DBControllerBankAccountTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void selectOnlineBankAccounts_shouldReturnOnlyAccountsLinkedToBankAccess() {
-		BankAccess bankAccess = TestData.createSampleBankAccess("44444444");
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(bankAccess);
-		BankAccount onlineAccount = TestData.createSampleAccount(bankAccess.getId());
+		BankAccount onlineAccount = TestDataFactory.createSampleAccount(bankAccess.getId());
 		onlineAccount.setAccountName("Online account");
 		db.insertOrUpdate(onlineAccount);
-		BankAccount offlineAccount = TestData.createSampleAccount(null);
+		BankAccount offlineAccount = TestDataFactory.createSampleAccount(null);
 		offlineAccount.setAccountName("Offline account");
 		db.insertOrUpdate(offlineAccount);
 
@@ -223,11 +224,11 @@ class DBControllerBankAccountTest extends DBControllerIntegrationBaseTest {
 	
 	@Test
 	void deleteBankAccount_shouldRemove() {
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc01 = TestData.createSampleAccount(ba.getId());
+		BankAccount acc01 = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc01);
-		Booking booking = TestData.createSampleBooking(acc01.getId());
+		Booking booking = TestDataFactory.createSampleBooking(acc01.getId());
 		db.insertOrUpdate(booking);
 		
 		assertTrue(db.getById(BankAccount.class, acc01.getId()).getId() > 0);
@@ -245,12 +246,12 @@ class DBControllerBankAccountTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void getAccountsIdsByAccountName_shouldWork() {
 
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc01 = TestData.createSampleAccount(ba.getId());
+		BankAccount acc01 = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc01);
 
-		BankAccount acc02 = TestData.createSampleAccount(ba.getId());
+		BankAccount acc02 = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc02);
 
 		Map<String, Integer> accountIdMap = db.getAccountsIdsByAccountName();
@@ -269,12 +270,12 @@ class DBControllerBankAccountTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void getCrossAccountsIdsByIbanOrNumber_shouldWork() {
 
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc01 = TestData.createSampleAccount(ba.getId());
+		BankAccount acc01 = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc01);
 
-		BankAccount acc02 = TestData.createSampleAccount(ba.getId());
+		BankAccount acc02 = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc02);
 
 		Map<String, Integer> accountIdMap = db.getCrossAccountsIdsByIbanOrNumber();

@@ -17,6 +17,7 @@ import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.gui.dialog.hbci.HbciCallbackMessageDialog;
 import de.zft2.gbanking.messages.Messages;
 import de.zft2.gbanking.service.account.AccountTransactionService;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class EnablebankingAccountTransactionServiceTest {
 
@@ -54,9 +55,7 @@ class EnablebankingAccountTransactionServiceTest {
 
 	@Test
 	void shouldMapInstructedAmountAsForeignCurrencyDetails() {
-		BankAccount account = new BankAccount();
-		account.setId(42);
-		account.setBaseCurrency(Currency.EUR);
+		BankAccount account = TestDataFactory.createEuroAccount(42);
 		Map<String, Object> transaction = transaction("BOOK", "DBIT", "8.75", "foreign");
 		transaction.put("exchange_rate", Map.of("exchange_rate", "0.875",
 				"instructed_amount", Map.of("amount", "10.00", "currency", "USD")));

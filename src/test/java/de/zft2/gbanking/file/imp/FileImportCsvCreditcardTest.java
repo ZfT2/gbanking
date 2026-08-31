@@ -24,7 +24,6 @@ import org.junit.jupiter.api.TestInstance;
 
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingCreditCardDetails;
@@ -35,6 +34,7 @@ import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FileImportCsvCreditcardTest {
@@ -177,7 +177,7 @@ class FileImportCsvCreditcardTest {
 	}
 
 	private BankAccount createCreditcardAccount(String accountName) {
-		BankAccount account = TestData.createSampleAccount(null);
+		BankAccount account = TestDataFactory.createSampleAccount(null);
 		account.setAccountName(accountName);
 		account.setAccountType(AccountType.CREDIT_CARD);
 		account.setOfflineAccount(true);
@@ -189,7 +189,7 @@ class FileImportCsvCreditcardTest {
 		Recipient recipient = new Recipient(name, iban, null, null, null, null, Source.MANUELL);
 		recipient.setDefault(defaultRecipient);
 		recipient = dbController.insertOrUpdate(recipient);
-		Booking booking = TestData.createBookingWithParams(account.getId(), recipient.getId(), "Verwendung " + name, -1,
+		Booking booking = TestDataFactory.createBookingWithParams(account.getId(), recipient.getId(), "Verwendung " + name, -1,
 				BookingType.REMOVAL);
 		booking.setDateBooking(usageDate);
 		booking.setDateValue(usageDate);

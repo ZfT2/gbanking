@@ -59,7 +59,6 @@ import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.db.dao.Upd;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
 import de.zft2.gbanking.hbci.HbciProperties;
@@ -67,6 +66,8 @@ import de.zft2.gbanking.logging.LoggingSettings;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
 import de.zft2.gbanking.service.booking.BookingService;
 import de.zft2.gbanking.service.recipient.RecipientService;
+import de.zft2.gbanking.testdata.TestDataFactory;
+import de.zft2.gbanking.testdata.HbciParameterTestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class GBankingBeanServiceMethodsAdditionalTest {
@@ -101,8 +102,8 @@ class GBankingBeanServiceMethodsAdditionalTest {
 	@Test
 	void addNewBankAccess_shouldPopulateAccountsReuseExistingAccessAndClearPin() {
 		BankAccessService bankAccessService = ServiceStubbingUtil.spyService(BankAccessService.class);
-		BankAccess existingAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("10020030"));
-		BankAccess bankAccess = TestData.createSampleBankAccess(null);
+		BankAccess existingAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("10020030"));
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess(null);
 		char[] pin = "12345".toCharArray();
 		bankAccess.setPin(pin);
 
@@ -144,12 +145,12 @@ class GBankingBeanServiceMethodsAdditionalTest {
 	@Test
 	void refreshBankAccessParameterData_shouldRefreshBpdUpdAccountsAndClearPin() {
 		BankAccessService bankAccessService = ServiceStubbingUtil.spyService(BankAccessService.class);
-		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("70080090"));
+		BankAccess bankAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("70080090"));
 		char[] pin = "12345".toCharArray();
 
 		HBCIPassport passport = mock(HBCIPassport.class);
-		Properties upd = TestData.buildCapabilityUPD("HKCCS");
-		Properties bpd = TestData.buildCapabilityBPD("HKCCS");
+		Properties upd = HbciParameterTestDataFactory.buildCapabilityUpd("HKCCS");
+		Properties bpd = HbciParameterTestDataFactory.buildCapabilityBpd("HKCCS");
 		Konto konto = createKonto("DE44700800901234567890", "70080090", "123456789");
 
 		when(passport.getAccounts()).thenReturn(new Konto[] { konto });
@@ -196,8 +197,8 @@ class GBankingBeanServiceMethodsAdditionalTest {
 	@Test
 	void deleteBankAccessFromDB_shouldKeepAccountsAsManualAndRemoveBankAccess() {
 		BankAccessService bean = new BankAccessService();
-		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("20030040"));
-		BankAccount account = TestData.createSampleAccount(bankAccess.getId());
+		BankAccess bankAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("20030040"));
+		BankAccount account = TestDataFactory.createSampleAccount(bankAccess.getId());
 		account.setSource(Source.ONLINE);
 		account = dbController.insertOrUpdate(account);
 		bankAccess.setAccounts(List.of(account));
@@ -212,10 +213,10 @@ class GBankingBeanServiceMethodsAdditionalTest {
 	@Test
 	void saveBankAccessAccountsToDB_shouldPersistAccountsAsActiveOnlineAccountsWithBusinessCases() {
 		BankAccessService bean = new BankAccessService();
-		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("30040050"));
-		BankAccount account = TestData.createSampleAccount(null);
+		BankAccess bankAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("30040050"));
+		BankAccount account = TestDataFactory.createSampleAccount(null);
 		account.setOfflineAccount(true);
-		account.setAllowedBusinessCases(List.of(createBusinessCase("UebSEPA"), createBusinessCase("HKIPZ")));
+		account.setAllowedBusinessCases(List.of(TestDataFactory.createBusinessCase("UebSEPA"), TestDataFactory.createBusinessCase("HKIPZ")));
 		bankAccess.setAccounts(List.of(account));
 
 		boolean result = bean.saveBankAccessAccountsToDB(bankAccess);
@@ -284,7 +285,7 @@ class GBankingBeanServiceMethodsAdditionalTest {
 
 	@Test
 	void deleteBookingsInBlock_shouldDeleteOnlyOnlineFamilyFromReferenceDate() {
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		insertBooking(account.getId(), Source.ONLINE, LocalDate.of(2026, Month.JANUARY, 1));
 		Booking reference = insertBooking(account.getId(), Source.ONLINE, LocalDate.of(2026, Month.JANUARY, 10));
 		insertBooking(account.getId(), Source.ONLINE_NEW, LocalDate.of(2026, Month.JANUARY, 20));
@@ -303,7 +304,7 @@ class GBankingBeanServiceMethodsAdditionalTest {
 
 	@Test
 	void deleteBookingsInBlock_shouldDeleteImportFamilyUntilReferenceValueDate() {
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		insertBookingWithValueDateOnly(account.getId(), Source.IMPORT, LocalDate.of(2026, Month.FEBRUARY, 1));
 		Booking reference = insertBookingWithValueDateOnly(account.getId(), Source.IMPORT_NEW, LocalDate.of(2026, Month.FEBRUARY, 10));
 		insertBookingWithValueDateOnly(account.getId(), Source.IMPORT_INITIAL, LocalDate.of(2026, Month.FEBRUARY, 20));
@@ -330,8 +331,8 @@ class GBankingBeanServiceMethodsAdditionalTest {
 	@Test
 	void initBankAccess_shouldLoadAccessAndAttachPinOrReturnNullWithoutAccessId() {
 		BankAccessService bean = new BankAccessService();
-		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("40050060"));
-		BankAccount account = TestData.createSampleAccount(bankAccess.getId());
+		BankAccess bankAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("40050060"));
+		BankAccount account = TestDataFactory.createSampleAccount(bankAccess.getId());
 		char[] pin = "9876".toCharArray();
 
 		BankAccess initializedAccess = bean.initBankAccess(account, pin);
@@ -346,7 +347,7 @@ class GBankingBeanServiceMethodsAdditionalTest {
 	@Test
 	void initBankConnection_shouldConfigurePinTanPassportFromBankInfoAndProductKey() {
 		BankAccessService bean = new BankAccessService();
-		BankAccess bankAccess = TestData.createSampleBankAccess("50060070");
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("50060070");
 		GBankingHBCICallback callback = mock(GBankingHBCICallback.class);
 		HBCIPassport passport = mock(HBCIPassport.class);
 		BankInfo bankInfo = mock(BankInfo.class);
@@ -386,7 +387,7 @@ class GBankingBeanServiceMethodsAdditionalTest {
 	@Test
 	void initBankConnection_shouldFailWhenBankInfoHasNoFinTsAddress() {
 		BankAccessService bean = new BankAccessService();
-		BankAccess bankAccess = TestData.createSampleBankAccess("60070080");
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("60070080");
 		HBCIPassport passport = mock(HBCIPassport.class);
 
 		try (MockedStatic<HBCIUtils> hbciUtils = mockStatic(HBCIUtils.class);
@@ -415,14 +416,8 @@ class GBankingBeanServiceMethodsAdditionalTest {
 		return konto;
 	}
 
-	private static BusinessCase createBusinessCase(String caseValue) {
-		BusinessCase businessCase = new BusinessCase();
-		businessCase.setCaseValue(caseValue);
-		return businessCase;
-	}
-
 	private Booking insertBooking(int accountId, Source source, LocalDate date) {
-		Booking booking = TestData.createSampleBooking(accountId);
+		Booking booking = TestDataFactory.createSampleBooking(accountId);
 		booking.setDateBooking(date);
 		booking.setDateValue(date);
 		booking.setSource(source);
@@ -439,8 +434,8 @@ class GBankingBeanServiceMethodsAdditionalTest {
 	}
 
 	private void referenceRecipient(Recipient recipient) {
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
-		Booking booking = TestData.createSampleBookingWithRecipient(account.getId(), recipient.getId());
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
+		Booking booking = TestDataFactory.createSampleBookingWithRecipient(account.getId(), recipient.getId());
 		dbController.insertOrUpdate(booking);
 	}
 }

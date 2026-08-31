@@ -23,14 +23,15 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class DbExecuterErrorHandlingTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void executeSimpleSelect_invalidSql_shouldThrowDatabaseException() {
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc01 = TestData.createSampleAccount(ba.getId());
+		BankAccount acc01 = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc01);
 
 		assertSimpleSelectFails(acc01, Boolean.class, "invalid select");
@@ -38,9 +39,9 @@ class DbExecuterErrorHandlingTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void executeSimpleSelect_invalidResultFieldWithTypeDate_shouldThrowDatabaseException() {
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc01 = TestData.createSampleAccount(ba.getId());
+		BankAccount acc01 = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc01);
 
 		assertSimpleSelectFails(acc01, LocalDate.class, "select accountName from bankAccount where id = ?");
@@ -48,9 +49,9 @@ class DbExecuterErrorHandlingTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void executeSimpleSelect_invalidResultFieldWithTypeBoolean_shouldThrowDatabaseException() {
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc01 = TestData.createSampleAccount(ba.getId());
+		BankAccount acc01 = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc01);
 
 		assertSimpleSelectFails(acc01, Boolean.class, "select blahblah from bankAccount where id = ?");
@@ -58,9 +59,9 @@ class DbExecuterErrorHandlingTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void executeSimpleSelect_emptyResultFieldWithTypeBoolean_shouldReturnFalse() {
-		BankAccess ba = TestData.createSampleBankAccess("44444444");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
-		BankAccount acc01 = TestData.createSampleAccount(ba.getId());
+		BankAccount acc01 = TestDataFactory.createSampleAccount(ba.getId());
 		db.insertOrUpdate(acc01);
 
 		try (MockedStatic<StatementsConfig> statements = Mockito.mockStatic(StatementsConfig.class)) {
@@ -73,18 +74,18 @@ class DbExecuterErrorHandlingTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void insertOrUpdate_sqlError_shouldThrowAndLeaveConnectionWritable() {
-		BankAccess invalidBankAccess = TestData.createSampleBankAccess("44444444");
+		BankAccess invalidBankAccess = TestDataFactory.createSampleBankAccess("44444444");
 		invalidBankAccess.setBankName(null);
 
 		assertThrows(GBankingException.class, () -> db.insertOrUpdate(invalidBankAccess));
 
-		BankAccess validBankAccess = db.insertOrUpdate(TestData.createSampleBankAccess("44444444"));
+		BankAccess validBankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("44444444"));
 		assertTrue(validBankAccess.getId() > 0);
 	}
 
 	@Test
 	void insertOrUpdate_invalidSql_shouldThrowDatabaseException() {
-		BankAccess bankAccess = TestData.createSampleBankAccess("44444444");
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("44444444");
 
 		try (MockedStatic<StatementsConfig> statements = Mockito.mockStatic(StatementsConfig.class, Mockito.CALLS_REAL_METHODS)) {
 			statements.when(() -> StatementsConfig.getSqlStatement(BankAccess.class, StatementType.INSERT)).thenReturn("invalid insert");
@@ -95,7 +96,7 @@ class DbExecuterErrorHandlingTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void genericReadMethods_invalidSql_shouldThrowDatabaseException() {
-		BankAccess bankAccess = TestData.createSampleBankAccess("44444444");
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("44444444");
 
 		try (MockedStatic<StatementsConfig> statements = Mockito.mockStatic(StatementsConfig.class, Mockito.CALLS_REAL_METHODS)) {
 			statements.when(() -> StatementsConfig.getSqlStatement(BankAccess.class, StatementType.SELECT_FIND)).thenReturn("invalid find");

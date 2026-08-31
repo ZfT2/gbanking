@@ -18,9 +18,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.BankAccountStatement;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class BankAccountStatementPersistenceTest {
 
@@ -35,7 +35,7 @@ class BankAccountStatementPersistenceTest {
 	@Test
 	void insertOrUpdateShouldPersistAccountStatementViaDaoRegistry() {
 		DBController dbController = DBController.getInstance(tempDir.resolve("db").toString());
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		BankAccountStatement statement = createStatement(account);
 
 		BankAccountStatement savedStatement = dbController.insertOrUpdate(statement);
@@ -51,7 +51,7 @@ class BankAccountStatementPersistenceTest {
 	@Test
 	void insertOrUpdateShouldMarkStatementAcknowledgedViaDaoRegistry() {
 		DBController dbController = DBController.getInstance(tempDir.resolve("db").toString());
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		BankAccountStatement statement = dbController.insertOrUpdate(createStatement(account));
 
 		statement.setAcknowledged(true);

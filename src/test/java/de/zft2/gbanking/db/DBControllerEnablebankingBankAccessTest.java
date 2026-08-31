@@ -19,6 +19,7 @@ import de.zft2.gbanking.db.dao.BankAccessEnablebanking;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Psd2ClientConfiguration;
 import de.zft2.gbanking.db.dao.enu.BankAccessType;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class DBControllerEnablebankingBankAccessTest extends DBControllerIntegrationBaseTest {
 
@@ -33,7 +34,7 @@ class DBControllerEnablebankingBankAccessTest extends DBControllerIntegrationBas
 
 		BankAccess access = enablebankingAccess(configuration.getId());
 		db.insertOrUpdate(access);
-		BankAccount account = TestData.createSampleAccount(access.getId());
+		BankAccount account = TestDataFactory.createSampleAccount(access.getId());
 		account.setProviderAccountId("stable-identification-hash");
 		db.insertOrUpdate(account);
 

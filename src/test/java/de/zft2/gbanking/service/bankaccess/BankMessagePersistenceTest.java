@@ -16,9 +16,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankMessage;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class BankMessagePersistenceTest {
 
@@ -33,7 +33,7 @@ class BankMessagePersistenceTest {
 	@Test
 	void insertOrUpdateShouldPersistBankMessageViaDaoRegistry() {
 		DBController dbController = DBController.getInstance(tempDir.resolve("db").toString());
-		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("12345678"));
+		BankAccess bankAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("12345678"));
 		BankMessage bankMessage = createBankMessage(bankAccess);
 
 		BankMessage savedMessage = dbController.insertOrUpdate(bankMessage);
@@ -49,7 +49,7 @@ class BankMessagePersistenceTest {
 	@Test
 	void insertOrUpdateShouldUpdateBankMessageViaDaoRegistry() {
 		DBController dbController = DBController.getInstance(tempDir.resolve("db").toString());
-		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("23456789"));
+		BankAccess bankAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("23456789"));
 		BankMessage bankMessage = dbController.insertOrUpdate(createBankMessage(bankAccess));
 
 		bankMessage.setMessage("Updated message text");

@@ -36,9 +36,12 @@ import de.zft2.gbanking.service.action.OpenActionsExecutionUtil.ExecutionSummary
 import de.zft2.gbanking.service.booking.BookingCategoryService;
 import de.zft2.gbanking.service.GBankingService;
 import de.zft2.gbanking.service.moneytransfer.MoneyTransferService;
+import de.zft2.gbanking.testdata.TestDataFactory;
 import de.zft2.gbanking.service.Service;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.ServiceStubbingUtil;
+
+
 
 class OpenActionsExecutionUtilTest {
 
@@ -238,9 +241,6 @@ class OpenActionsExecutionUtilTest {
 	}
 
 	private BankAccount account(int id, int bankAccessId) {
-		BankAccount account = new BankAccount();
-		account.setId(id);
-		account.setBankAccessId(bankAccessId);
-		return account;
+		return TestDataFactory.createWithIdAndBankAccess(id, bankAccessId);
 	}
 }

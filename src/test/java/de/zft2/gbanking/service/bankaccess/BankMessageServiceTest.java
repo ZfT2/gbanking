@@ -23,11 +23,11 @@ import org.kapott.hbci.manager.HBCIHandler;
 import org.kapott.hbci.status.HBCIExecStatus;
 
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankMessage;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
 import de.zft2.gbanking.service.HbciSessionRunner;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class BankMessageServiceTest {
 
@@ -42,7 +42,7 @@ class BankMessageServiceTest {
 	@Test
 	void saveBankMessagesShouldUpdateExistingMessageWithSameMessageKey() {
 		DBController dbController = DBController.getInstance(tempDir.resolve("db").toString());
-		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("34567890"));
+		BankAccess bankAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("34567890"));
 		BankMessageService service = new BankMessageService();
 		GVRInfoList.Info info = createInfo("MSG001", "Important bank message");
 
@@ -61,7 +61,7 @@ class BankMessageServiceTest {
 	@Test
 	void saveBankMessagesShouldReturnDuplicateOverviewEntriesOnlyOnce() {
 		DBController dbController = DBController.getInstance(tempDir.resolve("db").toString());
-		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("45678901"));
+		BankAccess bankAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("45678901"));
 		BankMessageService service = new BankMessageService();
 		GVRInfoList.Info info = createInfo("MSG002", "Duplicate bank message");
 
@@ -76,7 +76,7 @@ class BankMessageServiceTest {
 	@Test
 	void saveInstitutionMessagesShouldPersistSubjectAndDeduplicateRepeatedMessages() {
 		DBController dbController = DBController.getInstance(tempDir.resolve("db").toString());
-		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("56789012"));
+		BankAccess bankAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("56789012"));
 		BankMessageService service = new BankMessageService();
 		String messageText = "Wichtiger Hinweis: Wartungsarbeiten am Sonntag";
 

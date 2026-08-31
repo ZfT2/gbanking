@@ -63,6 +63,7 @@ import de.zft2.gbanking.service.bankaccess.BankAccessService;
 import de.zft2.gbanking.service.Service;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.ServiceStubbingUtil;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AccountTransactionServiceTest {
@@ -648,13 +649,7 @@ class AccountTransactionServiceTest {
 	}
 
 	private BankAccount createAccount(String iban, String number) {
-		BankAccount account = new BankAccount();
-		account.setIban(iban);
-		account.setNumber(number);
-		account.setAccountType(AccountType.CURRENT_ACCOUNT);
-		account.setSource(Source.IMPORT_INITIAL);
-		account.setAccountState(AccountState.ACTIVE);
-		account.setCurrency("EUR");
+		BankAccount account = TestDataFactory.createImportedAccount(iban, number);
 		return DBController.getInstance(tempDir.toString()).insertOrUpdate(account);
 	}
 

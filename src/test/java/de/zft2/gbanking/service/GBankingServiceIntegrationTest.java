@@ -29,11 +29,11 @@ import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.dto.MoneyTransferForm;
 import de.zft2.gbanking.service.account.AccountTransactionService;
 import de.zft2.gbanking.service.moneytransfer.MoneyTransferService;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class GBankingServiceIntegrationTest {
@@ -67,7 +67,7 @@ class GBankingServiceIntegrationTest {
 
 	@Test
 	void saveMoneyTransferToDB_shouldCreateRecipientAndNewOpenTransfer() {
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = createRecipient("John Doe", "DE12345678901234567890");
 		MoneyTransferForm form = createTransferForm(account, recipient, "100.00", "Invoice 2026");
 
@@ -93,7 +93,7 @@ class GBankingServiceIntegrationTest {
 
 	@Test
 	void saveMoneyTransferToDB_shouldRollBackRecipientWhenTransferInsertFails() {
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = createRecipient("Rollback Recipient", "DE12345678901234567890");
 		MoneyTransferForm invalidForm = new MoneyTransferForm(account, OrderType.TRANSFER, recipient, new BigDecimal("-1.00"), "Invalid transfer");
 
@@ -105,7 +105,7 @@ class GBankingServiceIntegrationTest {
 
 	@Test
 	void saveMoneyTransferToDB_shouldMarkInventoryOrderAsChangedWhenEdited() {
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = createRecipient("Standing Order Recipient", "DE22345678901234567890");
 		MoneyTransferForm form = createTransferForm(account, recipient, "25.00", "Initial purpose");
 		MoneyTransfer inventoryTransfer = moneyTransferService.saveMoneyTransferToDB(form);
@@ -134,7 +134,7 @@ class GBankingServiceIntegrationTest {
 
 	@Test
 	void saveMoneyTransferToDB_shouldRollBackHistoryVersionWhenSuccessorInsertFails() {
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = dbController.insertOrUpdate(createRecipient("Rollback History Recipient", "DE27345678901234567890"));
 		MoneyTransfer inventoryTransfer = insertTransfer(account, recipient, MoneyTransferStatus.INVENTORY);
 		inventoryTransfer.setOrderType(OrderType.SCHEDULED_TRANSFER);
@@ -155,7 +155,7 @@ class GBankingServiceIntegrationTest {
 
 	@Test
 	void retrieveOpenTransfers_shouldReturnOnlyExecutableStatuses() {
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = dbController.insertOrUpdate(createRecipient("Recipient", "DE32345678901234567890"));
 		MoneyTransfer newTransfer = insertTransfer(account, recipient, MoneyTransferStatus.NEW);
 		MoneyTransfer changedTransfer = insertTransfer(account, recipient, MoneyTransferStatus.CHANGED);
@@ -177,7 +177,7 @@ class GBankingServiceIntegrationTest {
 
 	@Test
 	void retrieveAccountTransactions_shouldReturnFalseAndClearPinWithoutBankAccess() {
-		BankAccount account = TestData.createSampleAccount(null);
+		BankAccount account = TestDataFactory.createSampleAccount(null);
 		account.setBankAccessId(0);
 		char[] pin = "1234".toCharArray();
 
@@ -190,7 +190,7 @@ class GBankingServiceIntegrationTest {
 
 	@Test
 	void executeTransfer_shouldPersistErrorAndClearPinWhenOrderTypeIsNotSupported() {
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = createRecipient("Unsupported Transfer Recipient", "DE42345678901234567890");
 		MoneyTransferForm form = createTransferForm(account, recipient, "44.99", "Unsupported transfer");
 		MoneyTransfer moneyTransfer = moneyTransferService.saveMoneyTransferToDB(form);

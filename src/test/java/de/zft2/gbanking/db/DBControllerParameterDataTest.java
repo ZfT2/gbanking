@@ -14,6 +14,8 @@ import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.Bpd;
 import de.zft2.gbanking.db.dao.ParameterData;
 import de.zft2.gbanking.db.dao.Upd;
+import de.zft2.gbanking.testdata.TestDataFactory;
+import de.zft2.gbanking.testdata.HbciParameterTestDataFactory;
 
 class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 
@@ -23,11 +25,11 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void insertPD_BPD_shouldWork() {
-		BankAccess ba = TestData.createSampleBankAccess("88888888");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("88888888");
 		ba = db.insertOrUpdate(ba);
 
 		// prepare pd properties
-		Properties bpd = TestData.buildBPD();
+		Properties bpd = HbciParameterTestDataFactory.buildBpd();
 
 		ba.getFints().setBpd(bpd);
 
@@ -45,10 +47,10 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void updatePD_BPD_addPD_shouldWork() {
-		BankAccess ba = TestData.createSampleBankAccess("88888888");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("88888888");
 		ba = db.insertOrUpdate(ba);
 
-		Properties bpd = TestData.buildBPD();
+		Properties bpd = HbciParameterTestDataFactory.buildBpd();
 		ba.getFints().setBpd(bpd);
 
 		boolean ok = db.insertOrUpdatePD(ba);
@@ -72,10 +74,10 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void updatePD_BPD_deletePD_shouldWork() {
-		BankAccess ba = TestData.createSampleBankAccess("88888888");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("88888888");
 		ba = db.insertOrUpdate(ba);
 
-		Properties bpd = TestData.buildBPD();
+		Properties bpd = HbciParameterTestDataFactory.buildBpd();
 		ba.getFints().setBpd(bpd);
 
 		boolean ok = db.insertOrUpdatePD(ba);
@@ -99,10 +101,10 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void updatePD_BPD_changePD_shouldWork() {
-		BankAccess ba = TestData.createSampleBankAccess("88888888");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("88888888");
 		ba = db.insertOrUpdate(ba);
 
-		Properties bpd = TestData.buildBPD();
+		Properties bpd = HbciParameterTestDataFactory.buildBpd();
 		ba.getFints().setBpd(bpd);
 
 		boolean ok = db.insertOrUpdatePD(ba);
@@ -126,11 +128,11 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void insertPD_UPD_shouldWork() {
-		BankAccess ba = TestData.createSampleBankAccess("88888888");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("88888888");
 		ba = db.insertOrUpdate(ba);
 
 		// prepare pd properties
-		Properties upd = TestData.buildUPD();
+		Properties upd = HbciParameterTestDataFactory.buildUpd();
 
 		ba.getFints().setUpd(upd);
 
@@ -147,10 +149,10 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void updatePD_UPD_addPD_shouldWork() {
-		BankAccess ba = TestData.createSampleBankAccess("88888888");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("88888888");
 		ba = db.insertOrUpdate(ba);
 
-		Properties upd = TestData.buildUPD();
+		Properties upd = HbciParameterTestDataFactory.buildUpd();
 		ba.getFints().setUpd(upd);
 
 		boolean ok = db.insertOrUpdatePD(ba);
@@ -174,10 +176,10 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void updatePD_UPD_deletePD_shouldWork() {
-		BankAccess ba = TestData.createSampleBankAccess("88888888");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("88888888");
 		ba = db.insertOrUpdate(ba);
 
-		Properties upd = TestData.buildUPD();
+		Properties upd = HbciParameterTestDataFactory.buildUpd();
 		ba.getFints().setUpd(upd);
 
 		boolean ok = db.insertOrUpdatePD(ba);
@@ -200,10 +202,10 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void updatePD_UPD_changePD_shouldWork() {
-		BankAccess ba = TestData.createSampleBankAccess("88888888");
+		BankAccess ba = TestDataFactory.createSampleBankAccess("88888888");
 		ba = db.insertOrUpdate(ba);
 
-		Properties upd = TestData.buildUPD();
+		Properties upd = HbciParameterTestDataFactory.buildUpd();
 		ba.getFints().setUpd(upd);
 
 		boolean ok = db.insertOrUpdatePD(ba);
@@ -226,7 +228,7 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 	
 	@Test
 	void updatePD_BPDtwoBankAccess_shouldWork() {
-		BankAccess ba1 = TestData.createSampleBankAccess("88888888");
+		BankAccess ba1 = TestDataFactory.createSampleBankAccess("88888888");
 		ba1 = db.insertOrUpdate(ba1);
 		
 		assertTrue(ba1.getId() > 0);
@@ -236,7 +238,7 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		bpd1.put("Params_50.Template2DPar.SegHead.code", "HIIPSS");
 		ba1.getFints().setBpd(bpd1);
 		
-		BankAccess ba2 = TestData.createSampleBankAccess("44444444");
+		BankAccess ba2 = TestDataFactory.createSampleBankAccess("44444444");
 		ba2 = db.insertOrUpdate(ba2);
 		
 		Properties bpd2 = new Properties();
@@ -269,13 +271,13 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 	
 	@Test
 	void updatePD_BPD_UPD_twoBankAccess_shouldWork() {
-		BankAccess ba1 = TestData.createSampleBankAccess("88888888");
+		BankAccess ba1 = TestDataFactory.createSampleBankAccess("88888888");
 		ba1 = db.insertOrUpdate(ba1);
 		
-		Properties bpd1 = TestData.buildBPD();
+		Properties bpd1 = HbciParameterTestDataFactory.buildBpd();
 		ba1.getFints().setBpd(bpd1);
 		
-		Properties upd1 = TestData.buildUPD();
+		Properties upd1 = HbciParameterTestDataFactory.buildUpd();
 		ba1.getFints().setUpd(upd1);
 		
 		boolean ok = db.insertOrUpdatePD(ba1);
@@ -284,13 +286,13 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		ok = db.insertOrUpdatePD(ba1);
 		assertTrue(ok);
 
-		BankAccess ba2 = TestData.createSampleBankAccess("44444444");
+		BankAccess ba2 = TestDataFactory.createSampleBankAccess("44444444");
 		ba2 = db.insertOrUpdate(ba2);
 		
-		Properties bpd2 = TestData.buildBPD2();
+		Properties bpd2 = HbciParameterTestDataFactory.buildBpd2();
 		ba2.getFints().setBpd(bpd2);
 		
-		Properties upd2 = TestData.buildUPD2();
+		Properties upd2 = HbciParameterTestDataFactory.buildUpd2();
 		ba2.getFints().setUpd(upd2);
 		
 		ok = db.insertOrUpdatePD(ba2);
@@ -347,7 +349,7 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void deleteBankAccess_shouldDeleteOnlyItsBpdUpdParameterData() {
-		BankAccess ba1 = TestData.createSampleBankAccess("88888888");
+		BankAccess ba1 = TestDataFactory.createSampleBankAccess("88888888");
 		ba1 = db.insertOrUpdate(ba1);
 		Properties bpd1 = new Properties();
 		bpd1.put("shared.bpd", "shared value for ba1");
@@ -358,7 +360,7 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		ba1.getFints().setUpd(upd1);
 		assertTrue(db.insertOrUpdatePD(ba1));
 
-		BankAccess ba2 = TestData.createSampleBankAccess("44444444");
+		BankAccess ba2 = TestDataFactory.createSampleBankAccess("44444444");
 		ba2 = db.insertOrUpdate(ba2);
 		Properties bpd2 = new Properties();
 		bpd2.put("shared.bpd", "shared value for ba2");

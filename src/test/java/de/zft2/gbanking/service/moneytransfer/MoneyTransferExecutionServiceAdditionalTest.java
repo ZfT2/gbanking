@@ -56,7 +56,6 @@ import org.mockito.MockedConstruction;
 import de.zft2.gbanking.BaseMessagesDb;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
-import de.zft2.gbanking.db.dao.BusinessCase;
 import de.zft2.gbanking.db.dao.enu.ForeignChargeBearer;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
@@ -69,7 +68,6 @@ import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
 import de.zft2.gbanking.messages.Messages;
@@ -79,6 +77,8 @@ import de.zft2.gbanking.service.GBankingService;
 import de.zft2.gbanking.service.Service;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.ServiceStubbingUtil;
+import de.zft2.gbanking.testdata.TestDataFactory;
+import de.zft2.gbanking.testdata.HbciParameterTestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MoneyTransferExecutionServiceAdditionalTest {
@@ -120,8 +120,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 
 		BankAccess bankAccess = insertBankAccessWithBpd("HKCCS", "HKIPZ");
-		BankAccount bankAccount = new BankAccount();
-		bankAccount.setBankAccessId(bankAccess.getId());
+		BankAccount bankAccount = TestDataFactory.createForBankAccess(bankAccess.getId());
 
 		assertFalse(service.supportsTransferOrderType(bankAccount, OrderType.TRANSFER));
 		bankAccount.setAllowedBusinessCases(List.of());
@@ -132,9 +131,8 @@ class MoneyTransferExecutionServiceAdditionalTest {
 	void supportsTransferOrderType_shouldRejectNullAndBlankOnlyBusinessCases() {
 		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		BankAccess bankAccess = insertBankAccessWithBpd("HKCCS");
-		BankAccount bankAccount = new BankAccount();
-		bankAccount.setBankAccessId(bankAccess.getId());
-		bankAccount.setAllowedBusinessCases(List.of(createBusinessCase(null), createBusinessCase("   ")));
+		BankAccount bankAccount = TestDataFactory.createForBankAccess(bankAccess.getId());
+		bankAccount.setAllowedBusinessCases(List.of(TestDataFactory.createBusinessCase(null), TestDataFactory.createBusinessCase("   ")));
 
 		assertFalse(service.supportsTransferOrderType(null, OrderType.TRANSFER));
 		assertFalse(service.supportsTransferOrderType(bankAccount, null));
@@ -145,10 +143,9 @@ class MoneyTransferExecutionServiceAdditionalTest {
 	void supportsTransferOrderType_shouldAcceptAlternativeHbciBusinessCaseCodes() {
 		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		BankAccess bankAccess = insertBankAccessWithBpd("HKCCS", "HKIPZ", "HKEIL", "HKCSE", "HKCDE", "HKAUB");
-		BankAccount bankAccount = new BankAccount();
-		bankAccount.setBankAccessId(bankAccess.getId());
-		bankAccount.setAllowedBusinessCases(List.of(createBusinessCase("hkccs"), createBusinessCase("HKIPZ"), createBusinessCase(" hkcse "),
-				createBusinessCase("HKCDE"), createBusinessCase("HKAUB"), createBusinessCase("HKEIL")));
+		BankAccount bankAccount = TestDataFactory.createForBankAccess(bankAccess.getId());
+		bankAccount.setAllowedBusinessCases(List.of(TestDataFactory.createBusinessCase("hkccs"), TestDataFactory.createBusinessCase("HKIPZ"), TestDataFactory.createBusinessCase(" hkcse "),
+				TestDataFactory.createBusinessCase("HKCDE"), TestDataFactory.createBusinessCase("HKAUB"), TestDataFactory.createBusinessCase("HKEIL")));
 
 		assertTrue(service.supportsTransferOrderType(bankAccount, OrderType.TRANSFER));
 		assertTrue(service.supportsTransferOrderType(bankAccount, OrderType.REALTIME_TRANSFER));
@@ -495,7 +492,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 	@Test
 	void instantPaymentStatusService_shouldRetrieveAndPersistFinalStatus() {
 		DBController dbController = DBController.getInstance(tempDir.toString());
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = dbController.insertOrUpdate(new Recipient("Recipient Name", "DE12345678901234567890", "TESTDEFFXXX", null, null,
 				"Testbank", de.zft2.gbanking.db.dao.enu.Source.MONEYTRANSFER));
 		MoneyTransfer moneyTransfer = createMoneyTransfer(OrderType.REALTIME_TRANSFER);
@@ -624,7 +621,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 	@Test
 	void persistExecutionResult_shouldFinalizeSuccessfulStandingOrderEdit() throws Exception {
 		DBController dbController = DBController.getInstance(tempDir.toString());
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = dbController.insertOrUpdate(new Recipient("Recipient Name", "DE12345678901234567890", "TESTDEFFXXX", null, null,
 				"Testbank", de.zft2.gbanking.db.dao.enu.Source.MONEYTRANSFER));
 		MoneyTransfer predecessor = createPersistableStandingOrder(account, recipient, MoneyTransferStatus.INVENTORY);
@@ -708,7 +705,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		ServiceRegistry.setService(BankingCapabilityService.class, bankingCapabilityService);
 
 		DBController dbController = DBController.getInstance(tempDir.toString());
-		BankAccount bankAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = dbController.insertOrUpdate(new Recipient("Recipient Name", "DE12345678901234567890", "TESTDEFFXXX", null, null,
 				"Testbank", de.zft2.gbanking.db.dao.enu.Source.MANUELL));
 		MoneyTransfer moneyTransfer = createMoneyTransfer(OrderType.TRANSFER);
@@ -721,7 +718,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 
-		BankAccess bankAccess = TestData.createSampleBankAccess("10020030");
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("10020030");
 		char[] pin = "1234".toCharArray();
 		HBCIPassport passport = mock(HBCIPassport.class);
 		HBCIHandler handle = mock(HBCIHandler.class);
@@ -806,16 +803,10 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		return recipientAccount;
 	}
 
-	private static BusinessCase createBusinessCase(String caseValue) {
-		BusinessCase businessCase = new BusinessCase();
-		businessCase.setCaseValue(caseValue);
-		return businessCase;
-	}
-
 	private BankAccess insertBankAccessWithBpd(String... businessCases) {
 		DBController dbController = DBController.getInstance(tempDir.toString());
-		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("10020030"));
-		bankAccess.getFints().setBpd(TestData.buildCapabilityBPD(businessCases));
+		BankAccess bankAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("10020030"));
+		bankAccess.getFints().setBpd(HbciParameterTestDataFactory.buildCapabilityBpd(businessCases));
 		dbController.insertOrUpdatePD(bankAccess);
 		return bankAccess;
 	}

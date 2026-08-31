@@ -22,7 +22,6 @@ import org.junit.jupiter.api.TestInstance;
 
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
@@ -36,6 +35,7 @@ import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.file.exp.FileExportBean.ExportConstants;
 import de.zft2.gbanking.file.exp.FileExportOrdersCSVBean;
 import de.zft2.gbanking.messages.Messages;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MoneyTransferCsvImportBeanTest {
@@ -266,7 +266,7 @@ class MoneyTransferCsvImportBeanTest {
 	}
 
 	private BankAccount insertAccount(String iban, String accountNumber) {
-		BankAccount account = TestData.createSampleAccount(null);
+		BankAccount account = TestDataFactory.createSampleAccount(null);
 		account.setIban(iban);
 		account.setNumber(accountNumber);
 		return dbController.insertOrUpdate(account);

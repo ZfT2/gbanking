@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.OrderType;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class GuiContextTest {
 
@@ -30,8 +31,7 @@ class GuiContextTest {
 
 	@Test
 	void selectedAccountShouldStoreAccountId() {
-		BankAccount account = new BankAccount();
-		account.setId(42);
+		BankAccount account = TestDataFactory.createWithId(42);
 
 		GuiContext.setSelectedAccount(account);
 
@@ -40,8 +40,7 @@ class GuiContextTest {
 
 	@Test
 	void resetTenantStateShouldClearSelectedAccount() {
-		BankAccount account = new BankAccount();
-		account.setId(42);
+		BankAccount account = TestDataFactory.createWithId(42);
 		GuiContext.setSelectedAccount(account);
 
 		GuiContext.resetTenantState();

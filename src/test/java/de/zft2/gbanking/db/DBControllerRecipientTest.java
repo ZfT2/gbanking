@@ -31,6 +31,7 @@ import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.InstituteStatus;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class DBControllerRecipientTest extends DBControllerIntegrationBaseTest {
 
@@ -49,7 +50,7 @@ class DBControllerRecipientTest extends DBControllerIntegrationBaseTest {
 	// ------------------------------------------------------------
 	@Test
 	void insertAndQueryRecipient_shouldWork() {
-		Recipient r = TestData.createSampleRecipient01();
+		Recipient r = TestDataFactory.createSampleRecipient01();
 		r.setDefault(true);
 		db.insertOrUpdate(r);
 
@@ -78,7 +79,7 @@ class DBControllerRecipientTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void orderedMoneyTransferRecipientsShouldBeSortedByUsageThenName() {
-		BankAccount account = db.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient mostUsedRecipient = db.insertOrUpdate(createRecipient("Charlie", "DE00000000000000000003"));
 		Recipient firstSingleUseRecipient = db.insertOrUpdate(createRecipient("Alpha", "DE00000000000000000001"));
 		Recipient secondSingleUseRecipient = db.insertOrUpdate(createRecipient("Beta", "DE00000000000000000002"));
@@ -126,12 +127,12 @@ class DBControllerRecipientTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void duplicateRecipientInsert_shouldUpdateNotCreateNew() {
-		Recipient r1 = TestData.createSamplerecipient02();
+		Recipient r1 = TestDataFactory.createSampleRecipient02();
 		db.insertOrUpdate(r1);
 		int firstId = r1.getId();
 		assertTrue(firstId > 0);
 
-		Recipient r2 = TestData.createSampleRecipient03();
+		Recipient r2 = TestDataFactory.createSampleRecipient03();
 		db.insertOrUpdate(r2);
 
 		List<Recipient> recipients = db.getAll(Recipient.class);
@@ -287,12 +288,12 @@ class DBControllerRecipientTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void referencedRecipient_shouldUpdateNote() {
 		
-		Recipient rp = TestData.createSamplerecipient02();
+		Recipient rp = TestDataFactory.createSampleRecipient02();
 		rp.setNote("Lieblings-Empfänger");
 		rp = db.insertOrUpdate(rp);
-		BankAccount acc = TestData.createSampleAccount(null);
+		BankAccount acc = TestDataFactory.createSampleAccount(null);
 		db.insertOrUpdate(acc);
-		MoneyTransfer mt = TestData.createSampleMoneytransfer01(acc.getId());
+		MoneyTransfer mt = TestDataFactory.createSampleMoneyTransfer(acc.getId());
 		mt.setRecipientId(rp.getId());
 		db.insertOrUpdate(mt);
 		
@@ -376,11 +377,11 @@ class DBControllerRecipientTest extends DBControllerIntegrationBaseTest {
 	@Test
 	void referencedRecipient_shouldNotUpdateName() {
 		
-		Recipient rp = TestData.createSamplerecipient02();
+		Recipient rp = TestDataFactory.createSampleRecipient02();
 		rp = db.insertOrUpdate(rp);
-		BankAccount acc = TestData.createSampleAccount(null);
+		BankAccount acc = TestDataFactory.createSampleAccount(null);
 		db.insertOrUpdate(acc);
-		MoneyTransfer mt = TestData.createSampleMoneytransfer01(acc.getId());
+		MoneyTransfer mt = TestDataFactory.createSampleMoneyTransfer(acc.getId());
 		mt.setRecipientId(rp.getId());
 		db.insertOrUpdate(mt);
 		
@@ -421,7 +422,7 @@ class DBControllerRecipientTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void recipient_editable_shouldReturnTrue() {
-		Recipient rp = TestData.createSamplerecipient02();
+		Recipient rp = TestDataFactory.createSampleRecipient02();
 		rp.setNote("Lieblings-Empfänger");
 		rp = db.insertOrUpdate(rp);
 		
@@ -431,12 +432,12 @@ class DBControllerRecipientTest extends DBControllerIntegrationBaseTest {
 	
 	@Test
 	void recipientReferencedByMoneyTransfer_shouldNotBeEditableOrDeletable() {
-		Recipient rp = TestData.createSamplerecipient02();
+		Recipient rp = TestDataFactory.createSampleRecipient02();
 		rp.setNote("Lieblings-Empfänger");
 		rp = db.insertOrUpdate(rp);
-		BankAccount acc = TestData.createSampleAccount(null);
+		BankAccount acc = TestDataFactory.createSampleAccount(null);
 		db.insertOrUpdate(acc);
-		MoneyTransfer mt = TestData.createSampleMoneytransfer01(acc.getId());
+		MoneyTransfer mt = TestDataFactory.createSampleMoneyTransfer(acc.getId());
 		mt.setRecipientId(rp.getId());
 		db.insertOrUpdate(mt);
 		
@@ -467,7 +468,7 @@ class DBControllerRecipientTest extends DBControllerIntegrationBaseTest {
 
 	private void insertMoneyTransfers(BankAccount account, Recipient recipient, int count) {
 		for (int i = 0; i < count; i++) {
-			MoneyTransfer moneyTransfer = TestData.createSampleMoneytransfer01(account.getId());
+			MoneyTransfer moneyTransfer = TestDataFactory.createSampleMoneyTransfer(account.getId());
 			moneyTransfer.setRecipientId(recipient.getId());
 			moneyTransfer.setPurpose("Sortierung " + i);
 			db.insertOrUpdate(moneyTransfer);
@@ -475,9 +476,9 @@ class DBControllerRecipientTest extends DBControllerIntegrationBaseTest {
 	}
 
 	private void referenceRecipient(Recipient recipient) {
-		BankAccount acc = TestData.createSampleAccount(null);
+		BankAccount acc = TestDataFactory.createSampleAccount(null);
 		db.insertOrUpdate(acc);
-		MoneyTransfer mt = TestData.createSampleMoneytransfer01(acc.getId());
+		MoneyTransfer mt = TestDataFactory.createSampleMoneyTransfer(acc.getId());
 		mt.setRecipientId(recipient.getId());
 		db.insertOrUpdate(mt);
 	}
@@ -487,9 +488,9 @@ class DBControllerRecipientTest extends DBControllerIntegrationBaseTest {
 	}
 
 	private Booking referenceRecipientWithBooking(Recipient recipient, Source source) {
-		BankAccount acc = TestData.createSampleAccount(null);
+		BankAccount acc = TestDataFactory.createSampleAccount(null);
 		db.insertOrUpdate(acc);
-		Booking booking = TestData.createSampleBookingWithRecipient(acc.getId(), recipient.getId());
+		Booking booking = TestDataFactory.createSampleBookingWithRecipient(acc.getId(), recipient.getId());
 		booking.setSource(source);
 		booking.setRecipient(recipient);
 		return db.insertOrUpdate(booking);

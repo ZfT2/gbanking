@@ -44,10 +44,11 @@ import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.Upd;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.ServiceStubbingUtil;
+import de.zft2.gbanking.testdata.TestDataFactory;
+import de.zft2.gbanking.testdata.HbciParameterTestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class BankAccessServiceIntegrationTest {
@@ -80,8 +81,8 @@ class BankAccessServiceIntegrationTest {
 	@Test
 	void initBankAccess_shouldLoadPersistedAccessAndAttachPin() {
 		BankAccessService service = new BankAccessService();
-		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("10020030"));
-		BankAccount account = TestData.createSampleAccount(bankAccess.getId());
+		BankAccess bankAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("10020030"));
+		BankAccount account = TestDataFactory.createSampleAccount(bankAccess.getId());
 		char[] pin = "1234".toCharArray();
 
 		BankAccess initializedAccess = service.initBankAccess(account, pin);
@@ -95,11 +96,11 @@ class BankAccessServiceIntegrationTest {
 	@Test
 	void saveBankAccessAccountsToDB_shouldPersistAccountsAsActiveOnlineAccountsWithBusinessCases() {
 		BankAccessService service = new BankAccessService();
-		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("20030040"));
-		BankAccount account = TestData.createSampleAccount(null);
+		BankAccess bankAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("20030040"));
+		BankAccount account = TestDataFactory.createSampleAccount(null);
 		account.setOfflineAccount(true);
 		account.setAccountState(null);
-		account.setAllowedBusinessCases(List.of(createBusinessCase("HKCCS"), createBusinessCase("HKIPZ")));
+		account.setAllowedBusinessCases(List.of(TestDataFactory.createBusinessCase("HKCCS"), TestDataFactory.createBusinessCase("HKIPZ")));
 		bankAccess.setAccounts(List.of(account));
 
 		boolean result = service.saveBankAccessAccountsToDB(bankAccess);
@@ -116,8 +117,8 @@ class BankAccessServiceIntegrationTest {
 	@Test
 	void deleteBankAccessFromDB_shouldKeepAccountsAsManualAndRemoveAccess() {
 		BankAccessService service = new BankAccessService();
-		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("30040050"));
-		BankAccount account = TestData.createSampleAccount(bankAccess.getId());
+		BankAccess bankAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("30040050"));
+		BankAccount account = TestDataFactory.createSampleAccount(bankAccess.getId());
 		account.setSource(Source.ONLINE);
 		account = dbController.insertOrUpdate(account);
 		bankAccess.setAccounts(List.of(account));
@@ -133,15 +134,15 @@ class BankAccessServiceIntegrationTest {
 	@Test
 	void addNewBankAccess_shouldPopulatePassportDataReuseExistingAccessAndClearPin() {
 		BankAccessService bankAccessService = ServiceStubbingUtil.spyService(BankAccessService.class);
-		BankAccess existingAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("40050060"));
-		BankAccess bankAccess = TestData.createSampleBankAccess(null);
+		BankAccess existingAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("40050060"));
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess(null);
 		char[] pin = "12345".toCharArray();
 		bankAccess.setPin(pin);
 		HBCIPassport passport = mock(HBCIPassport.class);
 		HBCIHandler handle = mock(HBCIHandler.class);
 		HBCIExecStatus status = mock(HBCIExecStatus.class);
-		Properties bpd = TestData.buildCapabilityBPD("HKCCS");
-		Properties upd = TestData.buildCapabilityUPD("HKCCS");
+		Properties bpd = HbciParameterTestDataFactory.buildCapabilityBpd("HKCCS");
+		Properties upd = HbciParameterTestDataFactory.buildCapabilityUpd("HKCCS");
 		Konto konto = createKonto("DE44400500601234567890", "40050060", "123456789");
 
 		when(passport.getAccounts()).thenReturn(new Konto[] { konto });
@@ -176,12 +177,12 @@ class BankAccessServiceIntegrationTest {
 	@Test
 	void refreshBankAccessParameterData_shouldPersistPassportDataAccountsAndClearPin() {
 		BankAccessService bankAccessService = ServiceStubbingUtil.spyService(BankAccessService.class);
-		BankAccess bankAccess = dbController.insertOrUpdate(TestData.createSampleBankAccess("50060070"));
+		BankAccess bankAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("50060070"));
 		char[] pin = "56789".toCharArray();
 		HBCIPassport passport = mock(HBCIPassport.class);
 		HBCIHandler handle = mock(HBCIHandler.class);
-		Properties bpd = TestData.buildCapabilityBPD("HKCDE");
-		Properties upd = TestData.buildCapabilityUPD("HKCDE");
+		Properties bpd = HbciParameterTestDataFactory.buildCapabilityBpd("HKCDE");
+		Properties upd = HbciParameterTestDataFactory.buildCapabilityUpd("HKCDE");
 		Konto konto = createKonto("DE44500600701234567890", "50060070", "987654321");
 
 		when(passport.getAccounts()).thenReturn(new Konto[] { konto });
@@ -221,12 +222,6 @@ class BankAccessServiceIntegrationTest {
 			verify(callbacks.constructed().get(0)).finishStatusDialog();
 			verify(passport).close();
 		}
-	}
-
-	private static BusinessCase createBusinessCase(String caseValue) {
-		BusinessCase businessCase = new BusinessCase();
-		businessCase.setCaseValue(caseValue);
-		return businessCase;
 	}
 
 	private static Konto createKonto(String iban, String blz, String number) {

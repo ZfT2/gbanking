@@ -26,9 +26,9 @@ import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
-import de.zft2.gbanking.db.TestData;
 import de.zft2.gbanking.gui.dto.MoneyTransferForm;
 import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class GBankingBeanMoneyTransferStatusTest {
@@ -61,7 +61,7 @@ class GBankingBeanMoneyTransferStatusTest {
 
 	@Test
 	void saveMoneyTransferToDB_shouldMarkEditedInventoryTransferAsChanged() {
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = dbController
 				.insertOrUpdate(new Recipient("Inventory Recipient", "DE11111111111111111111", "TESTDEFFXXX", null, null, "Testbank", Source.MONEYTRANSFER));
 		MoneyTransfer inventoryTransfer = createInventoryTransfer(account.getId(), recipient.getId());
@@ -86,7 +86,7 @@ class GBankingBeanMoneyTransferStatusTest {
 
 	@Test
 	void saveMoneyTransferToDB_shouldKeepNewStatusForNewTransfer() {
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = new Recipient("New Recipient", "DE22222222222222222222", "TESTDEFFXXX", null, null, "Testbank", Source.ONLINE);
 		MoneyTransferForm form = new MoneyTransferForm(account, OrderType.TRANSFER, recipient, new BigDecimal("9.99"), "New purpose",
 				LocalDate.of(2026, Month.AUGUST, 16));
@@ -98,7 +98,7 @@ class GBankingBeanMoneyTransferStatusTest {
 
 	@Test
 	void retrieveOpenTransfers_shouldReturnExecutableTransfers() {
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = dbController.insertOrUpdate(
 				new Recipient("Open Transfer Recipient", "DE33333333333333333333", "TESTDEFFXXX", null, null, "Testbank", Source.MONEYTRANSFER));
 		dbController.insertOrUpdate(new MoneyTransfer(account.getId(), OrderType.TRANSFER, recipient.getId(), "Open transfer", new BigDecimal("29.99"),
@@ -127,8 +127,8 @@ class GBankingBeanMoneyTransferStatusTest {
 
 	@Test
 	void getAllByParentWithFilter_shouldApplyParentAndEnumFilter() {
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
-		BankAccount otherAccount = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
+		BankAccount otherAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = dbController.insertOrUpdate(
 				new Recipient("Parent Filter Recipient", "DE44444444444444444444", "TESTDEFFXXX", null, null, "Testbank", Source.MONEYTRANSFER));
 		dbController.insertOrUpdate(new MoneyTransfer(account.getId(), OrderType.TRANSFER, recipient.getId(), "Matching transfer", new BigDecimal("49.99"),
@@ -147,7 +147,7 @@ class GBankingBeanMoneyTransferStatusTest {
 
 	@Test
 	void getAllByParentShouldLoadLatestBankReferenceAndLatestKnownInstantStatus() {
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = dbController.insertOrUpdate(
 				new Recipient("Instant Recipient", "DE77777777777777777777", "TESTDEFFXXX", null, null, "Testbank", Source.MONEYTRANSFER));
 		MoneyTransfer transfer = dbController.insertOrUpdate(new MoneyTransfer(account.getId(), OrderType.REALTIME_TRANSFER, recipient.getId(),
@@ -164,7 +164,7 @@ class GBankingBeanMoneyTransferStatusTest {
 
 	@Test
 	void requestAndCancelBankOrderDeletion_shouldKeepOrderRetryable() {
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = dbController
 				.insertOrUpdate(new Recipient("Deletion Recipient", "DE55555555555555555555", "TESTDEFFXXX", null, null, "Testbank", Source.MONEYTRANSFER));
 		MoneyTransfer inventoryTransfer = createInventoryTransfer(account.getId(), recipient.getId());
@@ -184,7 +184,7 @@ class GBankingBeanMoneyTransferStatusTest {
 
 	@Test
 	void requestBankOrderDeletion_shouldDiscardPendingEditAndDeleteConfirmedVersion() {
-		BankAccount account = dbController.insertOrUpdate(TestData.createSampleAccount(null));
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = dbController
 				.insertOrUpdate(new Recipient("Changed Recipient", "DE66666666666666666666", "TESTDEFFXXX", null, null, "Testbank", Source.MONEYTRANSFER));
 		MoneyTransfer inventoryTransfer = createInventoryTransfer(account.getId(), recipient.getId());
