@@ -22,6 +22,9 @@ INSERT OR IGNORE INTO setting (attribute, `value`, dataType, editable, visible, 
 [SQL_SETUP_INSERT_SETTING_GBANKING_LOG_LEVEL]
 INSERT OR IGNORE INTO setting (attribute, `value`, dataType, editable, visible, comment, updatedAt) VALUES ('gbanking.log.level', 'INFO', 7, 1, 1, 'GBanking-Loglevel', datetime());
 
+[SQL_SETUP_INSERT_SETTING_LOG_MASK_SENSITIVE_DATA]
+INSERT OR IGNORE INTO setting (attribute, `value`, dataType, editable, visible, comment, updatedAt) VALUES ('log.mask.sensitiveData', 'true', 5, 1, 1, 'Vertrauliche Daten in Log-Ausgaben maskieren', datetime());
+
 [SQL_SETUP_INSERT_SETTING_IMPORT_EMPTY_XML_ACCOUNTS]
 INSERT OR IGNORE INTO setting (attribute, `value`, dataType, editable, visible, comment, updatedAt) VALUES ('import.xml.emptyAccounts', 'true', 5, 1, 1, 'Auch leere Konten aus XML-Importdateien importieren', datetime());
 

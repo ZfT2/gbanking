@@ -8,6 +8,7 @@ import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.kapott.hbci.manager.HBCIUtils;
+import org.kapott.hbci.manager.LogFilter;
 
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.Setting;
@@ -18,12 +19,15 @@ public final class LoggingSettings {
 
 	public static final String SETTING_HBCI_LOG_LEVEL = "hbci.log.level";
 	public static final String SETTING_GBANKING_LOG_LEVEL = "gbanking.log.level";
+	public static final String SETTING_MASK_SENSITIVE_DATA = "log.mask.sensitiveData";
 	public static final String HBCI4JAVA_LOGGER_NAME = "de.zft2.gbanking.hbci4java";
 
 	private static final Logger log = LogManager.getLogger(LoggingSettings.class);
 	private static final String GBANKING_LOGGER_NAME = "de.zft2.gbanking";
 	private static final LogLevelSetting DEFAULT_HBCI_LOG_LEVEL = LogLevelSetting.WARN;
 	private static final LogLevelSetting DEFAULT_GBANKING_LOG_LEVEL = LogLevelSetting.INFO;
+	private static final boolean DEFAULT_MASK_SENSITIVE_DATA = true;
+	private static volatile boolean sensitiveDataMaskingEnabled = DEFAULT_MASK_SENSITIVE_DATA;
 
 	private LoggingSettings() {
 	}
@@ -31,8 +35,10 @@ public final class LoggingSettings {
 	public static void ensureSettingsExist() {
 		DBController dbController = DBController.getInstance(".");
 		List<Setting> settings = dbController.getAll(Setting.class);
-		ensureSetting(dbController, settings, SETTING_HBCI_LOG_LEVEL, DEFAULT_HBCI_LOG_LEVEL, "HBCI4Java-Loglevel");
-		ensureSetting(dbController, settings, SETTING_GBANKING_LOG_LEVEL, DEFAULT_GBANKING_LOG_LEVEL, "GBanking-Loglevel");
+		ensureSetting(dbController, settings, SETTING_HBCI_LOG_LEVEL, DEFAULT_HBCI_LOG_LEVEL.name(), DataType.ENUM, "HBCI4Java-Loglevel");
+		ensureSetting(dbController, settings, SETTING_GBANKING_LOG_LEVEL, DEFAULT_GBANKING_LOG_LEVEL.name(), DataType.ENUM, "GBanking-Loglevel");
+		ensureSetting(dbController, settings, SETTING_MASK_SENSITIVE_DATA, Boolean.toString(DEFAULT_MASK_SENSITIVE_DATA), DataType.BOOLEAN,
+				"Vertrauliche Daten in Log-Ausgaben maskieren");
 	}
 
 	public static LogLevelSetting getHbciLogLevel() {
@@ -53,6 +59,14 @@ public final class LoggingSettings {
 
 	public static boolean isLogLevelSetting(String attribute) {
 		return SETTING_HBCI_LOG_LEVEL.equals(attribute) || SETTING_GBANKING_LOG_LEVEL.equals(attribute);
+	}
+
+	public static boolean isSensitiveDataMaskingEnabled() {
+		return sensitiveDataMaskingEnabled;
+	}
+
+	public static int getHbciLogFilterLevel() {
+		return LogFilter.FILTER_SECRETS;
 	}
 
 	public static void applyGbankingLogLevel() {
@@ -76,8 +90,21 @@ public final class LoggingSettings {
 	}
 
 	public static void applyLogLevels() {
+		applySensitiveDataMasking();
 		applyGbankingLogLevel();
 		applyHbciLogLevel();
+	}
+
+	public static void applySensitiveDataMasking() {
+		applySensitiveDataMasking(getBooleanSetting(SETTING_MASK_SENSITIVE_DATA, DEFAULT_MASK_SENSITIVE_DATA));
+	}
+
+	static void applySensitiveDataMasking(boolean enabled) {
+		sensitiveDataMaskingEnabled = enabled;
+		if (HBCIUtils.getParams() != null) {
+			HBCIUtils.setParam(HbciProperties.LOG_FILTER_PARAM, Integer.toString(getHbciLogFilterLevel()));
+		}
+		log.info("Applied sensitive data masking: {}", enabled);
 	}
 
 	private static void applyLoggerLevel(String loggerName, LogLevelSetting level, LogLevelSetting defaultValue, String label) {
@@ -92,7 +119,8 @@ public final class LoggingSettings {
 		}
 	}
 
-	private static void ensureSetting(DBController dbController, List<Setting> settings, String attribute, LogLevelSetting defaultValue, String comment) {
+	private static void ensureSetting(DBController dbController, List<Setting> settings, String attribute, String defaultValue, DataType dataType,
+			String comment) {
 		boolean exists = settings != null && settings.stream().anyMatch(setting -> attribute.equals(setting.getAttribute()));
 		if (exists) {
 			return;
@@ -100,8 +128,8 @@ public final class LoggingSettings {
 
 		Setting setting = new Setting();
 		setting.setAttribute(attribute);
-		setting.setValue(defaultValue.name());
-		setting.setDataType(DataType.ENUM);
+		setting.setValue(defaultValue);
+		setting.setDataType(dataType);
 		setting.setEditable(true);
 		setting.setVisible(true);
 		setting.setComment(comment);
@@ -114,6 +142,15 @@ public final class LoggingSettings {
 		return DBController.getInstance(".").getAll(Setting.class).stream()
 				.filter(setting -> attribute.equals(setting.getAttribute()))
 				.map(setting -> LogLevelSetting.fromValue(setting.getValue(), defaultValue))
+				.findFirst()
+				.orElse(defaultValue);
+	}
+
+	private static boolean getBooleanSetting(String attribute, boolean defaultValue) {
+		ensureSettingsExist();
+		return DBController.getInstance(".").getAll(Setting.class).stream()
+				.filter(setting -> attribute.equals(setting.getAttribute()))
+				.map(setting -> Boolean.parseBoolean(setting.getValue()))
 				.findFirst()
 				.orElse(defaultValue);
 	}

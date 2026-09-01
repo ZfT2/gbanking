@@ -38,6 +38,7 @@ import de.zft2.gbanking.gui.dialog.hbci.HbciCallbackMessageDialog;
 import de.zft2.gbanking.gui.dialog.hbci.HbciCallbackMessageDialog.RecipientCheckDecision;
 import de.zft2.gbanking.gui.dialog.hbci.HbciCallbackMessageDialog.RecipientCheckRequest;
 import de.zft2.gbanking.gui.dialog.hbci.HbciCallbackMessageDialog.TanChallenge;
+import de.zft2.gbanking.logging.HbciLogMessageSanitizer;
 import de.zft2.gbanking.logging.LoggingSettings;
 import de.zft2.gbanking.util.TextValues;
 
@@ -74,7 +75,7 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 
 	@Override
 	public void log(String msg, int level, java.util.Date date, StackTraceElement trace) {
-		hbci4javaLog.log(toLog4jLevel(level), "[hbci4java] {}", msg);
+		hbci4javaLog.log(toLog4jLevel(level), "[hbci4java] {}", HbciLogMessageSanitizer.sanitize(msg));
 	}
 
 	@Override
@@ -116,7 +117,7 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 		}
 		case HAVE_INST_MSG -> handleInstitutionMessage(msg);
 		case HAVE_ERROR -> {
-			log.error(msg);
+			log.error(HbciLogMessageSanitizer.sanitize(msg));
 			updateErrorAction(statusDescriptionProvider.describeFailure(msg));
 			appendFeedback(HbciStatusMessageExtractor.extractMessageLines(msg), msg);
 			successful = false;

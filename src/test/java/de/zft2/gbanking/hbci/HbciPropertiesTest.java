@@ -46,6 +46,7 @@ class HbciPropertiesTest {
 
 		assertEquals("1", properties.getProperty(HbciProperties.PINTAN_INIT_PARAM));
 		assertEquals("5", properties.getProperty(HbciProperties.LOG_LEVEL_PARAM));
+		assertEquals("1", properties.getProperty(HbciProperties.LOG_FILTER_PARAM));
 		assertEquals(HbciProperties.toFinTsProductVersion(BuildInfo.getProgramVersion()),
 				properties.getProperty(HbciProperties.PRODUCT_VERSION_PARAM));
 	}

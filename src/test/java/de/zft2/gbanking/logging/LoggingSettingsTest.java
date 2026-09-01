@@ -1,6 +1,7 @@
 package de.zft2.gbanking.logging;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -41,6 +42,7 @@ class LoggingSettingsTest {
 
 	@AfterEach
 	void cleanupDatabase() throws Exception {
+		LoggingSettings.applySensitiveDataMasking(true);
 		if (HBCIUtils.getParams() != null) {
 			HBCIUtils.done();
 		}
@@ -50,7 +52,7 @@ class LoggingSettingsTest {
 	}
 
 	@Test
-	void ensureSettingsExistShouldCreateVisibleEnumDefaults() {
+	void ensureSettingsExistShouldCreateVisibleDefaults() {
 		LoggingSettings.ensureSettingsExist();
 
 		Map<String, Setting> settingsByAttribute = dbController.getAll(Setting.class).stream()
@@ -58,6 +60,7 @@ class LoggingSettingsTest {
 
 		assertLogSetting(settingsByAttribute.get(LoggingSettings.SETTING_HBCI_LOG_LEVEL), "WARN");
 		assertLogSetting(settingsByAttribute.get(LoggingSettings.SETTING_GBANKING_LOG_LEVEL), "INFO");
+		assertBooleanSetting(settingsByAttribute.get(LoggingSettings.SETTING_MASK_SENSITIVE_DATA), "true");
 	}
 
 	@Test
@@ -77,10 +80,42 @@ class LoggingSettingsTest {
 		assertEquals(Level.TRACE, getConfiguredLevel(LoggingSettings.HBCI4JAVA_LOGGER_NAME));
 	}
 
+	@Test
+	void applySensitiveDataMaskingShouldKeepHbciSecretsProtectedWithoutAggressiveFiltering() {
+		LoggingSettings.ensureSettingsExist();
+		Setting maskingSetting = dbController.getAll(Setting.class).stream()
+				.filter(setting -> LoggingSettings.SETTING_MASK_SENSITIVE_DATA.equals(setting.getAttribute()))
+				.findFirst()
+				.orElseThrow();
+		maskingSetting.setValue("false");
+		dbController.insertOrUpdate(maskingSetting);
+		HBCIUtils.init(new Properties(), new HBCICallbackConsole());
+
+		LoggingSettings.applySensitiveDataMasking();
+
+		assertFalse(LoggingSettings.isSensitiveDataMaskingEnabled());
+		assertEquals("1", HBCIUtils.getParam(HbciProperties.LOG_FILTER_PARAM));
+
+		maskingSetting.setValue("true");
+		dbController.insertOrUpdate(maskingSetting);
+		LoggingSettings.applySensitiveDataMasking();
+
+		assertTrue(LoggingSettings.isSensitiveDataMaskingEnabled());
+		assertEquals("1", HBCIUtils.getParam(HbciProperties.LOG_FILTER_PARAM));
+	}
+
 	private void assertLogSetting(Setting setting, String expectedValue) {
 		assertNotNull(setting);
 		assertEquals(expectedValue, setting.getValue());
 		assertEquals(DataType.ENUM, setting.getDataType());
+		assertTrue(setting.isEditable());
+		assertTrue(setting.isVisible());
+	}
+
+	private void assertBooleanSetting(Setting setting, String expectedValue) {
+		assertNotNull(setting);
+		assertEquals(expectedValue, setting.getValue());
+		assertEquals(DataType.BOOLEAN, setting.getDataType());
 		assertTrue(setting.isEditable());
 		assertTrue(setting.isVisible());
 	}
