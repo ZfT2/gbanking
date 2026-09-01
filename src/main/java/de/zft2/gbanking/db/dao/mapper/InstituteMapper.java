@@ -88,6 +88,14 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 		institute.setServiceCor1(getIntegerNullable("serviceCor1", rs));
 		institute.setServiceB2b(getIntegerNullable("serviceB2b", rs));
 		institute.setServiceScc(getIntegerNullable("serviceScc", rs));
+
+		institute.setAdditionalBankNameShort(rs.getString("additionalBankNameShort"));
+		institute.setAdditionalCheckdigitMethod(rs.getString("additionalCheckdigitMethod"));
+		institute.setAdditionalPostcode(rs.getString("additionalPostcode"));
+		institute.setAdditionalDeletionMarker(rs.getString("additionalDeletionMarker"));
+		institute.setAdditionalBlzSuccession(rs.getString("additionalBlzSuccession"));
+		institute.setAdditionalIbanRule(rs.getString("additionalIbanRule"));
+		institute.setAdditionalIbanRuleVersion(rs.getString("additionalIbanRuleVersion"));
 	}
 
 	public boolean hasDkData(Institute institute) {
@@ -108,6 +116,13 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 	public boolean hasDbbReachableData(Institute institute) {
 		return institute.getServiceSct() != null || institute.getServiceCor() != null || institute.getServiceCor1() != null
 				|| institute.getServiceB2b() != null || institute.getServiceScc() != null;
+	}
+
+	public boolean hasAdditionalData(Institute institute) {
+		return hasText(institute.getAdditionalBankNameShort()) || hasText(institute.getAdditionalCheckdigitMethod())
+				|| hasText(institute.getAdditionalPostcode()) || hasText(institute.getAdditionalDeletionMarker())
+				|| hasText(institute.getAdditionalBlzSuccession()) || hasText(institute.getAdditionalIbanRule())
+				|| hasText(institute.getAdditionalIbanRuleVersion());
 	}
 
 	public void setParamsDK(Institute institute, StatementType statementType, PreparedStatement ps) throws SQLException {
@@ -187,5 +202,23 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 
 		if (statementType == StatementType.UPDATE)
 			checkAndSetId(institute, ps, index);
+	}
+
+	public void setParamsAdditional(Institute institute, StatementType statementType, PreparedStatement ps) throws SQLException {
+		int index = 1;
+
+		ps.setInt(index++, institute.getId());
+		ps.setString(index++, institute.getAdditionalBankNameShort());
+		ps.setString(index++, institute.getAdditionalCheckdigitMethod());
+		ps.setString(index++, institute.getAdditionalPostcode());
+		ps.setString(index++, institute.getAdditionalDeletionMarker());
+		ps.setString(index++, institute.getAdditionalBlzSuccession());
+		ps.setString(index++, institute.getAdditionalIbanRule());
+		ps.setString(index++, institute.getAdditionalIbanRuleVersion());
+		ps.setTimestamp(index++, TypeConverter.toSqlTimestampNow());
+
+		if (statementType == StatementType.UPDATE) {
+			checkAndSetId(institute, ps, index);
+		}
 	}
 }

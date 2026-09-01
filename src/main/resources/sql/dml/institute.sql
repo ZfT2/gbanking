@@ -1,9 +1,14 @@
 [INSTITUTE_FIELD_LIST]
 importNumber, blz, bic, bankName, place, 
 dataCenter, organisation, hbciDns, hbciIp, hbciVersion, ddv, rdh1, rdh2, rdh3, rdh4, rdh5, rdh6, rdh7, rdh8, rdh9, rdh10, pinUrl, version, lastChanged, 
-datasetNumber, feature, postcode, bankNameShort, pan, checkdigitMethod, featureChange, blzDeletion, blzSuccession, 
+datasetNumber, feature, idbb.postcode AS postcode, idbb.bankNameShort AS bankNameShort, pan,
+idbb.checkdigitMethod AS checkdigitMethod, featureChange, blzDeletion, idbb.blzSuccession AS blzSuccession,
 country, address, readinessDate, schemeLeavingDate, schemeOptions,
 serviceSct, serviceCor, serviceCor1, serviceB2b, serviceScc,
+ia.bankNameShort AS additionalBankNameShort, ia.checkdigitMethod AS additionalCheckdigitMethod,
+ia.postcode AS additionalPostcode, ia.deletionMarker AS additionalDeletionMarker,
+ia.blzSuccession AS additionalBlzSuccession, ia.ibanRule AS additionalIbanRule,
+ia.ibanRuleVersion AS additionalIbanRuleVersion,
 stateType, importFile, ih.importFileName;
 
 [SQL_SELECT_ALL_INSTITUTES]
@@ -13,6 +18,7 @@ LEFT JOIN institute_db.instituteDk idk ON idk.institute_id = i.id
 LEFT JOIN institute_db.instituteDbb idbb ON idbb.institute_id = i.id
 LEFT JOIN institute_db.instituteEpc iepc ON iepc.institute_id = i.id
 LEFT JOIN institute_db.instituteDbbReachable idr ON idr.institute_id = i.id
+LEFT JOIN institute_db.instituteAdditional ia ON ia.institute_id = i.id
 LEFT JOIN institute_db.importHistory ih ON ih.id = i.importFile
 ORDER BY i.id, idk.importNumber ASC;
 
@@ -83,6 +89,19 @@ ON CONFLICT(institute_id) DO UPDATE SET
     serviceScc = excluded.serviceScc,
     updatedAt = excluded.updatedAt;
 
+[SQL_INSERT_INSTITUTE_ADDITIONAL]
+INSERT INTO instituteAdditional (institute_id, bankNameShort, checkdigitMethod, postcode, deletionMarker, blzSuccession, ibanRule, ibanRuleVersion, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(institute_id) DO UPDATE SET
+    bankNameShort = excluded.bankNameShort,
+    checkdigitMethod = excluded.checkdigitMethod,
+    postcode = excluded.postcode,
+    deletionMarker = excluded.deletionMarker,
+    blzSuccession = excluded.blzSuccession,
+    ibanRule = excluded.ibanRule,
+    ibanRuleVersion = excluded.ibanRuleVersion,
+    updatedAt = excluded.updatedAt;
+
 [SQL_UPDATE_INSTIUTE]
 UPDATE institute_db.institute SET blz = ?, bic = ?, bankName = ?, place = ?, stateType = ?, importFile = ?, updatedAt = ?
 WHERE id = ?;
@@ -103,6 +122,10 @@ WHERE institute_id = ?;
 UPDATE institute_db.instituteDbbReachable SET institute_id = ?, serviceSct = ?, serviceCor = ?, serviceCor1 = ?, serviceB2b = ?, serviceScc = ?, updatedAt = ?
 WHERE institute_id = ?;
 
+[SQL_UPDATE_INSTITUTE_ADDITIONAL]
+UPDATE institute_db.instituteAdditional SET institute_id = ?, bankNameShort = ?, checkdigitMethod = ?, postcode = ?, deletionMarker = ?, blzSuccession = ?, ibanRule = ?, ibanRuleVersion = ?, updatedAt = ?
+WHERE institute_id = ?;
+
 [SQL_DELETE_INSTITUTE_DK]
 DELETE FROM instituteDk WHERE institute_id = ?;
 
@@ -114,3 +137,6 @@ DELETE FROM instituteEpc WHERE institute_id = ?;
 
 [SQL_DELETE_INSTITUTE_DBB_REACHABLE]
 DELETE FROM instituteDbbReachable WHERE institute_id = ?;
+
+[SQL_DELETE_INSTITUTE_ADDITIONAL]
+DELETE FROM instituteAdditional WHERE institute_id = ?;

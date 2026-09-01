@@ -85,6 +85,8 @@ public abstract class InstituteFileImport implements BaseMessages {
 				importType = new InstituteFileImportEpc(basePath, fileName, InstituteFileImportEpc.getCharset(charset), worker);
 			} else if (type == InstituteFileImportDbbReachable.class) {
 				importType = new InstituteFileImportDbbReachable(basePath, fileName, InstituteFileImportDbbReachable.getCharset(charset), worker);
+			} else if (type == InstituteFileImportAdditional.class) {
+				importType = new InstituteFileImportAdditional(basePath, fileName, InstituteFileImportAdditional.getCharset(charset), worker);
 			}
 			return importType;
 		} else {
@@ -102,6 +104,8 @@ public abstract class InstituteFileImport implements BaseMessages {
 			return new InstituteFileImportEpc(basePath, fileName, InstituteFileImportEpc.getCharset(charset), worker);
 		case InstituteFileImportDbbReachable.DEFAULT_FILENAME:
 			return new InstituteFileImportDbbReachable(basePath, fileName, InstituteFileImportDbbReachable.getCharset(charset), worker);
+		case InstituteFileImportAdditional.DEFAULT_FILENAME:
+			return new InstituteFileImportAdditional(basePath, fileName, InstituteFileImportAdditional.getCharset(charset), worker);
 		default:
 			throw new GBankingException("Unknown default file: " + fileName);
 		}

@@ -48,6 +48,9 @@ public class InstituteListPanel extends AbstractFilterableTablePanel<Institute> 
 	protected boolean matchesFilter(Institute institute, String filter) {
 		return matchesAny(filter, institute.getBankName(), institute.getBankNameShort(), institute.getPlace(), institute.getPostcode(),
 				institute.getBlz(), institute.getBic(), displayCountry(institute), institute.getReadinessDate(), institute.getSchemeLeavingDate(),
+				institute.getAdditionalBankNameShort(), institute.getAdditionalPostcode(), institute.getAdditionalCheckdigitMethod(),
+				institute.getAdditionalDeletionMarker(), institute.getAdditionalBlzSuccession(), institute.getAdditionalIbanRule(),
+				institute.getAdditionalIbanRuleVersion(),
 				institute.getLastChanged() != null ? institute.getLastChanged().toString() : null,
 				institute.getUpdatedAt() != null ? institute.getUpdatedAt().toString() : null, InstituteSource.displayNames(institute));
 	}

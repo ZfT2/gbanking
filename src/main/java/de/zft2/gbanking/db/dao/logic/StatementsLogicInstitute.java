@@ -87,6 +87,17 @@ public class StatementsLogicInstitute extends StatementsLogicDefault<Institute> 
 		} else {
 			deleteInstituteDetails(DaoSqlStatements.SQL_DELETE_INSTIUTE_DBB_REACHABLE, institute);
 		}
+
+		if (mapper.hasAdditionalData(institute)) {
+			try (PreparedStatement ps = connection.prepareStatement(statementType == StatementType.INSERT
+					? DaoSqlStatements.SQL_INSERT_INSTITUTE_ADDITIONAL
+					: DaoSqlStatements.SQL_UPDATE_INSTIUTE_ADDITIONAL)) {
+				mapper.setParamsAdditional(institute, statementType, ps);
+				ps.executeUpdate();
+			}
+		} else {
+			deleteInstituteDetails(DaoSqlStatements.SQL_DELETE_INSTIUTE_ADDITIONAL, institute);
+		}
 	}
 
 	private void deleteInstituteDetails(String sql, Institute institute) throws SQLException {

@@ -51,6 +51,7 @@ class DbConnectionHandlerInstituteDatabaseTest {
 		assertTrue(tableExists("institute_db", "instituteStatus"));
 		assertTrue(tableExists("institute_db", "importHistory"));
 		assertTrue(tableExists("institute_db", "instituteDbbReachable"));
+		assertTrue(tableExists("institute_db", "instituteAdditional"));
 		assertEquals(3, countInstituteStatusRows());
 
 		ImportHistory importHistory = dbController.insertOrUpdate(new ImportHistory("shared-test.csv"));
@@ -114,16 +115,21 @@ class DbConnectionHandlerInstituteDatabaseTest {
 	}
 
 	@Test
-	void shouldNotModifyExistingInstituteDatabaseDuringConnectionSetup() throws Exception {
+	void shouldNotModifyCurrentInstituteDatabaseDuringRepeatedConnectionSetup() throws Exception {
 		tempDir = Files.createTempDirectory("gb_test_");
 		Path dataRoot = tempDir.resolve("shared-data");
 		Files.createDirectories(dataRoot);
-		Path referenceDatabase = tempDir.resolve("institute-reference.db");
 		Path instituteDatabase = dataRoot.resolve("institute.db");
-		Files.copy(AppPaths.resolveInApplicationDirectory("data").resolve("institute.db"), referenceDatabase);
-		Files.copy(referenceDatabase, instituteDatabase);
+		Files.copy(AppPaths.resolveInApplicationDirectory("data").resolve("institute.db"), instituteDatabase);
 		configureTenant(dataRoot);
 
+		DBController.getInstance(".");
+		DBControllerTestUtil.closeAndNullifyConnection();
+		assertTrue(tableExistsInFile(instituteDatabase, "instituteAdditional"));
+
+		Path referenceDatabase = tempDir.resolve("institute-reference.db");
+		Files.copy(instituteDatabase, referenceDatabase);
+		configureTenant(dataRoot);
 		DBController.getInstance(".");
 		DBControllerTestUtil.closeAndNullifyConnection();
 
@@ -180,6 +186,16 @@ class DbConnectionHandlerInstituteDatabaseTest {
 		try (Statement statement = DBController.getConnection().createStatement();
 				var rs = statement.executeQuery(sql)) {
 			return rs.next();
+		}
+	}
+
+	private static boolean tableExistsInFile(Path database, String tableName) throws SQLException {
+		try (var fileConnection = DriverManager.getConnection("jdbc:sqlite:" + database);
+				var statement = fileConnection.prepareStatement("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?")) {
+			statement.setString(1, tableName);
+			try (var resultSet = statement.executeQuery()) {
+				return resultSet.next();
+			}
 		}
 	}
 

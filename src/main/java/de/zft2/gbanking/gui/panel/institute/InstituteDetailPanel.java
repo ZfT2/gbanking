@@ -56,21 +56,23 @@ public class InstituteDetailPanel extends VBox implements BaseMessagesBean {
 		Tab dbbReachable = createTab("DBB Reachable", createDbbReachableGrid(institute));
 		Tab dk = createTab("DK", createDkGrid(institute));
 		Tab epc = createTab("EPC", createEpcGrid(institute));
+		Tab additional = createTab("Additional", createAdditionalGrid(institute));
 		List<InstituteSource> sources = InstituteSource.forInstitute(institute);
 		dbb.setDisable(!sources.contains(InstituteSource.DBB));
 		dbbReachable.setDisable(!sources.contains(InstituteSource.DBB_REACHABLE));
 		dk.setDisable(!sources.contains(InstituteSource.DK));
 		epc.setDisable(!sources.contains(InstituteSource.EPC));
-		tabs.getTabs().setAll(general, dbb, dbbReachable, dk, epc);
+		additional.setDisable(!sources.contains(InstituteSource.ADDITIONAL));
+		tabs.getTabs().setAll(general, dbb, dbbReachable, dk, epc, additional);
 	}
 
 	private GridPane createGeneralGrid(Institute institute) {
 		GridPane grid = createGrid();
 		add(grid, "UI_LABEL_BANK", institute.getBankName(), 0, 0);
-		add(grid, "UI_LABEL_BANK_NAME_SHORT", institute.getBankNameShort(), 1, 0);
+		add(grid, "UI_LABEL_BANK_NAME_SHORT", firstNonBlank(institute.getBankNameShort(), institute.getAdditionalBankNameShort()), 1, 0);
 		add(grid, "UI_LABEL_PLACE", institute.getPlace(), 2, 0);
 		add(grid, "UI_LABEL_COUNTRY", displayCountry(institute), 3, 0);
-		add(grid, "UI_LABEL_POSTCODE", institute.getPostcode(), 0, 1);
+		add(grid, "UI_LABEL_POSTCODE", firstNonBlank(institute.getPostcode(), institute.getAdditionalPostcode()), 0, 1);
 		add(grid, "UI_LABEL_BLZ", institute.getBlz(), 1, 1);
 		add(grid, "UI_LABEL_BIC", institute.getBic(), 2, 1);
 		add(grid, "UI_LABEL_INSTITUTE_STATUS", institute.getStateType(), 3, 1);
@@ -93,7 +95,7 @@ public class InstituteDetailPanel extends VBox implements BaseMessagesBean {
 		add(grid, "UI_LABEL_FEATURE_CHANGE", institute.getFeatureChange() == 0 ? null : institute.getFeatureChange(), 0, 1);
 		add(grid, "UI_LABEL_BLZ_DELETION", institute.getBlzDeletion(), 1, 1);
 		add(grid, "UI_LABEL_BLZ_SUCCESSION", institute.getBlzSuccession(), 2, 1);
-		addNode(grid, UI_SOURCE_LINK, createSourceLink(InstituteSource.DBB), 3, 1);
+		addNode(grid, UI_SOURCE_LINK, createSourceReference(InstituteSource.DBB), 3, 1);
 		return grid;
 	}
 
@@ -111,7 +113,7 @@ public class InstituteDetailPanel extends VBox implements BaseMessagesBean {
 		add(grid, "UI_LABEL_LAST_CHANGED", institute.getLastChanged(), 1, 2);
 		add(grid, "UI_LABEL_RDH_1_TO_5", formatRdh(institute, 0, 5), 2, 2);
 		add(grid, "UI_LABEL_RDH_6_TO_10", formatRdh(institute, 5, 10), 3, 2);
-		addNode(grid, UI_SOURCE_LINK, createSourceLink(InstituteSource.DK), 0, 3);
+		addNode(grid, UI_SOURCE_LINK, createSourceReference(InstituteSource.DK), 0, 3);
 		return grid;
 	}
 
@@ -122,7 +124,7 @@ public class InstituteDetailPanel extends VBox implements BaseMessagesBean {
 		add(grid, "UI_LABEL_SERVICE_COR1", institute.getServiceCor1(), 2, 0);
 		add(grid, "UI_LABEL_SERVICE_B2B", institute.getServiceB2b(), 3, 0);
 		add(grid, "UI_LABEL_SERVICE_SCC", institute.getServiceScc(), 0, 1);
-		addNode(grid, UI_SOURCE_LINK, createSourceLink(InstituteSource.DBB_REACHABLE), 1, 1);
+		addNode(grid, UI_SOURCE_LINK, createSourceReference(InstituteSource.DBB_REACHABLE), 1, 1);
 		return grid;
 	}
 
@@ -133,14 +135,27 @@ public class InstituteDetailPanel extends VBox implements BaseMessagesBean {
 		add(grid, "UI_LABEL_READINESS_DATE", institute.getReadinessDate(), 2, 0);
 		add(grid, "UI_LABEL_SCHEME_LEAVING_DATE", institute.getSchemeLeavingDate(), 3, 0);
 		add(grid, "UI_LABEL_SCHEME_OPTIONS", institute.getSchemeOptions(), 0, 1);
-		addNode(grid, UI_SOURCE_LINK, createSourceLink(InstituteSource.EPC), 1, 1);
+		addNode(grid, UI_SOURCE_LINK, createSourceReference(InstituteSource.EPC), 1, 1);
+		return grid;
+	}
+
+	private GridPane createAdditionalGrid(Institute institute) {
+		GridPane grid = createGrid();
+		add(grid, "UI_LABEL_BANK_NAME_SHORT", institute.getAdditionalBankNameShort(), 0, 0);
+		add(grid, "UI_LABEL_CHECKDIGIT_METHOD", institute.getAdditionalCheckdigitMethod(), 1, 0);
+		add(grid, "UI_LABEL_POSTCODE", institute.getAdditionalPostcode(), 2, 0);
+		add(grid, "UI_LABEL_DELETION_MARKER", institute.getAdditionalDeletionMarker(), 3, 0);
+		add(grid, "UI_LABEL_BLZ_SUCCESSION", institute.getAdditionalBlzSuccession(), 0, 1);
+		add(grid, "UI_LABEL_IBAN_RULE", institute.getAdditionalIbanRule(), 1, 1);
+		add(grid, "UI_LABEL_IBAN_RULE_VERSION", institute.getAdditionalIbanRuleVersion(), 2, 1);
+		addNode(grid, "UI_LABEL_SOURCE", createSourceReference(InstituteSource.ADDITIONAL), 3, 1);
 		return grid;
 	}
 
 	private HBox createSourceLinks(Institute institute) {
 		HBox links = new HBox(10);
 		for (InstituteSource source : InstituteSource.forInstitute(institute)) {
-			links.getChildren().add(createSourceLink(source));
+			links.getChildren().add(createSourceReference(source));
 		}
 		if (links.getChildren().isEmpty()) {
 			links.getChildren().add(new Label(EMPTY_VALUE));
@@ -148,7 +163,10 @@ public class InstituteDetailPanel extends VBox implements BaseMessagesBean {
 		return links;
 	}
 
-	private Hyperlink createSourceLink(InstituteSource source) {
+	private Node createSourceReference(InstituteSource source) {
+		if (source.getUrl() == null) {
+			return new Label(source.getLinkText());
+		}
 		Hyperlink link = new Hyperlink(source.getLinkText());
 		link.setOnAction(event -> openSource(source));
 		return link;
@@ -205,6 +223,10 @@ public class InstituteDetailPanel extends VBox implements BaseMessagesBean {
 
 	private static String text(Object value) {
 		return value == null || value.toString().isBlank() ? EMPTY_VALUE : value.toString();
+	}
+
+	private static String firstNonBlank(String preferred, String fallback) {
+		return preferred == null || preferred.isBlank() ? fallback : preferred;
 	}
 
 	private static String formatRdh(Institute institute, int fromIndex, int toIndex) {

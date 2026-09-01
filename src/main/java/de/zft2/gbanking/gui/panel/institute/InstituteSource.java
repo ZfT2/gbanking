@@ -13,7 +13,8 @@ public enum InstituteSource {
 			"https://www.bundesbank.de/de/startseite/verzeichnis-der-erreichbaren-zahlungsdienstleister-list-of-reachable-payment-service-providers-602880"),
 	DK("DK", "Deutsche Kreditwirtschaft", "https://www.fints.org/de/hersteller/bankenliste"),
 	EPC("EPC", "European Payments Council",
-			"https://www.europeanpaymentscouncil.eu/what-we-do/be-involved/register-participants/registers-participants-sepa-payment-schemes");
+			"https://www.europeanpaymentscouncil.eu/what-we-do/be-involved/register-participants/registers-participants-sepa-payment-schemes"),
+	ADDITIONAL("Additional", "Additional", null);
 
 	private final String displayName;
 	private final String linkText;
@@ -38,7 +39,7 @@ public enum InstituteSource {
 	}
 
 	public static List<InstituteSource> forInstitute(Institute institute) {
-		List<InstituteSource> sources = new ArrayList<>(4);
+		List<InstituteSource> sources = new ArrayList<>(5);
 		if (hasDbbData(institute)) {
 			sources.add(DBB);
 		}
@@ -50,6 +51,9 @@ public enum InstituteSource {
 		}
 		if (hasEpcData(institute)) {
 			sources.add(EPC);
+		}
+		if (hasAdditionalData(institute)) {
+			sources.add(ADDITIONAL);
 		}
 		return List.copyOf(sources);
 	}
@@ -85,6 +89,13 @@ public enum InstituteSource {
 	private static boolean hasEpcData(Institute institute) {
 		return hasText(institute.getCountry()) || hasText(institute.getAddress()) || hasText(institute.getReadinessDate())
 				|| hasText(institute.getSchemeLeavingDate()) || hasText(institute.getSchemeOptions());
+	}
+
+	private static boolean hasAdditionalData(Institute institute) {
+		return hasText(institute.getAdditionalBankNameShort()) || hasText(institute.getAdditionalCheckdigitMethod())
+				|| hasText(institute.getAdditionalPostcode()) || hasText(institute.getAdditionalDeletionMarker())
+				|| hasText(institute.getAdditionalBlzSuccession()) || hasText(institute.getAdditionalIbanRule())
+				|| hasText(institute.getAdditionalIbanRuleVersion());
 	}
 
 	private static boolean hasText(String value) {

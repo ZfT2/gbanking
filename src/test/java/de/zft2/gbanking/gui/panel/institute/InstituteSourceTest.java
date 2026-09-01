@@ -35,4 +35,13 @@ class InstituteSourceTest {
 		assertEquals(List.of(InstituteSource.DBB_REACHABLE), InstituteSource.forInstitute(institute));
 		assertEquals("RS", InstituteSource.countryForDisplay(institute, "Deutschland"));
 	}
+
+	@Test
+	void shouldIdentifyAdditionalSourceWithGermanCountryFallback() {
+		Institute institute = new Institute();
+		institute.setAdditionalBankNameShort("Zusatzbank");
+
+		assertEquals(List.of(InstituteSource.ADDITIONAL), InstituteSource.forInstitute(institute));
+		assertEquals("Deutschland", InstituteSource.countryForDisplay(institute, "Deutschland"));
+	}
 }

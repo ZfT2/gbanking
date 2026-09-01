@@ -147,6 +147,21 @@ CREATE TABLE IF NOT EXISTS institute_db.instituteDbbReachable (
   CHECK (serviceScc IN (0, 1)));
 ;
 
+[SQL_SETUP_CREATE_INSTITUTE_ADDITIONAL]
+CREATE TABLE IF NOT EXISTS institute_db.instituteAdditional (
+  id INTEGER PRIMARY KEY,
+  institute_id INTEGER NOT NULL UNIQUE,
+  bankNameShort TEXT,
+  checkdigitMethod TEXT,
+  postcode TEXT,
+  deletionMarker TEXT,
+  blzSuccession TEXT,
+  ibanRule TEXT,
+  ibanRuleVersion TEXT,
+  updatedAt TEXT NOT NULL,
+  FOREIGN KEY(institute_id) REFERENCES institute(id) ON DELETE CASCADE);
+;
+
 [SQL_SETUP_CREATE_TRIGGER_INSTITUTEDK_VALIDATE_UNIQUE_BLZ_IMPORTNUMBER_INSERT]
 CREATE TRIGGER IF NOT EXISTS institute_db.instituteDk_unique_blz_importNumber_insert
 BEFORE INSERT ON instituteDk

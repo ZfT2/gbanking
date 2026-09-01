@@ -57,7 +57,7 @@ class InstituteFileImportSourceIsolationIntegrationTest {
 		runAllImports();
 
 		List<Institute> initial = dbController.getAll(Institute.class);
-		assertEquals(4, initial.size());
+		assertEquals(5, initial.size());
 		assertSourceDetails(1);
 		assertAllActive(initial);
 
@@ -65,12 +65,13 @@ class InstituteFileImportSourceIsolationIntegrationTest {
 		Institute initialDbb = find(initial, institute -> institute.getDatasetNumber() != null);
 		Institute initialEpc = find(initial, institute -> institute.getCountry() != null);
 		Institute initialReachable = find(initial, institute -> institute.getServiceSct() != null);
+		Institute initialAdditional = find(initial, institute -> institute.getAdditionalBankNameShort() != null);
 
 		writeImportFiles(true);
 		runAllImports();
 
 		List<Institute> updated = dbController.getAll(Institute.class);
-		assertEquals(4, updated.size());
+		assertEquals(5, updated.size());
 		assertSourceDetails(1);
 		assertAllActive(updated);
 
@@ -78,6 +79,7 @@ class InstituteFileImportSourceIsolationIntegrationTest {
 		Institute updatedDbb = find(updated, institute -> institute.getDatasetNumber() != null);
 		Institute updatedEpc = find(updated, institute -> institute.getCountry() != null);
 		Institute updatedReachable = find(updated, institute -> institute.getServiceSct() != null);
+		Institute updatedAdditional = find(updated, institute -> institute.getAdditionalBankNameShort() != null);
 
 		assertEquals(initialDk.getId(), updatedDk.getId());
 		assertEquals("neues Rechenzentrum", updatedDk.getDataCenter());
@@ -87,6 +89,8 @@ class InstituteFileImportSourceIsolationIntegrationTest {
 		assertEquals("Updated address", updatedEpc.getAddress());
 		assertEquals(initialReachable.getId(), updatedReachable.getId());
 		assertEquals(1, updatedReachable.getServiceScc());
+		assertEquals(initialAdditional.getId(), updatedAdditional.getId());
+		assertEquals("902", updatedAdditional.getAdditionalIbanRule());
 	}
 
 	private void writeImportFiles(boolean updated) throws IOException {
@@ -101,6 +105,12 @@ class InstituteFileImportSourceIsolationIntegrationTest {
 		writeImportFile(InstituteFileImportDbbReachable.DEFAULT_FILENAME, StandardCharsets.UTF_8,
 				List.of("Gueltig ab / valid from 17.08.2026;;;;;;",
 						"BIC;Name;SERVICE SCT;SERVICE COR;SERVICE COR1;SERVICE B2B;SERVICE SCC", reachableRow));
+
+		String additionalRow = "99999999;Zusatzbank München;München;Zusatzbank;09;ADDTDEMMXXX;80331;0;;"
+				+ (updated ? "902" : "901") + ";1";
+		writeImportFile(InstituteFileImportAdditional.DEFAULT_FILENAME, StandardCharsets.ISO_8859_1,
+				List.of("BLZ;Institutsname;Ort;Kurzbezeichnung;Prüfziffermethode;BIC;PLZ;Löschmarker;Nachfolge-BLZ;IBAN-Regel;IBAN-Regel-Version",
+						additionalRow));
 	}
 
 	private void copyFixtureRow(String fixtureName, String importFileName, Charset charset, String original, String replacement)
@@ -118,6 +128,7 @@ class InstituteFileImportSourceIsolationIntegrationTest {
 		runImport(InstituteFileImportDbb.class, InstituteFileImportDbb.DEFAULT_FILENAME);
 		runImport(InstituteFileImportEpc.class, InstituteFileImportEpc.DEFAULT_FILENAME);
 		runImport(InstituteFileImportDbbReachable.class, InstituteFileImportDbbReachable.DEFAULT_FILENAME);
+		runImport(InstituteFileImportAdditional.class, InstituteFileImportAdditional.DEFAULT_FILENAME);
 	}
 
 	private void runImport(Class<? extends InstituteFileImport> type, String fileName) throws IOException {
@@ -136,9 +147,10 @@ class InstituteFileImportSourceIsolationIntegrationTest {
 		try (var statement = DBController.getConnection().createStatement();
 				var resultSet = statement.executeQuery("SELECT (SELECT COUNT(*) FROM institute_db.instituteDk), "
 						+ "(SELECT COUNT(*) FROM institute_db.instituteDbb), (SELECT COUNT(*) FROM institute_db.instituteEpc), "
-						+ "(SELECT COUNT(*) FROM institute_db.instituteDbbReachable)")) {
+						+ "(SELECT COUNT(*) FROM institute_db.instituteDbbReachable), "
+						+ "(SELECT COUNT(*) FROM institute_db.instituteAdditional)")) {
 			assertTrue(resultSet.next());
-			for (int column = 1; column <= 4; column++) {
+			for (int column = 1; column <= 5; column++) {
 				assertEquals(expected, resultSet.getInt(column));
 			}
 		}

@@ -67,6 +67,15 @@ public class Institute extends Dao implements Serializable {
 	private Integer serviceB2b;
 	private Integer serviceScc;
 
+	/** Additional data **/
+	private String additionalBankNameShort;
+	private String additionalCheckdigitMethod;
+	private String additionalPostcode;
+	private String additionalDeletionMarker;
+	private String additionalBlzSuccession;
+	private String additionalIbanRule;
+	private String additionalIbanRuleVersion;
+
 	public int getImportNumber() {
 		return importNumber;
 	}
@@ -409,6 +418,62 @@ public class Institute extends Dao implements Serializable {
 
 	public void setServiceScc(Integer serviceScc) {
 		this.serviceScc = serviceScc;
+	}
+
+	public String getAdditionalBankNameShort() {
+		return additionalBankNameShort;
+	}
+
+	public void setAdditionalBankNameShort(String additionalBankNameShort) {
+		this.additionalBankNameShort = additionalBankNameShort;
+	}
+
+	public String getAdditionalCheckdigitMethod() {
+		return additionalCheckdigitMethod;
+	}
+
+	public void setAdditionalCheckdigitMethod(String additionalCheckdigitMethod) {
+		this.additionalCheckdigitMethod = additionalCheckdigitMethod;
+	}
+
+	public String getAdditionalPostcode() {
+		return additionalPostcode;
+	}
+
+	public void setAdditionalPostcode(String additionalPostcode) {
+		this.additionalPostcode = additionalPostcode;
+	}
+
+	public String getAdditionalDeletionMarker() {
+		return additionalDeletionMarker;
+	}
+
+	public void setAdditionalDeletionMarker(String additionalDeletionMarker) {
+		this.additionalDeletionMarker = additionalDeletionMarker;
+	}
+
+	public String getAdditionalBlzSuccession() {
+		return additionalBlzSuccession;
+	}
+
+	public void setAdditionalBlzSuccession(String additionalBlzSuccession) {
+		this.additionalBlzSuccession = additionalBlzSuccession;
+	}
+
+	public String getAdditionalIbanRule() {
+		return additionalIbanRule;
+	}
+
+	public void setAdditionalIbanRule(String additionalIbanRule) {
+		this.additionalIbanRule = additionalIbanRule;
+	}
+
+	public String getAdditionalIbanRuleVersion() {
+		return additionalIbanRuleVersion;
+	}
+
+	public void setAdditionalIbanRuleVersion(String additionalIbanRuleVersion) {
+		this.additionalIbanRuleVersion = additionalIbanRuleVersion;
 	}
 
 	public IdType getStateType() {
