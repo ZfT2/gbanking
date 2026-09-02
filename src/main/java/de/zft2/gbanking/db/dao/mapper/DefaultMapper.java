@@ -2,15 +2,19 @@ package de.zft2.gbanking.db.dao.mapper;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.Set;
+import java.util.List;
 
 import de.zft2.gbanking.db.dao.Dao;
 import de.zft2.gbanking.exception.GBankingException;
 
 public class DefaultMapper extends AbstractDaoMapper<Dao, Void> {
 
+	public DefaultMapper() {
+		super(unsupportedResultFactory(DefaultMapper.class));
+	}
+
 	@Override
-	public void setParamsForeignKeyUpdate(Set<Integer> idList, Dao targetDao, PreparedStatement ps) throws SQLException {
+	public void setParamsForeignKeyUpdate(List<Integer> idList, Dao targetDao, PreparedStatement ps) throws SQLException {
 
 		ps.setInt(1, targetDao.getId());
 

@@ -8,11 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.math.BigDecimal;
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -27,7 +23,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
 
 import org.junit.jupiter.api.Test;
 
@@ -397,7 +392,7 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 	// ------------------------------------------------------------
 	
 	@Test
-	void updateBookingSourceOneAccount_shouldWork() {
+	void updateBookingSourceOneAccount_shouldPersistEveryBooking() {
 
 		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
@@ -409,21 +404,19 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		Booking booking02 = TestDataFactory.createSampleBooking(acc01.getId());
 		db.insertOrUpdate(booking02);
 		
-		acc01 = db.getByIdFull(BankAccount.class, acc01.getId());
+		BankAccount accountWithBookings = db.getByIdFull(BankAccount.class, acc01.getId());
+		accountWithBookings.getBookings().forEach(booking -> booking.setSource(Source.MANUELL));
 
-		booking01.setSource(Source.MANUELL);
-		booking02.setSource(Source.MANUELL);
+		int updatedRows = db.executeSimpleUpdate(List.of(accountWithBookings),
+				StatementsConfig.StatementType.UPDATE_BOOKING_SOURCE, Booking.class);
 
-		int result = db.executeSimpleUpdate(Arrays.asList(acc01), StatementsConfig.StatementType.UPDATE_BOOKING_SOURCE, Booking.class);
-
-		assertTrue(result >= 0);
-
-		assertEquals(Source.MANUELL, booking01.getSource());
-		assertEquals(Source.MANUELL, booking02.getSource());
+		assertEquals(2, updatedRows);
+		assertEquals(Source.MANUELL, db.getById(Booking.class, booking01.getId()).getSource());
+		assertEquals(Source.MANUELL, db.getById(Booking.class, booking02.getId()).getSource());
 	}
 	
 	@Test
-	void updateBookingSourceMultipleAccounts_shouldWork() {
+	void updateBookingSourceMultipleAccounts_shouldPersistEveryBooking() {
 
 		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
@@ -440,19 +433,18 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		Booking booking03 = TestDataFactory.createSampleBooking(acc02.getId());
 		db.insertOrUpdate(booking03);
 		
-		acc01 = db.getByIdFull(BankAccount.class, acc01.getId());
+		BankAccount firstAccountWithBookings = db.getByIdFull(BankAccount.class, acc01.getId());
+		BankAccount secondAccountWithBookings = db.getByIdFull(BankAccount.class, acc02.getId());
+		firstAccountWithBookings.getBookings().forEach(booking -> booking.setSource(Source.MANUELL));
+		secondAccountWithBookings.getBookings().forEach(booking -> booking.setSource(Source.MANUELL));
 
-		booking01.setSource(Source.MANUELL);
-		booking02.setSource(Source.MANUELL);
-		booking03.setSource(Source.MANUELL);
+		int updatedRows = db.executeSimpleUpdate(List.of(firstAccountWithBookings, secondAccountWithBookings),
+				StatementsConfig.StatementType.UPDATE_BOOKING_SOURCE, Booking.class);
 
-		int result = db.executeSimpleUpdate(Arrays.asList(acc01), StatementsConfig.StatementType.UPDATE_BOOKING_SOURCE, Booking.class);
-
-		assertTrue(result >= 0);
-
-		assertEquals(Source.MANUELL, booking01.getSource());
-		assertEquals(Source.MANUELL, booking02.getSource());
-		assertEquals(Source.MANUELL, booking03.getSource());
+		assertEquals(3, updatedRows);
+		assertEquals(Source.MANUELL, db.getById(Booking.class, booking01.getId()).getSource());
+		assertEquals(Source.MANUELL, db.getById(Booking.class, booking02.getId()).getSource());
+		assertEquals(Source.MANUELL, db.getById(Booking.class, booking03.getId()).getSource());
 	}
 
 	@Test
@@ -475,6 +467,61 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		Map<Recipient, Set<Integer>> invalidUpdate = Map.of(recipient02, Set.of(booking.getId()));
 		assertThrows(GBankingException.class, () -> db.updateBookingsWithRecipients(invalidUpdate));
 		assertEquals(recipient01.getId(), db.getByIdFull(Booking.class, booking.getId()).getRecipientId());
+	}
+
+	@Test
+	void updateBookingsWithRecipients_shouldRollbackPartialUpdate() {
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("44444444"));
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
+		Recipient currentRecipient = db.insertOrUpdate(
+				TestDataFactory.createRecipientWithParams("Max Mustermann", Source.ONLINE, "DE12345678001"));
+		Recipient newRecipient = db.insertOrUpdate(
+				TestDataFactory.createRecipientWithParams("Erika Mustermann", Source.ONLINE, "DE12345678002"));
+		Booking assignedBooking = db.insertOrUpdate(TestDataFactory.createSampleBooking(account.getId()));
+		Booking unassignedBooking = db.insertOrUpdate(TestDataFactory.createSampleBooking2(account.getId()));
+		db.updateBookingsWithRecipients(Map.of(currentRecipient, Set.of(assignedBooking.getId())));
+
+		assertThrows(GBankingException.class, () -> db.updateBookingsWithRecipients(
+				Map.of(newRecipient, Set.of(assignedBooking.getId(), unassignedBooking.getId()))));
+
+		assertEquals(currentRecipient.getId(), db.getById(Booking.class, assignedBooking.getId()).getRecipientId());
+		assertEquals(0, db.getById(Booking.class, unassignedBooking.getId()).getRecipientId());
+	}
+
+	@Test
+	void updateBookingsWithCategories_shouldRollbackPartialUpdate() {
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("44444444"));
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
+		Category currentCategory = db.insertOrUpdate(TestDataFactory.createSampleCategory("Current"));
+		Category newCategory = db.insertOrUpdate(TestDataFactory.createSampleCategory("New"));
+		Booking booking = db.insertOrUpdate(TestDataFactory.createSampleBooking(account.getId()));
+		db.updateBookingsWithCategories(Map.of(currentCategory, Set.of(booking.getId())));
+
+		assertThrows(GBankingException.class, () -> db.updateBookingsWithCategories(
+				Map.of(newCategory, Set.of(booking.getId(), Integer.MAX_VALUE))));
+
+		assertEquals(currentCategory.getId(), db.getById(Booking.class, booking.getId()).getCategoryId());
+	}
+
+	@Test
+	void updateBookingsWithCategories_shouldProcessMoreThanOneSqliteParameterChunk() {
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("44444444"));
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
+		Category category = db.insertOrUpdate(TestDataFactory.createSampleCategory("Bulk"));
+		Set<Booking> bookings = new HashSet<>();
+		for (int index = 0; index < 901; index++) {
+			Booking booking = TestDataFactory.createSampleBooking(account.getId());
+			booking.setPurpose("Bulk " + index);
+			bookings.add(booking);
+		}
+		db.insertAll(bookings);
+		Set<Integer> bookingIds = bookings.stream().map(Booking::getId).collect(java.util.stream.Collectors.toSet());
+
+		assertTrue(db.updateBookingsWithCategories(Map.of(category, bookingIds)));
+
+		List<Booking> storedBookings = db.getAll(Booking.class);
+		assertEquals(901, storedBookings.size());
+		assertTrue(storedBookings.stream().allMatch(booking -> booking.getCategoryId() == category.getId()));
 	}
 
 	@Test
@@ -567,6 +614,18 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 	}
 
 	@Test
+	void insertMultipleBookingsShouldRejectUnknownUpdateIds() {
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("44444444"));
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
+		Booking booking = TestDataFactory.createSampleBooking(account.getId());
+		booking.setId(Integer.MAX_VALUE);
+
+		assertThrows(GBankingException.class, () -> db.insertAll(Set.of(booking)));
+
+		assertTrue(db.getAllByParent(Booking.class, account.getId()).isEmpty());
+	}
+
+	@Test
 	void fullBookingList_shouldReuseJoinedRelationsWithoutAdditionalQueries() {
 		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("44444444"));
 		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
@@ -588,7 +647,7 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		secondBooking.setCategory(category);
 		db.insertOrUpdate(secondBooking);
 
-		QueryMeasurement<List<Booking>> listMeasurement = measureQueries(
+		DatabaseQueryCounter.Measurement<List<Booking>> listMeasurement = DatabaseQueryCounter.measure(
 				() -> db.getAllByParentFull(Booking.class, account.getId()));
 
 		assertEquals(1, listMeasurement.queryCount());
@@ -597,9 +656,11 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 			assertBookingRelations(booking, expectedRecipient, expectedCategory);
 		}
 
-		Booking byIdResult = db.getByIdFull(Booking.class, firstBooking.getId());
+		DatabaseQueryCounter.Measurement<Booking> byIdMeasurement = DatabaseQueryCounter.measure(
+				() -> db.getByIdFull(Booking.class, firstBooking.getId()));
 
-		assertBookingRelations(byIdResult, expectedRecipient, expectedCategory);
+		assertEquals(1, byIdMeasurement.queryCount());
+		assertBookingRelations(byIdMeasurement.result(), expectedRecipient, expectedCategory);
 	}
 
 	@Test
@@ -656,6 +717,52 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		assertEquals(BookingType.REMOVAL, booking02.getBookingType());
 		assertEquals(Source.ONLINE, booking02.getSource());
 	}
+
+	@Test
+	void insertAllShouldPersistUpdateAndRemoveForeignCurrencyAndFeeDetails() {
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("44444444"));
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
+		Booking booking = TestDataFactory.createSampleBooking(account.getId());
+		booking.setForeignCurrencyDetails(createForeignCurrencyDetails());
+		booking.setFee(createFee());
+
+		db.insertAll(Set.of(booking));
+
+		Booking storedBooking = db.getByIdFull(Booking.class, booking.getId());
+		assertForeignCurrencyAndFee(storedBooking, "-182.52", "0.214880561", "1.23");
+
+		BookingForeignCurrencyDetails updatedForeignDetails = storedBooking.getForeignCurrencyDetails();
+		updatedForeignDetails.setForeignAmount(new BigDecimal("-192.34"));
+		updatedForeignDetails.setExchangeRateToBaseCurrency(new BigDecimal("0.214880579"));
+		storedBooking.setForeignCurrencyDetails(updatedForeignDetails);
+		BookingFee updatedFee = storedBooking.getFee();
+		updatedFee.setAmount(new BigDecimal("1.25"));
+		storedBooking.setFee(updatedFee);
+		db.insertAll(Set.of(storedBooking));
+
+		storedBooking = db.getByIdFull(Booking.class, booking.getId());
+		assertForeignCurrencyAndFee(storedBooking, "-192.34", "0.214880579", "1.25");
+
+		storedBooking.setForeignCurrencyDetails(null);
+		storedBooking.setFee(null);
+		db.insertAll(Set.of(storedBooking));
+
+		Booking bookingWithoutDetails = db.getByIdFull(Booking.class, booking.getId());
+		assertNull(bookingWithoutDetails.getForeignCurrencyDetails());
+		assertNull(bookingWithoutDetails.getFee());
+	}
+
+	private static void assertForeignCurrencyAndFee(Booking booking, String foreignAmount, String exchangeRate,
+			String feeAmount) {
+		BookingForeignCurrencyDetails foreignDetails = booking.getForeignCurrencyDetails();
+		assertNotNull(foreignDetails);
+		assertEquals(0, new BigDecimal(foreignAmount).compareTo(foreignDetails.getForeignAmount()));
+		assertEquals(Currency.PLN, foreignDetails.getForeignCurrency());
+		assertEquals(0, new BigDecimal(exchangeRate).compareTo(foreignDetails.getExchangeRateToBaseCurrency()));
+		assertNotNull(booking.getFee());
+		assertEquals(0, new BigDecimal(feeAmount).compareTo(booking.getFee().getAmount()));
+		assertEquals(Currency.EUR, booking.getFee().getCurrency());
+	}
 	
 	@Test
 	void findCrossBooking_shouldWork() {
@@ -694,6 +801,39 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		LocalDate dateValueWithoutSeconds = getCalendarWithoutTime(rebookingToCheck.getDateValue());
 		assertEquals(dateCurrentWithoutSeconds, dateBookingWithoutSeconds);
 		assertEquals(dateCurrentWithoutSeconds, dateValueWithoutSeconds);
+	}
+
+	@Test
+	void findCrossBooking_shouldReturnNewestCandidate() {
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("55555555"));
+		BankAccount sourceAccount = TestDataFactory.createAccountWithParams(bankAccess.getId(), "Source", Source.ONLINE,
+				AccountType.CURRENT_ACCOUNT, AccountState.ACTIVE, "Max Mustermann", "DE12345678011");
+		db.insertOrUpdate(sourceAccount);
+		BankAccount targetAccount = TestDataFactory.createAccountWithParams(bankAccess.getId(), "Target", Source.ONLINE,
+				AccountType.OVERNIGHT_MONEY, AccountState.ACTIVE, "Max Mustermann", "DE12345678012");
+		db.insertOrUpdate(targetAccount);
+
+		Recipient sourceRecipient = TestDataFactory.createRecipientWithParams("Target", Source.ONLINE, targetAccount.getIban());
+		db.insertOrUpdate(sourceRecipient);
+		Booking sourceBooking = TestDataFactory.createBookingWithParams(sourceAccount.getId(), sourceRecipient.getId(),
+				"Source booking", -500, BookingType.REMOVAL);
+		db.insertOrUpdate(sourceBooking);
+		sourceBooking = db.getByIdFull(Booking.class, sourceBooking.getId());
+
+		Recipient targetRecipient = TestDataFactory.createRecipientWithParams("Source", Source.ONLINE, sourceAccount.getIban());
+		db.insertOrUpdate(targetRecipient);
+		Booking olderCandidate = TestDataFactory.createBookingWithParams(targetAccount.getId(), targetRecipient.getId(),
+				"Older candidate", 500, BookingType.DEPOSIT);
+		db.insertOrUpdate(olderCandidate);
+		Booking newerCandidate = TestDataFactory.createBookingWithParams(targetAccount.getId(), targetRecipient.getId(),
+				"Newer candidate", 500, BookingType.DEPOSIT);
+		db.insertOrUpdate(newerCandidate);
+
+		Booking crossBooking = db.findCrossBooking(sourceBooking);
+
+		assertNotNull(crossBooking);
+		assertEquals(newerCandidate.getId(), crossBooking.getId());
+		assertEquals("Newer candidate", crossBooking.getPurpose());
 	}
 
 	private boolean tableHasColumn(String tableName, String columnName) throws SQLException {
@@ -786,50 +926,6 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 				assertEquals(newestUpdatedAt, rs.getString("fullUpdatedAt"));
 			}
 		}
-	}
-
-	private static <T> QueryMeasurement<T> measureQueries(Supplier<T> operation) {
-		Connection originalConnection = DBController.getConnection();
-		AtomicInteger queryCount = new AtomicInteger();
-		Connection countingConnection = (Connection) Proxy.newProxyInstance(
-				DBControllerBookingTest.class.getClassLoader(),
-				new Class<?>[] { Connection.class },
-				(proxy, method, arguments) -> {
-					Object result = invoke(originalConnection, method, arguments);
-					if (result instanceof PreparedStatement preparedStatement) {
-						return countingStatement(preparedStatement, queryCount);
-					}
-					return result;
-				});
-		DbConnectionHandler.connection = countingConnection;
-		try {
-			return new QueryMeasurement<>(operation.get(), queryCount.get());
-		} finally {
-			DbConnectionHandler.connection = originalConnection;
-		}
-	}
-
-	private static PreparedStatement countingStatement(PreparedStatement statement, AtomicInteger queryCount) {
-		return (PreparedStatement) Proxy.newProxyInstance(
-				DBControllerBookingTest.class.getClassLoader(),
-				new Class<?>[] { PreparedStatement.class },
-				(proxy, method, arguments) -> {
-					if ("executeQuery".equals(method.getName())) {
-						queryCount.incrementAndGet();
-					}
-					return invoke(statement, method, arguments);
-				});
-	}
-
-	private static Object invoke(Object target, Method method, Object[] arguments) throws Throwable {
-		try {
-			return method.invoke(target, arguments);
-		} catch (InvocationTargetException exception) {
-			throw exception.getTargetException();
-		}
-	}
-
-	private record QueryMeasurement<T>(T result, int queryCount) {
 	}
 
 	private static void assertBookingRelations(Booking booking, Recipient expectedRecipient, Category expectedCategory) {

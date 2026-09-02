@@ -11,6 +11,10 @@ import de.zft2.gbanking.util.TypeConverter;
 
 public class SettingMapper extends AbstractDaoMapper<Setting, Void> {
 
+	public SettingMapper() {
+		super(Setting::new);
+	}
+
 	@Override
 	public void setParamsFull(Setting setting, PreparedStatement ps) throws SQLException {
 		int index = 1;

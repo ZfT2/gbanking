@@ -3,6 +3,24 @@ package de.zft2.gbanking.db;
 import java.util.Map;
 
 import de.zft2.gbanking.db.StatementsConfig.StatementType;
+import de.zft2.gbanking.db.dao.BankAccess;
+import de.zft2.gbanking.db.dao.BankAccount;
+import de.zft2.gbanking.db.dao.BankAccountStatement;
+import de.zft2.gbanking.db.dao.BankMessage;
+import de.zft2.gbanking.db.dao.Booking;
+import de.zft2.gbanking.db.dao.BusinessCase;
+import de.zft2.gbanking.db.dao.Category;
+import de.zft2.gbanking.db.dao.CategoryRule;
+import de.zft2.gbanking.db.dao.Dao;
+import de.zft2.gbanking.db.dao.ImportHistory;
+import de.zft2.gbanking.db.dao.Institute;
+import de.zft2.gbanking.db.dao.MoneyTransfer;
+import de.zft2.gbanking.db.dao.MoneyTransferForeign;
+import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
+import de.zft2.gbanking.db.dao.ParameterData;
+import de.zft2.gbanking.db.dao.Psd2ClientConfiguration;
+import de.zft2.gbanking.db.dao.Recipient;
+import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.db.dao.enu.ParameterDataType;
 
 public final class DaoSqlStatements {
@@ -30,9 +48,10 @@ public final class DaoSqlStatements {
 	static final String SQL_INSERT_BANKACCOUNT_IDENTIFIER = dml("SQL_INSERT_BANKACCOUNT_IDENTIFIER");
     static final String SQL_INSERT_BANKACCOUNT_STATEMENT = dml("SQL_INSERT_BANKACCOUNT_STATEMENT");
     static final String SQL_INSERT_BANK_MESSAGE = dml("SQL_INSERT_BANK_MESSAGE");
-    public static final String SQL_INSERT_BANKACCESS_PARAMETERDATA = dml("SQL_INSERT_BANKACCESS_PARAMETERDATA");
+	public static final String SQL_UPSERT_BANKACCESS_PARAMETERDATA = dml("SQL_UPSERT_BANKACCESS_PARAMETERDATA");
     public static final String SQL_INSERT_BANKACCOUNT_BUSINESSCASE = dml("SQL_INSERT_BANKACCOUNT_BUSINESSCASE");
     static final String SQL_INSERT_BOOKING = dml("SQL_INSERT_BOOKING");
+    public static final String SQL_INSERT_BOOKING_BATCH = dml("SQL_INSERT_BOOKING_BATCH");
     public static final String SQL_INSERT_BOOKING_ADDITIONAL = dml("SQL_INSERT_BOOKING_ADDITIONAL");
 	public static final String SQL_INSERT_BOOKING_ADDITIONAL_NOTE = dml("SQL_INSERT_BOOKING_ADDITIONAL_NOTE");
 	public static final String SQL_INSERT_BOOKING_ADDITIONAL_CREDITCARD = dml("SQL_INSERT_BOOKING_ADDITIONAL_CREDITCARD");
@@ -45,6 +64,7 @@ public final class DaoSqlStatements {
     public static final String SQL_INSERT_CATEGORYRULE_BANKACCOUNT = dml("SQL_INSERT_CATEGORYRULE_BANKACCOUNT");
     static final String SQL_INSERT_IMPORT_HISTORY = dml("SQL_INSERT_IMPORT_HISTORY");
     static final String SQL_INSERT_INSTIUTE = dml("SQL_INSERT_INSTIUTE");
+	public static final String SQL_INSERT_INSTITUTE_BATCH = dml("SQL_INSERT_INSTITUTE_BATCH");
 	public static final String SQL_INSERT_INSTITUTE_DK = dml("SQL_INSERT_INSTITUTE_DK");
 	public static final String SQL_INSERT_INSTITUTE_DBB = dml("SQL_INSERT_INSTITUTE_DBB");
 	public static final String SQL_INSERT_INSTITUTE_EPC = dml("SQL_INSERT_INSTITUTE_EPC");
@@ -69,24 +89,37 @@ public final class DaoSqlStatements {
     public static final String SQL_SELECT_ALL_BANKACCOUNTS = dml("SQL_SELECT_ALL_BANKACCOUNTS");
 	static final String SQL_SELECT_ALL_BANKACCOUNT_IDENTIFIERS = dml("SQL_SELECT_ALL_BANKACCOUNT_IDENTIFIERS");
 	static final String SQL_SELECT_BANKACCOUNT_IDENTIFIERS_BY_ACCOUNT = dml("SQL_SELECT_BANKACCOUNT_IDENTIFIERS_BY_ACCOUNT");
+	public static final String SQL_SELECT_BANKACCOUNT_IDS_BY_ACCOUNT_NAME = dml("SQL_SELECT_BANKACCOUNT_IDS_BY_ACCOUNT_NAME");
+	public static final String SQL_SELECT_BANKACCOUNT_IDS_BY_IBAN_OR_NUMBER = dml("SQL_SELECT_BANKACCOUNT_IDS_BY_IBAN_OR_NUMBER");
     static final String SQL_SELECT_ALL_BANKACCOUNTS_BY_BANKACCESS = dml("SQL_SELECT_ALL_BANKACCOUNTS_BY_BANKACCESS");
+    static final String SQL_SELECT_BANKACCOUNTS_BY_BANKACCESS_IDS = dml("SQL_SELECT_BANKACCOUNTS_BY_BANKACCESS_IDS");
     static final String SQL_SELECT_ALL_BANKACCOUNT_STATEMENTS = dml("SQL_SELECT_ALL_BANKACCOUNT_STATEMENTS");
     static final String SQL_SELECT_ALL_BANKACCOUNT_STATEMENTS_BY_ACCOUNT = dml("SQL_SELECT_ALL_BANKACCOUNT_STATEMENTS_BY_ACCOUNT");
     static final String SQL_SELECT_ALL_BANK_MESSAGES = dml("SQL_SELECT_ALL_BANK_MESSAGES");
     static final String SQL_SELECT_ALL_BANK_MESSAGES_BY_BANKACCESS = dml("SQL_SELECT_ALL_BANK_MESSAGES_BY_BANKACCESS");
     public static final String SQL_SELECT_ALL_BOOKINGS = dml("SQL_SELECT_ALL_BOOKINGS");
+	public static final String SQL_SELECT_MAX_BOOKING_ID = dml("SQL_SELECT_MAX_BOOKING_ID");
     static final String SQL_SELECT_ALL_BOOKINGS_FULL = dml("SQL_SELECT_ALL_BOOKINGS_FULL");
+	static final String SQL_SELECT_BOOKINGS_FULL_FOR_ACCOUNT_RELATIONS = dml("SQL_SELECT_BOOKINGS_FULL_FOR_ACCOUNT_RELATIONS");
+    static final String SQL_SELECT_BOOKING_FULL_BY_ID = dml("SQL_SELECT_BOOKING_FULL_BY_ID");
     static final String SQL_SELECT_ALL_BOOKINGS_FULL_BY_ACCOUNT = dml("SQL_SELECT_ALL_BOOKINGS_FULL_BY_ACCOUNT");
+    static final String SQL_SELECT_BOOKINGS_FULL_BY_ACCOUNT_IDS = dml("SQL_SELECT_BOOKINGS_FULL_BY_ACCOUNT_IDS");
     static final String SQL_SELECT_ALL_BOOKINGS_FULL_BY_ACCOUNT_AND_DATE_RANGE = dml("SQL_SELECT_ALL_BOOKINGS_FULL_BY_ACCOUNT_AND_DATE_RANGE");
     static final String SQL_SELECT_SPLIT_BOOKINGS_FULL_BY_PARENT = dml("SQL_SELECT_SPLIT_BOOKINGS_FULL_BY_PARENT");
     static final String SQL_SELECT_ALL_BPD_OR_UPD = dml("SQL_SELECT_ALL_BPD_OR_UPD");
     public static final String SQL_SELECT_ALL_BUSINESSCASES = dml("SQL_SELECT_ALL_BUSINESSCASES");
     public static final String SQL_SELECT_ALL_BUSINESSCASES_BY_BANKACCOUNT = dml("SQL_SELECT_ALL_BUSINESSCASES_BY_BANKACCOUNT");
+    static final String SQL_SELECT_ALL_BUSINESSCASES_WITH_BANKACCOUNT = dml("SQL_SELECT_ALL_BUSINESSCASES_WITH_BANKACCOUNT");
+    static final String SQL_SELECT_BUSINESSCASES_BY_BANKACCOUNT_IDS = dml("SQL_SELECT_BUSINESSCASES_BY_BANKACCOUNT_IDS");
     static final String SQL_SELECT_ALL_CATEGORIES_FULL = dml("SQL_SELECT_ALL_CATEGORIES_FULL");
     static final String SQL_SELECT_ALL_CATEGORYRULES_FULL = dml("SQL_SELECT_ALL_CATEGORYRULES_FULL");
+    static final String SQL_SELECT_CATEGORYRULE_FULL_BY_ID = dml("SQL_SELECT_CATEGORYRULE_FULL_BY_ID");
     public static final String SQL_SELECT_BANKACCOUNTS_BY_CATEGORYRULE = dml("SQL_SELECT_BANKACCOUNTS_BY_CATEGORYRULE");
+    static final String SQL_SELECT_ALL_BANKACCOUNTS_WITH_CATEGORYRULE = dml("SQL_SELECT_ALL_BANKACCOUNTS_WITH_CATEGORYRULE");
+    static final String SQL_SELECT_BANKACCOUNTS_BY_CATEGORYRULE_IDS = dml("SQL_SELECT_BANKACCOUNTS_BY_CATEGORYRULE_IDS");
     static final String SQL_SELECT_ALL_IMPORT_HISTORY = dml("SQL_SELECT_ALL_IMPORT_HISTORY");
     static final String SQL_SELECT_ALL_INSTITUTES = dml("SQL_SELECT_ALL_INSTITUTES");
+	public static final String SQL_SELECT_MAX_INSTITUTE_ID = dml("SQL_SELECT_MAX_INSTITUTE_ID");
     static final String SQL_SELECT_ALL_MONEYTRANSFERS_WITH_RECIPIENTS_BY_ACCOUNT = dml("SQL_SELECT_ALL_MONEYTRANSFERS_WITH_RECIPIENTS_BY_ACCOUNT");
     static final String SQL_SELECT_ALL_MONEYTRANSFERS_WITH_RECIPIENTS_BY_ACCOUNT_AND_STATE = dml("SQL_SELECT_ALL_MONEYTRANSFERS_WITH_RECIPIENTS_BY_ACCOUNT_AND_STATE");
     static final String SQL_SELECT_ALL_MONEYTRANSFERS_WITH_RECIPIENTS_BY_STATE = dml("SQL_SELECT_ALL_MONEYTRANSFERS_WITH_RECIPIENTS_BY_STATE");
@@ -96,6 +129,7 @@ public final class DaoSqlStatements {
     static final String SQL_SELECT_ALL_MONEYTRANSFER_PROTOCOLS_BY_MONEYTRANSFER = dml("SQL_SELECT_ALL_MONEYTRANSFER_PROTOCOLS_BY_MONEYTRANSFER");
     static final String SQL_SELECT_ALL_PARAMETERDATA = dml("SQL_SELECT_ALL_PARAMETERDATA");
     public static final String SQL_SELECT_ALL_PARAMETERDATA_BY_BANKACCESS = dml("SQL_SELECT_ALL_PARAMETERDATA_BY_BANKACCESS");
+    public static final String SQL_SELECT_PARAMETERDATA_BY_BANKACCESS = dml("SQL_SELECT_PARAMETERDATA_BY_BANKACCESS");
     static final String SQL_SELECT_ALL_RECIPIENTS = dml("SQL_SELECT_ALL_RECIPIENTS");
     static final String SQL_SELECT_ALL_RECIPIENTS_WITH_NAME_IBAN = dml("SQL_SELECT_ALL_RECIPIENTS_WITH_NAME_IBAN");
 	static final String SQL_SELECT_ALL_RECIPIENTS_ORDERED_MT = dml("SQL_SELECT_ALL_RECIPIENTS_ORDERED_MT");
@@ -118,10 +152,10 @@ public final class DaoSqlStatements {
     static final String SQL_SELECT_ID_IMPORT_HISTORY_BY_ID = dml("SQL_SELECT_ID_IMPORT_HISTORY_BY_ID");
     static final String SQL_SELECT_ID_INSTIUTE_BY_ID = dml("SQL_SELECT_ID_INSTIUTE_BY_ID");
     static final String SQL_SELECT_ID_MONEYTRANSFER_BY_ID_AND_ACCOUNT_ID = dml("SQL_SELECT_ID_MONEYTRANSFER_BY_ID_AND_ACCOUNT_ID");
+    public static final String SQL_SELECT_MONEYTRANSFER_STATUS_BY_ID = dml("SQL_SELECT_MONEYTRANSFER_STATUS_BY_ID");
     static final String SQL_SELECT_ID_SETTING_BY_ID = dml("SQL_SELECT_ID_SETTING_BY_ID");
     public static final String SQL_SELECT_RECIPIENT_BY_ID_IF_NOT_REFERENCED = dml("SQL_SELECT_RECIPIENT_BY_ID_IF_NOT_REFERENCED");
-    public static final String SQL_DELETE_ALL_BANKACCESS_PARAMETERDATA_BY_BANKACCESS = dml("SQL_DELETE_ALL_BANKACCESS_PARAMETERDATA_BY_BANKACCESS");
-    public static final String SQL_DELETE_UNUSED_PARAMETERDATA = dml("SQL_DELETE_UNUSED_PARAMETERDATA");
+	public static final String SQL_DELETE_BANKACCESS_PARAMETERDATA_BY_KEY = dml("SQL_DELETE_BANKACCESS_PARAMETERDATA_BY_KEY");
     static final String SQL_DELETE_BOOKING = dml("SQL_DELETE_BOOKING");
 	static final String SQL_DELETE_BANKACCOUNT_IDENTIFIERS_BY_ACCOUNT = dml("SQL_DELETE_BANKACCOUNT_IDENTIFIERS_BY_ACCOUNT");
     public static final String SQL_DELETE_BOOKING_ADDITIONAL = dml("SQL_DELETE_BOOKING_ADDITIONAL");
@@ -164,9 +198,56 @@ public final class DaoSqlStatements {
     public static final String SQL_UPDATE_RECIPIENT_DEFAULT = dml("SQL_UPDATE_RECIPIENT_DEFAULT");
     static final String SQL_UPDATE_SETTING = dml("SQL_UPDATE_SETTING");
     static final String SQL_UPSERT_BANKACCOUNT_RETRIEVAL_STATUS = dml("SQL_UPSERT_BANKACCOUNT_RETRIEVAL_STATUS");
+	static final String SQL_SELECT_SQLITE_TABLE_BY_NAME = dml("SQL_SELECT_SQLITE_TABLE_BY_NAME");
+	static final String SQL_SELECT_SETTING_BY_ATTRIBUTE = dml("SQL_SELECT_SETTING_BY_ATTRIBUTE");
+	static final String SQL_UPSERT_HIDDEN_SETTING = dml("SQL_UPSERT_HIDDEN_SETTING");
+
+	private static final Map<Class<? extends Dao>, String> SELECT_BY_PRIMARY_ID_SQL = Map.ofEntries(
+			Map.entry(BankAccess.class, dml("SQL_SELECT_BANKACCESS_BY_PRIMARY_ID")),
+			Map.entry(Psd2ClientConfiguration.class, dml("SQL_SELECT_PSD2_CLIENT_CONFIGURATION_BY_PRIMARY_ID")),
+			Map.entry(BankAccount.class, dml("SQL_SELECT_BANKACCOUNT_BY_PRIMARY_ID")),
+			Map.entry(BankAccountStatement.class, dml("SQL_SELECT_BANKACCOUNT_STATEMENT_BY_PRIMARY_ID")),
+			Map.entry(BankMessage.class, dml("SQL_SELECT_BANK_MESSAGE_BY_PRIMARY_ID")),
+			Map.entry(Booking.class, dml("SQL_SELECT_BOOKING_BY_PRIMARY_ID")),
+			Map.entry(Category.class, dml("SQL_SELECT_CATEGORY_BY_PRIMARY_ID")),
+			Map.entry(CategoryRule.class, dml("SQL_SELECT_CATEGORYRULE_BY_PRIMARY_ID")),
+			Map.entry(MoneyTransfer.class, dml("SQL_SELECT_MONEYTRANSFER_BY_PRIMARY_ID")),
+			Map.entry(MoneyTransferForeign.class, dml("SQL_SELECT_MONEYTRANSFER_FOREIGN_BY_PRIMARY_ID")),
+			Map.entry(MoneyTransferProtocol.class, dml("SQL_SELECT_MONEYTRANSFER_PROTOCOL_BY_PRIMARY_ID")),
+			Map.entry(Recipient.class, dml("SQL_SELECT_RECIPIENT_BY_PRIMARY_ID")),
+			Map.entry(ParameterData.class, dml("SQL_SELECT_PARAMETERDATA_BY_PRIMARY_ID")),
+			Map.entry(Institute.class, dml("SQL_SELECT_INSTITUTE_BY_PRIMARY_ID")),
+			Map.entry(ImportHistory.class, dml("SQL_SELECT_IMPORT_HISTORY_BY_PRIMARY_ID")),
+			Map.entry(Setting.class, dml("SQL_SELECT_SETTING_BY_PRIMARY_ID")),
+			Map.entry(BusinessCase.class, dml("SQL_SELECT_BUSINESSCASE_BY_PRIMARY_ID")));
+
+	private static final Map<Class<? extends Dao>, String> DELETE_BY_PRIMARY_ID_SQL = Map.ofEntries(
+			Map.entry(BankAccess.class, SQL_DELETE_BANKACCESS_BY_ID),
+			Map.entry(Psd2ClientConfiguration.class, dml("SQL_DELETE_PSD2_CLIENT_CONFIGURATION_BY_PRIMARY_ID")),
+			Map.entry(BankAccount.class, dml("SQL_DELETE_BANKACCOUNT_BY_PRIMARY_ID")),
+			Map.entry(BankAccountStatement.class, dml("SQL_DELETE_BANKACCOUNT_STATEMENT_BY_PRIMARY_ID")),
+			Map.entry(BankMessage.class, dml("SQL_DELETE_BANK_MESSAGE_BY_PRIMARY_ID")),
+			Map.entry(CategoryRule.class, dml("SQL_DELETE_CATEGORYRULE_BY_PRIMARY_ID")),
+			Map.entry(MoneyTransfer.class, dml("SQL_DELETE_MONEYTRANSFER_BY_PRIMARY_ID")),
+			Map.entry(MoneyTransferProtocol.class, dml("SQL_DELETE_MONEYTRANSFER_PROTOCOL_BY_PRIMARY_ID")),
+			Map.entry(Recipient.class, dml("SQL_DELETE_RECIPIENT_BY_PRIMARY_ID")),
+			Map.entry(ParameterData.class, dml("SQL_DELETE_PARAMETERDATA_BY_PRIMARY_ID")),
+			Map.entry(Institute.class, dml("SQL_DELETE_INSTITUTE_BY_PRIMARY_ID")),
+			Map.entry(ImportHistory.class, dml("SQL_DELETE_IMPORT_HISTORY_BY_PRIMARY_ID")),
+			Map.entry(Setting.class, dml("SQL_DELETE_SETTING_BY_PRIMARY_ID")),
+			Map.entry(BusinessCase.class, dml("SQL_DELETE_BUSINESSCASE_BY_PRIMARY_ID")));
+
+	static String selectByPrimaryId(Class<? extends Dao> type) {
+		return SELECT_BY_PRIMARY_ID_SQL.get(type);
+	}
+
+	static String deleteByPrimaryId(Class<? extends Dao> type) {
+		return DELETE_BY_PRIMARY_ID_SQL.get(type);
+	}
 
     static final Map<StatementType, String> BANK_ACCESS_SQL = Map.of(
             StatementType.SELECT_ALL, SQL_SELECT_ALL_BANKACCESSES,
+            StatementType.SELECT_FULL_DATA, SQL_SELECT_ALL_BANKACCESSES,
             StatementType.SELECT_ID, SQL_SELECT_ID_BANKACCESS_BY_BLZ,
             StatementType.INSERT, SQL_INSERT_BANKACCESS,
             StatementType.UPDATE, SQL_UPDATE_BANKACCESS,
@@ -181,6 +262,7 @@ public final class DaoSqlStatements {
     static final Map<StatementType, String> BANK_ACCOUNT_SQL = Map.of(
             StatementType.SELECT_ALL, SQL_SELECT_ALL_BANKACCOUNTS,
             StatementType.SELECT_WITH_PARENT, SQL_SELECT_ALL_BANKACCOUNTS_BY_BANKACCESS,
+            StatementType.SELECT_WITH_PARENT_AND_FULL_DATA, SQL_SELECT_ALL_BANKACCOUNTS_BY_BANKACCESS,
             StatementType.SELECT_ID, SQL_SELECT_ID_BANKACCOUNT_BY_IBAN_OR_NUMBER,
             StatementType.SELECT_FULL_DATA, SQL_SELECT_ALL_BANKACCOUNTS,
             StatementType.INSERT, SQL_INSERT_BANKACCOUNT,

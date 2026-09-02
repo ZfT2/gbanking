@@ -1,8 +1,6 @@
 package de.zft2.gbanking.db.dao.logic;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 import de.zft2.gbanking.cache.InstituteLookupCache;
@@ -195,8 +193,8 @@ public class StatementsLogicRecipient extends StatementsLogicDefault<Recipient> 
 	}
 
 	private boolean matchesSelector(Recipient recipient, String sql) {
-		Map<Object, Integer> paramMap = new LinkedHashMap<>();
-		paramMap.put(recipient.getId(), java.sql.Types.INTEGER);
-		return recipient.getId() > 0 && executeSelectId(sql, paramMap) > 0;
+		return recipient.getId() > 0
+				&& executeSelectId(sql,
+						List.of(sqlParameterValue(recipient.getId(), java.sql.Types.INTEGER))) > 0;
 	}
 }

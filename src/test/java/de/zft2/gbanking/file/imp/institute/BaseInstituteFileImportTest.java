@@ -41,4 +41,18 @@ abstract class BaseInstituteFileImportTest {
 		return names;
 	}
 
+	void dropInstituteLookupIndex() throws SQLException {
+		try (Statement statement = DBController.getConnection().createStatement()) {
+			statement.executeUpdate("DROP INDEX institute_db.idx_institute_blz_state");
+		}
+	}
+
+	boolean instituteLookupIndexExists() throws SQLException {
+		try (Statement statement = DBController.getConnection().createStatement();
+				var resultSet = statement.executeQuery("SELECT 1 FROM institute_db.sqlite_master "
+						+ "WHERE type = 'index' AND name = 'idx_institute_blz_state'")) {
+			return resultSet.next();
+		}
+	}
+
 }

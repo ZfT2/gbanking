@@ -1,6 +1,5 @@
 package de.zft2.gbanking.db.dao.logic;
 
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 
@@ -61,11 +60,8 @@ public class StatementsLogicMoneyTransfer extends StatementsLogicDefault<MoneyTr
 	}
 
 	private void persistForeignTransferDetails(MoneyTransfer moneyTransfer) {
-		if (moneyTransfer == null || moneyTransfer.getId() <= 0) {
-			return;
-		}
-		if (moneyTransfer.getOrderType() != OrderType.FOREIGN_TRANSFER) {
-			deleteForeignTransferDetails(moneyTransfer);
+		if (moneyTransfer == null || moneyTransfer.getId() <= 0
+				|| moneyTransfer.getOrderType() != OrderType.FOREIGN_TRANSFER) {
 			return;
 		}
 
@@ -84,22 +80,26 @@ public class StatementsLogicMoneyTransfer extends StatementsLogicDefault<MoneyTr
 
 		AbstractDaoMapper<MoneyTransferForeign, Void> mapperBase = StatementsConfig.getMapperForDaoType(MoneyTransferForeign.class);
 		MoneyTransferForeignMapper mapper = (MoneyTransferForeignMapper) mapperBase;
-		try (PreparedStatement ps = connection.prepareStatement(DaoSqlStatements.SQL_UPSERT_MONEYTRANSFER_FOREIGN)) {
-			mapper.setParamsForUpsert(foreignTransfer, ps);
-			ps.executeUpdate();
-		} catch (SQLException e) {
-			log.error("Error saving foreign money transfer details for transfer id {}", moneyTransfer.getId(), e);
-			throw new GBankingException("Error saving foreign money transfer details", e);
+		MoneyTransferForeign detailsToSave = foreignTransfer;
+		try {
+			executeCachedUpdate(DaoSqlStatements.SQL_UPSERT_MONEYTRANSFER_FOREIGN,
+					statement -> mapper.setParamsForUpsert(detailsToSave, statement));
+		} catch (SQLException exception) {
+			log.error("Error saving foreign money transfer details for transfer id {}",
+					moneyTransfer.getId(), exception);
+			throw new GBankingException("Error saving foreign money transfer details", exception);
 		}
 	}
 
 	private void deleteForeignTransferDetails(MoneyTransfer moneyTransfer) {
-		try (PreparedStatement ps = connection.prepareStatement(StatementsConfig.getSqlStatement(MoneyTransferForeign.class, StatementType.DELETE))) {
-			ps.setInt(1, moneyTransfer.getId());
-			ps.executeUpdate();
-		} catch (SQLException e) {
-			log.error("Error deleting foreign money transfer details for transfer id {}", moneyTransfer.getId(), e);
-			throw new GBankingException("Error deleting foreign money transfer details", e);
+		try {
+			executeCachedUpdate(
+					StatementsConfig.getSqlStatement(MoneyTransferForeign.class, StatementType.DELETE),
+					statement -> statement.setInt(1, moneyTransfer.getId()));
+		} catch (SQLException exception) {
+			log.error("Error deleting foreign money transfer details for transfer id {}",
+					moneyTransfer.getId(), exception);
+			throw new GBankingException("Error deleting foreign money transfer details", exception);
 		}
 	}
 
@@ -115,13 +115,15 @@ public class StatementsLogicMoneyTransfer extends StatementsLogicDefault<MoneyTr
 	}
 
 	private MoneyTransferStatus getExistingMoneyTransferStatus(int moneyTransferId) {
-		try (PreparedStatement ps = connection.prepareStatement("SELECT moneytransferStatus FROM moneytransfer WHERE id = ?")) {
-			ps.setInt(1, moneyTransferId);
-			try (var rs = ps.executeQuery()) {
-				return rs.next() ? MoneyTransferStatus.forInt(rs.getInt("moneytransferStatus")) : null;
-			}
-		} catch (SQLException e) {
-			throw new GBankingException("Error reading money transfer status", e);
+		try {
+			return executeCachedQuery(
+					DaoSqlStatements.SQL_SELECT_MONEYTRANSFER_STATUS_BY_ID,
+					statement -> statement.setInt(1, moneyTransferId),
+					resultSet -> resultSet.next()
+							? MoneyTransferStatus.forInt(resultSet.getInt("moneytransferStatus"))
+							: null);
+		} catch (SQLException exception) {
+			throw new GBankingException("Error reading money transfer status", exception);
 		}
 	}
 

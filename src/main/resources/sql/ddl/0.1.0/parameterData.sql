@@ -26,9 +26,6 @@ CREATE TABLE parameterData (
   CHECK (TRIM(pdKey) <> ''),
   CHECK (pdType BETWEEN 1 AND 2));
 
-[SQL_SETUP_CREATE_UNIQUE_INDEX_PARAMETERDATA_KEY]
-CREATE UNIQUE INDEX IF NOT EXISTS uk_parameterdata_type_key ON parameterData (pdType, pdKey);
-
 [SQL_SETUP_CREATE_BANKACCESS_PARAMETERDATA]
 CREATE TABLE bankAccess_parameterData (
   id INTEGER PRIMARY KEY,
@@ -40,8 +37,9 @@ CREATE TABLE bankAccess_parameterData (
   FOREIGN KEY(parameterData_id) REFERENCES parameterData(id) ON DELETE CASCADE,
   UNIQUE (bankAccess_id, parameterData_id));
 
-[SQL_SETUP_CREATE_UNIQUE_INDEX_BANKACCESS_PARAMETERDATA]
-CREATE UNIQUE INDEX IF NOT EXISTS uk_bankaccess_parameterdata ON bankAccess_parameterData (bankAccess_id, parameterData_id);
+[SQL_SETUP_CREATE_INDEX_BANKACCESS_PARAMETERDATA_PARAMETER]
+CREATE INDEX IF NOT EXISTS idx_bankaccess_parameterdata_parameter
+ON bankAccess_parameterData (parameterData_id, bankAccess_id);
 
 [SQL_SETUP_CREATE_TRIGGER_BANKACCESS_PARAMETERDATA_DELETE_UNUSED]
 CREATE TRIGGER IF NOT EXISTS delete_unused_parameterdata_after_bankaccess_parameterdata_delete

@@ -52,6 +52,8 @@ class DbConnectionHandlerInstituteDatabaseTest {
 		assertTrue(tableExists("institute_db", "importHistory"));
 		assertTrue(tableExists("institute_db", "instituteDbbReachable"));
 		assertTrue(tableExists("institute_db", "instituteAdditional"));
+		assertTrue(indexExists("institute_db", "idx_institute_blz_state"));
+		assertInstituteSchemaComplete();
 		assertEquals(3, countInstituteStatusRows());
 
 		ImportHistory importHistory = dbController.insertOrUpdate(new ImportHistory("shared-test.csv"));
@@ -89,6 +91,7 @@ class DbConnectionHandlerInstituteDatabaseTest {
 		assertTrue(countInstituteRows() > 0);
 		assertTrue(Files.size(dataRoot.resolve("institute.db"))
 				>= Files.size(AppPaths.resolveInApplicationDirectory("data").resolve("institute.db")));
+		assertInstituteSchemaComplete();
 	}
 
 	@Test
@@ -112,6 +115,7 @@ class DbConnectionHandlerInstituteDatabaseTest {
 		DBController.getInstance(".");
 
 		assertTrue(tableExists("institute_db", "bootstrap_marker"));
+		assertInstituteSchemaComplete();
 	}
 
 	@Test
@@ -155,6 +159,7 @@ class DbConnectionHandlerInstituteDatabaseTest {
 
 		assertFalse(Files.exists(dataRoot.resolve("institute.db")));
 		assertTrue(tableExists("institute_db", "institute"));
+		assertTrue(indexExists("institute_db", "idx_institute_blz_state"));
 		assertEquals(0, countInstituteRows());
 	}
 
@@ -182,7 +187,15 @@ class DbConnectionHandlerInstituteDatabaseTest {
 	}
 
 	private static boolean tableExists(String schema, String tableName) throws SQLException {
-		String sql = "SELECT 1 FROM " + schema + ".sqlite_master WHERE type = 'table' AND name = '" + tableName + "'";
+		return sqliteObjectExists(schema, "table", tableName);
+	}
+
+	private static boolean indexExists(String schema, String indexName) throws SQLException {
+		return sqliteObjectExists(schema, "index", indexName);
+	}
+
+	private static boolean sqliteObjectExists(String schema, String type, String name) throws SQLException {
+		String sql = "SELECT 1 FROM " + schema + ".sqlite_master WHERE type = '" + type + "' AND name = '" + name + "'";
 		try (Statement statement = DBController.getConnection().createStatement();
 				var rs = statement.executeQuery(sql)) {
 			return rs.next();
@@ -212,6 +225,15 @@ class DbConnectionHandlerInstituteDatabaseTest {
 				var rs = statement.executeQuery("SELECT COUNT(*) AS count FROM institute_db.institute")) {
 			assertTrue(rs.next());
 			return rs.getInt("count");
+		}
+	}
+
+	private static void assertInstituteSchemaComplete() throws SQLException {
+		try (Statement statement = DBController.getConnection().createStatement();
+				var resultSet = statement.executeQuery(
+						SqlTemplateRepository.getConfig("SQL_IS_INSTITUTE_SCHEMA_COMPLETE"))) {
+			assertTrue(resultSet.next());
+			assertTrue(resultSet.getBoolean(1));
 		}
 	}
 }

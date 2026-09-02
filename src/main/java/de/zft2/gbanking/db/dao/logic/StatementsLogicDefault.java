@@ -2,13 +2,10 @@ package de.zft2.gbanking.db.dao.logic;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.DbExecutor;
 import de.zft2.gbanking.db.StatementsConfig;
@@ -17,8 +14,6 @@ import de.zft2.gbanking.db.dao.Dao;
 import de.zft2.gbanking.exception.GBankingException;
 
 public class StatementsLogicDefault<T extends Dao> extends DbExecutor implements StatementsLogic<T> {
-
-	private static Logger log = LogManager.getLogger(StatementsLogicDefault.class);
 
 	@Override
 	public SqlParameter getSqlParameter(T entity) {
@@ -50,17 +45,6 @@ public class StatementsLogicDefault<T extends Dao> extends DbExecutor implements
 	}
 
 	@Override
-	public void addOneToManyRelations(T parentEntity, List<? extends Dao> childrenList) {
-		log.debug("default: addOneToManyRelations(T parentEntity, List<? extends Dao> childrenList): not implemented for parent type {}",
-				parentEntity.getClass().getName());
-	}
-
-	@Override
-	public void addOneToOneRelations(T entity) {
-		log.debug("default: addOneToOneRelations(T entity): not implemented for type {}", entity.getClass().getName());
-	}
-
-	@Override
 	public StatementType getStatementTypeForInsertOrUpdate(T entity) {
 		Class<? extends Dao> type = entity.getClass();
 		StatementType statementType = StatementType.SELECT_ID;
@@ -68,11 +52,11 @@ public class StatementsLogicDefault<T extends Dao> extends DbExecutor implements
 		SqlParameter sqlParameter = getSqlParameter(entity);
 		if (sqlParameter.isIdLookup()) {
 			String sql = StatementsConfig.getSqlStatement(type, statementType);
-			Map<Object, Integer> paramMap = new LinkedHashMap<>();
-			paramMap.put(sqlParameter.getParam1(), java.sql.Types.VARCHAR);
+			List<SqlParameterValue> parameters = new ArrayList<>(2);
+			parameters.add(sqlParameterValue(sqlParameter.getParam1(), java.sql.Types.VARCHAR));
 			if (sqlParameter.getParam2() != null)
-				paramMap.put(sqlParameter.getParam2(), java.sql.Types.VARCHAR);
-			id = executeSelectId(sql, paramMap);
+				parameters.add(sqlParameterValue(sqlParameter.getParam2(), java.sql.Types.VARCHAR));
+			id = executeSelectId(sql, parameters);
 		}
 		statementType = id > 0 ? StatementType.UPDATE : StatementType.INSERT;
 

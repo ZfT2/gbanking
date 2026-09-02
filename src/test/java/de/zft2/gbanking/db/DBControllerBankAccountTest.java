@@ -12,7 +12,6 @@ import java.sql.Statement;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Month;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -26,9 +25,10 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.BankAccountIdentifier;
 import de.zft2.gbanking.db.dao.BankAccountRetrievalStatus;
 import de.zft2.gbanking.db.dao.Booking;
-import de.zft2.gbanking.db.dao.enu.Source;
-import de.zft2.gbanking.db.dao.enu.AccountRetrievalStatus;
 import de.zft2.gbanking.db.dao.enu.AccountIdentifierType;
+import de.zft2.gbanking.db.dao.enu.AccountRetrievalStatus;
+import de.zft2.gbanking.db.dao.enu.Currency;
+import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.testdata.TestDataFactory;
 
 class DBControllerBankAccountTest extends DBControllerIntegrationBaseTest {
@@ -38,7 +38,7 @@ class DBControllerBankAccountTest extends DBControllerIntegrationBaseTest {
 	// ------------------------------------------------------------
 
 	@Test
-	void updateBankAccountSource_shouldWork() {
+	void updateBankAccountSource_shouldPersistEveryAccount() {
 
 		BankAccess ba = TestDataFactory.createSampleBankAccess("44444444");
 		db.insertOrUpdate(ba);
@@ -54,12 +54,12 @@ class DBControllerBankAccountTest extends DBControllerIntegrationBaseTest {
 		acc01.setSource(Source.MANUELL);
 		acc02.setSource(Source.MANUELL);
 
-		boolean result = db.executeSimpleUpdate(Arrays.asList(acc01, acc02), StatementsConfig.StatementType.UPDATE_ACCOUNT_SOURCE, null) >= 0;
+		int updatedRows = db.executeSimpleUpdate(List.of(acc01, acc02),
+				StatementsConfig.StatementType.UPDATE_ACCOUNT_SOURCE, null);
 
-		assertTrue(result);
-
-		assertEquals(Source.MANUELL, acc01.getSource());
-		assertEquals(Source.MANUELL, acc02.getSource());
+		assertEquals(2, updatedRows);
+		assertEquals(Source.MANUELL, db.getById(BankAccount.class, acc01.getId()).getSource());
+		assertEquals(Source.MANUELL, db.getById(BankAccount.class, acc02.getId()).getSource());
 	}
 
 	@Test
@@ -129,6 +129,35 @@ class DBControllerBankAccountTest extends DBControllerIntegrationBaseTest {
 		assertEquals(9, db.getAll(BankAccount.class).get(0).getHbciAccountType());
 		assertEquals(9, db.getAllByParent(BankAccount.class, bankAccess.getId()).get(0).getHbciAccountType());
 		assertEquals(9, db.getAll(BankAccount.class, "SQL_SELECT_ALL_ONLINE_BANKACCOUNTS").get(0).getHbciAccountType());
+	}
+
+	@Test
+	void providerAccountIdAndBaseCurrencyShouldSurviveAllAccessPathsAndUpdates() {
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("44444444"));
+		BankAccount account = TestDataFactory.createSampleAccount(bankAccess.getId());
+		account.setProviderAccountId("provider-account-initial");
+		account.setBaseCurrency(Currency.USD);
+		db.insertOrUpdate(account);
+
+		assertProviderFields(db.getById(BankAccount.class, account.getId()), "provider-account-initial", Currency.USD);
+		assertProviderFields(findById(db.getAll(BankAccount.class), account.getId()), "provider-account-initial", Currency.USD);
+		assertProviderFields(findById(db.getAllByParent(BankAccount.class, bankAccess.getId()), account.getId()),
+				"provider-account-initial", Currency.USD);
+
+		account.setProviderAccountId("provider-account-updated");
+		account.setBaseCurrency(Currency.GBP);
+		db.insertOrUpdate(account);
+
+		assertProviderFields(db.getById(BankAccount.class, account.getId()), "provider-account-updated", Currency.GBP);
+		assertProviderFields(findById(db.getAll(BankAccount.class), account.getId()), "provider-account-updated", Currency.GBP);
+		assertProviderFields(findById(db.getAllByParent(BankAccount.class, bankAccess.getId()), account.getId()),
+				"provider-account-updated", Currency.GBP);
+	}
+
+	private static void assertProviderFields(BankAccount account, String providerAccountId, Currency baseCurrency) {
+		assertNotNull(account);
+		assertEquals(providerAccountId, account.getProviderAccountId());
+		assertEquals(baseCurrency, account.getBaseCurrency());
 	}
 
 	@Test

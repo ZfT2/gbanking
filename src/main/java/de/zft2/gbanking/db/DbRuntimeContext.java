@@ -26,11 +26,10 @@ public final class DbRuntimeContext {
 
 	public static void setCurrentDbDirectory(String dbDirectory) {
 		DbTransactionManager.withLifecycleLock(() -> {
+			DbTransactionManager.verifyLifecycleChangeAllowed();
 			synchronized (DbRuntimeContext.class) {
 				Path normalizedDirectory = normalize(dbDirectory);
-				verifyBoundSessionBeforeChange(normalizedDirectory);
-				activate(normalizedDirectory);
-				clearTenantDirectories();
+				switchContext(normalizedDirectory, null, null);
 			}
 		});
 	}
@@ -38,12 +37,14 @@ public final class DbRuntimeContext {
 	public static void setCurrentTenantPaths(TenantPaths tenantPaths) {
 		Objects.requireNonNull(tenantPaths, "tenantPaths");
 		DbTransactionManager.withLifecycleLock(() -> {
+			DbTransactionManager.verifyLifecycleChangeAllowed();
+			Path normalizedDirectory = tenantPaths.databaseDirectory().toAbsolutePath().normalize();
+			Path normalizedDataDirectory = tenantPaths.dataDirectory().toAbsolutePath().normalize();
+			Path normalizedAccountStatementsDirectory = tenantPaths.accountStatementsDirectory()
+					.toAbsolutePath().normalize();
 			synchronized (DbRuntimeContext.class) {
-				Path normalizedDirectory = tenantPaths.databaseDirectory().toAbsolutePath().normalize();
-				verifyBoundSessionBeforeChange(normalizedDirectory);
-				activate(normalizedDirectory);
-				currentDataDirectory = tenantPaths.dataDirectory().toAbsolutePath().normalize();
-				currentAccountStatementsDirectory = tenantPaths.accountStatementsDirectory().toAbsolutePath().normalize();
+				switchContext(normalizedDirectory, normalizedDataDirectory,
+						normalizedAccountStatementsDirectory);
 			}
 		});
 	}
@@ -51,19 +52,42 @@ public final class DbRuntimeContext {
 	public static String resolveDbDirectory(String requestedDbDirectory) {
 		return DbTransactionManager.withLifecycleLock(() -> {
 			synchronized (DbRuntimeContext.class) {
-				if (requestedDbDirectory == null || requestedDbDirectory.isBlank() || ".".equals(requestedDbDirectory.trim())) {
+				if (usesCurrentDbDirectory(requestedDbDirectory)) {
 					if (!databaseSessionActive) {
-						verifyBoundSessionBeforeChange(currentDbDirectory);
-						activate(currentDbDirectory);
+						DbTransactionManager.verifyLifecycleChangeAllowed();
+						switchContext(currentDbDirectory, currentDataDirectory,
+								currentAccountStatementsDirectory);
 					}
 					return currentDbDirectory.toString();
 				}
 
 				Path normalizedDirectory = normalize(requestedDbDirectory);
-				verifyBoundSessionBeforeChange(normalizedDirectory);
-				activate(normalizedDirectory);
-				clearTenantDirectories();
+				DbTransactionManager.verifyLifecycleChangeAllowed();
+				switchContext(normalizedDirectory, null, null);
 				return currentDbDirectory.toString();
+			}
+		});
+	}
+
+	static String resolveDbDirectoryWithoutActivation(String requestedDbDirectory) {
+		return DbTransactionManager.withLifecycleLock(() -> {
+			synchronized (DbRuntimeContext.class) {
+				if (usesCurrentDbDirectory(requestedDbDirectory)) {
+					return currentDbDirectory.toString();
+				}
+				return normalize(requestedDbDirectory).toString();
+			}
+		});
+	}
+
+	static String resolveDbDirectoryForSessionAccess(String requestedDbDirectory) {
+		return DbTransactionManager.withLifecycleLock(() -> {
+			synchronized (DbRuntimeContext.class) {
+				Path resolvedDirectory = usesCurrentDbDirectory(requestedDbDirectory)
+						? currentDbDirectory
+						: normalize(requestedDbDirectory);
+				verifyBoundSessionForDatabaseAccess(resolvedDirectory);
+				return resolvedDirectory.toString();
 			}
 		});
 	}
@@ -126,9 +150,17 @@ public final class DbRuntimeContext {
 			throw new GBankingException("No active database session");
 		}
 		DatabaseSession boundSession = BOUND_SESSION.get();
-		if (boundSession != null && !boundSession.matches(currentDbDirectory, sessionGeneration)) {
+		if (boundSession != null && !boundSession.matchesCurrentContext()) {
 			throw new GBankingException("Database session changed while background task was running");
 		}
+	}
+
+	static synchronized long currentSessionGeneration() {
+		return sessionGeneration;
+	}
+
+	static synchronized boolean isCurrentSessionGeneration(long generation) {
+		return databaseSessionActive && sessionGeneration == generation;
 	}
 
 	static synchronized void invalidateDatabaseSession() {
@@ -139,14 +171,15 @@ public final class DbRuntimeContext {
 
 	static synchronized void verifyLifecycleAccess() {
 		DatabaseSession boundSession = BOUND_SESSION.get();
-		if (boundSession != null && !boundSession.matches(currentDbDirectory, sessionGeneration)) {
+		if (boundSession != null && !boundSession.matchesCurrentContext()) {
 			throw new GBankingException("Stale background task must not change the database lifecycle");
 		}
 	}
 
 	private static synchronized DatabaseSession registerBackgroundTask() {
 		verifyDatabaseAccess();
-		DatabaseSession session = new DatabaseSession(currentDbDirectory, sessionGeneration);
+		DatabaseSession session = new DatabaseSession(currentDbDirectory, currentDataDirectory,
+				currentAccountStatementsDirectory, sessionGeneration);
 		ACTIVE_BACKGROUND_TASKS.merge(session.generation(), 1, Integer::sum);
 		return session;
 	}
@@ -175,25 +208,57 @@ public final class DbRuntimeContext {
 		}
 	}
 
-	private static void verifyBoundSessionBeforeChange(Path requestedDirectory) {
+	private static void verifyBoundSessionBeforeChange(Path requestedDirectory, Path requestedDataDirectory,
+			Path requestedAccountStatementsDirectory) {
 		DatabaseSession boundSession = BOUND_SESSION.get();
-		if (boundSession != null
-				&& (!boundSession.matches(currentDbDirectory, sessionGeneration) || !currentDbDirectory.equals(requestedDirectory))) {
+		if (boundSession != null && (!boundSession.matchesCurrentContext()
+				|| !boundSession.matchesTarget(requestedDirectory, requestedDataDirectory,
+						requestedAccountStatementsDirectory))) {
 			throw new GBankingException("Background task must not change the active database session");
 		}
 	}
 
-	private static void activate(Path dbDirectory) {
-		if (!databaseSessionActive || !currentDbDirectory.equals(dbDirectory)) {
-			sessionGeneration++;
+	private static void verifyBoundSessionForDatabaseAccess(Path requestedDirectory) {
+		DatabaseSession boundSession = BOUND_SESSION.get();
+		if (boundSession != null
+				&& (!boundSession.matchesCurrentContext() || !currentDbDirectory.equals(requestedDirectory))) {
+			throw new GBankingException("Background task must not access another database session");
 		}
+	}
+
+	private static boolean matchesCurrentContext(Path dbDirectory, Path dataDirectory,
+			Path accountStatementsDirectory) {
+		return databaseSessionActive && currentDbDirectory.equals(dbDirectory)
+				&& Objects.equals(currentDataDirectory, dataDirectory)
+				&& Objects.equals(currentAccountStatementsDirectory, accountStatementsDirectory);
+	}
+
+	private static void switchContext(Path dbDirectory, Path dataDirectory,
+			Path accountStatementsDirectory) {
+		verifyBoundSessionBeforeChange(dbDirectory, dataDirectory, accountStatementsDirectory);
+		if (!matchesCurrentContext(dbDirectory, dataDirectory, accountStatementsDirectory)) {
+			DbConnectionHandler.closeForRuntimeContextChange();
+			activateNewSession(dbDirectory, dataDirectory, accountStatementsDirectory);
+		}
+	}
+
+	private static void activateNewSession(Path dbDirectory, Path dataDirectory,
+			Path accountStatementsDirectory) {
+		sessionGeneration++;
 		currentDbDirectory = dbDirectory;
+		currentDataDirectory = dataDirectory;
+		currentAccountStatementsDirectory = accountStatementsDirectory;
 		databaseSessionActive = true;
 	}
 
 	private static void clearTenantDirectories() {
 		currentDataDirectory = null;
 		currentAccountStatementsDirectory = null;
+	}
+
+	private static boolean usesCurrentDbDirectory(String requestedDbDirectory) {
+		return requestedDbDirectory == null || requestedDbDirectory.isBlank()
+				|| ".".equals(requestedDbDirectory.trim());
 	}
 
 	private static Path normalize(String dbDirectory) {
@@ -204,10 +269,20 @@ public final class DbRuntimeContext {
 		return Paths.get(normalizedDirectory).normalize();
 	}
 
-	private record DatabaseSession(Path dbDirectory, long generation) {
+	private record DatabaseSession(Path dbDirectory, Path dataDirectory,
+			Path accountStatementsDirectory, long generation) {
 
-		boolean matches(Path currentDirectory, long currentGeneration) {
-			return generation == currentGeneration && dbDirectory.equals(currentDirectory);
+		boolean matchesCurrentContext() {
+			return generation == sessionGeneration
+					&& matchesTarget(currentDbDirectory, currentDataDirectory,
+							currentAccountStatementsDirectory);
+		}
+
+		boolean matchesTarget(Path requestedDirectory, Path requestedDataDirectory,
+				Path requestedAccountStatementsDirectory) {
+			return dbDirectory.equals(requestedDirectory)
+					&& Objects.equals(dataDirectory, requestedDataDirectory)
+					&& Objects.equals(accountStatementsDirectory, requestedAccountStatementsDirectory);
 		}
 	}
 }

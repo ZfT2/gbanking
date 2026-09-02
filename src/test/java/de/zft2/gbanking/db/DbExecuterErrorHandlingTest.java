@@ -4,15 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-import java.sql.Connection;
+import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.LocalDate;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -111,35 +111,44 @@ class DbExecuterErrorHandlingTest extends DBControllerIntegrationBaseTest {
 	}
 
 	@Test
-	void mapRead_invalidSql_shouldThrowDatabaseException() {
-		try (MockedStatic<StatementsConfig> statements = Mockito.mockStatic(StatementsConfig.class, Mockito.CALLS_REAL_METHODS)) {
-			statements.when(() -> StatementsConfig.getTableViewName(BankAccount.class)).thenReturn("missingBankAccountTable");
-
+	void mapRead_sqlError_shouldThrowDatabaseException() {
+		JdbcOperations jdbc = DbConnectionHandler.getSession().jdbc();
+		JdbcOperations.QueryObserver previousObserver = failQueries(jdbc);
+		try {
 			assertThrows(GBankingException.class, () -> db.getAccountsIdsByAccountName());
+		} finally {
+			jdbc.replaceQueryObserver(previousObserver);
 		}
 	}
 
 	@Test
-	void specializedReadMethods_sqlError_shouldThrowDatabaseException() throws SQLException {
-		Connection activeConnection = DbConnectionHandler.connection;
-		Connection failingConnection = mock(Connection.class);
-		SQLException failure = new SQLException("simulated read failure");
-		when(failingConnection.prepareStatement(anyString())).thenThrow(failure);
-		when(failingConnection.createStatement()).thenThrow(failure);
-		DbConnectionHandler.connection = failingConnection;
-
+	void specializedReadMethods_sqlError_shouldThrowDatabaseException() {
+		JdbcOperations jdbc = DbConnectionHandler.getSession().jdbc();
+		JdbcOperations.QueryObserver previousObserver = failQueries(jdbc);
 		try {
 			assertThrows(GBankingException.class, () -> db.findPreferredRecipientByIban("DE123"));
 			assertThrows(GBankingException.class, () -> db.getSplitBookings(1));
 			assertThrows(GBankingException.class, () -> db.getBankAccessByBlz("44444444"));
-			assertThrows(GBankingException.class, () -> db.printAccountsInDB());
-			assertThrows(GBankingException.class, () -> db.printBookingsInDB());
+			assertDebugPrintFailures();
 
 			Booking booking = new Booking();
 			booking.setRecipient(new Recipient());
+			booking.setAmount(BigDecimal.ONE);
+			booking.setDateBooking(LocalDate.now());
 			assertThrows(GBankingException.class, () -> db.findCrossBooking(booking));
 		} finally {
-			DbConnectionHandler.connection = activeConnection;
+			jdbc.replaceQueryObserver(previousObserver);
+		}
+	}
+
+	private void assertDebugPrintFailures() {
+		Level previousLevel = LogManager.getLogger(DBController.class).getLevel();
+		Configurator.setLevel(DBController.class, Level.DEBUG);
+		try {
+			assertThrows(GBankingException.class, () -> db.printAccountsInDB());
+			assertThrows(GBankingException.class, () -> db.printBookingsInDB());
+		} finally {
+			Configurator.setLevel(DBController.class, previousLevel);
 		}
 	}
 
@@ -158,5 +167,11 @@ class DbExecuterErrorHandlingTest extends DBControllerIntegrationBaseTest {
 
 			dummyStatement.verify(() -> StatementsConfig.getSqlStatement(eq(acc01.getClass()), eq(StatementType.SELECT_ID)));
 		}
+	}
+
+	private static JdbcOperations.QueryObserver failQueries(JdbcOperations jdbc) {
+		return jdbc.replaceQueryObserver(sql -> {
+			throw new SQLException("simulated read failure");
+		});
 	}
 }

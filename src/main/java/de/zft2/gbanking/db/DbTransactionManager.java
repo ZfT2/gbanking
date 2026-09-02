@@ -27,6 +27,7 @@ final class DbTransactionManager {
 		try {
 			CancellationSupport.throwIfCancellationRequested();
 			DbRuntimeContext.verifyDatabaseAccess();
+			requireSession();
 			T result = operation.get();
 			CancellationSupport.throwIfCancellationRequested();
 			return result;
@@ -49,6 +50,7 @@ final class DbTransactionManager {
 			DbRuntimeContext.verifyDatabaseAccess();
 			TransactionState existingState = TRANSACTION_STATE.get();
 			if (existingState != null) {
+				existingState.verifySession(requireSession());
 				return executeNested(existingState, operation);
 			}
 			return executeOutermost(operation);
@@ -88,6 +90,12 @@ final class DbTransactionManager {
 		});
 	}
 
+	static void verifyLifecycleChangeAllowed() {
+		if (TRANSACTION_STATE.get() != null) {
+			throw new GBankingException("Database lifecycle changes are not allowed inside a transaction");
+		}
+	}
+
 	private static <T> T executeNested(TransactionState state, Supplier<T> operation) {
 		boolean completed = false;
 		try {
@@ -107,63 +115,118 @@ final class DbTransactionManager {
 	}
 
 	private static <T> T executeOutermost(Supplier<T> operation) {
-		Connection connection = requireConnection();
-		boolean oldAutoCommit = getAutoCommit(connection);
+		DbSession session = requireSession();
+		Connection connection = session.connection();
+		TransactionState state = new TransactionState(session);
+		boolean oldAutoCommit = getAutoCommit(connection, state);
 		if (!oldAutoCommit) {
-			throw new GBankingException("Database connection already has an unmanaged transaction");
+			GBankingException failure = new GBankingException(
+					"Database connection already has an unmanaged transaction");
+			quarantineSession(state, failure);
+			throw failure;
 		}
-		TransactionState state = new TransactionState();
-		RuntimeException runtimeFailure = null;
-		boolean committed = false;
+		beginTransaction(connection, state);
+		TRANSACTION_STATE.set(state);
+		try {
+			T result = executeOperation(connection, oldAutoCommit, state, operation);
+			commitTransaction(connection, state);
+			restoreAfterCommit(connection, oldAutoCommit, state);
+			return result;
+		} finally {
+			TRANSACTION_STATE.remove();
+		}
+	}
 
+	private static void beginTransaction(Connection connection, TransactionState state) {
 		try {
 			connection.setAutoCommit(false);
-			TRANSACTION_STATE.set(state);
+		} catch (SQLException | RuntimeException exception) {
+			GBankingException failure = new GBankingException("Error starting database transaction", exception);
+			quarantineSession(state, failure);
+			throw failure;
+		}
+	}
+
+	private static <T> T executeOperation(Connection connection, boolean oldAutoCommit, TransactionState state,
+			Supplier<T> operation) {
+		try {
 			CancellationSupport.throwIfCancellationRequested();
 			T result = operation.get();
 			CancellationSupport.throwIfCancellationRequested();
 			if (state.rollbackOnly()) {
 				throw rollbackOnlyException(state);
 			}
-			connection.commit();
-			committed = true;
 			return result;
-		} catch (SQLException exception) {
-			GBankingException failure = new GBankingException("Error committing database transaction", exception);
-			runtimeFailure = failure;
-			rollback(connection, state, failure);
+		} catch (RuntimeException | Error failure) {
+			recoverAfterOperationFailure(connection, oldAutoCommit, state, failure);
 			throw failure;
-		} catch (RuntimeException exception) {
-			runtimeFailure = exception;
-			rollback(connection, state, exception);
-			throw exception;
-		} finally {
-			TRANSACTION_STATE.remove();
-			boolean uncaughtFailure = runtimeFailure == null && !committed;
-			if (uncaughtFailure) {
-				rollbackAfterUncaughtFailure(connection, state);
-			}
-			restoreAutoCommit(connection, oldAutoCommit, runtimeFailure, uncaughtFailure);
 		}
 	}
 
-	private static Connection requireConnection() {
-		Connection connection = DbConnectionHandler.getConnection();
+	private static void commitTransaction(Connection connection, TransactionState state) {
 		try {
-			if (connection == null || connection.isClosed()) {
-				throw new GBankingException("No open database connection");
-			}
-			return connection;
-		} catch (SQLException exception) {
+			connection.commit();
+		} catch (SQLException | RuntimeException exception) {
+			GBankingException failure = new GBankingException(
+					"Database commit outcome is unknown; the operation must not be retried automatically",
+					exception);
+			rollback(connection, state, failure, false);
+			quarantineSession(state, failure);
+			throw failure;
+		}
+	}
+
+	private static void recoverAfterOperationFailure(Connection connection, boolean oldAutoCommit,
+			TransactionState state, Throwable failure) {
+		if (!rollback(connection, state, failure, true)) {
+			quarantineSession(state, failure);
+			return;
+		}
+		try {
+			connection.setAutoCommit(oldAutoCommit);
+		} catch (SQLException | RuntimeException restoreFailure) {
+			failure.addSuppressed(restoreFailure);
+			log.error("Error restoring auto commit after failed database transaction", restoreFailure);
+			quarantineSession(state, failure);
+		}
+	}
+
+	private static void restoreAfterCommit(Connection connection, boolean oldAutoCommit, TransactionState state) {
+		try {
+			connection.setAutoCommit(oldAutoCommit);
+		} catch (SQLException | RuntimeException exception) {
+			log.error("Database transaction was committed, but auto commit could not be restored", exception);
+			quarantineSession(state, exception);
+		}
+	}
+
+	private static DbSession requireSession() {
+		DbSession session = DbConnectionHandler.getSession();
+		if (session == null) {
+			throw new GBankingException("No open database connection");
+		}
+		boolean open;
+		try {
+			open = session.isOpen();
+		} catch (SQLException | RuntimeException exception) {
+			closeUnusableSession(session, exception);
 			throw new GBankingException("Error checking database connection", exception);
 		}
+		if (!open) {
+			GBankingException failure = new GBankingException("No open database connection");
+			closeUnusableSession(session, failure);
+			throw failure;
+		}
+		return session;
 	}
 
-	private static boolean getAutoCommit(Connection connection) {
+	private static boolean getAutoCommit(Connection connection, TransactionState state) {
 		try {
 			return connection.getAutoCommit();
-		} catch (SQLException exception) {
-			throw new GBankingException("Error reading database transaction state", exception);
+		} catch (SQLException | RuntimeException exception) {
+			GBankingException failure = new GBankingException("Error reading database transaction state", exception);
+			quarantineSession(state, failure);
+			throw failure;
 		}
 	}
 
@@ -174,44 +237,52 @@ final class DbTransactionManager {
 				: new GBankingException("Database transaction was marked for rollback");
 	}
 
-	private static void rollback(Connection connection, TransactionState state, Throwable originalFailure) {
+	private static boolean rollback(Connection connection, TransactionState state, Throwable originalFailure,
+			boolean runRollbackActions) {
+		boolean successful = true;
 		try {
 			connection.rollback();
-		} catch (SQLException rollbackFailure) {
+		} catch (SQLException | RuntimeException rollbackFailure) {
 			originalFailure.addSuppressed(rollbackFailure);
 			log.error("Error rolling back database transaction", rollbackFailure);
+			successful = false;
 		}
-		state.runRollbackActions(originalFailure);
+		if (runRollbackActions) {
+			state.runRollbackActions(originalFailure);
+		}
+		return successful;
 	}
 
-	private static void rollbackAfterUncaughtFailure(Connection connection, TransactionState state) {
-		GBankingException failure = new GBankingException("Database transaction aborted by an unrecoverable failure");
-		rollback(connection, state, failure);
+	private static void quarantineSession(TransactionState state, Throwable originalFailure) {
+		closeUnusableSession(state.session, originalFailure);
 	}
 
-	private static void restoreAutoCommit(Connection connection, boolean oldAutoCommit, RuntimeException runtimeFailure,
-			boolean uncaughtFailure) {
+	private static void closeUnusableSession(DbSession session, Throwable originalFailure) {
+		session.invalidate();
 		try {
-			connection.setAutoCommit(oldAutoCommit);
-		} catch (SQLException exception) {
-			if (runtimeFailure != null) {
-				runtimeFailure.addSuppressed(exception);
-				log.error("Error restoring auto commit after failed database transaction", exception);
-				return;
-			}
-			if (uncaughtFailure) {
-				log.error("Error restoring auto commit after unrecoverable database failure", exception);
-				return;
-			}
-			throw new GBankingException("Error restoring auto commit after database transaction", exception);
+			session.close();
+		} catch (SQLException | RuntimeException closeFailure) {
+			originalFailure.addSuppressed(closeFailure);
+			log.error("Error closing unusable database session", closeFailure);
 		}
 	}
 
 	private static final class TransactionState {
 
+		private final DbSession session;
 		private boolean rollbackOnly;
 		private RuntimeException rollbackCause;
 		private final List<Runnable> rollbackActions = new ArrayList<>();
+
+		private TransactionState(DbSession session) {
+			this.session = session;
+		}
+
+		void verifySession(DbSession currentSession) {
+			if (session != currentSession) {
+				throw new GBankingException("Database session changed inside a transaction");
+			}
+		}
 
 		boolean rollbackOnly() {
 			return rollbackOnly;
@@ -236,7 +307,7 @@ final class DbTransactionManager {
 			for (int index = rollbackActions.size() - 1; index >= 0; index--) {
 				try {
 					rollbackActions.get(index).run();
-				} catch (RuntimeException rollbackActionFailure) {
+				} catch (RuntimeException | Error rollbackActionFailure) {
 					originalFailure.addSuppressed(rollbackActionFailure);
 					log.error("Error restoring entity state after database rollback", rollbackActionFailure);
 				}

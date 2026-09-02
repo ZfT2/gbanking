@@ -2,7 +2,7 @@
 SELECT m.id, m.account_id, m.moneytransferType, m.recipient_id, m.purpose, m.purposeCode, m.endToEndId, m.amount, mf.currency,
     m.executionDate, m.executionDay, m.moneytransferStatus, m.standingorderMode, mp.bankOrderId, mps.sepaOrderStatus,
     m.historyorder_id, m.updatedAt,
-    r.id AS r_id, r.name, r.iban, r.bic, r.accountnumber, r.blz, r.bank,
+    r.id AS r_id, r.name, r.iban, r.bic, r.accountnumber, r.blz, r.bank, r.source,
     mf.id AS foreign_id, mf.moneytransfer_id AS foreign_moneytransfer_id, mf.currency AS foreign_currency,
     mf.recipientCountry, mf.recipientAccountNumber, mf.recipientBankCode, mf.recipientSubAccount,
     mf.recipientAddressLine1, mf.recipientAddressLine2, mf.recipientBankCountry,
@@ -36,6 +36,9 @@ ${SQL_SELECT_ALL_MONEYTRANSFERS_BASE} AND m.account_id = ? AND m.moneytransferst
 
 [SQL_SELECT_ID_MONEYTRANSFER_BY_ID_AND_ACCOUNT_ID]
 SELECT id FROM moneytransfer WHERE id = ? AND account_id = ?;
+
+[SQL_SELECT_MONEYTRANSFER_STATUS_BY_ID]
+SELECT moneytransferStatus FROM moneytransfer WHERE id = ?;
 
 [SQL_INSERT_MONEYTRANSFER]
 INSERT INTO moneytransfer (account_id, moneytransferType, recipient_id, purpose, purposeCode, endToEndId, amount, executionDate, executionDay, moneytransferStatus, standingorderMode, historyorder_id, updatedAt)

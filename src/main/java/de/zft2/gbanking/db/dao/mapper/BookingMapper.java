@@ -1,10 +1,11 @@
 package de.zft2.gbanking.db.dao.mapper;
 
+import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.List;
+import java.time.LocalDate;
 import java.util.Objects;
 
 import de.zft2.gbanking.db.SqlFields;
@@ -27,16 +28,30 @@ import de.zft2.gbanking.util.TypeConverter;
 
 public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 
+	public BookingMapper() {
+		super(Booking::new);
+	}
+
 	@Override
 	public void setParamsFull(Booking booking, PreparedStatement ps) throws SQLException {
-		int index = 1;
+		int index = setCoreParams(booking, ps, 1);
+		if (booking.getId() > 0) {
+			ps.setInt(index, booking.getId());
+		}
+	}
 
+	public void setParamsInsertWithId(Booking booking, PreparedStatement ps) throws SQLException {
+		ps.setInt(1, booking.getId());
+		setCoreParams(booking, ps, 2);
+	}
+
+	private int setCoreParams(Booking booking, PreparedStatement ps, int index) throws SQLException {
 		ps.setInt(index++, booking.getAccountId());
 		index = setIntegerNullable(index, booking.getParentBookingId(), ps);
 		ps.setDate(index++, TypeConverter.toSqlDateShort(booking.getDateBooking()));
 		ps.setDate(index++, TypeConverter.toSqlDateShort(booking.getDateValue()));
 		ps.setString(index++, booking.getPurpose());
-		ps.setDouble(index++, booking.getAmount().doubleValue());
+		ps.setBigDecimal(index++, booking.getAmount());
 		setEnumNullable(index++, booking.getBookingType(), ps);
 		ps.setInt(index++, booking.getSource().getDbStateId());
 
@@ -48,8 +63,7 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 		index = setIntegerNullable(index, booking.getCrossBookingId(), ps);
 
 		ps.setTimestamp(index++, TypeConverter.toSqlTimestampNow());
-		if (booking.getId() > 0)
-			ps.setInt(index, booking.getId());
+		return index;
 	}
 
 	public void setParamsSepa(Booking booking, PreparedStatement ps) throws SQLException {
@@ -149,13 +163,6 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 	}
 
 	@Override
-	public <W> void setParamsForUpdateSimpleField(List<Booking> entitySet, Class<W> typeToUpdate, PreparedStatement ps) throws SQLException {
-		for (Booking booking : entitySet) {
-			setParamsForUpdateSimpleField(booking, typeToUpdate, ps);
-		}
-	}
-
-	@Override
 	public <V> void setParamsForUpdateSimpleField(Booking booking, Class<V> typeToUpdate, PreparedStatement ps) throws SQLException {
 
 		setParamsForUpdateSource(booking, ps);
@@ -208,9 +215,7 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 		booking.setRecipientId(rs.getInt("recipient_id"));
 		booking.setCategoryId(rs.getInt("category_id"));
 		booking.setCategoryRuleId(getIntegerNullable("categoryRule_id", rs));
-		if (hasColumn(rs, "categoryRuleName")) {
-			booking.setCategoryRuleName(rs.getString("categoryRuleName"));
-		}
+		booking.setCategoryRuleName(rs.getString("categoryRuleName"));
 		booking.setCrossBookingId(getIntegerNullable("crossBooking_id", rs));
 
 		if (resultType.isWithAllColumns() && resultType.isWithRelations()) {
@@ -242,65 +247,119 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 	}
 
 	private BookingSepaDetails mapSepaDetails(ResultSet rs) throws SQLException {
+		String customerRef = rs.getString("sepaCustomerRef");
+		String creditorId = rs.getString("sepaCreditorId");
+		String endToEnd = rs.getString("sepaEndToEnd");
+		String mandate = rs.getString("sepaMandate");
+		String personId = rs.getString("sepaPersonId");
+		String purpose = rs.getString("sepaPurpose");
+		SepaType type = getEnumNullable("sepaTyp", SepaType.class, rs);
+		if (!hasText(customerRef) && !hasText(creditorId) && !hasText(endToEnd) && !hasText(mandate)
+				&& !hasText(personId) && !hasText(purpose) && type == null) {
+			return null;
+		}
+
 		BookingSepaDetails details = new BookingSepaDetails();
-		details.setCustomerRef(rs.getString("sepaCustomerRef"));
-		details.setCreditorId(rs.getString("sepaCreditorId"));
-		details.setEndToEnd(rs.getString("sepaEndToEnd"));
-		details.setMandate(rs.getString("sepaMandate"));
-		details.setPersonId(rs.getString("sepaPersonId"));
-		details.setPurpose(rs.getString("sepaPurpose"));
-		details.setType(getEnumNullable("sepaTyp", SepaType.class, rs));
+		details.setCustomerRef(customerRef);
+		details.setCreditorId(creditorId);
+		details.setEndToEnd(endToEnd);
+		details.setMandate(mandate);
+		details.setPersonId(personId);
+		details.setPurpose(purpose);
+		details.setType(type);
 		return details;
 	}
 
 	private BookingNoteDetails mapNoteDetails(ResultSet rs) throws SQLException {
+		String note = rs.getString("bookingNote");
+		boolean reviewRequired = rs.getBoolean("bookingReviewRequired");
+		if (!hasText(note) && !reviewRequired) {
+			return null;
+		}
+
 		BookingNoteDetails details = new BookingNoteDetails();
-		details.setNote(rs.getString("bookingNote"));
-		details.setReviewRequired(rs.getBoolean("bookingReviewRequired"));
+		details.setNote(note);
+		details.setReviewRequired(reviewRequired);
 		return details;
 	}
 
 	private BookingAdditionalDetails mapAdditionalDetails(ResultSet rs) throws SQLException {
+		String instref = rs.getString("addInstref");
+		String gvcode = rs.getString("addGvcode");
+		String text = rs.getString("addText");
+		String primanota = rs.getString("addPrimanota");
+		String key = rs.getString("addKey");
+		Boolean storno = getBooleanNullable("addIsStorno", rs);
+		String rawData = rs.getString("addRawData");
+		Boolean sepa = getBooleanNullable("addIsSepa", rs);
+		Boolean camt = getBooleanNullable("addIsCamt", rs);
+		BigDecimal bankSaldo = getScaledBigDecimalNullable("addBankSaldo", rs);
+		if (!hasText(instref) && !hasText(gvcode) && !hasText(text) && !hasText(primanota) && !hasText(key)
+				&& storno == null && !hasText(rawData)
+				&& sepa == null && camt == null && bankSaldo == null) {
+			return null;
+		}
+
 		BookingAdditionalDetails details = new BookingAdditionalDetails();
-		details.setInstref(rs.getString("addInstref"));
-		details.setGvcode(rs.getString("addGvcode"));
-		details.setText(rs.getString("addText"));
-		details.setPrimanota(rs.getString("addPrimanota"));
-		details.setKey(rs.getString("addKey"));
-		details.setStorno(getBooleanNullable("addIsStorno", rs));
-		details.setRawData(rs.getString("addRawData"));
-		details.setSepa(getBooleanNullable("addIsSepa", rs));
-		details.setCamt(getBooleanNullable("addIsCamt", rs));
-		details.setBankSaldo(getScaledBigDecimalNullable("addBankSaldo", rs));
+		details.setInstref(instref);
+		details.setGvcode(gvcode);
+		details.setText(text);
+		details.setPrimanota(primanota);
+		details.setKey(key);
+		details.setStorno(storno);
+		details.setRawData(rawData);
+		details.setSepa(sepa);
+		details.setCamt(camt);
+		details.setBankSaldo(bankSaldo);
 		return details;
 	}
 
 	private BookingCreditCardDetails mapCreditCardDetails(ResultSet rs) throws SQLException {
+		LocalDate transactionDate = TypeConverter.toLocalDateFromSqlDate(rs.getDate("creditcardTransactionDate"));
+		String type = rs.getString("creditcardType");
+		String merchantArea = rs.getString("creditcardMerchantArea");
+		String merchantCategory = rs.getString("creditcardMerchantCategory");
+		if (transactionDate == null && !hasText(type)
+				&& !hasText(merchantArea) && !hasText(merchantCategory)) {
+			return null;
+		}
+
 		BookingCreditCardDetails details = new BookingCreditCardDetails();
-		details.setTransactionDate(TypeConverter.toLocalDateFromSqlDate(rs.getDate("creditcardTransactionDate")));
-		details.setType(rs.getString("creditcardType"));
-		details.setMerchantArea(rs.getString("creditcardMerchantArea"));
-		details.setMerchantCategory(rs.getString("creditcardMerchantCategory"));
+		details.setTransactionDate(transactionDate);
+		details.setType(type);
+		details.setMerchantArea(merchantArea);
+		details.setMerchantCategory(merchantCategory);
 		return details;
 	}
 
 	private BookingForeignCurrencyDetails mapForeignCurrencyDetails(ResultSet rs) throws SQLException {
+		BigDecimal amount = getBigDecimalNullable("foreignAmount", rs);
+		Currency currency = getEnumNullable("foreignCurrency", Currency.class, rs);
+		BigDecimal exchangeRate = getBigDecimalNullable("exchangeRateToBaseCurrency", rs);
+		if (amount == null && currency == null && exchangeRate == null) {
+			return null;
+		}
 		BookingForeignCurrencyDetails details = new BookingForeignCurrencyDetails();
-		details.setForeignAmount(getBigDecimalNullable("foreignAmount", rs));
-		details.setForeignCurrency(getEnumNullable("foreignCurrency", Currency.class, rs));
-		details.setExchangeRateToBaseCurrency(getBigDecimalNullable("exchangeRateToBaseCurrency", rs));
+		details.setForeignAmount(amount);
+		details.setForeignCurrency(currency);
+		details.setExchangeRateToBaseCurrency(exchangeRate);
 		return details;
 	}
 
 	private BookingFee mapFee(ResultSet rs) throws SQLException {
+		BigDecimal amount = getBigDecimalNullable("feeAmount", rs);
+		Currency currency = getEnumNullable("feeCurrency", Currency.class, rs);
+		if (amount == null && currency == null) {
+			return null;
+		}
 		BookingFee fee = new BookingFee();
-		fee.setAmount(getBigDecimalNullable("feeAmount", rs));
-		fee.setCurrency(getEnumNullable("feeCurrency", Currency.class, rs));
+		fee.setAmount(amount);
+		fee.setCurrency(currency);
 		return fee;
 	}
 
-	private java.math.BigDecimal getScaledBigDecimalNullable(String field, ResultSet rs) throws SQLException {
-		java.math.BigDecimal value = getBigDecimalNullable(field, rs);
+	private BigDecimal getScaledBigDecimalNullable(String field, ResultSet rs) throws SQLException {
+		BigDecimal value = getBigDecimalNullable(field, rs);
 		return value != null ? value.setScale(2, RoundingMode.HALF_UP) : null;
 	}
 

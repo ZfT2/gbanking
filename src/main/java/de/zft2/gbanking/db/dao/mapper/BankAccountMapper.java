@@ -9,10 +9,10 @@ import java.time.LocalDate;
 import java.util.List;
 
 import de.zft2.gbanking.db.SqlFields;
-import de.zft2.gbanking.db.StatementsConfig;
 import de.zft2.gbanking.db.StatementsConfig.ResultType;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
+import de.zft2.gbanking.db.dao.Dao;
 import de.zft2.gbanking.db.dao.enu.AccountState;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.Currency;
@@ -20,6 +20,10 @@ import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.util.TypeConverter;
 
 public class BankAccountMapper extends AbstractDaoMapper<BankAccount, Void> {
+
+	public BankAccountMapper() {
+		super(BankAccount::new);
+	}
 
 	@Override
 	public void setParamsFull(BankAccount bankAccount, PreparedStatement ps) throws SQLException {
@@ -62,24 +66,15 @@ public class BankAccountMapper extends AbstractDaoMapper<BankAccount, Void> {
 	}
 
 	@Override
-	public <W> void setParamsForUpdateSimpleField(List<BankAccount> entitySet, Class<W> typeToUpdate, PreparedStatement ps) throws SQLException {
-		for (BankAccount bankAccount : entitySet) {
-			setParamsForUpdateSimpleField(bankAccount, typeToUpdate, ps);
-		}
+	public List<? extends Dao> getSimpleFieldUpdateTargets(BankAccount bankAccount, Class<? extends Dao> typeToUpdate) {
+		return Booking.class.equals(typeToUpdate) ? bankAccount.getBookings() : List.of(bankAccount);
 	}
 
 	@Override
 	public <V> void setParamsForUpdateSimpleField(BankAccount bankAccount, Class<V> typeToUpdate, PreparedStatement ps) throws SQLException {
 
-		if (typeToUpdate != null) {
-			if (BankAccount.class.equals(typeToUpdate)) {
-				setParamsForUpdateSource(bankAccount, ps);
-			} else if (Booking.class.equals(typeToUpdate)) {
-				for (Booking booking : bankAccount.getBookings()) {
-					AbstractDaoMapper<Booking, ?> mapper = StatementsConfig.getMapperForDaoType(booking.getClass());
-					mapper.setParamsForUpdateSimpleField(booking, typeToUpdate, ps);
-				}
-			}
+		if (BankAccount.class.equals(typeToUpdate)) {
+			setParamsForUpdateSource(bankAccount, ps);
 		}
 	}
 

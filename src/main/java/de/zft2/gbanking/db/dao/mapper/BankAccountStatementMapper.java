@@ -13,6 +13,10 @@ import de.zft2.gbanking.util.TypeConverter;
 
 public class BankAccountStatementMapper extends AbstractDaoMapper<BankAccountStatement, Void> {
 
+	public BankAccountStatementMapper() {
+		super(BankAccountStatement::new);
+	}
+
 	@Override
 	public void setParamsFull(BankAccountStatement statement, PreparedStatement ps) throws SQLException {
 		int index = 1;

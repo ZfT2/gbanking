@@ -19,6 +19,10 @@ import de.zft2.gbanking.util.TypeConverter;
 
 public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> {
 
+	public MoneytransferMapper() {
+		super(MoneyTransfer::new);
+	}
+
 	@Override
 	public void setParamsFull(MoneyTransfer moneytransfer, PreparedStatement ps) throws SQLException {
 		ps.setInt(1, moneytransfer.getAccountId());
@@ -27,7 +31,7 @@ public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> 
 		ps.setString(4, moneytransfer.getPurpose());
 		ps.setString(5, moneytransfer.getPurposeCode());
 		ps.setString(6, moneytransfer.getEndToEndId());
-		ps.setDouble(7, moneytransfer.getAmount().doubleValue());
+		ps.setBigDecimal(7, moneytransfer.getAmount());
 		ps.setString(8, TypeConverter.toDateStringShort(moneytransfer.getExecutionDate()));
 		if (moneytransfer.getExecutionDay() != null) {
 			ps.setInt(9, moneytransfer.getExecutionDay());
@@ -74,9 +78,7 @@ public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> 
 		recipient.setAccountNumber(rs.getString("accountnumber"));
 		recipient.setBlz(rs.getString("blz"));
 		recipient.setBank(rs.getString("bank"));
-		if (hasColumn(rs, "source")) {
-			recipient.setSource(Source.forInt(rs.getInt("source")));
-		}
+		recipient.setSource(Source.forInt(rs.getInt("source")));
 		moneytransfer.setRecipient(recipient);
 
 		MoneyTransferForeign foreignTransfer = mapForeignTransfer(rs);
@@ -86,9 +88,6 @@ public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> 
 	}
 
 	private MoneyTransferForeign mapForeignTransfer(ResultSet rs) throws SQLException {
-		if (!hasColumn(rs, "foreign_id")) {
-			return null;
-		}
 		int foreignId = rs.getInt("foreign_id");
 		if (rs.wasNull()) {
 			return null;

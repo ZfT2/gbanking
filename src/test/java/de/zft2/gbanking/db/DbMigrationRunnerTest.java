@@ -93,6 +93,18 @@ class DbMigrationRunnerTest {
 	}
 
 	@Test
+	void migrationShouldRejectConnectionWithExistingTransaction() throws SQLException {
+		try (Connection connection = DriverManager.getConnection("jdbc:sqlite::memory:")) {
+			connection.setAutoCommit(false);
+
+			SQLException exception = assertThrows(SQLException.class,
+					() -> DbMigrationRunner.migrate(connection, null, List.of()));
+
+			assertEquals("Database migration requires an auto-commit connection", exception.getMessage());
+		}
+	}
+
+	@Test
 	void freshSchemaShouldCreateCategoryRuleBankAccountRelation() throws SQLException {
 		SQLiteConfig config = new SQLiteConfig();
 		config.enforceForeignKeys(true);
@@ -128,7 +140,9 @@ class DbMigrationRunnerTest {
 
 		assertTrue(baselineStatements.stream().anyMatch(statement -> statement.contains("moneytransferType BETWEEN 1 AND 6")));
 		assertTrue(baselineStatements.stream().anyMatch(statement -> statement.contains("CREATE TABLE moneytransferForeign")));
-		assertTrue(baselineStatements.stream().anyMatch(statement -> statement.contains("CREATE INDEX idx_moneytransferforeign_moneytransfer_id")));
+		assertTrue(baselineStatements.stream().anyMatch(statement -> statement.contains("moneytransfer_id INTEGER NOT NULL UNIQUE")));
+		assertFalse(baselineStatements.stream().anyMatch(statement -> statement.contains("idx_moneytransferforeign_moneytransfer_id")));
+		assertTrue(baselineStatements.stream().anyMatch(statement -> statement.contains("idx_moneytransfer_account_status")));
 		assertTrue(baselineStatements.stream().anyMatch(statement -> statement.contains("name TEXT NOT NULL UNIQUE")));
 		assertTrue(baselineStatements.stream().anyMatch(statement -> statement.contains("categoryRule_id INTEGER")));
 		assertTrue(baselineStatements.stream().anyMatch(statement -> statement.contains("endToEndId TEXT")));
@@ -230,7 +244,6 @@ class DbMigrationRunnerTest {
 		statement.executeUpdate("CREATE TABLE bankAccount (id INTEGER PRIMARY KEY)");
 		statement.executeUpdate(SqlTemplateRepository.getDdl("SQL_SETUP_CREATE_CATEGORYRULE"));
 		statement.executeUpdate(SqlTemplateRepository.getDdl("SQL_SETUP_CREATE_CATEGORYRULE_BANKACCOUNT"));
-		statement.executeUpdate(SqlTemplateRepository.getDdl("SQL_SETUP_CREATE_UNIQUE_INDEX_CATEGORYRULE_BANKACCOUNT"));
 		statement.executeUpdate("INSERT INTO category (id) VALUES (1)");
 		statement.executeUpdate("INSERT INTO bankAccount (id) VALUES (1)");
 		statement.executeUpdate("""

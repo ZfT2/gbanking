@@ -11,11 +11,15 @@ import de.zft2.gbanking.util.TypeConverter;
 
 public class ParameterDataMapper extends AbstractDaoMapper<ParameterData, Void> {
 
+	public ParameterDataMapper() {
+		super(ParameterData::new);
+	}
+
 	@Override
 	public void setParamsFull(ParameterData parameterData, PreparedStatement ps) throws SQLException {
-		ps.setString(2, parameterData.getPdKey());
-		ps.setInt(3, parameterData.getPdType().getDbStateId());
-		ps.setTimestamp(4, TypeConverter.toSqlTimestampNow());
+		ps.setString(1, parameterData.getPdKey());
+		ps.setInt(2, parameterData.getPdType().getDbStateId());
+		ps.setTimestamp(3, TypeConverter.toSqlTimestampNow());
 	}
 
 	@Override

@@ -1,8 +1,6 @@
 package de.zft2.gbanking.db;
 
-
 import java.nio.file.Path;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -35,11 +33,11 @@ import de.zft2.gbanking.db.dao.Dao;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.AccountRetrievalStatus;
 import de.zft2.gbanking.db.dao.enu.AccountIdentifierType;
+import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.SourceGroup;
 import de.zft2.gbanking.db.dao.logic.StatementsLogic;
 import de.zft2.gbanking.db.dao.mapper.AbstractDaoMapper;
 import de.zft2.gbanking.db.dao.mapper.BookingMapper;
-import de.zft2.gbanking.db.dao.mapper.StatementsResultMapper;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.logging.SensitiveDataMasker;
 import de.zft2.gbanking.util.TypeConverter;
@@ -84,12 +82,15 @@ public class DBController extends DbExecutor {
 	}
 
 	public static boolean hasOpenConnection() {
-		try {
-			return connection != null && !connection.isClosed();
-		} catch (SQLException e) {
-			log.warn("Could not inspect database connection state", e);
-			return false;
-		}
+		return DbTransactionManager.withLifecycleLock(() -> {
+			DbSession session = getSession();
+			try {
+				return session != null && session.isOpen();
+			} catch (SQLException | RuntimeException exception) {
+				log.warn("Could not inspect database connection state", exception);
+				return false;
+			}
+		});
 	}
 
 	public <T> T executeInTransaction(Supplier<T> operation) {
@@ -106,11 +107,10 @@ public class DBController extends DbExecutor {
 				return null;
 			}
 
-			try (PreparedStatement ps = connection.prepareStatement(DaoSqlStatements.SQL_SELECT_BANKACCOUNT_RETRIEVAL_STATUS)) {
-				ps.setInt(1, bankAccountId);
-				try (ResultSet rs = ps.executeQuery()) {
-					return rs.next() ? mapBankAccountRetrievalStatus(rs) : null;
-				}
+			try {
+				return jdbc().query(DaoSqlStatements.SQL_SELECT_BANKACCOUNT_RETRIEVAL_STATUS,
+						statement -> statement.setInt(1, bankAccountId),
+						resultSet -> resultSet.next() ? mapBankAccountRetrievalStatus(resultSet) : null);
 			} catch (SQLException | RuntimeException exception) {
 				throw databaseReadFailure("Error reading bank account retrieval status", exception);
 			}
@@ -119,14 +119,17 @@ public class DBController extends DbExecutor {
 
 	public void upsertBankAccountRetrievalStatus(BankAccountRetrievalStatus retrievalStatus) {
 		withDbTransaction(() -> {
-			try (PreparedStatement ps = connection.prepareStatement(DaoSqlStatements.SQL_UPSERT_BANKACCOUNT_RETRIEVAL_STATUS)) {
-				ps.setInt(1, retrievalStatus.bankAccountId());
-				ps.setTimestamp(2, Timestamp.valueOf(retrievalStatus.retrievedAt()));
-				ps.setInt(3, retrievalStatus.result().getDbStateId());
-				ps.setInt(4, retrievalStatus.newBookingCount());
-				ps.setInt(5, retrievalStatus.pendingBookingCount());
-				ps.setString(6, retrievalStatus.lastError());
-				if (ps.executeUpdate() != 1) {
+			try {
+				int affectedRows = jdbc().update(DaoSqlStatements.SQL_UPSERT_BANKACCOUNT_RETRIEVAL_STATUS,
+						statement -> {
+							statement.setInt(1, retrievalStatus.bankAccountId());
+							statement.setTimestamp(2, Timestamp.valueOf(retrievalStatus.retrievedAt()));
+							statement.setInt(3, retrievalStatus.result().getDbStateId());
+							statement.setInt(4, retrievalStatus.newBookingCount());
+							statement.setInt(5, retrievalStatus.pendingBookingCount());
+							statement.setString(6, retrievalStatus.lastError());
+						});
+				if (affectedRows != 1) {
 					throw new GBankingException("Bank account retrieval status was not saved");
 				}
 			} catch (SQLException exception) {
@@ -145,18 +148,21 @@ public class DBController extends DbExecutor {
 
 	private List<BankAccountIdentifier> readBankAccountIdentifiers(String sql, Integer bankAccountId) {
 		return withDbAccess(() -> {
-			List<BankAccountIdentifier> identifiers = new ArrayList<>();
-			try (PreparedStatement ps = connection.prepareStatement(sql)) {
-				if (bankAccountId != null) {
-					ps.setInt(1, bankAccountId);
-				}
-				try (ResultSet rs = ps.executeQuery()) {
-					while (rs.next()) {
-						identifiers.add(new BankAccountIdentifier(rs.getInt("id"), rs.getInt("account_id"),
-								AccountIdentifierType.forInt(rs.getInt("propertyType")), rs.getString("value")));
-					}
-				}
-				return identifiers;
+			try {
+				return jdbc().query(sql,
+						bankAccountId == null ? null : statement -> statement.setInt(1, bankAccountId),
+						resultSet -> {
+							List<BankAccountIdentifier> identifiers = new ArrayList<>();
+							while (resultSet.next()) {
+								identifiers.add(new BankAccountIdentifier(
+										resultSet.getInt("id"),
+										resultSet.getInt("account_id"),
+										AccountIdentifierType.forInt(resultSet.getInt("propertyType")),
+										resultSet.getString("value")));
+							}
+							return identifiers;
+						}
+				);
 			} catch (SQLException | RuntimeException exception) {
 				throw databaseReadFailure("Error reading bank account identifiers", exception);
 			}
@@ -169,17 +175,18 @@ public class DBController extends DbExecutor {
 		}
 		List<BankAccountIdentifier> normalizedIdentifiers = normalizeBankAccountIdentifiers(bankAccountId, identifiers);
 		withDbTransaction(() -> {
-			try (PreparedStatement deleteStatement = connection.prepareStatement(DaoSqlStatements.SQL_DELETE_BANKACCOUNT_IDENTIFIERS_BY_ACCOUNT);
-					PreparedStatement insertStatement = connection.prepareStatement(DaoSqlStatements.SQL_INSERT_BANKACCOUNT_IDENTIFIER)) {
-				deleteStatement.setInt(1, bankAccountId);
-				deleteStatement.executeUpdate();
-				insertStatement.setInt(1, bankAccountId);
-				for (BankAccountIdentifier identifier : normalizedIdentifiers) {
-					insertStatement.setInt(2, identifier.propertyType().getDbStateId());
-					insertStatement.setString(3, identifier.value());
-					insertStatement.addBatch();
+			try {
+				jdbc().update(DaoSqlStatements.SQL_DELETE_BANKACCOUNT_IDENTIFIERS_BY_ACCOUNT,
+						statement -> statement.setInt(1, bankAccountId));
+				if (!normalizedIdentifiers.isEmpty()) {
+					jdbc().batch(DaoSqlStatements.SQL_INSERT_BANKACCOUNT_IDENTIFIER,
+							normalizedIdentifiers,
+							(statement, identifier) -> {
+								statement.setInt(1, bankAccountId);
+								statement.setInt(2, identifier.propertyType().getDbStateId());
+								statement.setString(3, identifier.value());
+							});
 				}
-				insertStatement.executeBatch();
 			} catch (SQLException exception) {
 				throw new GBankingException("Error saving bank account identifiers", exception);
 			}
@@ -247,12 +254,14 @@ public class DBController extends DbExecutor {
 				return null;
 			}
 
-			try (PreparedStatement ps = connection.prepareStatement(DaoSqlStatements.SQL_SELECT_PREFERRED_RECIPIENT_BY_IBAN)) {
-				ps.setString(1, iban);
-				ps.setString(2, iban);
-				try (ResultSet rs = ps.executeQuery()) {
-					return rs.next() ? (Recipient) StatementsResultMapper.toDao(Recipient.class, rs, ResultType.FULL) : null;
-				}
+			AbstractDaoMapper<Recipient, ?> mapper = StatementsConfig.getMapperForDaoType(Recipient.class);
+			try {
+				return jdbc().query(DaoSqlStatements.SQL_SELECT_PREFERRED_RECIPIENT_BY_IBAN,
+						statement -> {
+							statement.setString(1, iban);
+							statement.setString(2, iban);
+						},
+						resultSet -> resultSet.next() ? mapper.map(resultSet, ResultType.FULL) : null);
 			} catch (SQLException | RuntimeException exception) {
 				throw databaseReadFailure(getText(SqlErrors.ERROR_DB_SELECT), exception);
 			}
@@ -265,14 +274,16 @@ public class DBController extends DbExecutor {
 				return 0;
 			}
 
-			try (PreparedStatement ps = connection.prepareStatement(DaoSqlStatements.SQL_UPDATE_RECIPIENT_DEFAULT)) {
-				ps.setBoolean(1, defaultRecipient);
-				ps.setTimestamp(2, TypeConverter.toSqlTimestampNow());
-				ps.setInt(3, recipientId);
-				return ps.executeUpdate();
-			} catch (SQLException e) {
-				log.error(getText(SqlErrors.ERROR_DB_UPDATE), e);
-				throw new GBankingException(getText(SqlErrors.ERROR_DB_UPDATE), e);
+			try {
+				return jdbc().update(DaoSqlStatements.SQL_UPDATE_RECIPIENT_DEFAULT,
+						statement -> {
+							statement.setBoolean(1, defaultRecipient);
+							statement.setTimestamp(2, TypeConverter.toSqlTimestampNow());
+							statement.setInt(3, recipientId);
+						});
+			} catch (SQLException exception) {
+				log.error(getText(SqlErrors.ERROR_DB_UPDATE), exception);
+				throw new GBankingException(getText(SqlErrors.ERROR_DB_UPDATE), exception);
 			}
 		});
 	}
@@ -287,19 +298,15 @@ public class DBController extends DbExecutor {
 			BookingMapper mapper = (BookingMapper) mapperBase;
 			try {
 				if (mapper.hasAdditionalNoteData(booking)) {
-					try (PreparedStatement ps = connection.prepareStatement(DaoSqlStatements.SQL_INSERT_BOOKING_ADDITIONAL_NOTE)) {
-						mapper.setParamsAdditionalNote(booking, ps);
-						ps.executeUpdate();
-					}
+					jdbc().update(DaoSqlStatements.SQL_INSERT_BOOKING_ADDITIONAL_NOTE,
+							statement -> mapper.setParamsAdditionalNote(booking, statement));
 				} else {
-					try (PreparedStatement ps = connection.prepareStatement(DaoSqlStatements.SQL_DELETE_BOOKING_ADDITIONAL_NOTE)) {
-						ps.setInt(1, booking.getId());
-						ps.executeUpdate();
-					}
+					jdbc().update(DaoSqlStatements.SQL_DELETE_BOOKING_ADDITIONAL_NOTE,
+							statement -> statement.setInt(1, booking.getId()));
 				}
-			} catch (SQLException e) {
-				log.error(getText(SqlErrors.ERROR_DB_UPDATE), e);
-				throw new GBankingException(getText(SqlErrors.ERROR_DB_UPDATE), e);
+			} catch (SQLException exception) {
+				log.error(getText(SqlErrors.ERROR_DB_UPDATE), exception);
+				throw new GBankingException(getText(SqlErrors.ERROR_DB_UPDATE), exception);
 			}
 		});
 	}
@@ -319,17 +326,18 @@ public class DBController extends DbExecutor {
 				return false;
 			}
 
-			try (PreparedStatement ps = connection.prepareStatement(DaoSqlStatements.SQL_UPDATE_BOOKINGS_CATEGORY_RULE)) {
-				ps.setInt(1, categoryRule.getCategory().getId());
-				ps.setInt(2, categoryRule.getId());
-				for (Integer bookingId : normalizedBookingIds) {
-					ps.setInt(3, bookingId);
-					ps.addBatch();
-				}
-				return sumUpdatedRows(ps.executeBatch()) > 0;
-			} catch (SQLException e) {
-				log.error(getText(SqlErrors.ERROR_DB_UPDATE), e);
-				throw new GBankingException(getText(SqlErrors.ERROR_DB_UPDATE), e);
+			try {
+				int[] updateCounts = jdbc().batch(DaoSqlStatements.SQL_UPDATE_BOOKINGS_CATEGORY_RULE,
+						normalizedBookingIds,
+						(statement, bookingId) -> {
+							statement.setInt(1, categoryRule.getCategory().getId());
+							statement.setInt(2, categoryRule.getId());
+							statement.setInt(3, bookingId);
+						});
+				return sumUpdatedRows(updateCounts) > 0;
+			} catch (SQLException exception) {
+				log.error(getText(SqlErrors.ERROR_DB_UPDATE), exception);
+				throw new GBankingException(getText(SqlErrors.ERROR_DB_UPDATE), exception);
 			}
 		});
 	}
@@ -341,17 +349,17 @@ public class DBController extends DbExecutor {
 				return 0;
 			}
 
-			try (PreparedStatement ps = connection.prepareStatement(DaoSqlStatements.SQL_CLEAR_BOOKING_CATEGORY)) {
+			try {
 				Timestamp updatedAt = TypeConverter.toSqlTimestampNow();
-				ps.setTimestamp(1, updatedAt);
-				for (Integer bookingId : normalizedBookingIds) {
-					ps.setInt(2, bookingId);
-					ps.addBatch();
-				}
-				return sumUpdatedRows(ps.executeBatch());
-			} catch (SQLException e) {
-				log.error(getText(SqlErrors.ERROR_DB_UPDATE), e);
-				throw new GBankingException(getText(SqlErrors.ERROR_DB_UPDATE), e);
+				return sumUpdatedRows(jdbc().batch(DaoSqlStatements.SQL_CLEAR_BOOKING_CATEGORY,
+						normalizedBookingIds,
+						(statement, bookingId) -> {
+							statement.setTimestamp(1, updatedAt);
+							statement.setInt(2, bookingId);
+						}));
+			} catch (SQLException exception) {
+				log.error(getText(SqlErrors.ERROR_DB_UPDATE), exception);
+				throw new GBankingException(getText(SqlErrors.ERROR_DB_UPDATE), exception);
 			}
 		});
 	}
@@ -363,19 +371,19 @@ public class DBController extends DbExecutor {
 				return 0;
 			}
 
-			try (PreparedStatement ps = connection.prepareStatement(DaoSqlStatements.SQL_CLEAR_BOOKING_CROSS_BOOKING_ID)) {
+			try {
 				Timestamp updatedAt = TypeConverter.toSqlTimestampNow();
-				ps.setTimestamp(1, updatedAt);
-				for (Integer bookingId : normalizedBookingIds) {
-					ps.setInt(2, bookingId);
-					ps.setInt(3, bookingId);
-					ps.setInt(4, bookingId);
-					ps.addBatch();
-				}
-				return sumUpdatedRows(ps.executeBatch());
-			} catch (SQLException e) {
-				log.error(getText(SqlErrors.ERROR_DB_UPDATE), e);
-				throw new GBankingException(getText(SqlErrors.ERROR_DB_UPDATE), e);
+				return sumUpdatedRows(jdbc().batch(DaoSqlStatements.SQL_CLEAR_BOOKING_CROSS_BOOKING_ID,
+						normalizedBookingIds,
+						(statement, bookingId) -> {
+							statement.setTimestamp(1, updatedAt);
+							statement.setInt(2, bookingId);
+							statement.setInt(3, bookingId);
+							statement.setInt(4, bookingId);
+						}));
+			} catch (SQLException exception) {
+				log.error(getText(SqlErrors.ERROR_DB_UPDATE), exception);
+				throw new GBankingException(getText(SqlErrors.ERROR_DB_UPDATE), exception);
 			}
 		});
 	}
@@ -437,48 +445,40 @@ public class DBController extends DbExecutor {
 				return null;
 			}
 
-			Booking crossBooking = null;
-
-			try (PreparedStatement ps = connection.prepareStatement(DaoSqlStatements.SQL_FIND_CROSS_BOOKINGS_FULL)) {
-				ps.setString(1, booking.getRecipient().getIban());
-				ps.setString(2, booking.getRecipient().getAccountNumber());
-				ps.setBigDecimal(3, booking.getAmount().negate());
-				ps.setDate(4, java.sql.Date.valueOf(booking.getDateBooking()));
-
-				try (ResultSet rs = ps.executeQuery()) {
-					if (!rs.isBeforeFirst()) {
-						return null;
-					}
-
-					while (rs.next()) {
-						crossBooking = (Booking) StatementsResultMapper.toDao(Booking.class, rs, ResultType.FULL);
-					}
-				}
-			} catch (SQLException | RuntimeException e) {
-				throw databaseReadFailure(getText(SqlErrors.ERROR_DB_FIND), e);
+			AbstractDaoMapper<Booking, ?> mapper = StatementsConfig.getMapperForDaoType(Booking.class);
+			try {
+				return jdbc().query(DaoSqlStatements.SQL_FIND_CROSS_BOOKINGS_FULL,
+						statement -> {
+							statement.setString(1, booking.getRecipient().getIban());
+							statement.setString(2, booking.getRecipient().getAccountNumber());
+							statement.setBigDecimal(3, booking.getAmount().negate());
+							statement.setDate(4, java.sql.Date.valueOf(booking.getDateBooking()));
+							statement.setInt(5, BookingType.REBOOKING_OUT.getDbStateId());
+							statement.setInt(6, BookingType.REBOOKING_IN.getDbStateId());
+						},
+						resultSet -> resultSet.next() ? mapper.map(resultSet, ResultType.FULL) : null);
+			} catch (SQLException | RuntimeException exception) {
+				throw databaseReadFailure(getText(SqlErrors.ERROR_DB_FIND), exception);
 			}
-
-			return crossBooking;
 		});
 	}
 
 	public List<Booking> getSplitBookings(int parentBookingId) {
 		return withDbAccess(() -> {
-			List<Booking> bookings = new ArrayList<>();
-
-			try (PreparedStatement ps = connection.prepareStatement(DaoSqlStatements.SQL_SELECT_SPLIT_BOOKINGS_FULL_BY_PARENT)) {
-				ps.setInt(1, parentBookingId);
-
-				try (ResultSet rs = ps.executeQuery()) {
-					while (rs.next()) {
-						bookings.add((Booking) StatementsResultMapper.toDao(Booking.class, rs, ResultType.FULL));
-					}
-				}
-			} catch (SQLException | RuntimeException e) {
-				throw databaseReadFailure(getText(SqlErrors.ERROR_DB_SELECT), e);
+			AbstractDaoMapper<Booking, ?> mapper = StatementsConfig.getMapperForDaoType(Booking.class);
+			try {
+				return jdbc().query(DaoSqlStatements.SQL_SELECT_SPLIT_BOOKINGS_FULL_BY_PARENT,
+						statement -> statement.setInt(1, parentBookingId),
+						resultSet -> {
+							List<Booking> bookings = new ArrayList<>();
+							while (resultSet.next()) {
+								bookings.add(mapper.map(resultSet, ResultType.FULL));
+							}
+							return bookings;
+						});
+			} catch (SQLException | RuntimeException exception) {
+				throw databaseReadFailure(getText(SqlErrors.ERROR_DB_SELECT), exception);
 			}
-
-			return bookings;
 		});
 	}
 
@@ -510,15 +510,19 @@ public class DBController extends DbExecutor {
 			boolean paypal = "PAYPAL".equalsIgnoreCase(blz);
 			String sql = paypal ? DaoSqlStatements.SQL_SELECT_BANKACCESS_PAYPAL_BY_USER_ID
 					: DaoSqlStatements.SQL_SELECT_BANKACCESS_BY_BLZ_AND_USER_ID;
-			try (PreparedStatement ps = connection.prepareStatement(sql)) {
-				int index = 1;
-				if (!paypal) {
-					ps.setString(index++, blz);
-				}
-				ps.setString(index, userId);
-				try (ResultSet rs = ps.executeQuery()) {
-					return rs.next() ? (BankAccess) StatementsResultMapper.toDao(BankAccess.class, rs, ResultType.WITHOUT_RELATIONS) : null;
-				}
+			AbstractDaoMapper<BankAccess, ?> mapper = StatementsConfig.getMapperForDaoType(BankAccess.class);
+			try {
+				return jdbc().query(sql,
+						statement -> {
+							int index = 1;
+							if (!paypal) {
+								statement.setString(index++, blz);
+							}
+							statement.setString(index, userId);
+						},
+						resultSet -> resultSet.next()
+								? mapper.map(resultSet, ResultType.WITHOUT_RELATIONS)
+								: null);
 			} catch (SQLException | RuntimeException exception) {
 				throw databaseReadFailure("Error reading bank access", exception);
 			}
@@ -539,62 +543,68 @@ public class DBController extends DbExecutor {
 	}
 	
 	public void printAccountsInDB() {
+		if (!log.isDebugEnabled()) {
+			return;
+		}
 		withDbAccess(() -> {
-			try (Statement stmt = connection.createStatement()) {
-
-				ResultSet rs = stmt.executeQuery(DaoSqlStatements.SQL_SELECT_ALL_BANKACCOUNTS);
-				while (rs.next()) {
-					if (log.isInfoEnabled())
+			try {
+				jdbc().query(DaoSqlStatements.SQL_SELECT_ALL_BANKACCOUNTS, null, resultSet -> {
+					while (resultSet.next()) {
 						log.debug("id = {}, accountName = {}, accountType = {}, iban = {}, bic = {}, number = {}, bankName = {}",
-							rs.getInt("id"), rs.getString(SqlFields.ACCOUNT_ACCOUNTNAME), rs.getString("accountType"),
-							SensitiveDataMasker.maskIban(rs.getString("iban")), rs.getString("bic"),
-							SensitiveDataMasker.maskAccountNumber(rs.getString("number")), rs.getString(SqlFields.BANKNAME));
-				}
-				rs.close();
-			} catch (SQLException | RuntimeException e) {
-				throw databaseReadFailure(getText(SqlErrors.ERROR_DB_SELECT), e);
+								resultSet.getInt("id"),
+								resultSet.getString(SqlFields.ACCOUNT_ACCOUNTNAME),
+								resultSet.getString("accountType"),
+								SensitiveDataMasker.maskIban(resultSet.getString("iban")),
+								resultSet.getString("bic"),
+								SensitiveDataMasker.maskAccountNumber(resultSet.getString("number")),
+								resultSet.getString(SqlFields.BANKNAME));
+					}
+					return null;
+				});
+			} catch (SQLException | RuntimeException exception) {
+				throw databaseReadFailure(getText(SqlErrors.ERROR_DB_SELECT), exception);
 			}
 		});
 	}
 
 	public void printBookingsInDB() {
+		if (!log.isDebugEnabled()) {
+			return;
+		}
 		withDbAccess(() -> {
-			try (Statement stmt = connection.createStatement()) {
-
-				ResultSet rs = stmt.executeQuery(DaoSqlStatements.SQL_SELECT_ALL_BOOKINGS);
-				while (rs.next()) {
-					if (log.isInfoEnabled())
+			try {
+				jdbc().query(DaoSqlStatements.SQL_SELECT_ALL_BOOKINGS, null, resultSet -> {
+					while (resultSet.next()) {
 						log.debug("id = {}, account_id = {}, dateBooking = {}, dateValue = {}, purpose = {}, amount = {}, typ = {}, crossAccount_id = {}",
-							rs.getInt("id"), rs.getInt(SqlFields.ACCOUNT_ACCOUNTID), rs.getString(SqlFields.BOOKING_DATEBOOKING),
-							rs.getString("dateValue"), SensitiveDataMasker.describeText(rs.getString(SqlFields.BOOKING_PURPOSE)),
-							SensitiveDataMasker.describeAmount(java.math.BigDecimal.valueOf(rs.getDouble(SqlFields.BOOKING_AMOUNT))),
-							rs.getString(SqlFields.BOOKING_BOOKINGTYPE), rs.getInt("crossAccount_id"));
-				}
-				rs.close();
-			} catch (SQLException | RuntimeException e) {
-				throw databaseReadFailure(getText(SqlErrors.ERROR_DB_SELECT), e);
+								resultSet.getInt("id"),
+								resultSet.getInt(SqlFields.ACCOUNT_ACCOUNTID),
+								resultSet.getString(SqlFields.BOOKING_DATEBOOKING),
+								resultSet.getString("dateValue"),
+								SensitiveDataMasker.describeText(resultSet.getString(SqlFields.BOOKING_PURPOSE)),
+								SensitiveDataMasker.describeAmount(resultSet.getBigDecimal(SqlFields.BOOKING_AMOUNT)),
+								resultSet.getString(SqlFields.BOOKING_BOOKINGTYPE),
+								resultSet.getInt("crossAccount_id"));
+					}
+					return null;
+				});
+			} catch (SQLException | RuntimeException exception) {
+				throw databaseReadFailure(getText(SqlErrors.ERROR_DB_SELECT), exception);
 			}
 		});
 	}
 	
 	private BankAccess getBankAccessByField(String sql, Object value) {
 		return withDbAccess(() -> {
-			BankAccess bankAccess = null;
-
-			try (PreparedStatement ps = connection.prepareStatement(sql)) {
-
-				ps.setObject(1, value);
-
-				ResultSet rs = ps.executeQuery();
-				while (rs.next()) {
-					bankAccess = (BankAccess) StatementsResultMapper.toDao(BankAccess.class, rs, ResultType.WITHOUT_RELATIONS);
-					break;
-				}
-				rs.close();
-			} catch (SQLException | RuntimeException e) {
-				throw databaseReadFailure(getText(SqlErrors.ERROR_DB_SELECT), e);
+			AbstractDaoMapper<BankAccess, ?> mapper = StatementsConfig.getMapperForDaoType(BankAccess.class);
+			try {
+				return jdbc().query(sql,
+						statement -> statement.setObject(1, value),
+						resultSet -> resultSet.next()
+								? mapper.map(resultSet, ResultType.WITHOUT_RELATIONS)
+								: null);
+			} catch (SQLException | RuntimeException exception) {
+				throw databaseReadFailure(getText(SqlErrors.ERROR_DB_SELECT), exception);
 			}
-			return bankAccess;
 		});
 	}
 }

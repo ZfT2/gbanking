@@ -13,10 +13,22 @@ import de.zft2.gbanking.util.TypeConverter;
 
 public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 
+	public InstituteMapper() {
+		super(Institute::new);
+	}
+
 	@Override
 	public void setParamsFull(Institute institute, PreparedStatement ps) throws SQLException {
-		int index = 1;
+		int index = setCoreParams(institute, ps, 1);
+		checkAndSetId(institute, ps, index);
+	}
 
+	public void setParamsInsertWithId(Institute institute, PreparedStatement ps) throws SQLException {
+		ps.setInt(1, institute.getId());
+		setCoreParams(institute, ps, 2);
+	}
+
+	private int setCoreParams(Institute institute, PreparedStatement ps, int index) throws SQLException {
 		ps.setString(index++, institute.getBlz());
 		ps.setString(index++, institute.getBic());
 		ps.setString(index++, institute.getBankName());
@@ -24,8 +36,7 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 		ps.setInt(index++, institute.getStateType().getDbStateId());
 		index = setIntegerNullable(index, institute.getImportFile(), ps);
 		ps.setTimestamp(index++, TypeConverter.toSqlTimestampNow());
-
-		checkAndSetId(institute, ps, index);
+		return index;
 	}
 
 	private void checkAndSetId(Institute institute, PreparedStatement ps, int index) throws SQLException {
@@ -99,13 +110,38 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 	}
 
 	public boolean hasDkData(Institute institute) {
-		return institute.getImportNumber() != 0 || hasText(institute.getDataCenter()) || hasText(institute.getOrganisation()) || hasText(institute.getHbciIp())
-				|| (institute.getHbciVersion() != null) || hasText(institute.getDdv()) || hasText(institute.getVersion());
+		return institute.getImportNumber() != 0
+				|| hasText(institute.getDataCenter())
+				|| hasText(institute.getOrganisation())
+				|| hasText(institute.getHbciDns())
+				|| hasText(institute.getHbciIp())
+				|| institute.getHbciVersion() != null
+				|| hasText(institute.getDdv())
+				|| institute.getRdh1() != null
+				|| institute.getRdh2() != null
+				|| institute.getRdh3() != null
+				|| institute.getRdh4() != null
+				|| institute.getRdh5() != null
+				|| institute.getRdh6() != null
+				|| institute.getRdh7() != null
+				|| institute.getRdh8() != null
+				|| institute.getRdh9() != null
+				|| institute.getRdh10() != null
+				|| hasText(institute.getPinUrl())
+				|| hasText(institute.getVersion())
+				|| institute.getLastChanged() != null;
 	}
 
 	public boolean hasDbbData(Institute institute) {
-		return hasText(institute.getDatasetNumber()) || hasText(institute.getPostcode()) || hasText(institute.getBankNameShort()) || hasText(institute.getPan())
-				|| hasText(institute.getCheckdigitMethod()) || hasText(institute.getBlzSuccession());
+		return hasText(institute.getDatasetNumber())
+				|| institute.getFeature() != 0
+				|| hasText(institute.getPostcode())
+				|| hasText(institute.getBankNameShort())
+				|| hasText(institute.getPan())
+				|| hasText(institute.getCheckdigitMethod())
+				|| institute.getFeatureChange() != '\0'
+				|| institute.getBlzDeletion() != 0
+				|| hasText(institute.getBlzSuccession());
 	}
 
 	public boolean hasEpcData(Institute institute) {

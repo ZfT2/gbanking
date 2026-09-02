@@ -41,5 +41,6 @@ CREATE TABLE categoryRule_bankAccount (
   FOREIGN KEY(account_id) REFERENCES bankAccount(id) ON DELETE CASCADE,
   UNIQUE (categoryRule_id, account_id));
 
-[SQL_SETUP_CREATE_UNIQUE_INDEX_CATEGORYRULE_BANKACCOUNT]
-CREATE UNIQUE INDEX IF NOT EXISTS uk_categoryrule_bankaccount ON categoryRule_bankAccount (categoryRule_id, account_id);
+[SQL_SETUP_CREATE_INDEX_CATEGORYRULE_BANKACCOUNT_ACCOUNT]
+CREATE INDEX IF NOT EXISTS idx_categoryrule_bankaccount_account
+ON categoryRule_bankAccount (account_id, categoryRule_id);

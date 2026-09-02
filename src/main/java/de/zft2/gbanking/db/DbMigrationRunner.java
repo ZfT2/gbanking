@@ -39,6 +39,7 @@ final class DbMigrationRunner {
 
 	private static void migrate(Connection connection, DbMigrationProgressListener progressListener, SqlTemplateRepository.VersionScript baselineScript,
 			List<SqlTemplateRepository.VersionScript> versionScripts) throws SQLException {
+		requireAutoCommit(connection);
 		ensureSettingTableExists(connection);
 		if (baselineScript != null
 				&& !isMigrationApplied(connection, baselineScript.getSettingKey())
@@ -62,6 +63,12 @@ final class DbMigrationRunner {
 		}
 
 		upsertHiddenSetting(connection, SETTING_LAST_APP_VERSION, appVersion, LAST_STARTED_APP_VERSION);
+	}
+
+	private static void requireAutoCommit(Connection connection) throws SQLException {
+		if (!connection.getAutoCommit()) {
+			throw new SQLException("Database migration requires an auto-commit connection");
+		}
 	}
 
 	private static List<SqlTemplateRepository.VersionScript> getPendingScripts(Connection connection,
@@ -145,7 +152,7 @@ final class DbMigrationRunner {
 	}
 
 	private static boolean tableExists(Connection connection, String tableName) throws SQLException {
-		try (var ps = connection.prepareStatement("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?")) {
+		try (var ps = connection.prepareStatement(DaoSqlStatements.SQL_SELECT_SQLITE_TABLE_BY_NAME)) {
 			ps.setString(1, tableName);
 			try (var rs = ps.executeQuery()) {
 				return rs.next();
@@ -175,7 +182,7 @@ final class DbMigrationRunner {
 	}
 
 	private static boolean isMigrationApplied(Connection connection, String migrationKey) throws SQLException {
-		try (var ps = connection.prepareStatement("SELECT 1 FROM setting WHERE attribute = ?")) {
+		try (var ps = connection.prepareStatement(DaoSqlStatements.SQL_SELECT_SETTING_BY_ATTRIBUTE)) {
 			ps.setString(1, migrationKey);
 			try (var rs = ps.executeQuery()) {
 				return rs.next();
@@ -186,6 +193,8 @@ final class DbMigrationRunner {
 	private static void applyMigration(Connection connection, SqlTemplateRepository.VersionScript script, String appVersion) throws SQLException {
 		boolean oldAutoCommit = connection.getAutoCommit();
 		connection.setAutoCommit(false);
+		boolean transactionUsable = true;
+		Throwable failure = null;
 		try (Statement statement = connection.createStatement()) {
 			for (String sql : script.getStatements()) {
 				if (!sql.isBlank()) {
@@ -196,26 +205,45 @@ final class DbMigrationRunner {
 			upsertHiddenSetting(connection, SETTING_SCHEMA_VERSION, script.getVersion(), LAST_USED_SCHEMAVERSION_SUCCESS);
 			connection.commit();
 			log.info("Applied DB migration {}", script.getResource());
-		} catch (SQLException ex) {
-			connection.rollback();
-			throw ex;
+		} catch (SQLException | RuntimeException exception) {
+			failure = exception;
+			transactionUsable = rollback(connection, exception);
+			throw exception;
 		} finally {
+			restoreAutoCommit(connection, oldAutoCommit, transactionUsable, failure);
+		}
+	}
+
+	private static boolean rollback(Connection connection, Throwable originalFailure) {
+		try {
+			connection.rollback();
+			return true;
+		} catch (SQLException | RuntimeException rollbackFailure) {
+			originalFailure.addSuppressed(rollbackFailure);
+			return false;
+		}
+	}
+
+	private static void restoreAutoCommit(Connection connection, boolean oldAutoCommit,
+			boolean transactionUsable, Throwable originalFailure) throws SQLException {
+		if (!transactionUsable) {
+			return;
+		}
+		try {
 			connection.setAutoCommit(oldAutoCommit);
+		} catch (SQLException | RuntimeException restoreFailure) {
+			if (originalFailure == null) {
+				if (restoreFailure instanceof SQLException sqlFailure) {
+					throw sqlFailure;
+				}
+				throw restoreFailure;
+			}
+			originalFailure.addSuppressed(restoreFailure);
 		}
 	}
 
 	private static void upsertHiddenSetting(Connection connection, String attribute, String value, String comment) throws SQLException {
-		try (var ps = connection.prepareStatement("""
-				INSERT INTO setting (attribute, value, dataType, editable, visible, comment, updatedAt)
-				VALUES (?, ?, ?, 0, 0, ?, datetime())
-				ON CONFLICT(attribute) DO UPDATE SET
-				    value = excluded.value,
-				    dataType = excluded.dataType,
-				    editable = excluded.editable,
-				    visible = excluded.visible,
-				    comment = excluded.comment,
-				    updatedAt = excluded.updatedAt
-				""")) {
+		try (var ps = connection.prepareStatement(DaoSqlStatements.SQL_UPSERT_HIDDEN_SETTING)) {
 			ps.setString(1, attribute);
 			ps.setString(2, value);
 			ps.setInt(3, SETTING_DATATYPE_STRING);

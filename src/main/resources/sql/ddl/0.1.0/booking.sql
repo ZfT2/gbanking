@@ -217,8 +217,24 @@ LEFT JOIN categoryRule cgr ON cgr.id = b.categoryRule_id;
 
 ;
 
-[SQL_SETUP_CREATE_INDEX_BOOKING_RECIPIENT]
-CREATE INDEX idx_booking_recipient_id ON booking (recipient_id);
+[SQL_SETUP_CREATE_INDEX_BOOKING_ACCOUNT]
+CREATE INDEX IF NOT EXISTS idx_booking_account ON booking (account_id, parentBooking_id, id DESC);
+;
+
+[SQL_SETUP_CREATE_INDEX_BOOKING_ACCOUNT_ROOT_AMOUNT_DATE]
+CREATE INDEX IF NOT EXISTS idx_booking_account_root_amount_date
+ON booking (account_id, amount, dateBooking)
+WHERE parentBooking_id IS NULL;
+;
+
+[SQL_SETUP_CREATE_INDEX_BOOKING_RECIPIENT_USAGE]
+CREATE INDEX IF NOT EXISTS idx_booking_recipient_usage
+ON booking (recipient_id, COALESCE(dateValue, dateBooking, updatedAt) DESC);
+;
+
+[SQL_SETUP_CREATE_INDEX_BOOKING_CROSS_BOOKING]
+CREATE INDEX IF NOT EXISTS idx_booking_cross_booking ON booking (crossBooking_id)
+WHERE crossBooking_id IS NOT NULL;
 
 ;
 
@@ -235,8 +251,8 @@ CREATE TABLE booking_category (
   CHECK (categoryRuleMode BETWEEN 1 AND 3));
 ;
 
-[SQL_SETUP_CREATE_UNIQUE_INDEX_BOOKING_CATEGORY]
-CREATE UNIQUE INDEX IF NOT EXISTS uk_booking_category ON booking_category (booking_id, category_id);
+[SQL_SETUP_CREATE_INDEX_BOOKING_CATEGORY_CATEGORY]
+CREATE INDEX IF NOT EXISTS idx_booking_category_category ON booking_category (category_id, booking_id);
 
 [SQL_SETUP_CREATE_TRIGGER_BOOKING_BLOCK_SYSTEM_CORE_UPDATE]
 CREATE TRIGGER IF NOT EXISTS block_system_booking_core_update

@@ -10,6 +10,10 @@ import de.zft2.gbanking.util.TypeConverter;
 
 public class ImportHistoryMapper extends AbstractDaoMapper<ImportHistory, Void> {
 
+	public ImportHistoryMapper() {
+		super(ImportHistory::new);
+	}
+
 	@Override
 	public void setParamsFull(ImportHistory importHistory, PreparedStatement ps) throws SQLException {
 		int index = 1;

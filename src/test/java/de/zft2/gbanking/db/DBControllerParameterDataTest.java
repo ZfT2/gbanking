@@ -3,6 +3,7 @@ package de.zft2.gbanking.db;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -14,8 +15,9 @@ import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.Bpd;
 import de.zft2.gbanking.db.dao.ParameterData;
 import de.zft2.gbanking.db.dao.Upd;
-import de.zft2.gbanking.testdata.TestDataFactory;
+import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.testdata.HbciParameterTestDataFactory;
+import de.zft2.gbanking.testdata.TestDataFactory;
 
 class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 
@@ -345,6 +347,55 @@ class DBControllerParameterDataTest extends DBControllerIntegrationBaseTest {
 		pdList = db.getAll(ParameterData.class);
 		assertEquals(16, pdList.size());
 		
+	}
+
+	@Test
+	void largeParameterDataBatch_shouldUseOneSelectIndependentOfEntryCount() {
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("88888888"));
+		Properties bpd = new Properties();
+		for (int index = 0; index < 512; index++) {
+			bpd.setProperty("performance.key." + index, "value." + index);
+		}
+		bankAccess.getFints().setBpd(bpd);
+
+		DatabaseQueryCounter.Measurement<Boolean> measurement =
+				DatabaseQueryCounter.measure(() -> db.insertOrUpdatePD(bankAccess));
+
+		assertTrue(measurement.result());
+		assertEquals(1, measurement.queryCount());
+		assertEquals(bpd.size(), db.getAllByParent(Bpd.class, bankAccess.getId()).size());
+	}
+
+	@Test
+	void bpdAndUpdUpdate_shouldUseOneSelect() {
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("88888888"));
+		bankAccess.getFints().setBpd(HbciParameterTestDataFactory.buildBpd());
+		bankAccess.getFints().setUpd(HbciParameterTestDataFactory.buildUpd());
+
+		DatabaseQueryCounter.Measurement<Boolean> measurement =
+				DatabaseQueryCounter.measure(() -> db.insertOrUpdatePD(bankAccess));
+
+		assertTrue(measurement.result());
+		assertEquals(1, measurement.queryCount());
+		assertEquals(bankAccess.getFints().getBpd().size(), db.getAllByParent(Bpd.class, bankAccess.getId()).size());
+		assertEquals(bankAccess.getFints().getUpd().size(), db.getAllByParent(Upd.class, bankAccess.getId()).size());
+	}
+
+	@Test
+	void bpdAndUpdUpdate_shouldRollbackAtomically() {
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("88888888"));
+		Properties bpd = new Properties();
+		bpd.setProperty("valid.bpd", "value");
+		Properties invalidUpd = new Properties();
+		invalidUpd.setProperty("", "invalid");
+		bankAccess.getFints().setBpd(bpd);
+		bankAccess.getFints().setUpd(invalidUpd);
+
+		assertThrows(GBankingException.class, () -> db.insertOrUpdatePD(bankAccess));
+
+		assertTrue(db.getAllByParent(Bpd.class, bankAccess.getId()).isEmpty());
+		assertTrue(db.getAllByParent(Upd.class, bankAccess.getId()).isEmpty());
+		assertTrue(db.getAll(ParameterData.class).isEmpty());
 	}
 
 	@Test

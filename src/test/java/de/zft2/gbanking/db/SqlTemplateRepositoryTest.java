@@ -50,8 +50,66 @@ class SqlTemplateRepositoryTest {
 
 		assertTrue(baselineStatements.stream().anyMatch(statement -> statement.contains("validate_moneytransfer_insert")));
 		assertTrue(baselineStatements.stream().anyMatch(statement -> statement.contains("set_null_booking_cross_reference_delete")));
-		assertTrue(baselineStatements.stream().anyMatch(statement -> statement.contains("uk_bankaccount_businesscase")));
+		assertTrue(baselineStatements.stream().anyMatch(statement -> statement.contains("UNIQUE (account_id, businessCase_id)")));
 		assertTrue(baselineStatements.stream().anyMatch(statement -> statement.contains("validate_bankaccount_insert")));
+	}
+
+	@Test
+	void bookingQueries_shouldUseConcreteIdentifiersAndBookingTypeParameters() {
+		String bookingById = SqlTemplateRepository.getDml("SQL_SELECT_BOOKING_FULL_BY_ID");
+		String crossBookings = SqlTemplateRepository.getDml("SQL_FIND_CROSS_BOOKINGS_FULL");
+
+		assertTrue(bookingById.contains("WHERE b.id = ?"));
+		assertFalse(bookingById.contains("${"));
+		assertTrue(crossBookings.contains("(ba.iban = ? OR ba.number = ?)"));
+		assertTrue(crossBookings.contains("b.bookingType NOT IN (?, ?)"));
+		assertFalse(crossBookings.contains("b.bookingType NOT IN (5, 6)"));
+		assertFalse(crossBookings.contains("LIKE ?"));
+		assertFalse(crossBookings.contains("'REBOOKING_IN'"));
+	}
+
+	@Test
+	void relationAndMessageQueries_shouldUseStableOrdering() {
+		assertTrue(SqlTemplateRepository.getDml("SQL_SELECT_ALL_BANKACCOUNTS")
+				.endsWith("ORDER BY ba.bankAccess_id, ba.id"));
+		assertTrue(SqlTemplateRepository.getDml("SQL_SELECT_ALL_BANKACCOUNTS_BY_BANKACCESS")
+				.endsWith("ORDER BY ba.id"));
+		assertTrue(SqlTemplateRepository.getDml("SQL_SELECT_BANKACCOUNTS_BY_BANKACCESS_IDS")
+				.endsWith("ORDER BY ba.bankAccess_id, ba.id"));
+		assertTrue(SqlTemplateRepository.getDml("SQL_SELECT_ALL_BANK_MESSAGES_BY_BANKACCESS")
+				.endsWith("ORDER BY versionDate DESC, retrievedAt DESC, code, description, id DESC"));
+		assertTrue(SqlTemplateRepository.getDml("SQL_SELECT_ALL_BANK_MESSAGES")
+				.endsWith("ORDER BY bankName, versionDate DESC, retrievedAt DESC, code, description, id DESC"));
+	}
+
+	@Test
+	void instituteDetailWrites_shouldTargetAttachedDatabaseExplicitly() {
+		assertTrue(SqlTemplateRepository.getDml("SQL_INSERT_INSTITUTE_DK")
+				.startsWith("INSERT INTO institute_db.instituteDk"));
+		assertTrue(SqlTemplateRepository.getDml("SQL_INSERT_INSTITUTE_DBB")
+				.startsWith("INSERT INTO institute_db.instituteDbb"));
+		assertTrue(SqlTemplateRepository.getDml("SQL_INSERT_INSTITUTE_EPC")
+				.startsWith("INSERT INTO institute_db.instituteEpc"));
+		assertTrue(SqlTemplateRepository.getDml("SQL_DELETE_INSTITUTE_DK")
+				.startsWith("DELETE FROM institute_db.instituteDk"));
+		assertTrue(SqlTemplateRepository.getDml("SQL_DELETE_INSTITUTE_DBB")
+				.startsWith("DELETE FROM institute_db.instituteDbb"));
+		assertTrue(SqlTemplateRepository.getDml("SQL_DELETE_INSTITUTE_EPC")
+				.startsWith("DELETE FROM institute_db.instituteEpc"));
+	}
+
+	@Test
+	void parameterDataWrites_shouldUseFixedSingleRowTemplates() {
+		String parameterDataInsert = SqlTemplateRepository.getDml("SQL_INSERT_PARAMETERDATA");
+		String relationInsert = SqlTemplateRepository.getDml("SQL_UPSERT_BANKACCESS_PARAMETERDATA");
+		String relationDelete = SqlTemplateRepository.getDml("SQL_DELETE_BANKACCESS_PARAMETERDATA_BY_KEY");
+
+		assertFalse(parameterDataInsert.contains("%s"));
+		assertFalse(relationInsert.contains("%s"));
+		assertFalse(relationDelete.contains("%s"));
+		assertEquals(3L, parameterDataInsert.chars().filter(character -> character == '?').count());
+		assertEquals(5L, relationInsert.chars().filter(character -> character == '?').count());
+		assertEquals(3L, relationDelete.chars().filter(character -> character == '?').count());
 	}
 
 	@Test
@@ -74,6 +132,7 @@ class SqlTemplateRepositoryTest {
 		assertEqualsByVersion(baselineScript.getVersion(), versionScripts.get(0).getVersion());
 		assertTrue(baselineScript.getSettingKey().startsWith("db.migration."));
 		assertTrue(baselineScript.getResource().startsWith("sql/ddl/"));
+		assertTrue(versionScripts.stream().anyMatch(script -> "0.4.1".equals(script.getVersion())));
 
 		for (int i = 1; i < versionScripts.size(); i++) {
 			String previous = versionScripts.get(i - 1).getVersion();

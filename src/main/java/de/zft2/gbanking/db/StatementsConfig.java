@@ -16,7 +16,7 @@ import static de.zft2.gbanking.db.DaoSqlStatements.MONEY_TRANSFER_FOREIGN_SQL;
 import static de.zft2.gbanking.db.DaoSqlStatements.MONEY_TRANSFER_PROTOCOL_SQL;
 import static de.zft2.gbanking.db.DaoSqlStatements.MONEY_TRANSFER_SQL;
 import static de.zft2.gbanking.db.DaoSqlStatements.PARAMETER_DATA_SQL;
-	import static de.zft2.gbanking.db.DaoSqlStatements.PSD2_CLIENT_CONFIGURATION_SQL;
+import static de.zft2.gbanking.db.DaoSqlStatements.PSD2_CLIENT_CONFIGURATION_SQL;
 import static de.zft2.gbanking.db.DaoSqlStatements.RECIPIENT_SQL;
 import static de.zft2.gbanking.db.DaoSqlStatements.SETTING_SQL;
 import static de.zft2.gbanking.db.DaoSqlStatements.UPD_SQL;
@@ -56,6 +56,7 @@ import de.zft2.gbanking.db.dao.logic.StatementsLogicBooking;
 import de.zft2.gbanking.db.dao.logic.StatementsLogicCategory;
 import de.zft2.gbanking.db.dao.logic.StatementsLogicCategoryRule;
 import de.zft2.gbanking.db.dao.logic.StatementsLogicDefault;
+import de.zft2.gbanking.db.dao.logic.StatementsLogicImportHistory;
 import de.zft2.gbanking.db.dao.logic.StatementsLogicInstitute;
 import de.zft2.gbanking.db.dao.logic.StatementsLogicMoneyTransfer;
 import de.zft2.gbanking.db.dao.logic.StatementsLogicMoneyTransferProtocol;
@@ -161,11 +162,12 @@ public final class StatementsConfig {
 		}
 	}
 
-	private record DaoMetadata<T extends Dao, V>(AbstractDaoMapper<T, V> mapper, StatementsLogic<T> logic, Class<? extends Dao> childType,
+	private record DaoMetadata<T extends Dao, V>(AbstractDaoMapper<T, V> mapper, StatementsLogic<T> logic,
 			String tableViewName, Map<StatementType, String> sqlStatements) {
 	}
 
-	private static final DaoMetadata<Dao, ?> DEFAULT_METADATA = new DaoMetadata<>(new DefaultMapper(), new StatementsLogicDefault<>(), null, null, Map.of());
+	private static final DaoMetadata<Dao, ?> DEFAULT_METADATA =
+			new DaoMetadata<>(new DefaultMapper(), new StatementsLogicDefault<>(), null, Map.of());
 
 	private static final Map<Class<? extends Dao>, DaoMetadata<?, ?>> DAO_METADATA = Map.ofEntries(
             Map.entry(Dao.class, DEFAULT_METADATA),
@@ -173,14 +175,12 @@ public final class StatementsConfig {
             Map.entry(BankAccess.class, new DaoMetadata<>(
                     new BankAccessMapper(),
                     new StatementsLogicBankAccess(),
-                    BankAccount.class,
                     null,
 					BANK_ACCESS_SQL)),
 
             Map.entry(BankAccount.class, new DaoMetadata<>(
                     new BankAccountMapper(),
                     new StatementsLogicBankAccount(),
-                    Booking.class,
                     null,
 					BANK_ACCOUNT_SQL)),
 
@@ -188,13 +188,11 @@ public final class StatementsConfig {
 					new Psd2ClientConfigurationMapper(),
 					new StatementsLogicDefault<>(),
 					null,
-					null,
 					PSD2_CLIENT_CONFIGURATION_SQL)),
 
             Map.entry(BankAccountStatement.class, new DaoMetadata<>(
                     new BankAccountStatementMapper(),
                     new StatementsLogicDefault<>(),
-                    null,
                     null,
 					BANK_ACCOUNT_STATEMENT_SQL)),
 
@@ -202,20 +200,17 @@ public final class StatementsConfig {
                     new BankMessageMapper(),
                     new StatementsLogicDefault<>(),
                     null,
-                    null,
 					BANK_MESSAGE_SQL)),
 
             Map.entry(Booking.class, new DaoMetadata<>(
                     new BookingMapper(),
                     new StatementsLogicBooking(),
-                    null,
                     "bookingFull",
 					BOOKING_SQL)),
 
             Map.entry(Category.class, new DaoMetadata<>(
                     new CategoryMapper(),
                     new StatementsLogicCategory(),
-                    null,
                     "categoryFull",
 					CATEGORY_SQL)),
 
@@ -223,27 +218,23 @@ public final class StatementsConfig {
                     new CategoryRuleMapper(),
                     new StatementsLogicCategoryRule(),
                     null,
-                    null,
 					CATEGORY_RULE_SQL)),
 
             Map.entry(MoneyTransfer.class, new DaoMetadata<>(
                     new MoneytransferMapper(),
                     new StatementsLogicMoneyTransfer(),
                     null,
-                    null,
 					MONEY_TRANSFER_SQL)),
 
             Map.entry(MoneyTransferForeign.class, new DaoMetadata<>(
                     new MoneyTransferForeignMapper(),
                     new StatementsLogicDefault<>(),
-                    null,
                     "moneytransferForeign",
 					MONEY_TRANSFER_FOREIGN_SQL)),
 
             Map.entry(MoneyTransferProtocol.class, new DaoMetadata<>(
                     new MoneyTransferProtocolMapper(),
                     new StatementsLogicMoneyTransferProtocol(),
-                    null,
                     "moneytransferProtocol",
 					MONEY_TRANSFER_PROTOCOL_SQL)),
 
@@ -251,13 +242,11 @@ public final class StatementsConfig {
                     new RecipientMapper(),
                     new StatementsLogicRecipient(),
                     null,
-                    null,
 					RECIPIENT_SQL)),
 
             Map.entry(ParameterData.class, new DaoMetadata<>(
                     new ParameterDataMapper(),
                     new StatementsLogicDefault<>(),
-                    null,
                     null,
 					PARAMETER_DATA_SQL)),
 
@@ -265,27 +254,23 @@ public final class StatementsConfig {
                     new BpdMapper(),
                     new StatementsLogicDefault<>(),
                     null,
-                    null,
 					BPD_SQL)),
 
             Map.entry(Upd.class, new DaoMetadata<>(
                     new UpdMapper(),
                     new StatementsLogicDefault<>(),
                     null,
-                    null,
 					UPD_SQL)),
 
             Map.entry(Institute.class, new DaoMetadata<>(
                     new InstituteMapper(),
 					new StatementsLogicInstitute(),
-                    null,
                     "institute_db.institute",
 					INSTITUTE_SQL)),
 
             Map.entry(ImportHistory.class, new DaoMetadata<>(
                     new ImportHistoryMapper(),
-                    new StatementsLogicDefault<>(),
-                    null,
+                    new StatementsLogicImportHistory(),
                     "institute_db.importHistory",
 					IMPORT_HISTORY_SQL)),
 
@@ -293,20 +278,17 @@ public final class StatementsConfig {
                     new SettingMapper(),
                     new StatementsLogicDefault<>(),
                     null,
-                    null,
 					SETTING_SQL)),
 
             Map.entry(BusinessCase.class, new DaoMetadata<>(
                     new BusinessCaseMapper(),
                     new StatementsLogicDefault<>(),
                     null,
-                    null,
 					BUSINESS_CASE_SQL)),
 
             Map.entry(ParameterDataBankAccess.class, new DaoMetadata<>(
                     new ParameterDataBankAccessMapper(),
                     new StatementsLogicDefault<>(),
-                    null,
                     null,
                     Map.of()
             )),
@@ -315,28 +297,8 @@ public final class StatementsConfig {
                     new MtoNTableMapper(),
                     new StatementsLogicDefault<>(),
                     null,
-                    null,
 					MN_DAO_SQL))
     );
-
-	private static final Map<Class<? extends Dao>, String> SELECT_BY_ID_SQL = Map.ofEntries(
-			Map.entry(BankAccess.class, DaoSqlStatements.SQL_SELECT_BANKACCESS_BY_ID),
-			Map.entry(Psd2ClientConfiguration.class, "SELECT * FROM psd2ClientConfiguration WHERE id = ?"),
-			Map.entry(BankAccount.class, "SELECT * FROM bankAccount WHERE id = ?"),
-			Map.entry(BankAccountStatement.class, "SELECT * FROM bankAccountStatement WHERE id = ?"),
-			Map.entry(BankMessage.class, "SELECT * FROM bankMessage WHERE id = ?"),
-			Map.entry(Booking.class, "SELECT * FROM bookingFull WHERE id = ?"),
-			Map.entry(Category.class, "SELECT * FROM categoryFull WHERE id = ?"),
-			Map.entry(CategoryRule.class, "SELECT * FROM categoryRule WHERE id = ?"),
-			Map.entry(MoneyTransfer.class, "SELECT * FROM moneytransfer WHERE id = ?"),
-			Map.entry(MoneyTransferForeign.class, "SELECT * FROM moneytransferForeign WHERE id = ?"),
-			Map.entry(MoneyTransferProtocol.class, "SELECT * FROM moneytransferProtocol WHERE id = ?"),
-			Map.entry(Recipient.class, "SELECT * FROM recipient WHERE id = ?"),
-			Map.entry(ParameterData.class, "SELECT * FROM parameterData WHERE id = ?"),
-			Map.entry(Institute.class, "SELECT * FROM institute_db.institute WHERE id = ?"),
-			Map.entry(ImportHistory.class, "SELECT * FROM institute_db.importHistory WHERE id = ?"),
-			Map.entry(Setting.class, "SELECT * FROM setting WHERE id = ?"),
-			Map.entry(BusinessCase.class, "SELECT * FROM businessCase WHERE id = ?"));
 
 	private static DaoMetadata<?, ?> getMetadata(Class<? extends Dao> type) {
 		DaoMetadata<?, ?> metadata = DAO_METADATA.get(type);
@@ -347,7 +309,7 @@ public final class StatementsConfig {
 	}
 
 	public static String getSelectByIdSqlStatement(Class<? extends Dao> type) {
-		String sql = SELECT_BY_ID_SQL.get(type);
+		String sql = DaoSqlStatements.selectByPrimaryId(type);
 		if (sql == null) {
 			throw new GBankingException("No SELECT by id statement configured for DAO type: " + type.getName());
 		}
@@ -361,7 +323,10 @@ public final class StatementsConfig {
 		if (sql != null) {
 			return sql;
 		} else if (statementType == StatementType.DELETE) {
-			return "DELETE FROM " + getTableViewName(type) + " WHERE id = ?";
+			sql = DaoSqlStatements.deleteByPrimaryId(type);
+			if (sql != null) {
+				return sql;
+			}
 		}
 
 		throw new GBankingException(String.format("Unknown statementType %s for DAO type %s", statementType, type.getName()));
@@ -370,10 +335,6 @@ public final class StatementsConfig {
 	public static String getTableViewName(Class<? extends Dao> type) {
 		String tableViewName = getMetadata(type).tableViewName();
 		return tableViewName != null ? tableViewName : type.getSimpleName();
-	}
-
-	public static Class<? extends Dao> getChildType(Class<? extends Dao> type) {
-		return getMetadata(type).childType();
 	}
 
 	@SuppressWarnings("unchecked")
