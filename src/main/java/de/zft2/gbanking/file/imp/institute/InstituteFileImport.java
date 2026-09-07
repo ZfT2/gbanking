@@ -147,7 +147,10 @@ public abstract class InstituteFileImport implements BaseMessages {
 			updateWorkerState(92, "UI_PROGRESS_INSTITUTE_NO_VALID_ROWS");
 			return;
 		}
+		dbController.executeInTransaction(() -> persistInstitutes(file, importedInstitutes));
+	}
 
+	private void persistInstitutes(Path file, List<Institute> importedInstitutes) {
 		Integer importHistoryId = createImportHistory(file);
 		if (importHistoryId == null) {
 			return;
@@ -252,7 +255,10 @@ public abstract class InstituteFileImport implements BaseMessages {
 		return currentInstitutes.stream()
 				.filter(existing -> !matchedInstituteIds.contains(existing.getId()))
 				.filter(existing -> isSameInstituteIdentity(existing, imported))
-				.findFirst();
+				.min(Comparator.comparing((Institute existing) -> !hasSameContent(existing, imported))
+						.thenComparing(existing -> hasImportMetadataChanged(existing, imported))
+						.thenComparing(groupComparator())
+						.thenComparingInt(existing -> existing.getId()));
 	}
 
 	private boolean needsCurrentImportMetadataUpdate(Institute existing, Institute imported) {

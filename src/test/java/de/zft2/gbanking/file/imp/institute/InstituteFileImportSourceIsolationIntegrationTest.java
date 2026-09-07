@@ -1,6 +1,7 @@
 package de.zft2.gbanking.file.imp.institute;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -9,8 +10,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.SQLException;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -27,6 +32,7 @@ import de.zft2.gbanking.db.dao.enu.InstituteStatus;
 class InstituteFileImportSourceIsolationIntegrationTest {
 
 	private static final Path FIXTURE_DIRECTORY = Path.of("src", "test", "resources", "import");
+	private static final String SHARED_BIC = "MARKDEF1100";
 
 	private DBController dbController;
 	private Path tempDir;
@@ -91,6 +97,89 @@ class InstituteFileImportSourceIsolationIntegrationTest {
 		assertEquals(1, updatedReachable.getServiceScc());
 		assertEquals(initialAdditional.getId(), updatedAdditional.getId());
 		assertEquals("902", updatedAdditional.getAdditionalIbanRule());
+	}
+
+	@Test
+	void calculatesStatusPerSourceForOverlappingBankIdentifiers() throws Exception {
+		writeOverlappingSources();
+		runAllImports();
+		assertIndependentSourceStates();
+		List<String> dkBefore = sourceSnapshot(institute -> institute.getImportNumber() > 0);
+		List<String> dbbBefore = sourceSnapshot(institute -> institute.getDatasetNumber() != null);
+
+		writeImportFile(InstituteFileImportDbbReachable.DEFAULT_FILENAME, StandardCharsets.UTF_8,
+				List.of("Gueltig ab / valid from 20.08.2026;;;;;;",
+						"BIC;Name;SERVICE SCT;SERVICE COR;SERVICE COR1;SERVICE B2B;SERVICE SCC",
+						"MARKDEF1200;Andere Bank;1;0;0;0;0"));
+		runImport(InstituteFileImportDbbReachable.class, InstituteFileImportDbbReachable.DEFAULT_FILENAME);
+		assertEquals(dkBefore, sourceSnapshot(institute -> institute.getImportNumber() > 0));
+		assertEquals(dbbBefore, sourceSnapshot(institute -> institute.getDatasetNumber() != null));
+		Institute archivedReachable = find(dbController.getAll(Institute.class),
+				institute -> SHARED_BIC.equals(institute.getBic()) && institute.getServiceSct() != null);
+		assertEquals(InstituteStatus.ARCHIVED, archivedReachable.getStateType());
+
+		// Re-import in reverse source order, including promotion of an existing DK duplicate.
+		writeOverlappingSources();
+		Path dkFile = basePath.resolve("import").resolve(InstituteFileImportDk.DEFAULT_FILENAME);
+		List<String> dkLines = Files.readAllLines(dkFile, StandardCharsets.ISO_8859_1);
+		writeImportFile(InstituteFileImportDk.DEFAULT_FILENAME, StandardCharsets.ISO_8859_1, List.of(dkLines.get(0), dkLines.get(2)));
+		runImport(InstituteFileImportAdditional.class, InstituteFileImportAdditional.DEFAULT_FILENAME);
+		runImport(InstituteFileImportDbbReachable.class, InstituteFileImportDbbReachable.DEFAULT_FILENAME);
+		runImport(InstituteFileImportEpc.class, InstituteFileImportEpc.DEFAULT_FILENAME);
+		runImport(InstituteFileImportDbb.class, InstituteFileImportDbb.DEFAULT_FILENAME);
+		List<String> dbbBeforeDk = sourceSnapshot(institute -> institute.getDatasetNumber() != null);
+		runImport(InstituteFileImportDk.class, InstituteFileImportDk.DEFAULT_FILENAME);
+		assertIndependentSourceStates();
+		Institute activeDk = find(dbController.getAll(Institute.class),
+				institute -> institute.getImportNumber() > 0 && institute.getStateType() == InstituteStatus.ACTIVE);
+		assertEquals("Potsdam", activeDk.getPlace());
+		assertEquals(dbbBeforeDk, sourceSnapshot(institute -> institute.getDatasetNumber() != null));
+	}
+
+	private void writeOverlappingSources() throws IOException {
+		List<String> dk = Files.readAllLines(FIXTURE_DIRECTORY.resolve("institute_test.csv"), StandardCharsets.ISO_8859_1);
+		String dkRow = dk.get(1).replace("10010010", "10000000").replace("PBNKDEFFXXX", SHARED_BIC).replace("Postbank", "Bundesbank");
+		writeImportFile(InstituteFileImportDk.DEFAULT_FILENAME, StandardCharsets.ISO_8859_1,
+				List.of(dk.get(0), dkRow, dkRow.replaceFirst("^2;", "3;").replace(";Berlin;", ";Potsdam;")));
+		List<String> dbb = Files.readAllLines(FIXTURE_DIRECTORY.resolve("blz-aktuell_test-first-150.csv"), StandardCharsets.ISO_8859_1);
+		writeImportFile(InstituteFileImportDbb.DEFAULT_FILENAME, StandardCharsets.ISO_8859_1,
+				List.of(dbb.get(0), dbb.get(1), dbb.get(1).replace("011380", "011381").replace(";Berlin;", ";Potsdam;")));
+		writeImportFile(InstituteFileImportEpc.DEFAULT_FILENAME, StandardCharsets.UTF_8,
+				List.of("Country,ParticipantName,Address,City,BIC,Readiness Date,Scheme Leaving Date,Scheme Options",
+						"Germany,Bundesbank,Strasse 1,Berlin," + SHARED_BIC + ",2026-01-01,,",
+						"Germany,Andere Bank,Strasse 2,Potsdam,MARKDEF1200,2026-01-01,,"));
+		writeImportFile(InstituteFileImportDbbReachable.DEFAULT_FILENAME, StandardCharsets.UTF_8,
+				List.of("Gueltig ab / valid from 17.08.2026;;;;;;",
+						"BIC;Name;SERVICE SCT;SERVICE COR;SERVICE COR1;SERVICE B2B;SERVICE SCC",
+						SHARED_BIC + ";Bundesbank;1;1;0;1;0", "MARKDEF1200;Andere Bank;1;0;0;0;0"));
+		writeImportFile(InstituteFileImportAdditional.DEFAULT_FILENAME, StandardCharsets.ISO_8859_1,
+				List.of("BLZ;Institutsname;Ort;Kurzbezeichnung;Prüfziffermethode;BIC;PLZ;Löschmarker;Nachfolge-BLZ;IBAN-Regel;IBAN-Regel-Version",
+						"10000000;Bundesbank;Berlin;Bundesbank;09;" + SHARED_BIC + ";10591;0;;901;1",
+						"10000000;Bundesbank;Potsdam;Bundesbank;09;" + SHARED_BIC + ";14467;0;;901;1"));
+	}
+
+	private void assertIndependentSourceStates() {
+		assertSourceStates(institute -> institute.getImportNumber() > 0, institute -> institute.getBlz());
+		assertSourceStates(institute -> institute.getDatasetNumber() != null, institute -> institute.getBlz());
+		assertSourceStates(institute -> institute.getCountry() != null, institute -> institute.getBic());
+		assertSourceStates(institute -> institute.getServiceSct() != null, institute -> institute.getBic());
+		assertSourceStates(institute -> institute.getAdditionalBankNameShort() != null, institute -> institute.getBlz());
+	}
+
+	private void assertSourceStates(Predicate<Institute> source, Function<Institute, String> groupKey) {
+		Map<String, List<Institute>> groups = dbController.getAll(Institute.class).stream().filter(source)
+				.filter(institute -> institute.getStateType() != InstituteStatus.ARCHIVED).collect(Collectors.groupingBy(groupKey));
+		assertFalse(groups.isEmpty());
+		for (List<Institute> group : groups.values()) {
+			assertEquals(1, group.stream().filter(institute -> institute.getStateType() == InstituteStatus.ACTIVE).count());
+			assertEquals(group.size() - 1, group.stream().filter(institute -> institute.getStateType() == InstituteStatus.DUPLICATE).count());
+		}
+	}
+
+	private List<String> sourceSnapshot(Predicate<Institute> source) {
+		return dbController.getAll(Institute.class).stream().filter(source)
+				.sorted(Comparator.comparingInt(institute -> institute.getId()))
+				.map(institute -> institute.toString() + ":" + institute.getImportFile()).toList();
 	}
 
 	private void writeImportFiles(boolean updated) throws IOException {

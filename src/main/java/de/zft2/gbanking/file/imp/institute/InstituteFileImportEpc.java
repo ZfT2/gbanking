@@ -16,7 +16,7 @@ import de.zft2.gbanking.gui.BaseWorker;
  */
 public class InstituteFileImportEpc extends InstituteFileImport {
 
-	public static final String DEFAULT_FILENAME = "sct.csv";
+	public static final String DEFAULT_FILENAME = "epc_sct.csv";
 
 	protected InstituteFileImportEpc(String basePath, String fileName, Charset charset, BaseWorker worker) {
 		super(basePath, fileName, charset, worker);

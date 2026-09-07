@@ -3,7 +3,6 @@ package de.zft2.gbanking.file.imp.institute;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -12,6 +11,7 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
 
 import de.zft2.gbanking.db.dao.Institute;
+import de.zft2.gbanking.db.dao.enu.InstituteStatus;
 import de.zft2.gbanking.gui.BaseWorker;
 import de.zft2.gbanking.util.TypeConverter;
 
@@ -49,27 +49,12 @@ public class InstituteFileImportDk extends InstituteFileImport {
 
 	@Override
 	protected void prepareMatchedInstitutes(List<MatchedInstitute> matchedInstitutes) {
-		List<MatchedInstitute> institutesToRemove = new ArrayList<>();
+		// Release occupied numbers before any final update; the file transaction restores all states on failure.
 		for (MatchedInstitute matchedInstitute : matchedInstitutes) {
-			if (hasShiftedImportNumberWithSameContent(matchedInstitute)) {
-				collectDuplicateImportNumberMatches(matchedInstitute, matchedInstitutes, institutesToRemove);
-			}
-		}
-		matchedInstitutes.removeAll(institutesToRemove);
-	}
-
-	private boolean hasShiftedImportNumberWithSameContent(MatchedInstitute matchedInstitute) {
-		return matchedInstitute.existing().getImportNumber() != matchedInstitute.toImport().getImportNumber()
-				&& hasSameContent(matchedInstitute.existing(), matchedInstitute.toImport());
-	}
-
-	private void collectDuplicateImportNumberMatches(MatchedInstitute reference, List<MatchedInstitute> matchedInstitutes,
-			List<MatchedInstitute> institutesToRemove) {
-		for (MatchedInstitute candidate : matchedInstitutes) {
-			if (!reference.equals(candidate)
-					&& reference.existing().getImportNumber() == candidate.toImport().getImportNumber()
-					&& hasSameContent(reference.existing(), candidate.toImport())) {
-				institutesToRemove.add(candidate);
+			Institute existing = matchedInstitute.existing();
+			if (existing.getImportNumber() != matchedInstitute.toImport().getImportNumber()) {
+				existing.setStateType(InstituteStatus.ARCHIVED);
+				dbController.insertOrUpdate(existing);
 			}
 		}
 	}

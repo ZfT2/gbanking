@@ -2,12 +2,14 @@ package de.zft2.gbanking.file.imp.institute;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -24,6 +26,7 @@ import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.enu.InstituteStatus;
+import de.zft2.gbanking.exception.GBankingException;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class InstituteFileImportDkIntegrationTest extends BaseInstituteFileImportTest {
@@ -300,6 +303,104 @@ class InstituteFileImportDkIntegrationTest extends BaseInstituteFileImportTest {
 		assertEquals(1, currentInstitutes.get(0).getImportNumber());
 		assertEquals("Kleinmachnow", currentInstitutes.get(0).getPlace());
 		assertEquals(1, currentInstitutes.get(0).getImportFile(), "A pure import-number shift must keep the original content import file");
+	}
+
+	@Test
+	void testOccupiedImportNumbersCanBeShiftedAndSwapped() throws Exception {
+		assertShiftedAndSwappedNumbers(false);
+	}
+
+	@Test
+	void testIdenticalRowsKeepActiveStatusWhenNumbersShift() throws Exception {
+		assertShiftedAndSwappedNumbers(true);
+	}
+
+	private void assertShiftedAndSwappedNumbers(boolean identicalContent) throws Exception {
+		Path importBasePath = tempDir.resolve("occupied-shift-institute-import");
+		Path importDir = importBasePath.resolve("import");
+		Files.createDirectories(importDir);
+		InstituteFileImport importer = InstituteFileImport.getInstance(InstituteFileImportDk.class, importBasePath.toString(), FILE_NAME,
+				StandardCharsets.UTF_8, null);
+		List<String> places = identicalContent ? List.of("Hamburg", "Hamburg", "Hamburg") : List.of("Hamburg", "Reinbek", "Wedel");
+		List<Integer> originalIds = null;
+		for (List<Integer> numbers : List.of(List.of(218, 219, 220), List.of(219, 220, 221), List.of(217, 218, 219), List.of(219, 218, 217))) {
+			List<String> rows = new ArrayList<>();
+			for (int index = 0; index < places.size(); index++) {
+				rows.add(instituteCsvRow(numbers.get(index), "20030000", "HYVEDEMM300", "UniCredit Bank", places.get(index)));
+			}
+			Files.writeString(importDir.resolve(FILE_NAME), instituteCsv(rows), StandardCharsets.UTF_8);
+			importer.runImport();
+
+			List<Institute> institutes = dbController.getAll(Institute.class);
+			List<Integer> ids = institutes.stream().map(institute -> institute.getId()).sorted().toList();
+			if (originalIds == null) {
+				originalIds = ids;
+			}
+			assertEquals(originalIds, ids, "Renumbering must preserve existing rows");
+			assertEquals(numbers.stream().sorted().toList(), institutes.stream().map(institute -> institute.getImportNumber()).sorted().toList());
+			int lowestNumber = numbers.stream().min((first, second) -> Integer.compare(first, second)).orElseThrow();
+			for (Institute institute : institutes) {
+				assertEquals(institute.getImportNumber() == lowestNumber ? InstituteStatus.ACTIVE : InstituteStatus.DUPLICATE, institute.getStateType());
+				assertEquals(1, institute.getImportFile(), "Renumbering must preserve content provenance");
+				if (!identicalContent) {
+					assertEquals(numbers.get(places.indexOf(institute.getPlace())), institute.getImportNumber());
+				}
+			}
+			assertFalse(Files.exists(importDir.resolve(FILE_NAME)));
+			assertTrue(Files.exists(importBasePath.resolve("import/archive").resolve(FILE_NAME)));
+		}
+	}
+
+	@Test
+	void testFailedFileImportIsRolledBackCompletely() throws Exception {
+		Path importBasePath = tempDir.resolve("failed-institute-import");
+		Path importDir = importBasePath.resolve("import");
+		Path archiveDir = importBasePath.resolve("import/archive");
+		Files.createDirectories(importDir);
+
+		String baseFileName = "fints_institute NEU mit BIC Master";
+		String firstFileName = baseFileName + "_20260520.csv";
+		String invalidFileName = baseFileName + "_20260820.csv";
+		Files.writeString(importDir.resolve(firstFileName), instituteCsv(List.of(
+				instituteCsvRow(1, "10020890", "HYVEDEMM488", "UniCredit Bank", "Berlin"),
+				instituteCsvRow(2, "10020890", "HYVEDEMM488", "UniCredit Bank", "Kleinmachnow"),
+				instituteCsvRow(3, "10020890", "HYVEDEMM488", "UniCredit Bank", "Potsdam"))), StandardCharsets.UTF_8);
+
+		InstituteFileImport importer = InstituteFileImport.getInstance(InstituteFileImportDk.class, importBasePath.toString(), baseFileName,
+				StandardCharsets.UTF_8, null);
+		importer.runImport();
+		List<List<String>> originalRows = selectInstituteRows();
+		dropInstituteLookupIndex();
+
+		Files.writeString(importDir.resolve(invalidFileName), instituteCsv(List.of(
+				instituteCsvRow(2, "10020890", "HYVEDEMM488", "UniCredit Bank", "Berlin", "https://changed.example.test"),
+				instituteCsvRow(3, "10020890", "HYVEDEMM488", "UniCredit Bank", "Kleinmachnow"),
+				instituteCsvRow(4, "20030000", "HYVEDEMM300", "UniCredit Bank", "Hamburg"),
+				instituteCsvRow(4, "20030000", "HYVEDEMM300", "UniCredit Bank", "Reinbek"))), StandardCharsets.UTF_8);
+		assertThrows(GBankingException.class, () -> importer.runImport());
+
+		assertEquals(originalRows, selectInstituteRows(), "Rollback must restore numbers, states, technical data and timestamps");
+		assertEquals(List.of(firstFileName), selectImportFileNames());
+		assertFalse(instituteLookupIndexExists(), "Schema changes made during import must also be rolled back");
+		assertTrue(Files.exists(archiveDir.resolve(firstFileName)));
+		assertTrue(Files.exists(importDir.resolve(invalidFileName)));
+		assertFalse(Files.exists(archiveDir.resolve(invalidFileName)));
+	}
+
+	private List<List<String>> selectInstituteRows() throws SQLException {
+		List<List<String>> rows = new ArrayList<>();
+		try (var statement = DBController.getConnection().createStatement();
+				var resultSet = statement.executeQuery("SELECT i.*, dk.* FROM institute_db.institute i "
+						+ "JOIN institute_db.instituteDk dk ON dk.institute_id = i.id ORDER BY i.id")) {
+			while (resultSet.next()) {
+				List<String> row = new ArrayList<>();
+				for (int column = 1; column <= resultSet.getMetaData().getColumnCount(); column++) {
+					row.add(resultSet.getString(column));
+				}
+				rows.add(row);
+			}
+		}
+		return rows;
 	}
 
 	@Test
