@@ -4,7 +4,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.DbScriptExecutor;
-import de.zft2.gbanking.db.SqlTemplateRepository;
+import de.zft2.gbanking.db.repository.SqlTemplateRepository;
 
 public final class DemoDataInstaller {
 

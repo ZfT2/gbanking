@@ -1,13 +1,15 @@
-package de.zft2.gbanking.db;
+package de.zft2.gbanking.db.repository;
 
 import java.sql.SQLException;
 
+import de.zft2.gbanking.db.DaoSqlStatements;
+import de.zft2.gbanking.db.DbSession;
 import de.zft2.gbanking.db.StatementsConfig.StatementType;
 import de.zft2.gbanking.db.dao.MoneyTransferForeign;
 
-final class MoneyTransferForeignRepository extends JdbcDaoRepository<MoneyTransferForeign> {
+public final class MoneyTransferForeignRepository extends JdbcDaoRepository<MoneyTransferForeign> {
 
-	MoneyTransferForeignRepository(DbSession session) {
+	public MoneyTransferForeignRepository(DbSession session) {
 		super(MoneyTransferForeign.class, session);
 	}
 

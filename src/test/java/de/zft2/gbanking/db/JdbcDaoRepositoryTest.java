@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.db.StatementsConfig.StatementType;
 import de.zft2.gbanking.db.dao.BankAccess;
+import de.zft2.gbanking.db.repository.JdbcDaoRepository;
 import de.zft2.gbanking.testdata.TestDataFactory;
 
 class JdbcDaoRepositoryTest {

@@ -543,9 +543,7 @@ public abstract class DbExecutor extends DbConnectionHandler implements BaseMess
 	}
 
 	static void validateSingleRowUpdate(int updateCount) throws SQLException {
-		if (updateCount != 1) {
-			throw new SQLException("Database update did not affect exactly one row");
-		}
+		JdbcOperations.validateSingleRowUpdate(updateCount);
 	}
 
 	static void validateSingleRowBatch(int[] updateCounts, int expectedCount) throws SQLException {

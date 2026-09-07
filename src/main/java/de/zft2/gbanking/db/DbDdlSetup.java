@@ -4,6 +4,8 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+import de.zft2.gbanking.db.repository.SqlTemplateRepository;
+
 class DbDdlSetup {
 
 	private DbDdlSetup() {

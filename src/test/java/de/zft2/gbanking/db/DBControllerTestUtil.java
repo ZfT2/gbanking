@@ -11,6 +11,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import de.zft2.gbanking.db.repository.SqlTemplateRepository;
+
 public class DBControllerTestUtil {
 
 	/**

@@ -10,6 +10,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import de.zft2.gbanking.db.repository.SqlTemplateRepository;
+
 class SqlTemplateRepositoryTest {
 
 	@Test

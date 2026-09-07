@@ -4,26 +4,28 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-import de.zft2.gbanking.db.dao.BankAccess;
-import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.BankAccountStatement;
 import de.zft2.gbanking.db.dao.BankMessage;
-import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Bpd;
 import de.zft2.gbanking.db.dao.BusinessCase;
 import de.zft2.gbanking.db.dao.Category;
-import de.zft2.gbanking.db.dao.CategoryRule;
 import de.zft2.gbanking.db.dao.Dao;
 import de.zft2.gbanking.db.dao.ImportHistory;
 import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
-import de.zft2.gbanking.db.dao.MoneyTransferForeign;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.ParameterData;
 import de.zft2.gbanking.db.dao.Psd2ClientConfiguration;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.db.dao.Upd;
+import de.zft2.gbanking.db.repository.BankAccessRepository;
+import de.zft2.gbanking.db.repository.BankAccountRepository;
+import de.zft2.gbanking.db.repository.BookingRepository;
+import de.zft2.gbanking.db.repository.CategoryRuleRepository;
+import de.zft2.gbanking.db.repository.JdbcDaoRepository;
+import de.zft2.gbanking.db.repository.MoneyTransferForeignRepository;
+import de.zft2.gbanking.db.repository.ReadOnlyDaoRepository;
 import de.zft2.gbanking.exception.GBankingException;
 
 final class DaoRepositoryCatalog {

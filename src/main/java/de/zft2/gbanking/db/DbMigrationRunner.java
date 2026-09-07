@@ -10,7 +10,9 @@ import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-final class DbMigrationRunner {
+import de.zft2.gbanking.db.repository.SqlTemplateRepository;
+
+public final class DbMigrationRunner {
 
 	private static final String LAST_STARTED_APP_VERSION = "Zuletzt gestartete Anwendungsversion";
 	private static final String LAST_USED_SCHEMAVERSION_SUCCESS = "Zuletzt erfolgreich angewendete DB-Schemaversion";
@@ -252,7 +254,7 @@ final class DbMigrationRunner {
 		}
 	}
 
-	static int compareVersions(String left, String right) {
+	public static int compareVersions(String left, String right) {
 		List<Integer> leftParts = parseVersion(left);
 		List<Integer> rightParts = parseVersion(right);
 		int max = Math.max(leftParts.size(), rightParts.size());

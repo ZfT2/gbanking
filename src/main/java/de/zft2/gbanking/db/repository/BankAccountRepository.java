@@ -1,4 +1,4 @@
-package de.zft2.gbanking.db;
+package de.zft2.gbanking.db.repository;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -7,6 +7,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import de.zft2.gbanking.db.DaoSqlStatements;
+import de.zft2.gbanking.db.DbSession;
+import de.zft2.gbanking.db.StatementsConfig;
 import de.zft2.gbanking.db.StatementsConfig.ResultType;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
@@ -14,11 +17,11 @@ import de.zft2.gbanking.db.dao.BusinessCase;
 import de.zft2.gbanking.db.dao.Dao;
 import de.zft2.gbanking.db.dao.mapper.AbstractDaoMapper;
 
-final class BankAccountRepository extends JdbcDaoRepository<BankAccount> {
+public final class BankAccountRepository extends JdbcDaoRepository<BankAccount> {
 
 	private static final String RELATION_PARENT_ID = "relationParentId";
 
-	BankAccountRepository(DbSession session) {
+	public BankAccountRepository(DbSession session) {
 		super(BankAccount.class, session);
 	}
 

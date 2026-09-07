@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import de.zft2.gbanking.db.dao.ImportHistory;
 import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.enu.InstituteStatus;
+import de.zft2.gbanking.db.repository.SqlTemplateRepository;
 import de.zft2.gbanking.tenant.TenantPaths;
 import de.zft2.gbanking.util.AppPaths;
 

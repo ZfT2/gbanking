@@ -11,7 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
-final class JdbcOperations implements AutoCloseable {
+public final class JdbcOperations implements AutoCloseable {
 
 	private static final int DEFAULT_STATEMENT_CACHE_SIZE = 64;
 	private static final int MAXIMUM_BATCH_SIZE = 1_000;
@@ -34,7 +34,7 @@ final class JdbcOperations implements AutoCloseable {
 		this.maximumCachedStatements = maximumCachedStatements;
 	}
 
-	<T> T query(String sql, StatementBinder binder, ResultExtractor<T> extractor) throws SQLException {
+	public <T> T query(String sql, StatementBinder binder, ResultExtractor<T> extractor) throws SQLException {
 		try (StatementLease lease = borrow(sql, GeneratedKeysMode.NONE)) {
 			PreparedStatement statement = lease.statement();
 			try {
@@ -50,7 +50,7 @@ final class JdbcOperations implements AutoCloseable {
 		}
 	}
 
-	int update(String sql, StatementBinder binder) throws SQLException {
+	public int update(String sql, StatementBinder binder) throws SQLException {
 		try (StatementLease lease = borrow(sql, GeneratedKeysMode.NONE)) {
 			PreparedStatement statement = lease.statement();
 			try {
@@ -63,7 +63,13 @@ final class JdbcOperations implements AutoCloseable {
 		}
 	}
 
-	int insertReturningKey(String sql, StatementBinder binder) throws SQLException {
+	public static void validateSingleRowUpdate(int updateCount) throws SQLException {
+		if (updateCount != 1) {
+			throw new SQLException("Database update did not affect exactly one row");
+		}
+	}
+
+	public int insertReturningKey(String sql, StatementBinder binder) throws SQLException {
 		try (StatementLease lease = borrow(sql, GeneratedKeysMode.RETURN)) {
 			PreparedStatement statement = lease.statement();
 			try {
@@ -298,7 +304,7 @@ final class JdbcOperations implements AutoCloseable {
 	}
 
 	@FunctionalInterface
-	interface StatementBinder {
+	public interface StatementBinder {
 
 		/**
 		 * Binds every placeholder of the statement for the current execution.
@@ -307,7 +313,7 @@ final class JdbcOperations implements AutoCloseable {
 	}
 
 	@FunctionalInterface
-	interface ResultExtractor<T> {
+	public interface ResultExtractor<T> {
 
 		T extract(ResultSet resultSet) throws SQLException;
 	}

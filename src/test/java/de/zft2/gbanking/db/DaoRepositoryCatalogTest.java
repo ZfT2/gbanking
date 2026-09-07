@@ -33,6 +33,12 @@ import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.db.dao.Upd;
 import de.zft2.gbanking.db.dao.logic.MnDao;
+import de.zft2.gbanking.db.repository.BankAccessRepository;
+import de.zft2.gbanking.db.repository.BankAccountRepository;
+import de.zft2.gbanking.db.repository.BookingRepository;
+import de.zft2.gbanking.db.repository.CategoryRuleRepository;
+import de.zft2.gbanking.db.repository.MoneyTransferForeignRepository;
+import de.zft2.gbanking.db.repository.ReadOnlyDaoRepository;
 import de.zft2.gbanking.exception.GBankingException;
 
 class DaoRepositoryCatalogTest {

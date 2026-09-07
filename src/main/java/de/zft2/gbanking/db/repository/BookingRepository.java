@@ -1,11 +1,13 @@
-package de.zft2.gbanking.db;
+package de.zft2.gbanking.db.repository;
 
+import de.zft2.gbanking.db.DaoSqlStatements;
+import de.zft2.gbanking.db.DbSession;
 import de.zft2.gbanking.db.StatementsConfig.ResultType;
 import de.zft2.gbanking.db.dao.Booking;
 
-final class BookingRepository extends JdbcDaoRepository<Booking> {
+public final class BookingRepository extends JdbcDaoRepository<Booking> {
 
-	BookingRepository(DbSession session) {
+	public BookingRepository(DbSession session) {
 		super(Booking.class, session);
 	}
 

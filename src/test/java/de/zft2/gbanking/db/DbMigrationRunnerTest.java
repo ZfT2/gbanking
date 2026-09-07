@@ -15,6 +15,8 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.sqlite.SQLiteConfig;
 
+import de.zft2.gbanking.db.repository.SqlTemplateRepository;
+
 class DbMigrationRunnerTest {
 
 	@Test

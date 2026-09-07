@@ -1,4 +1,4 @@
-package de.zft2.gbanking.db;
+package de.zft2.gbanking.db.repository;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -9,6 +9,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import de.zft2.gbanking.db.DaoRepository;
+import de.zft2.gbanking.db.DaoSqlStatements;
+import de.zft2.gbanking.db.DbSession;
+import de.zft2.gbanking.db.JdbcOperations;
+import de.zft2.gbanking.db.SQLMode;
+import de.zft2.gbanking.db.StatementsConfig;
 import de.zft2.gbanking.db.StatementsConfig.ResultType;
 import de.zft2.gbanking.db.StatementsConfig.StatementType;
 import de.zft2.gbanking.db.dao.Dao;
@@ -17,7 +23,7 @@ import de.zft2.gbanking.db.enu.IdType;
 import de.zft2.gbanking.db.enu.StateType;
 import de.zft2.gbanking.exception.GBankingException;
 
-class JdbcDaoRepository<T extends Dao> implements DaoRepository<T> {
+public class JdbcDaoRepository<T extends Dao> implements DaoRepository<T> {
 
 	private static final int MAX_IDS_PER_QUERY = 900;
 
@@ -25,7 +31,7 @@ class JdbcDaoRepository<T extends Dao> implements DaoRepository<T> {
 	private final JdbcOperations jdbc;
 	private final AbstractDaoMapper<T, ?> mapper;
 
-	JdbcDaoRepository(Class<T> type, DbSession session) {
+	public JdbcDaoRepository(Class<T> type, DbSession session) {
 		this.type = Objects.requireNonNull(type, "type");
 		Objects.requireNonNull(session, "session");
 		jdbc = session.jdbc();
@@ -81,7 +87,7 @@ class JdbcDaoRepository<T extends Dao> implements DaoRepository<T> {
 		if (mode == SQLMode.INSERT || mode == SQLMode.INSERT_BATCH) {
 			entity.setId(jdbc.insertReturningKey(sql, statement -> mapper.setParamsFull(entity, statement)));
 		} else if (mode == SQLMode.UPDATE) {
-			DbExecutor.validateSingleRowUpdate(
+			JdbcOperations.validateSingleRowUpdate(
 					jdbc.update(sql, statement -> mapper.setParamsFull(entity, statement)));
 		} else {
 			throw new GBankingException("Unsupported repository write mode: " + mode);

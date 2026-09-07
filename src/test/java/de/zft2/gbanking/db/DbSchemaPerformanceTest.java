@@ -22,6 +22,8 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.sqlite.SQLiteConfig;
 
+import de.zft2.gbanking.db.repository.SqlTemplateRepository;
+
 class DbSchemaPerformanceTest {
 
 	private static final String EXPLAIN_QUERY_PLAN = "EXPLAIN QUERY PLAN ";

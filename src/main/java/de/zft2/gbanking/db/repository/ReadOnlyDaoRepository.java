@@ -1,14 +1,15 @@
-package de.zft2.gbanking.db;
+package de.zft2.gbanking.db.repository;
 
 import java.sql.SQLException;
 
+import de.zft2.gbanking.db.DbSession;
 import de.zft2.gbanking.db.StatementsConfig.StatementType;
 import de.zft2.gbanking.db.dao.Dao;
 import de.zft2.gbanking.exception.GBankingException;
 
-final class ReadOnlyDaoRepository<T extends Dao> extends JdbcDaoRepository<T> {
+public final class ReadOnlyDaoRepository<T extends Dao> extends JdbcDaoRepository<T> {
 
-	ReadOnlyDaoRepository(Class<T> type, DbSession session) {
+	public ReadOnlyDaoRepository(Class<T> type, DbSession session) {
 		super(type, session);
 	}
 

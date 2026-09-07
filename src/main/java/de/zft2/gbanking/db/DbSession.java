@@ -7,7 +7,7 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
-final class DbSession implements AutoCloseable {
+public final class DbSession implements AutoCloseable {
 
 	private final Path databaseFile;
 	private final Connection connection;
@@ -45,7 +45,7 @@ final class DbSession implements AutoCloseable {
 		return connection;
 	}
 
-	JdbcOperations jdbc() {
+	public JdbcOperations jdbc() {
 		return jdbc;
 	}
 

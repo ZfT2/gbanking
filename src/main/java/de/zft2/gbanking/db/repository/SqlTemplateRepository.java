@@ -1,4 +1,4 @@
-package de.zft2.gbanking.db;
+package de.zft2.gbanking.db.repository;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -22,6 +22,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 
+import de.zft2.gbanking.db.DbMigrationRunner;
+
 public final class SqlTemplateRepository {
 
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\$\\{([A-Z0-9_]+)}");
@@ -41,7 +43,7 @@ public final class SqlTemplateRepository {
         return DDL.get(key);
     }
 
-    static String getConfig(String key) {
+	public static String getConfig(String key) {
         return CONFIG.get(key);
     }
 
@@ -49,19 +51,19 @@ public final class SqlTemplateRepository {
         return DemoTemplates.BUNDLE.statements();
     }
 
-    static List<String> getBaselineStatements() {
+	public static List<String> getBaselineStatements() {
         return DDL.baselineStatements();
     }
 
-    static List<String> getMainBaselineStatements() {
+	public static List<String> getMainBaselineStatements() {
         return DDL.mainBaselineStatements();
     }
 
-    static VersionScript getBaselineVersionScript() {
+	public static VersionScript getBaselineVersionScript() {
         return DDL.baselineScript();
     }
 
-    static List<VersionScript> getVersionScripts() {
+	public static List<VersionScript> getVersionScripts() {
         return DDL.versionScripts();
     }
 
@@ -345,26 +347,26 @@ public final class SqlTemplateRepository {
         return in;
     }
 
-	record VersionScript(String version, List<String> statements) {
+	public record VersionScript(String version, List<String> statements) {
 
-        VersionScript(String version, List<String> statements) {
+		public VersionScript(String version, List<String> statements) {
             this.version = version;
             this.statements = List.copyOf(statements);
         }
 
-        String getVersion() {
+		public String getVersion() {
             return version;
         }
 
-        List<String> getStatements() {
+		public List<String> getStatements() {
             return statements;
         }
 
-        String getSettingKey() {
+		public String getSettingKey() {
             return "db.migration." + version;
         }
 
-        String getResource() {
+		public String getResource() {
             return "sql/ddl/" + version;
         }
     }

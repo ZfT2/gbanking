@@ -1,4 +1,4 @@
-package de.zft2.gbanking.db;
+package de.zft2.gbanking.db.repository;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -6,16 +6,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import de.zft2.gbanking.db.DaoSqlStatements;
+import de.zft2.gbanking.db.DbSession;
 import de.zft2.gbanking.db.StatementsConfig.ResultType;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Dao;
 
-final class BankAccessRepository extends JdbcDaoRepository<BankAccess> {
+public final class BankAccessRepository extends JdbcDaoRepository<BankAccess> {
 
 	private final BankAccountRepository bankAccountRepository;
 
-	BankAccessRepository(DbSession session, BankAccountRepository bankAccountRepository) {
+	public BankAccessRepository(DbSession session, BankAccountRepository bankAccountRepository) {
 		super(BankAccess.class, session);
 		this.bankAccountRepository = bankAccountRepository;
 	}

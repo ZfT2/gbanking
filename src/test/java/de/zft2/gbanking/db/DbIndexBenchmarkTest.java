@@ -40,6 +40,8 @@ import org.sqlite.SQLiteConfig.JournalMode;
 import org.sqlite.SQLiteConfig.SynchronousMode;
 import org.sqlite.SQLiteConfig.TempStore;
 
+import de.zft2.gbanking.db.repository.SqlTemplateRepository;
+
 @EnabledIfSystemProperty(named = "gbanking.indexBenchmark", matches = "true")
 class DbIndexBenchmarkTest {
 

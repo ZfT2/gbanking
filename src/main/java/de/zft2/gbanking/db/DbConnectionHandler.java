@@ -21,6 +21,7 @@ import org.sqlite.SQLiteConfig.JournalMode;
 import org.sqlite.SQLiteConfig.SynchronousMode;
 import org.sqlite.SQLiteConfig.TempStore;
 
+import de.zft2.gbanking.db.repository.SqlTemplateRepository;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.tenant.TenantPaths;
 import de.zft2.gbanking.util.AppPaths;

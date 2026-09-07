@@ -1,4 +1,4 @@
-package de.zft2.gbanking.db;
+package de.zft2.gbanking.db.repository;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -7,18 +7,22 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import de.zft2.gbanking.db.DaoSqlStatements;
+import de.zft2.gbanking.db.DbSession;
+import de.zft2.gbanking.db.JdbcOperations;
+import de.zft2.gbanking.db.StatementsConfig;
 import de.zft2.gbanking.db.StatementsConfig.ResultType;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.CategoryRule;
 import de.zft2.gbanking.db.dao.Dao;
 import de.zft2.gbanking.db.dao.mapper.AbstractDaoMapper;
 
-final class CategoryRuleRepository extends JdbcDaoRepository<CategoryRule> {
+public final class CategoryRuleRepository extends JdbcDaoRepository<CategoryRule> {
 
 	private static final String RELATION_PARENT_ID = "relationParentId";
 	private final BankAccountRepository bankAccountRepository;
 
-	CategoryRuleRepository(DbSession session, BankAccountRepository bankAccountRepository) {
+	public CategoryRuleRepository(DbSession session, BankAccountRepository bankAccountRepository) {
 		super(CategoryRule.class, session);
 		this.bankAccountRepository = bankAccountRepository;
 	}

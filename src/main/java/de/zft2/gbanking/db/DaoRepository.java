@@ -8,7 +8,7 @@ import de.zft2.gbanking.db.StatementsConfig.StatementType;
 import de.zft2.gbanking.db.dao.Dao;
 import de.zft2.gbanking.db.enu.StateType;
 
-interface DaoRepository<T extends Dao> {
+public interface DaoRepository<T extends Dao> {
 
 	Class<T> type();
 
