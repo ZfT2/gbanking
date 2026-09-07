@@ -1212,14 +1212,9 @@ public class GBankingGui extends Application implements BaseGui {
 		BackgroundActionCoordinator.getInstance().resume();
 
 		if (!tenantLoginDialog.loginTenant()) {
-			if (tenantLoginDialog.reopenActiveTenant()) {
-				primaryStage.show();
-				finishLifecycleTransition();
-				log.info("Tenant switch cancelled, previous tenant restored.");
-			} else {
-				BackgroundActionCoordinator.getInstance().stopAcceptingActions();
-				Platform.exit();
-			}
+			tenantLoginDialog.releaseTenantLock();
+			BackgroundActionCoordinator.getInstance().stopAcceptingActions();
+			Platform.exit();
 			return;
 		}
 

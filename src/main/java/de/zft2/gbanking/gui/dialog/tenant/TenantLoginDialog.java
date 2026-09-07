@@ -218,7 +218,11 @@ public class TenantLoginDialog implements BaseGui {
 		refreshActiveTenantProfile();
 		TenantDatabaseLifecycleProgressBarPanel progressPanel = new TenantDatabaseLifecycleProgressBarPanel(gui.getStage(), false, activeSession);
 		showLifecycleProgress(progressPanel);
-		return !progressPanel.hasFailed();
+		if (progressPanel.hasFailed()) {
+			return false;
+		}
+		clearActiveSession();
+		return true;
 	}
 
 	public boolean reopenActiveTenant() {
@@ -271,13 +275,17 @@ public class TenantLoginDialog implements BaseGui {
 	}
 
 	public void releaseTenantLock() {
+		clearActiveSession();
+		releaseLockOnly();
+	}
+
+	private void clearActiveSession() {
 		if (activeSession != null) {
 			TenantFileEncryptionContext.deactivate();
 			activeSession.close();
 			activeSession = null;
 			activeTenantStore = null;
 		}
-		releaseLockOnly();
 	}
 
 	private void releaseLockOnly() {
