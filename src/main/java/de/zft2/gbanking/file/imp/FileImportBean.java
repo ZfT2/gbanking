@@ -219,7 +219,10 @@ public class FileImportBean implements BaseMessagesDb {
 		}
 		putIfPresent(accountIdMapByAccountname, contextAccount.getAccountName(), contextAccount.getId());
 		putIfPresent(crossAccountIdMapByIdentifier, contextAccount.getIban(), contextAccount.getId());
-		putIfPresent(crossAccountIdMapByIdentifier, contextAccount.getNumber(), contextAccount.getId());
+		putIfPresent(crossAccountIdMapByIdentifier,
+				ImportedAccountResolver.bankAccountIdentifier(contextAccount.getBlz(), contextAccount.getNumber()), contextAccount.getId());
+		putIfPresent(crossAccountIdMapByIdentifier, ImportedAccountResolver.normalizeAccountNumber(contextAccount.getNumber()),
+				contextAccount.getId());
 	}
 
 	private String resolveFallbackAccountName(Collection<de.zft2.fp3xmlextract.data.Fp3XmlBooking> bookingList) {
@@ -303,9 +306,17 @@ public class FileImportBean implements BaseMessagesDb {
 			return existingAccountId;
 		}
 
-		existingAccountId = lookupAccountId(accountIdsByIdentifier, bankAccount.getNumber());
+		String bankAccountIdentifier = ImportedAccountResolver.bankAccountIdentifier(bankAccount.getBlz(), bankAccount.getNumber());
+		existingAccountId = lookupAccountId(accountIdsByIdentifier, bankAccountIdentifier);
 		if (existingAccountId != null) {
 			return existingAccountId;
+		}
+		if (bankAccountIdentifier == null) {
+			existingAccountId = lookupAccountId(accountIdsByIdentifier,
+					ImportedAccountResolver.normalizeAccountNumber(bankAccount.getNumber()));
+			if (existingAccountId != null) {
+				return existingAccountId;
+			}
 		}
 
 		return lookupAccountId(accountIdsByName, bankAccount.getAccountName());
@@ -326,7 +337,9 @@ public class FileImportBean implements BaseMessagesDb {
 
 		putIfPresent(accountIdsByName, bankAccount.getAccountName(), bankAccount.getId());
 		putIfPresent(accountIdsByIdentifier, bankAccount.getIban(), bankAccount.getId());
-		putIfPresent(accountIdsByIdentifier, bankAccount.getNumber(), bankAccount.getId());
+		putIfPresent(accountIdsByIdentifier, ImportedAccountResolver.bankAccountIdentifier(bankAccount.getBlz(), bankAccount.getNumber()),
+				bankAccount.getId());
+		putIfPresent(accountIdsByIdentifier, ImportedAccountResolver.normalizeAccountNumber(bankAccount.getNumber()), bankAccount.getId());
 	}
 
 	private void putIfPresent(Map<String, Integer> accountIds, String key, Integer id) {

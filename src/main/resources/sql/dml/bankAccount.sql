@@ -68,10 +68,25 @@ FROM bankAccount
 WHERE accountName IS NOT NULL;
 
 [SQL_SELECT_BANKACCOUNT_IDS_BY_IBAN_OR_NUMBER]
+WITH normalizedAccounts AS (
+  SELECT id, TRIM(iban) AS iban, TRIM(blz) AS blz,
+    CASE
+      WHEN number IS NULL OR TRIM(number) = '' THEN NULL
+      WHEN LTRIM(TRIM(number), '0') = '' THEN '0'
+      ELSE LTRIM(TRIM(number), '0')
+    END AS number
+  FROM bankAccount
+)
 SELECT id, iban AS identifier
-FROM bankAccount
-WHERE iban IS NOT NULL
+FROM normalizedAccounts
+WHERE iban IS NOT NULL AND TRIM(iban) <> ''
 UNION
-SELECT id, number AS identifier
-FROM bankAccount
-WHERE number IS NOT NULL;
+SELECT id, blz || '/' || number AS identifier
+FROM normalizedAccounts
+WHERE blz IS NOT NULL AND blz <> '' AND number IS NOT NULL
+UNION
+SELECT MIN(id) AS id, number AS identifier
+FROM normalizedAccounts
+WHERE number IS NOT NULL
+GROUP BY number
+HAVING COUNT(*) = 1;

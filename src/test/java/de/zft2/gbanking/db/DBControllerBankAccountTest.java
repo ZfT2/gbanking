@@ -1,6 +1,7 @@
 package de.zft2.gbanking.db;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -311,7 +312,7 @@ class DBControllerBankAccountTest extends DBControllerIntegrationBaseTest {
 
 		assertTrue(!accountIdMap.isEmpty());
 		
-		assertEquals(4, accountIdMap.size());
+		assertEquals(6, accountIdMap.size());
 		
 		Set<Integer> idSet = new HashSet<Integer>(accountIdMap.values());
 		
@@ -322,5 +323,24 @@ class DBControllerBankAccountTest extends DBControllerIntegrationBaseTest {
 		Integer secondId = setIterator.next();
 		
 		assertNotEquals(firstId, secondId);
+	}
+
+	@Test
+	void getCrossAccountsIdsByIbanOrNumber_shouldExcludeAmbiguousNormalizedAccountNumbers() {
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("44444444"));
+		BankAccount firstAccount = TestDataFactory.createSampleAccount(bankAccess.getId());
+		firstAccount.setBlz("11110000");
+		firstAccount.setNumber("00001234");
+		firstAccount = db.insertOrUpdate(firstAccount);
+		BankAccount secondAccount = TestDataFactory.createSampleAccount(bankAccess.getId());
+		secondAccount.setBlz("22220000");
+		secondAccount.setNumber("1234");
+		secondAccount = db.insertOrUpdate(secondAccount);
+
+		Map<String, Integer> accountIdMap = db.getCrossAccountsIdsByIbanOrNumber();
+
+		assertEquals(firstAccount.getId(), accountIdMap.get("11110000/1234"));
+		assertEquals(secondAccount.getId(), accountIdMap.get("22220000/1234"));
+		assertFalse(accountIdMap.containsKey("1234"));
 	}
 }

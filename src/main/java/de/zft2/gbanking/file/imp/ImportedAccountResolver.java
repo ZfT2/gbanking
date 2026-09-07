@@ -35,20 +35,47 @@ public final class ImportedAccountResolver {
 			Integer crossAccountId = accountIdsByName.get(importBooking.getCrossAccountName());
 			return allowedCrossAccountId(sourceAccountId, crossAccountId, importBooking);
 		}
-		String crossIban = Counterpart.ibanOf(importBooking.getCounterpart());
-		if (crossIban == null || accountIdsByIdentifier == null) {
+		if (accountIdsByIdentifier == null) {
 			return null;
 		}
-		Integer crossAccountId = accountIdsByIdentifier.get(normalizeIdentifier(crossIban));
-		if (crossAccountId == null && crossIban.length() >= MIN_IBAN_LENGTH_WITH_ACCOUNT_NUMBER) {
+		Counterpart counterpart = importBooking.getCounterpart();
+		String crossIban = Counterpart.ibanOf(counterpart);
+		Integer crossAccountId = lookupAccountId(accountIdsByIdentifier, crossIban);
+		if (crossAccountId == null && crossIban != null && crossIban.length() >= MIN_IBAN_LENGTH_WITH_ACCOUNT_NUMBER) {
 			String accountNumber = crossIban.substring(IBAN_ACCOUNT_NUMBER_OFFSET);
-			crossAccountId = accountIdsByIdentifier.get(normalizeIdentifier(accountNumber));
+			crossAccountId = lookupAccountId(accountIdsByIdentifier, accountNumber);
+		}
+		if (crossAccountId == null && counterpart != null) {
+			crossAccountId = lookupAccountId(accountIdsByIdentifier,
+					bankAccountIdentifier(counterpart.getBlz(), counterpart.getAccountNumber()));
+		}
+		if (crossAccountId == null && counterpart != null) {
+			crossAccountId = lookupAccountId(accountIdsByIdentifier, counterpart.getAccountNumber());
 		}
 		return allowedCrossAccountId(sourceAccountId, crossAccountId, importBooking);
 	}
 
-	private static String normalizeIdentifier(String identifier) {
-		return identifier.replaceFirst("^0+(?!$)", "");
+	static String bankAccountIdentifier(String blz, String accountNumber) {
+		if (blz == null || blz.isBlank() || accountNumber == null || accountNumber.isBlank()) {
+			return null;
+		}
+		return blz.trim() + "/" + normalizeAccountNumber(accountNumber);
+	}
+
+	static String normalizeAccountNumber(String accountNumber) {
+		if (accountNumber == null || accountNumber.isBlank()) {
+			return null;
+		}
+		return accountNumber.trim().replaceFirst("^0+(?!$)", "");
+	}
+
+	private static Integer lookupAccountId(Map<String, Integer> accountIdsByIdentifier, String identifier) {
+		if (identifier == null || identifier.isBlank()) {
+			return null;
+		}
+		Integer accountId = accountIdsByIdentifier.get(identifier.trim());
+		return accountId != null || identifier.indexOf('/') >= 0 ? accountId
+				: accountIdsByIdentifier.get(normalizeAccountNumber(identifier));
 	}
 
 	private static Integer allowedCrossAccountId(int sourceAccountId, Integer crossAccountId, Booking importBooking) {

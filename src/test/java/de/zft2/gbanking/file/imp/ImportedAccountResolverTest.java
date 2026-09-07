@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import de.zft2.core.dto.Booking;
 import de.zft2.core.dto.Booking.Typ;
 import de.zft2.core.dto.Counterpart;
+import de.zft2.core.dto.DefaultCounterpart;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.file.imp.dto.ImportBooking;
 
@@ -39,6 +40,19 @@ class ImportedAccountResolverTest {
 
 		booking = bookingWithIban("DE44500105170000001234");
 		assertEquals(9, ImportedAccountResolver.resolveCrossAccountId(booking, 7, Map.of(), Map.of("1234", 9)));
+	}
+
+	@Test
+	void resolveCrossAccountId_shouldPreferBankCodeWithAccountNumberAndRequireUniqueNumberFallback() {
+		ImportBooking booking = new ImportBooking();
+		booking.setCounterpart(DefaultCounterpart.ofNullable(null, null, null, "00001234", "20020000", null));
+		Map<String, Integer> accountIdsByIdentifier = Map.of("20020000/1234", 8, "1234", 9);
+
+		assertEquals(8, ImportedAccountResolver.resolveCrossAccountId(booking, 7, Map.of(), accountIdsByIdentifier));
+
+		booking.setCounterpart(DefaultCounterpart.ofNullable(null, null, null, "00001234", null, null));
+		assertEquals(9, ImportedAccountResolver.resolveCrossAccountId(booking, 7, Map.of(), accountIdsByIdentifier));
+		assertNull(ImportedAccountResolver.resolveCrossAccountId(booking, 7, Map.of(), Map.of()));
 	}
 
 	@Test
