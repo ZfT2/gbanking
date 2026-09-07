@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-07
+
+### Added
+- add additional source to institute bank list database
+
+### Fixed
+- institute.db stateTyp setting and fix dk import
+- sanitize HBCI logs + remove ineffective prenotification workarounds
+
+### Changed
+- New database persistence mapping model
+
+### Maintenance
+- release: prepare next development version 0.5.1-SNAPSHOT
+
 ## [0.5.0] - 2026-08-31
 
 ### Added
@@ -427,62 +442,4 @@ All notable changes to this project will be documented in this file.
 - Normalize line endings
 - Update bank list
 - release: prepare next development version 0.6.1-SNAPSHOT
-
-## [0.6.0] - 2026-05-27
-
-### Added
-- In-place update feature
-- add foreign moneytransfer
-- show BPD and UPD buttons in bankaccess view
-- Configure db dir
-- Introduce split bookings
-- Fp3 export & import
-- MT940 export & import
-- Added documentation
-- Extended file import/export
-- Moneytransfer CSV import
-- default booking sorting by booking date desc
-- balance from bank in account details
-- duplicate check for new bookings
-- context menue for deleting manuell bookings
-- add category column to booking table
-- restore booking table striping
-- VOP display
-- save additional hbci data
-- Mapping preno bookings
-- Automatic alignment booking if difference between bookings and account balance
-- Account balance from hbci call
-- Zip tenant database backups
-- Tenant database backup
-- Teant lock, avoid multiple instances per tenant
-- Moneytransfer Export
-- Improve VOP handling
-- Moneytransfer templates
-
-### Fixed
-- Missing field in select statement
-- neutral form in text
-- Styling transaction detail panel
-- Styling moneytransfer panel
-- better display of VOP return data
-- booking balance calculation by booking date instead of id
-- second hbci call failed
-- isolate DB migrations tests
-
-### Changed
-- Use interfaces in daos step 2
-- Use interfaces in daos step 1
-- Change string dates to java LocalDate
-- Improved recipient handling and matching
-- extracted booking logic to new project booking-core
-- Improved logging
-- Sub dir for import properties
-- File export & import
-- Balance calculation in Code instead SQL.
-- Rename import dao mapper
-- Use Enum DB Ids
-
-### Maintenance
-- Update libs
-- release: prepare next development version 0.5.1-SNAPSHOT
 
