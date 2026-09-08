@@ -86,13 +86,18 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 			EnablebankingSession session = ensureAuthorizedSession(bankAccess, configuration, client, statusDialog);
 			updateStatus(statusDialog, 0.3d, "UI_DIALOG_ENABLEBANKING_STATUS_ACCOUNT");
 			EnablebankingRemoteAccount remoteAccount = findRemoteAccount(bankAccount, session.accounts());
+			String accountUid = remoteAccount.uid();
+			remoteAccount = client.getAccountDetails(accountUid);
+			EnablebankingSetupService.mapAccount(accessData.getAspspName(), accessData.getAspspCountry(),
+					remoteAccount, bankAccount);
+			dbController.insertOrUpdate(bankAccount);
 			LocalDate from = resolveStart(bankAccount);
-			List<Map<String, Object>> transactions = retrieveAllTransactions(client, remoteAccount.uid(), from,
+			List<Map<String, Object>> transactions = retrieveAllTransactions(client, accountUid, from,
 					statusDialog);
 			updateStatus(statusDialog, 0.7d, "UI_DIALOG_ENABLEBANKING_STATUS_PROCESSING");
 			MappedTransactions mapped = mapTransactions(bankAccount, transactions, from);
 			updateStatus(statusDialog, 0.8d, "UI_DIALOG_ENABLEBANKING_STATUS_BALANCE");
-			Optional<BigDecimal> balance = resolveBookedBalance(client.getBalances(remoteAccount.uid()), bankAccount.getBaseCurrency());
+			Optional<BigDecimal> balance = resolveBookedBalance(client.getBalances(accountUid), bankAccount.getBaseCurrency());
 			accessData.setRateLimitUntil(null);
 			dbController.insertOrUpdate(bankAccess);
 			updateStatus(statusDialog, 0.9d, "UI_DIALOG_ENABLEBANKING_STATUS_SAVING");

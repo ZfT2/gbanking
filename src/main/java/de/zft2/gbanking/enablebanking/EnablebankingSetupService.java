@@ -12,6 +12,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
+import de.zft2.gbanking.cache.InstituteLookupCache;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccessEnablebanking;
 import de.zft2.gbanking.db.dao.BankAccount;
@@ -162,19 +163,40 @@ public class EnablebankingSetupService extends AbstractDbService {
 
 	private BankAccount mapAccount(EnablebankingAspsp aspsp, EnablebankingRemoteAccount remote,
 			BankAccount existing) {
+		return mapAccount(aspsp.name(), aspsp.country(), remote, existing);
+	}
+
+	static BankAccount mapAccount(String bankName, String country, EnablebankingRemoteAccount remote,
+			BankAccount existing) {
 		BankAccount account = existing != null ? existing : new BankAccount();
-		account.setProviderAccountId(remote.identificationHash());
-		account.setAccountName(existing != null && hasText(existing.getAccountName()) ? existing.getAccountName()
-				: firstText(remote.name(), remote.details(), remote.product(), aspsp.name() + " - " + firstText(remote.iban(), remote.number())));
-		account.setAccountType(mapAccountType(remote.cashAccountType()));
-		account.setCurrency(remote.currency());
-		account.setIban(remote.iban());
-		account.setBic(remote.bic());
-		account.setNumber(remote.number());
-		account.setBankName(aspsp.name());
-		account.setCountry(aspsp.country());
-		account.setOwnerName(remote.ownerName());
-		account.setSEPAAccount(hasText(remote.iban()));
+		AccountType accountType = mapAccountType(remote.cashAccountType());
+		if (accountType == AccountType.UNKNOWN_ACCOUNT && account.getAccountType() != null) {
+			accountType = account.getAccountType();
+		}
+		String iban = firstText(remote.iban(), account.getIban());
+		String number = firstText(remote.number(), account.getNumber(),
+				InstituteLookupCache.extractGermanAccountNumberFromIban(iban));
+		String ibanBlz = InstituteLookupCache.extractGermanBlzFromIban(iban);
+		boolean germanAccount = ibanBlz != null || "DE".equalsIgnoreCase(firstText(country, account.getCountry()));
+		String blz = firstText(germanAccount ? InstituteLookupCache.normalizeBlzCandidate(remote.blz()) : null,
+				account.getBlz(), ibanBlz);
+		String bic = hasText(remote.bic()) ? remote.bic()
+				: firstText(account.getBic(), InstituteLookupCache.findBicForBlz(blz).orElse(null));
+		account.setProviderAccountId(firstText(remote.identificationHash(), account.getProviderAccountId()));
+		account.setAccountType(accountType);
+		account.setCurrency(firstText(remote.currency(), account.getCurrency()));
+		if (existing == null || !hasText(existing.getAccountName())
+				|| existing.getAccountName().equals(remote.ownerName())) {
+			account.setAccountName(createAccountName(accountType, number, account.getCurrency()));
+		}
+		account.setIban(iban);
+		account.setBic(bic);
+		account.setBlz(blz);
+		account.setNumber(number);
+		account.setBankName(firstText(bankName, account.getBankName()));
+		account.setCountry(firstText(country, account.getCountry()));
+		account.setOwnerName(firstText(remote.ownerName(), account.getOwnerName()));
+		account.setSEPAAccount(hasText(iban));
 		account.setOfflineAccount(false);
 		account.setAccountState(AccountState.ACTIVE);
 		account.setSource(Source.ONLINE);
@@ -183,7 +205,22 @@ public class EnablebankingSetupService extends AbstractDbService {
 		return account;
 	}
 
-	private AccountType mapAccountType(String cashAccountType) {
+	private static String createAccountName(AccountType accountType, String number, String currency) {
+		List<String> components = new ArrayList<>(4);
+		if (accountType != AccountType.UNKNOWN_ACCOUNT) {
+			components.add(accountType.toString());
+		}
+		if (hasText(number)) {
+			components.add(number);
+		}
+		if (hasText(currency)) {
+			components.add(currency);
+		}
+		components.add("(PSD2)");
+		return String.join(" - ", components);
+	}
+
+	private static AccountType mapAccountType(String cashAccountType) {
 		return switch (upper(cashAccountType)) {
 		case "CACC" -> AccountType.CURRENT_ACCOUNT;
 		case "SVGS" -> AccountType.SAVINGS_ACCOUNT;

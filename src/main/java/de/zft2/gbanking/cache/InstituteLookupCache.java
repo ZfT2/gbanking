@@ -59,16 +59,22 @@ public final class InstituteLookupCache {
 		return findBankNameForBankCode(blz).or(() -> findBankNameForBankCode(bic));
 	}
 
-	public static String extractGermanBlzFromIban(String iban) {
-		if (iban == null) {
-			return null;
-		}
+	public static Optional<String> findBicForBlz(String blz) {
+		return getEntriesForBlz(blz).stream()
+				.map(entry -> entry.bic())
+				.map(value -> trimToNull(value))
+				.filter(Objects::nonNull)
+				.findFirst();
+	}
 
-		String normalizedIban = iban.replace(" ", "").trim();
-		if (normalizedIban.length() < 12 || !normalizedIban.regionMatches(true, 0, "DE", 0, 2)) {
-			return null;
-		}
-		return normalizedIban.substring(4, 12);
+	public static String extractGermanBlzFromIban(String iban) {
+		String normalizedIban = normalizeGermanIban(iban);
+		return normalizedIban != null ? normalizedIban.substring(4, 12) : null;
+	}
+
+	public static String extractGermanAccountNumberFromIban(String iban) {
+		String normalizedIban = normalizeGermanIban(iban);
+		return normalizedIban != null ? normalizedIban.substring(12) : null;
 	}
 
 	public static boolean isBlzCandidate(String value) {
@@ -192,6 +198,15 @@ public final class InstituteLookupCache {
 		String normalizedBic = trimmed.replace(" ", "").toUpperCase(Locale.ROOT);
 		return normalizedBic.length() == BIC11_LENGTH && normalizedBic.endsWith("XXX")
 				? normalizedBic.substring(0, BIC8_LENGTH) : normalizedBic;
+	}
+
+	private static String normalizeGermanIban(String iban) {
+		String normalizedIban = trimToNull(iban);
+		if (normalizedIban == null) {
+			return null;
+		}
+		normalizedIban = normalizedIban.replace(" ", "").toUpperCase(Locale.ROOT);
+		return normalizedIban.matches("DE\\d{20}") ? normalizedIban : null;
 	}
 
 	private static String trimToNull(String value) {

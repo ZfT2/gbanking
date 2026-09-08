@@ -54,6 +54,7 @@ class EnablebankingApiClientTest {
 		URI authorizationUri = client.createAuthorization(aspsp, "personal", "redirect",
 				"https://127.0.0.1:18443/callback", "state-value");
 		EnablebankingSession session = client.createSession("authorization-code");
+		EnablebankingRemoteAccount accountDetails = client.getAccountDetails("account-uid");
 
 		assertEquals("Example Bank", aspsp.name());
 		assertEquals("Redirect", aspsp.authMethods().get(0).title());
@@ -63,8 +64,12 @@ class EnablebankingApiClientTest {
 		assertTrue(session.isAuthorized());
 		assertEquals(OffsetDateTime.parse("2026-12-31T00:00:00Z"), session.validUntil());
 		assertEquals("identification-hash", session.accounts().get(0).identificationHash());
-		assertEquals("DE123", session.accounts().get(0).iban());
+		assertEquals("DE44500105175407324931", session.accounts().get(0).iban());
 		assertEquals("4711", session.accounts().get(0).number());
+		assertEquals("50010517", session.accounts().get(0).blz());
+		assertEquals("BICADEFFXXX", session.accounts().get(0).bic());
+		assertEquals("Max Mustermann", session.accounts().get(0).ownerName());
+		assertEquals("identification-hash", accountDetails.identificationHash());
 	}
 
 	@Test
@@ -103,13 +108,13 @@ class EnablebankingApiClientTest {
 			response = "{\"url\":\"https://bank.example/authorize\"}";
 		} else if ("/sessions".equals(path)) {
 			response = "{\"session_id\":\"session-id\",\"access\":{\"valid_until\":\"2026-12-31T00:00:00Z\"},"
-					+ "\"accounts\":[{\"uid\":\"account-uid\"," 
-					+ "\"identification_hash\":\"identification-hash\",\"currency\":\"EUR\"," 
-					+ "\"account_id\":{\"iban\":\"DE123\",\"other\":{\"identification\":\"4711\"}}}]}";
+					+ "\"accounts\":[" + accountDetailsJson() + "]}";
 		} else if ("/sessions/session-id".equals(path)) {
 			response = "{\"status\":\"AUTHORIZED\",\"access\":{\"valid_until\":\"2026-12-31T00:00:00Z\"},"
 					+ "\"accounts\":[\"account-uid\"],\"accounts_data\":[{\"uid\":\"account-uid\"," 
 					+ "\"identification_hash\":\"identification-hash\"}]}";
+		} else if ("/accounts/account-uid/details".equals(path)) {
+			response = accountDetailsJson();
 		} else if (path.endsWith("/transactions")) {
 			Map<?, ?> query = parseQuery(exchange.getRequestURI().getRawQuery());
 			response = query.containsKey("continuation_key")
@@ -123,6 +128,15 @@ class EnablebankingApiClientTest {
 		exchange.sendResponseHeaders(200, content.length);
 		exchange.getResponseBody().write(content);
 		exchange.close();
+	}
+
+	private String accountDetailsJson() {
+		return "{\"uid\":\"account-uid\",\"identification_hash\":\"identification-hash\","
+				+ "\"currency\":\"EUR\",\"cash_account_type\":\"CACC\",\"name\":\"Max Mustermann\","
+				+ "\"account_id\":{\"iban\":\"DE44500105175407324931\"},"
+				+ "\"all_account_ids\":[{\"scheme_name\":\"BBAN\",\"identification\":\"4711\"}],"
+				+ "\"account_servicer\":{\"bic_fi\":\"BICADEFFXXX\","
+				+ "\"clearing_system_member_id\":{\"member_id\":\"50010517\"}}}";
 	}
 
 	@SuppressWarnings("unchecked")

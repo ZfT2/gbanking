@@ -113,6 +113,10 @@ public class EnablebankingApiClient {
 		return objectList(response.get("balances"));
 	}
 
+	public EnablebankingRemoteAccount getAccountDetails(String accountUid) {
+		return mapAccount(send("accounts/" + encodePath(accountUid) + "/details", "GET", null));
+	}
+
 	public EnablebankingTransactionPage getTransactions(String accountUid, LocalDate dateFrom,
 			String strategy, String continuationKey) {
 		StringBuilder path = new StringBuilder("accounts/").append(encodePath(accountUid)).append("/transactions");
@@ -186,7 +190,7 @@ public class EnablebankingApiClient {
 		if (accountData.isEmpty()) {
 			accountData = objectList(value.get("accounts"));
 		}
-		List<EnablebankingRemoteAccount> accounts = accountData.stream().map(this::mapAccount).toList();
+		List<EnablebankingRemoteAccount> accounts = accountData.stream().map(account -> mapAccount(account)).toList();
 		String validUntil = firstText(object(value.get("access")), "valid_until");
 		validUntil = firstText(validUntil, string(value.get("valid_until")));
 		return new EnablebankingSession(firstText(value, "session_id", "id"),
@@ -194,24 +198,42 @@ public class EnablebankingApiClient {
 				validUntil != null ? OffsetDateTime.parse(validUntil) : null, accounts);
 	}
 
-	private EnablebankingRemoteAccount mapAccount(Map<String, Object> value) {
+	static EnablebankingRemoteAccount mapAccount(Map<String, Object> value) {
 		Map<String, Object> accountId = object(value.get("account_id"));
 		Map<String, Object> accountServicer = object(value.get("account_servicer"));
-		Map<String, Object> other = object(accountId.get("other"));
+		Map<String, Object> clearingSystem = object(accountServicer.get("clearing_system_member_id"));
 		return new EnablebankingRemoteAccount(string(value.get("uid")), string(value.get("identification_hash")),
 				string(accountId.get("iban")), firstText(accountServicer, "bic_fi", "bic"),
-				firstText(firstText(accountId, "bban"), string(other.get("identification"))), firstText(value, "name", "display_name"),
-				string(value.get("details")), string(value.get("product")), string(value.get("cash_account_type")),
-				string(value.get("currency")), ownerName(value.get("owner_name"), other));
+				firstText(firstText(accountServicer, "blz", "bank_code", "bank_code_number"),
+						string(clearingSystem.get("member_id"))), accountNumber(value, accountId),
+				string(value.get("cash_account_type")), string(value.get("currency")), ownerName(value));
 	}
 
-	private String ownerName(Object ownerName, Map<String, Object> other) {
+	private static String accountNumber(Map<String, Object> value, Map<String, Object> accountId) {
+		String directNumber = firstText(firstText(value, "account_number", "number"),
+				firstText(accountId, "bban", "number"));
+		if (directNumber != null) {
+			return directNumber;
+		}
+		String bban = objectList(value.get("all_account_ids")).stream()
+				.filter(identifier -> "BBAN".equalsIgnoreCase(string(identifier.get("scheme_name"))))
+				.map(identifier -> string(identifier.get("identification")))
+				.filter(identifier -> identifier != null && !identifier.isBlank())
+				.findFirst().orElse(null);
+		return firstText(bban, string(object(accountId.get("other")).get("identification")));
+	}
+
+	private static String ownerName(Map<String, Object> account) {
+		String directName = firstText(account, "name", "holder", "holder_name", "display_name");
+		if (directName != null) {
+			return directName;
+		}
+		Object ownerName = account.get("owner_name");
 		if (ownerName instanceof List<?> owners) {
 			return owners.stream().map(value -> string(value)).filter(value -> value != null && !value.isBlank())
 					.findFirst().orElse(null);
 		}
-		String value = string(ownerName);
-		return value != null ? value : string(other.get("identification"));
+		return string(ownerName);
 	}
 
 	private static String encodePath(String value) {

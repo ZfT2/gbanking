@@ -133,10 +133,21 @@ class InstituteLookupCacheTest {
 	}
 
 	@Test
+	void findBicForBlz_shouldReturnFirstAvailableBic() {
+		db.insertOrUpdate(createInstitute("50010517", "Bank without BIC", null, 1));
+		db.insertOrUpdate(createInstitute("50010517", "Bank with BIC", "BICADEFFXXX", 2));
+
+		assertEquals("BICADEFFXXX", InstituteLookupCache.findBicForBlz("50010517").orElseThrow());
+		assertTrue(InstituteLookupCache.findBicForBlz("00000000").isEmpty());
+	}
+
+	@Test
 	void extractGermanBlzFromIban_shouldReturnExpectedBankCode() {
 		assertEquals("50010517", InstituteLookupCache.extractGermanBlzFromIban("DE44 5001 0517 5407 3249 31"));
 		assertEquals("50010517", InstituteLookupCache.extractGermanBlzFromIban("de44500105175407324931"));
+		assertEquals("5407324931", InstituteLookupCache.extractGermanAccountNumberFromIban("DE44 5001 0517 5407 3249 31"));
 		assertNull(InstituteLookupCache.extractGermanBlzFromIban("FR7630006000011234567890189"));
+		assertNull(InstituteLookupCache.extractGermanAccountNumberFromIban("FR7630006000011234567890189"));
 		assertNull(InstituteLookupCache.extractGermanBlzFromIban("DE12"));
 		assertNull(InstituteLookupCache.extractGermanBlzFromIban(null));
 		assertTrue(InstituteLookupCache.getEntriesForBlz(" ").isEmpty());
