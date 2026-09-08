@@ -125,6 +125,25 @@ target/
 
 ---
 
+## Release Tags
+
+Pushing a version tag starts the release workflow. Beta releases use the full
+target version followed by `-beta.<number>`:
+
+```
+git tag v0.6.1-beta.1
+git push origin v0.6.1-beta.1
+```
+
+GitHub marks beta versions as prereleases. They do not replace the latest stable
+release and do not update the development version or permanent changelog. Publish
+the final release from the same version line with a tag such as `v0.6.1`.
+
+Beta suffixes cannot be combined with the `+patch`, `+minor` or `+major` release
+increments.
+
+---
+
 # Code Style
 
 Please follow these guidelines:

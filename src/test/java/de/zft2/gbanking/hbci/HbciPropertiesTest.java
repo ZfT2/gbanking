@@ -55,6 +55,7 @@ class HbciPropertiesTest {
 	void shouldConvertApplicationVersionToFinTsProductVersion() {
 		assertEquals("0.3.0", HbciProperties.toFinTsProductVersion("0.3.0"));
 		assertEquals("0.3.1", HbciProperties.toFinTsProductVersion("0.3.1-SNAPSHOT"));
+		assertEquals("0.6.1", HbciProperties.toFinTsProductVersion("0.6.1-beta.1"));
 		assertEquals("0.10", HbciProperties.toFinTsProductVersion("0.10.0"));
 		assertEquals("10.0", HbciProperties.toFinTsProductVersion("10.0.0"));
 	}
