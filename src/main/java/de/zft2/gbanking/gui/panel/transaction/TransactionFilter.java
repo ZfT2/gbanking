@@ -11,6 +11,7 @@ import java.util.regex.Pattern;
 
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingNoteDetails;
+import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.gui.util.DateFormatUtils;
 
 final class TransactionFilter {
@@ -67,7 +68,6 @@ final class TransactionFilter {
 		if (filter.isBlank()) {
 			return true;
 		}
-		String recipientName = booking.getRecipient() != null ? booking.getRecipient().getName() : null;
 		String categoryName = booking.getCategory() != null ? booking.getCategory().getFullName() : null;
 		String sourceDescription = booking.getSource() != null ? booking.getSource().toString() : null;
 		String sourceSymbol = booking.getSource() != null ? booking.getSource().getSymbol() : null;
@@ -76,10 +76,16 @@ final class TransactionFilter {
 		String foreignCurrency = booking.getForeignCurrencyDetails() != null
 				&& booking.getForeignCurrencyDetails().getForeignCurrency() != null
 						? booking.getForeignCurrencyDetails().getForeignCurrency().name() : null;
-		return containsAny(filter, booking.getPurpose(), note, recipientName, categoryName, foreignCurrency, booking.getCrossAccountName(),
-				booking.getAccountName(), sourceDescription, sourceSymbol) || matchesAmountSearch(booking.getAmount(), filter)
+		return containsAny(filter, booking.getPurpose(), note, categoryName, foreignCurrency, booking.getCrossAccountName(), booking.getAccountName(),
+				sourceDescription, sourceSymbol) || matchesRecipientSearch(booking.getRecipient(), filter)
+				|| matchesAmountSearch(booking.getAmount(), filter)
 				|| matchesDateSearch(booking.getDateBooking(), filter) || matchesDateSearch(booking.getDateValue(), filter)
 				|| matchesDateSearch(booking.getDate(), filter);
+	}
+
+	private static boolean matchesRecipientSearch(Recipient recipient, String filter) {
+		return recipient != null && containsAny(filter, recipient.getName(), recipient.getIban(), recipient.getAccountNumber(), recipient.getBic(),
+				recipient.getBlz(), recipient.getBank(), recipient.getNote());
 	}
 
 	private static boolean matchesAmountSearch(BigDecimal amount, String filter) {

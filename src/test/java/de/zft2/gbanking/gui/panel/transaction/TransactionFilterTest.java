@@ -8,12 +8,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Month;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingNoteDetails;
 import de.zft2.gbanking.db.dao.Category;
+import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.Source;
 
 class TransactionFilterTest {
@@ -40,6 +42,20 @@ class TransactionFilterTest {
 
 		assertTrue(matchesText(booking, "steuerberater"));
 		assertFalse(matchesText(booking, "bezahlt"));
+	}
+
+	@Test
+	void matches_shouldFindAllRecipientTextFields() {
+		Booking booking = booking("10.00", LocalDate.of(2026, Month.JULY, 15));
+		Recipient recipient = new Recipient("Erika Mustermann", "DE44123456789012345678", "GENODEF1S01", "1234567890", "50010517",
+				"Musterbank", Source.MANUELL);
+		recipient.setNote("Hausverwaltung");
+		booking.setRecipient(recipient);
+
+		for (String searchText : List.of("mustermann", "de44123456789012345678", "1234567890", "genodef1s01", "50010517", "musterbank",
+				"hausverwaltung")) {
+			assertTrue(matchesText(booking, searchText), () -> "Expected recipient field to match: " + searchText);
+		}
 	}
 
 	@Test
