@@ -13,6 +13,7 @@ import de.zft2.gbanking.db.dao.enu.BankAccessType;
 import de.zft2.gbanking.db.dao.enu.TanProcedure;
 import de.zft2.gbanking.db.dao.ParameterDataBankAccess;
 import de.zft2.gbanking.db.dao.Upd;
+import de.zft2.gbanking.enablebanking.EnablebankingAccountTransactionService;
 import de.zft2.gbanking.gui.BackgroundActionCoordinator;
 import de.zft2.gbanking.gui.dialog.BankAccessParameterDataDialog;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
@@ -36,6 +37,7 @@ import javafx.concurrent.Task;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Control;
@@ -180,7 +182,7 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 		buttonBankAccessNew.setOnAction(e -> newBankAccessDialog(ButtonContext.BUTTON_NEW));
 		buttonEnablebankingNew.setOnAction(e -> new EnablebankingSetupDialog(getOwnerWindow(),
 				parentPanel.getBankAccessListPanel()::refreshModelBankAccess).show());
-		buttonBankAccessUpdate.setOnAction(e -> newBankAccessDialog(ButtonContext.BUTTON_EDIT));
+		buttonBankAccessUpdate.setOnAction(e -> updateBankAccess());
 		buttonBankAccessEdit.setOnAction(e -> enableManualEditWithConfirmation());
 		buttonBankAccessSave.setOnAction(e -> saveManualChanges());
 		buttonBankAccessCancel.setOnAction(e -> cancelManualChanges());
@@ -188,6 +190,48 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 		buttonBankAccessRefreshParameterData.setOnAction(e -> refreshParameterData());
 		buttonBankAccessShowBpd.setOnAction(e -> showParameterData("BPD", Bpd.class));
 		buttonBankAccessShowUpd.setOnAction(e -> showParameterData("UPD", Upd.class));
+	}
+
+	private void updateBankAccess() {
+		if (currentBankAccess != null && currentBankAccess.getAccessType() == BankAccessType.ENABLEBANKING) {
+			reauthorizeEnablebankingAccess();
+		} else {
+			newBankAccessDialog(ButtonContext.BUTTON_EDIT);
+		}
+	}
+
+	private void reauthorizeEnablebankingAccess() {
+		String bankName = currentBankAccess.getBankName();
+		boolean confirmed = DialogWindowSupport.showConfirmation(getOwnerWindow(), AlertType.CONFIRMATION,
+				getText("UI_ENABLEBANKING_REAUTHORIZE_TITLE"), getText("UI_ENABLEBANKING_REAUTHORIZE_HEADER", bankName),
+				getText("UI_ENABLEBANKING_REAUTHORIZE_TEXT"), ButtonType.YES, ButtonType.NO);
+		if (!confirmed) {
+			return;
+		}
+
+		BankAccess access = currentBankAccess;
+		buttonBankAccessUpdate.setDisable(true);
+		Task<Boolean> task = new Task<>() {
+			@Override
+			protected Boolean call() {
+				return ServiceRegistry.getService(EnablebankingAccountTransactionService.class)
+						.reauthorizeAndRetrieve(access);
+			}
+		};
+		task.setOnSucceeded(event -> {
+			buttonBankAccessUpdate.setDisable(false);
+			refreshDisplayedBankAccess();
+		});
+		task.setOnFailed(event -> {
+			buttonBankAccessUpdate.setDisable(false);
+			String message = task.getException() != null && task.getException().getMessage() != null
+					? task.getException().getMessage() : getText("ERROR_ENABLEBANKING_REAUTHORIZATION");
+			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, message);
+		});
+		task.setOnCancelled(event -> buttonBankAccessUpdate.setDisable(false));
+		if (!BackgroundActionCoordinator.getInstance().start(task, "gbanking-enablebanking-reauthorization")) {
+			buttonBankAccessUpdate.setDisable(false);
+		}
 	}
 
 	private void refreshParameterData() {
@@ -238,13 +282,17 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 			return;
 		}
 
+		refreshDisplayedBankAccess();
+		DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.INFORMATION, getText("UI_INFO_BANK_ACCESS_REFRESH_SUCCESS"));
+	}
+
+	private void refreshDisplayedBankAccess() {
 		parentPanel.getBankAccessListPanel().refreshModelBankAccess();
 		BankAccess refreshedBankAccess = dbController.getBankAccessById(currentBankAccess.getId());
 		if (refreshedBankAccess != null) {
 			refreshedBankAccess.setAccounts(dbController.getAllByParent(de.zft2.gbanking.db.dao.BankAccount.class, refreshedBankAccess.getId()));
 			updatePanelFieldValues(refreshedBankAccess);
 		}
-		DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.INFORMATION, getText("UI_INFO_BANK_ACCESS_REFRESH_SUCCESS"));
 	}
 
 	private <T extends ParameterDataBankAccess> void showParameterData(String parameterType, Class<T> dataType) {
@@ -290,7 +338,6 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 
 	private void configureProviderActions(BankAccess access) {
 		boolean fints = access.getAccessType() == BankAccessType.HBCI;
-		buttonBankAccessUpdate.setDisable(access.getAccessType() == BankAccessType.ENABLEBANKING);
 		buttonBankAccessEdit.setDisable(!fints);
 		setVisibleAndManaged(buttonBankAccessRefreshParameterData, fints);
 		setVisibleAndManaged(buttonBankAccessShowBpd, fints);

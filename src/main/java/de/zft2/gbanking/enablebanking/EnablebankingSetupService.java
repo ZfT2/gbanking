@@ -96,13 +96,15 @@ public class EnablebankingSetupService extends AbstractDbService {
 			return false;
 		}
 		bankAccess.setAccounts(selectedAccounts);
-		return dbController.executeInTransaction(() -> {
+		dbController.executeInTransaction(() -> {
 			boolean success = ServiceRegistry.getService(BankAccessService.class).saveBankAccessAccountsToDB(bankAccess);
 			if (!success) {
 				throw new GBankingException("Enablebanking access and accounts were not saved");
 			}
-			return true;
 		});
+		EnablebankingAccountTransactionService retrievalService = ServiceRegistry.getService(EnablebankingAccountTransactionService.class);
+		selectedAccounts.forEach(account -> retrievalService.retrieve(account));
+		return true;
 	}
 
 	public void cancelAuthorization(BankAccess bankAccess) {

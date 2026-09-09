@@ -2,6 +2,7 @@ package de.zft2.gbanking.enablebanking;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -94,10 +95,20 @@ class EnablebankingApiClientTest {
 		assertEquals("BOOK", second.transactions().get(0).get("status"));
 	}
 
+	@Test
+	void shouldExposeStructuredErrorCode() {
+		EnablebankingException exception = assertThrows(EnablebankingException.class,
+				() -> client.getTransactions("unavailable", LocalDate.of(2022, 1, 1), "default", null));
+
+		assertTrue(exception.isWrongTransactionsPeriod());
+		assertEquals(400, exception.getHttpStatus());
+	}
+
 	private void handle(HttpExchange exchange) throws IOException {
 		assertNotNull(exchange.getRequestHeaders().getFirst("Authorization"));
 		String path = exchange.getRequestURI().getPath();
 		String response;
+		int statusCode = 200;
 		if ("/aspsps".equals(path)) {
 			response = "{\"aspsps\":[{\"name\":\"Example Bank\",\"country\":\"DE\","
 					+ "\"maximum_consent_validity\":15552000,\"psu_types\":[\"personal\"],"
@@ -115,6 +126,10 @@ class EnablebankingApiClientTest {
 					+ "\"identification_hash\":\"identification-hash\"}]}";
 		} else if ("/accounts/account-uid/details".equals(path)) {
 			response = accountDetailsJson();
+		} else if ("/accounts/unavailable/transactions".equals(path)) {
+			response = "{\"message\":\"Wrong transactions period requested\",\"code\":400,"
+					+ "\"error\":\"WRONG_TRANSACTIONS_PERIOD\"}";
+			statusCode = 400;
 		} else if (path.endsWith("/transactions")) {
 			Map<?, ?> query = parseQuery(exchange.getRequestURI().getRawQuery());
 			response = query.containsKey("continuation_key")
@@ -125,7 +140,7 @@ class EnablebankingApiClientTest {
 		}
 		byte[] content = response.getBytes(StandardCharsets.UTF_8);
 		exchange.getResponseHeaders().set("Content-Type", "application/json");
-		exchange.sendResponseHeaders(200, content.length);
+		exchange.sendResponseHeaders(statusCode, content.length);
 		exchange.getResponseBody().write(content);
 		exchange.close();
 	}

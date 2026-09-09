@@ -11,11 +11,13 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,9 +25,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccessEnablebanking;
 import de.zft2.gbanking.db.dao.BankAccount;
+import de.zft2.gbanking.db.dao.BankAccountRetrievalStatus;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingAdditionalDetails;
 import de.zft2.gbanking.db.dao.Psd2ClientConfiguration;
@@ -47,11 +53,16 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 
 	private static final int RETRIEVAL_OVERLAP_DAYS = 7;
 	private static final int RATE_LIMIT_COOLDOWN_HOURS = 6;
+	private static final int REAUTHORIZATION_OFFER_DAYS = 90;
+	private static final List<Integer> INITIAL_LOOKBACK_DAYS = List.of(1440, 1080, 720, 360, 180, 90);
 	private static final Set<String> PENDING_STATUSES = Set.of("PDNG", "HOLD");
 	private static final Set<String> BOOKED_STATUSES = Set.of("BOOK");
+	private static final Logger log = LogManager.getLogger(EnablebankingAccountTransactionService.class);
 
 	private final AccountTransactionService accountTransactionService;
 	private final EnablebankingAuthorizationService authorizationService;
+	private final ThreadLocal<Map<Integer, AccountTransactionRetrievalResult>> completedBatchResults =
+			ThreadLocal.withInitial(HashMap::new);
 
 	public EnablebankingAccountTransactionService() {
 		this(ServiceRegistry.getService(AccountTransactionService.class), new EnablebankingAuthorizationService());
@@ -64,6 +75,10 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 	}
 
 	public AccountTransactionRetrievalResult retrieve(BankAccount bankAccount) {
+		AccountTransactionRetrievalResult completedResult = takeCompletedBatchResult(bankAccount);
+		if (completedResult != null) {
+			return completedResult;
+		}
 		BankAccess bankAccess = getAccess(bankAccount);
 		if (bankAccess == null) {
 			return persist(bankAccount, AccountTransactionRetrievalResult.failure(
@@ -82,27 +97,24 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 		try {
 			Psd2ClientConfiguration configuration = getConfiguration(accessData);
 			EnablebankingApiClient client = new EnablebankingApiClient(configuration);
+			if (shouldOfferReauthorization(bankAccount) && requestReauthorization(bankAccess, statusDialog)) {
+				BatchRetrieval batch = reauthorizeAndRetrieve(bankAccess, configuration, client, statusDialog);
+				completedBatchResults.get().putAll(batch.results());
+				AccountTransactionRetrievalResult result = takeCompletedBatchResult(bankAccount);
+				if (result == null) {
+					result = persist(bankAccount, AccountTransactionRetrievalResult.failure(
+							getText("ERROR_ENABLEBANKING_REAUTHORIZATION")));
+				}
+				successful = batch.successful() && result.successful();
+				return result;
+			}
 			updateStatus(statusDialog, 0.1d, "UI_DIALOG_ENABLEBANKING_STATUS_SESSION");
+			String previousSessionId = accessData.getSessionId();
 			EnablebankingSession session = ensureAuthorizedSession(bankAccess, configuration, client, statusDialog);
-			updateStatus(statusDialog, 0.3d, "UI_DIALOG_ENABLEBANKING_STATUS_ACCOUNT");
-			EnablebankingRemoteAccount remoteAccount = findRemoteAccount(bankAccount, session.accounts());
-			String accountUid = remoteAccount.uid();
-			remoteAccount = client.getAccountDetails(accountUid);
-			EnablebankingSetupService.mapAccount(accessData.getAspspName(), accessData.getAspspCountry(),
-					remoteAccount, bankAccount);
-			dbController.insertOrUpdate(bankAccount);
-			LocalDate from = resolveStart(bankAccount);
-			List<Map<String, Object>> transactions = retrieveAllTransactions(client, accountUid, from,
-					statusDialog);
-			updateStatus(statusDialog, 0.7d, "UI_DIALOG_ENABLEBANKING_STATUS_PROCESSING");
-			MappedTransactions mapped = mapTransactions(bankAccount, transactions, from);
-			updateStatus(statusDialog, 0.8d, "UI_DIALOG_ENABLEBANKING_STATUS_BALANCE");
-			Optional<BigDecimal> balance = resolveBookedBalance(client.getBalances(accountUid), bankAccount.getBaseCurrency());
-			accessData.setRateLimitUntil(null);
-			dbController.insertOrUpdate(bankAccess);
-			updateStatus(statusDialog, 0.9d, "UI_DIALOG_ENABLEBANKING_STATUS_SAVING");
-			AccountTransactionRetrievalResult result = accountTransactionService.persistExternalAccountData(bankAccount, balance, mapped.booked(),
-					Optional.of(new PendingBookingSnapshot(mapped.pending(), from)), "Enablebanking");
+			LocalDate from = previousSessionId != null && previousSessionId.equals(session.sessionId())
+					? resolveStart(bankAccount) : null;
+			AccountTransactionRetrievalResult result = retrieve(bankAccount, bankAccess, client, session,
+					from, statusDialog);
 			successful = result.successful();
 			return result;
 		} catch (EnablebankingException exception) {
@@ -118,6 +130,98 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 		}
 	}
 
+	public boolean reauthorizeAndRetrieve(BankAccess selectedAccess) {
+		BankAccess bankAccess = selectedAccess != null ? dbController.getBankAccessById(selectedAccess.getId()) : null;
+		if (bankAccess == null || bankAccess.getAccessType() != BankAccessType.ENABLEBANKING
+				|| bankAccess.getEnablebanking() == null) {
+			throw new EnablebankingException(getText("ERROR_ENABLEBANKING_REAUTHORIZATION_ACCESS"));
+		}
+		HbciCallbackMessageDialog statusDialog = new HbciCallbackMessageDialog(
+				DialogWindowSupport.findBestOwnerWindow().orElse(null));
+		boolean successful = false;
+		statusDialog.showDialog();
+		try {
+			updateStatus(statusDialog, 0d, "UI_DIALOG_HBCI_STATUS_CONNECTING");
+			BankAccessEnablebanking accessData = bankAccess.getEnablebanking();
+			Psd2ClientConfiguration configuration = getConfiguration(accessData);
+			EnablebankingApiClient client = new EnablebankingApiClient(configuration);
+			successful = reauthorizeAndRetrieve(bankAccess, configuration, client, statusDialog).successful();
+			return successful;
+		} catch (EnablebankingException exception) {
+			statusDialog.appendMessages(exception.getMessage());
+			statusDialog.updateCurrentAction(exception.getMessage());
+			return false;
+		} finally {
+			statusDialog.markFinished(successful);
+		}
+	}
+
+	private BatchRetrieval reauthorizeAndRetrieve(BankAccess bankAccess, Psd2ClientConfiguration configuration,
+			EnablebankingApiClient client, HbciCallbackMessageDialog statusDialog) {
+		BankAccessEnablebanking accessData = bankAccess.getEnablebanking();
+		EnablebankingSession session = authorizeSession(bankAccess, configuration, client, statusDialog);
+		accessData.setRateLimitUntil(null);
+		dbController.insertOrUpdate(bankAccess);
+
+		List<BankAccount> accounts = dbController.getAllByParent(BankAccount.class, bankAccess.getId());
+		if (accounts.isEmpty()) {
+			throw new EnablebankingException(getText("ERROR_ENABLEBANKING_REAUTHORIZATION_NO_ACCOUNTS"));
+		}
+		Map<Integer, AccountTransactionRetrievalResult> results = new HashMap<>();
+		boolean successful = true;
+		for (int index = 0; index < accounts.size(); index++) {
+			BankAccount account = accounts.get(index);
+			updateStatus(statusDialog, 0.25d, "UI_DIALOG_ENABLEBANKING_STATUS_ACCOUNT_RETRIEVAL",
+					index + 1, accounts.size(), account.getAccountName());
+			try {
+				AccountTransactionRetrievalResult result = retrieve(account, bankAccess, client, session, null, statusDialog);
+				results.put(account.getId(), result);
+				successful &= result.successful();
+			} catch (EnablebankingException exception) {
+				successful = false;
+				statusDialog.appendMessages(exception.getMessage());
+				results.put(account.getId(), persist(account, AccountTransactionRetrievalResult.failure(exception.getMessage())));
+				if (exception.isRateLimited()) {
+					accessData.setRateLimitUntil(OffsetDateTime.now(ZoneOffset.UTC).plusHours(RATE_LIMIT_COOLDOWN_HOURS));
+					dbController.insertOrUpdate(bankAccess);
+					for (BankAccount remainingAccount : accounts.subList(index + 1, accounts.size())) {
+						results.put(remainingAccount.getId(), persist(remainingAccount,
+								AccountTransactionRetrievalResult.failure(exception.getMessage())));
+					}
+					break;
+				}
+			}
+		}
+		updateStatus(statusDialog, 0.95d, "UI_DIALOG_ENABLEBANKING_STATUS_REAUTHORIZATION_COMPLETE");
+		return new BatchRetrieval(Map.copyOf(results), successful);
+	}
+
+	private AccountTransactionRetrievalResult retrieve(BankAccount bankAccount, BankAccess bankAccess,
+			EnablebankingApiClient client, EnablebankingSession session, LocalDate from,
+			HbciCallbackMessageDialog statusDialog) {
+		BankAccessEnablebanking accessData = bankAccess.getEnablebanking();
+		updateStatus(statusDialog, 0.3d, "UI_DIALOG_ENABLEBANKING_STATUS_ACCOUNT");
+		EnablebankingRemoteAccount remoteAccount = findRemoteAccount(bankAccount, session.accounts());
+		String accountUid = remoteAccount.uid();
+		remoteAccount = client.getAccountDetails(accountUid);
+		EnablebankingSetupService.mapAccount(accessData.getAspspName(), accessData.getAspspCountry(),
+				remoteAccount, bankAccount);
+		dbController.insertOrUpdate(bankAccount);
+		TransactionRetrieval retrieval = retrieveTransactions(client, accountUid, from, statusDialog);
+		updateStatus(statusDialog, 0.7d, "UI_DIALOG_ENABLEBANKING_STATUS_PROCESSING");
+		MappedTransactions mapped = mapTransactions(bankAccount, retrieval.transactions(), retrieval.from());
+		updateStatus(statusDialog, 0.8d, "UI_DIALOG_ENABLEBANKING_STATUS_BALANCE");
+		Optional<BigDecimal> balance = resolveBookedBalance(client.getBalances(accountUid), bankAccount.getBaseCurrency());
+		accessData.setRateLimitUntil(null);
+		dbController.insertOrUpdate(bankAccess);
+		updateStatus(statusDialog, 0.9d, "UI_DIALOG_ENABLEBANKING_STATUS_SAVING");
+		AccountTransactionRetrievalResult result = accountTransactionService.persistExternalAccountData(bankAccount, balance, mapped.booked(),
+				Optional.of(new PendingBookingSnapshot(mapped.pending(), retrieval.from())), "Enablebanking");
+		statusDialog.appendMessages(getText("UI_DIALOG_ENABLEBANKING_STATUS_ACCOUNT_RESULT", bankAccount.getAccountName(),
+				result.newBookingCount(), result.pendingBookingCount()));
+		return result;
+	}
+
 	private BankAccess getAccess(BankAccount bankAccount) {
 		if (bankAccount == null || bankAccount.getBankAccessId() == null) {
 			return null;
@@ -125,6 +229,43 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 		BankAccess bankAccess = dbController.getBankAccessById(bankAccount.getBankAccessId());
 		return bankAccess != null && bankAccess.isActive() && bankAccess.getAccessType() == BankAccessType.ENABLEBANKING
 				? bankAccess : null;
+	}
+
+	private boolean shouldOfferReauthorization(BankAccount bankAccount) {
+		if (bankAccount == null || bankAccount.getId() <= 0) {
+			return false;
+		}
+		return isReauthorizationDue(dbController.getBankAccountRetrievalStatus(bankAccount.getId()),
+				LocalDateTime.now(ZoneId.systemDefault()));
+	}
+
+	static boolean isReauthorizationDue(BankAccountRetrievalStatus retrievalStatus, LocalDateTime now) {
+		return retrievalStatus != null
+				&& !retrievalStatus.retrievedAt().isAfter(now.minusDays(REAUTHORIZATION_OFFER_DAYS));
+	}
+
+	private boolean requestReauthorization(BankAccess bankAccess, HbciCallbackMessageDialog statusDialog) {
+		boolean confirmed = statusDialog.requestConfirmation(
+				getText("UI_ENABLEBANKING_REAUTHORIZE_PAUSE_PROMPT", bankAccess.getBankName(),
+						REAUTHORIZATION_OFFER_DAYS),
+				getText("UI_ENABLEBANKING_REAUTHORIZE_PAUSE_DETAILS"),
+				getText("UI_ENABLEBANKING_REAUTHORIZE_CONFIRM"), getText("UI_BUTTON_CANCEL"));
+		if (!confirmed) {
+			updateStatus(statusDialog, 0.05d, "UI_DIALOG_ENABLEBANKING_STATUS_REAUTHORIZATION_SKIPPED");
+		}
+		return confirmed;
+	}
+
+	private AccountTransactionRetrievalResult takeCompletedBatchResult(BankAccount bankAccount) {
+		if (bankAccount == null) {
+			return null;
+		}
+		Map<Integer, AccountTransactionRetrievalResult> results = completedBatchResults.get();
+		AccountTransactionRetrievalResult result = results.remove(bankAccount.getId());
+		if (results.isEmpty()) {
+			completedBatchResults.remove();
+		}
+		return result;
 	}
 
 	private Psd2ClientConfiguration getConfiguration(BankAccessEnablebanking accessData) {
@@ -150,6 +291,12 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 			}
 		}
 
+		return authorizeSession(bankAccess, configuration, client, statusDialog);
+	}
+
+	private EnablebankingSession authorizeSession(BankAccess bankAccess, Psd2ClientConfiguration configuration,
+			EnablebankingApiClient client, HbciCallbackMessageDialog statusDialog) {
+		BankAccessEnablebanking accessData = bankAccess.getEnablebanking();
 		updateStatus(statusDialog, 0.2d, "UI_DIALOG_ENABLEBANKING_STATUS_AUTHORIZATION");
 		EnablebankingAspsp aspsp = client.getAspsps().stream()
 				.filter(candidate -> candidate.name().equals(accessData.getAspspName())
@@ -163,6 +310,7 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 		}
 		accessData.setSessionId(session.sessionId());
 		accessData.setValidUntil(session.validUntil());
+		bankAccess.setUpdatedAt(LocalDate.now(ZoneId.systemDefault()));
 		dbController.insertOrUpdate(configuration);
 		dbController.insertOrUpdate(bankAccess);
 		return session;
@@ -192,8 +340,41 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 		return lastBookingDate != null ? lastBookingDate.minusDays(RETRIEVAL_OVERLAP_DAYS) : null;
 	}
 
-	private List<Map<String, Object>> retrieveAllTransactions(EnablebankingApiClient client, String accountUid,
+	TransactionRetrieval retrieveTransactions(EnablebankingApiClient client, String accountUid,
 			LocalDate from, HbciCallbackMessageDialog statusDialog) {
+		if (from != null) {
+			updateStatus(statusDialog, 0.35d, "UI_DIALOG_ENABLEBANKING_STATUS_TRANSACTIONS_SINCE", from);
+			return new TransactionRetrieval(retrieveAllTransactions(client, accountUid, from, null, statusDialog), from);
+		}
+		updateStatus(statusDialog, 0.35d, "UI_DIALOG_ENABLEBANKING_STATUS_TRANSACTIONS_LONGEST");
+		List<Map<String, Object>> transactions = retrieveAllTransactions(client, accountUid, null, "longest", statusDialog);
+		if (!transactions.isEmpty()) {
+			return new TransactionRetrieval(transactions, null);
+		}
+		for (int lookbackDays : INITIAL_LOOKBACK_DAYS) {
+			LocalDate fallbackFrom = LocalDate.now(ZoneOffset.UTC).minusDays(lookbackDays - 1L);
+			try {
+				updateStatus(statusDialog, 0.35d, "UI_DIALOG_ENABLEBANKING_STATUS_TRANSACTIONS_PERIOD", lookbackDays);
+				transactions = retrieveAllTransactions(client, accountUid, fallbackFrom, null, statusDialog);
+				if (!transactions.isEmpty()
+						|| lookbackDays == INITIAL_LOOKBACK_DAYS.get(INITIAL_LOOKBACK_DAYS.size() - 1)) {
+					return new TransactionRetrieval(transactions, fallbackFrom);
+				}
+				log.info("Enablebanking returned no transactions for the initial period of {} days; trying a shorter period.",
+						lookbackDays);
+			} catch (EnablebankingException exception) {
+				if (!exception.isWrongTransactionsPeriod()) {
+					throw exception;
+				}
+				log.info("Enablebanking does not provide the requested initial transaction period of {} days.", lookbackDays);
+			}
+		}
+		throw new EnablebankingException("Enablebanking stellt auch für die letzten "
+				+ INITIAL_LOOKBACK_DAYS.get(INITIAL_LOOKBACK_DAYS.size() - 1) + " Tage keine Umsätze bereit.");
+	}
+
+	private List<Map<String, Object>> retrieveAllTransactions(EnablebankingApiClient client, String accountUid,
+			LocalDate from, String strategy, HbciCallbackMessageDialog statusDialog) {
 		List<Map<String, Object>> transactions = new ArrayList<>();
 		Set<String> seenContinuationKeys = new HashSet<>();
 		String continuationKey = null;
@@ -201,8 +382,7 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 		do {
 			updateStatus(statusDialog, Math.min(0.65d, 0.35d + pageNumber * 0.1d),
 					"UI_DIALOG_ENABLEBANKING_STATUS_TRANSACTIONS", pageNumber);
-			EnablebankingTransactionPage page = client.getTransactions(accountUid, from,
-					from == null ? "longest" : "default", continuationKey);
+			EnablebankingTransactionPage page = client.getTransactions(accountUid, from, strategy, continuationKey);
 			transactions.addAll(page.transactions());
 			continuationKey = page.continuationKey();
 			if (continuationKey != null && !seenContinuationKeys.add(continuationKey)) {
@@ -210,12 +390,18 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 			}
 			pageNumber++;
 		} while (continuationKey != null && !continuationKey.isBlank());
+		statusDialog.appendMessages(getText("UI_DIALOG_ENABLEBANKING_STATUS_TRANSACTIONS_RESULT", transactions.size()));
+		log.info("Retrieved {} Enablebanking transactions in {} page(s), strategy={}, lookbackDays={}",
+				transactions.size(), pageNumber - 1, strategy != null ? strategy : "default",
+				from != null ? java.time.temporal.ChronoUnit.DAYS.between(from, LocalDate.now(ZoneOffset.UTC)) + 1 : null);
 		return transactions;
 	}
 
 	void updateStatus(HbciCallbackMessageDialog statusDialog, double progress, String messageKey,
 			Object... parameters) {
-		statusDialog.updateCurrentAction(getText(messageKey, parameters));
+		String message = getText(messageKey, parameters);
+		statusDialog.updateCurrentAction(message);
+		statusDialog.appendMessages(message);
 		statusDialog.updateProgress(progress);
 	}
 
@@ -376,5 +562,11 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 	}
 
 	record MappedTransactions(List<Booking> booked, List<Booking> pending) {
+	}
+
+	record TransactionRetrieval(List<Map<String, Object>> transactions, LocalDate from) {
+	}
+
+	record BatchRetrieval(Map<Integer, AccountTransactionRetrievalResult> results, boolean successful) {
 	}
 }

@@ -170,7 +170,7 @@ public class EnablebankingApiClient {
 		String details = firstText(body, "detail", "message", "error");
 		String message = details != null ? "Enablebanking: " + details
 				: "Enablebanking-Anfrage fehlgeschlagen (HTTP " + response.statusCode() + ").";
-		throw new EnablebankingException(message, response.statusCode());
+		throw new EnablebankingException(message, response.statusCode(), string(body.get("error")));
 	}
 
 	private EnablebankingAspsp mapAspsp(Map<String, Object> value) {

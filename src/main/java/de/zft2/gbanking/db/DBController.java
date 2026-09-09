@@ -434,7 +434,9 @@ public class DBController extends DbExecutor {
 				return false;
 			}
 
-			Set<Booking> bookingListDb = insertAll(new HashSet<>(bookingList));
+			Set<Booking> bookingsByIdentity = Collections.newSetFromMap(new IdentityHashMap<>());
+			bookingsByIdentity.addAll(bookingList);
+			Set<Booking> bookingListDb = insertAll(bookingsByIdentity);
 			return bookingListDb.stream().allMatch(booking -> booking.getId() > 0);
 		});
 	}

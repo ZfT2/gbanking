@@ -614,6 +614,22 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 	}
 
 	@Test
+	void insertMultipleEqualBookingsShouldPreserveEachInstance() {
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("44444444"));
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
+		Booking firstBooking = TestDataFactory.createSampleBooking(account.getId());
+		Booking secondBooking = new Booking(firstBooking);
+		secondBooking.setSource(firstBooking.getSource());
+
+		assertEquals(firstBooking, secondBooking);
+		assertTrue(db.insertAccountBookings(List.of(firstBooking, secondBooking)));
+		assertTrue(firstBooking.getId() > 0);
+		assertTrue(secondBooking.getId() > 0);
+		assertNotEquals(firstBooking.getId(), secondBooking.getId());
+		assertEquals(2, db.getAllByParent(Booking.class, account.getId()).size());
+	}
+
+	@Test
 	void insertMultipleBookingsShouldRejectUnknownUpdateIds() {
 		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("44444444"));
 		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
