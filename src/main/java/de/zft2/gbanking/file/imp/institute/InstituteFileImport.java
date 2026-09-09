@@ -31,6 +31,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.BaseMessages;
+import de.zft2.gbanking.cache.InstituteLookupCache;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.ImportHistory;
 import de.zft2.gbanking.db.dao.Institute;
@@ -148,6 +149,7 @@ public abstract class InstituteFileImport implements BaseMessages {
 			return;
 		}
 		dbController.executeInTransaction(() -> persistInstitutes(file, importedInstitutes));
+		InstituteLookupCache.clear();
 	}
 
 	private void persistInstitutes(Path file, List<Institute> importedInstitutes) {

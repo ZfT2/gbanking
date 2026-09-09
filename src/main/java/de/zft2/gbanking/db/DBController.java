@@ -30,6 +30,7 @@ import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Category;
 import de.zft2.gbanking.db.dao.CategoryRule;
 import de.zft2.gbanking.db.dao.Dao;
+import de.zft2.gbanking.db.dao.InstituteBankLookup;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.AccountRetrievalStatus;
 import de.zft2.gbanking.db.dao.enu.AccountIdentifierType;
@@ -99,6 +100,23 @@ public class DBController extends DbExecutor {
 
 	public void executeInTransaction(Runnable operation) {
 		withDbTransaction(operation);
+	}
+
+	public List<InstituteBankLookup> getInstituteBankLookup() {
+		return withDbAccess(() -> {
+			try {
+				return jdbc().query(DaoSqlStatements.SQL_SELECT_INSTITUTE_BANK_LOOKUP, null, resultSet -> {
+					List<InstituteBankLookup> banks = new ArrayList<>();
+					while (resultSet.next()) {
+						banks.add(new InstituteBankLookup(resultSet.getString("blz"), resultSet.getString("bic"),
+								resultSet.getString("bankName"), resultSet.getInt("importNumber"), resultSet.getInt("sourcePriority")));
+					}
+					return banks;
+				});
+			} catch (SQLException | RuntimeException exception) {
+				throw databaseReadFailure("Error reading institute bank lookup", exception);
+			}
+		});
 	}
 
 	public BankAccountRetrievalStatus getBankAccountRetrievalStatus(int bankAccountId) {

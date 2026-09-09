@@ -162,6 +162,60 @@ CREATE TABLE IF NOT EXISTS institute_db.instituteAdditional (
   FOREIGN KEY(institute_id) REFERENCES institute(id) ON DELETE CASCADE);
 ;
 
+[SQL_SETUP_CREATE_VIEW_INSTITUTE_BANK_LOOKUP]
+CREATE VIEW IF NOT EXISTS institute_db.instituteBankLookup AS
+SELECT
+    b.id, b.blz, b.bic, b.bankName, b.place,
+    b.stateType, b.source, b.sourcePriority, b.importNumber,
+    b.importFile, h.importFileName, b.updatedAt
+FROM (
+    SELECT selected.*,
+        MIN(CASE WHEN blz IS NOT NULL THEN sourcePriority END)
+            OVER (PARTITION BY bicKey) AS preferredBlzPriority
+    FROM (
+        SELECT normalized.*,
+            ROW_NUMBER() OVER (
+                PARTITION BY blz, CASE WHEN blz IS NULL THEN bicKey END
+                ORDER BY sourcePriority, id
+            ) AS bankRank
+        FROM (
+            SELECT candidates.*,
+                CASE
+                    WHEN LENGTH(bic) = 11 AND SUBSTR(bic, 9, 3) = 'XXX'
+                        THEN SUBSTR(bic, 1, 8)
+                    ELSE bic
+                END AS bicKey
+            FROM (
+                SELECT
+                    i.id,
+                    NULLIF(TRIM(i.blz), '') AS blz,
+                    NULLIF(UPPER(REPLACE(TRIM(i.bic), ' ', '')), '') AS bic,
+                    i.bankName, i.place, i.stateType, i.importFile, i.updatedAt,
+                    s.source, s.sourcePriority, s.importNumber
+                FROM institute i
+                JOIN (
+                    SELECT institute_id, 'DK' AS source, 1 AS sourcePriority, importNumber FROM instituteDk
+                    UNION ALL
+                    SELECT institute_id, 'DBB', 2, NULL FROM instituteDbb
+                    UNION ALL
+                    SELECT institute_id, 'EPC', 3, NULL FROM instituteEpc
+                    UNION ALL
+                    SELECT institute_id, 'Dbb-Reachable', 4, NULL FROM instituteDbbReachable
+                    UNION ALL
+                    SELECT institute_id, 'Additional', 5, NULL FROM instituteAdditional
+                ) s ON s.institute_id = i.id
+                WHERE i.stateType = 1
+            ) candidates
+        ) normalized
+        WHERE blz IS NOT NULL OR bicKey IS NOT NULL
+    ) selected
+    WHERE bankRank = 1
+) b
+LEFT JOIN importHistory h ON h.id = b.importFile
+WHERE b.blz IS NOT NULL
+   OR b.preferredBlzPriority IS NULL
+   OR b.sourcePriority <= b.preferredBlzPriority;
+
 [SQL_SETUP_CREATE_INDEX_INSTITUTE_BLZ_STATE]
 CREATE INDEX IF NOT EXISTS institute_db.idx_institute_blz_state
 ON institute (blz, stateType);

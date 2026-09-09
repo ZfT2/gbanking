@@ -53,6 +53,7 @@ class DbConnectionHandlerInstituteDatabaseTest {
 		assertTrue(tableExists("institute_db", "importHistory"));
 		assertTrue(tableExists("institute_db", "instituteDbbReachable"));
 		assertTrue(tableExists("institute_db", "instituteAdditional"));
+		assertTrue(sqliteObjectExists("institute_db", "view", "instituteBankLookup"));
 		assertTrue(indexExists("institute_db", "idx_institute_blz_state"));
 		assertInstituteSchemaComplete();
 		assertEquals(3, countInstituteStatusRows());
@@ -148,6 +149,34 @@ class DbConnectionHandlerInstituteDatabaseTest {
 
 		assertFalse(DbConnectionHandler.prepareInstituteDatabaseFile(dataRoot, tempDir.resolve("missing-institute.db")));
 		assertFalse(Files.exists(dataRoot.resolve("institute.db")));
+	}
+
+	@Test
+	void shouldNotRecreateLookupViewInExistingDatabase() throws Exception {
+		tempDir = Files.createTempDirectory("gb_test_");
+		DBController dbController = DBController.getInstance(tempDir.toString());
+		int importFile = dbController.insertOrUpdate(new ImportHistory("existing-institute.csv")).getId();
+		Institute institute = new Institute();
+		institute.setBlz("10010010");
+		institute.setBankName("Existing Bank");
+		institute.setImportNumber(1);
+		institute.setStateType(InstituteStatus.ACTIVE);
+		institute.setImportFile(importFile);
+		dbController.insertOrUpdate(institute);
+		try (Statement statement = DBController.getConnection().createStatement()) {
+			statement.executeUpdate("DROP VIEW institute_db.instituteBankLookup");
+		}
+		DBControllerTestUtil.closeAndNullifyConnection();
+
+		dbController = DBController.getInstance(tempDir.toString());
+
+		assertInstituteSchemaComplete();
+		assertFalse(sqliteObjectExists("institute_db", "view", "instituteBankLookup"));
+		assertEquals(1, countInstituteRows());
+		Institute storedInstitute = dbController.getAll(Institute.class).get(0);
+		assertEquals("Existing Bank", storedInstitute.getBankName());
+		assertEquals(institute.getId(), storedInstitute.getId());
+		assertEquals(importFile, storedInstitute.getImportFile());
 	}
 
 	@Test

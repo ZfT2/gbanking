@@ -45,35 +45,42 @@ class InstituteLookupCacheTest {
 	}
 
 	@Test
-	void getEntriesForBlz_shouldSortByImportNumberAndDeduplicateBankNames() {
-		db.insertOrUpdate(createInstitute("50010517", "Bank B", "BICBDEFFXXX", 2));
+	void getEntriesForBlz_shouldUseOnlyTheActiveViewEntry() {
+		Institute duplicate = createInstitute("50010517", "Bank B", "BICBDEFFXXX", 2);
+		duplicate.setStateType(InstituteStatus.DUPLICATE);
+		db.insertOrUpdate(duplicate);
 		db.insertOrUpdate(createInstitute("50010517", "Bank A", "BICADEFFXXX", 1));
-		db.insertOrUpdate(createInstitute("50010517", "Bank B", "BICBOTHERXXX", 3));
+		Institute archived = createInstitute("50010517", "Old Bank", "BICBOTHERXXX", 3);
+		archived.setStateType(InstituteStatus.ARCHIVED);
+		db.insertOrUpdate(archived);
 
 		List<InstituteLookupCache.InstituteLookupEntry> entries = InstituteLookupCache.getEntriesForBlz("50010517");
 
-		assertEquals(2, entries.size());
+		assertEquals(1, entries.size());
 		assertEquals("Bank A", entries.get(0).bankName());
 		assertEquals("BICADEFFXXX", entries.get(0).bic());
 		assertEquals(1, entries.get(0).importNumber());
-		assertEquals("Bank B", entries.get(1).bankName());
-		assertEquals("BICBDEFFXXX", entries.get(1).bic());
-		assertEquals(2, entries.get(1).importNumber());
+		assertTrue(InstituteLookupCache.getEntriesForBic("BICBDEFFXXX").isEmpty());
 	}
 
 	@Test
 	void getEntriesForBlz_shouldReturnCachedDataUntilCacheIsCleared() {
-		db.insertOrUpdate(createInstitute("50010517", "Bank A", "BICADEFFXXX", 1));
+		Institute bank = db.insertOrUpdate(createInstitute("50010517", "Bank A", "BICADEFFXXX", 1));
 		List<InstituteLookupCache.InstituteLookupEntry> initialEntries = InstituteLookupCache.getEntriesForBlz("50010517");
 
-		db.insertOrUpdate(createInstitute("50010517", "Bank B", "BICBDEFFXXX", 2));
+		bank.setBankName("Bank B");
+		bank.setBic("BICBDEFFXXX");
+		db.insertOrUpdate(bank);
 
 		List<InstituteLookupCache.InstituteLookupEntry> cachedEntries = InstituteLookupCache.getEntriesForBlz("50010517");
 		assertEquals(initialEntries, cachedEntries);
+		assertTrue(InstituteLookupCache.getEntriesForBic("BICBDEFFXXX").isEmpty());
 
 		InstituteLookupCache.clear();
 		List<InstituteLookupCache.InstituteLookupEntry> refreshedEntries = InstituteLookupCache.getEntriesForBlz("50010517");
-		assertEquals(2, refreshedEntries.size());
+		assertEquals(1, refreshedEntries.size());
+		assertEquals("Bank B", refreshedEntries.get(0).bankName());
+		assertEquals(refreshedEntries, InstituteLookupCache.getEntriesForBic("BICBDEFFXXX"));
 	}
 
 	@Test
@@ -101,6 +108,19 @@ class InstituteLookupCacheTest {
 
 		assertEquals("Bank with BIC8", InstituteLookupCache.findBankNameForBankData("CHASLULXXXX", null).orElseThrow());
 		assertEquals("Bank with BIC11", InstituteLookupCache.findBankNameForBankData("BICADEFF", null).orElseThrow());
+	}
+
+	@Test
+	void getEntriesForBic_shouldKeepSourcePriorityAheadOfImportNumber() {
+		Institute dbb = createInstitute("20000000", "DBB Bank", "BICADEFFXXX", 0);
+		dbb.setLastChanged(null);
+		dbb.setDatasetNumber("000001");
+		db.insertOrUpdate(dbb);
+		db.insertOrUpdate(createInstitute("10000000", "DK Bank", "BICADEFFXXX", 20));
+
+		assertEquals(List.of("DK Bank", "DBB Bank"), InstituteLookupCache.getEntriesForBic("BICADEFF").stream()
+				.map(entry -> entry.bankName()).toList());
+		assertEquals("DBB Bank", InstituteLookupCache.findBankNameForBankData(null, "20000000").orElseThrow());
 	}
 
 	@Test
@@ -133,11 +153,11 @@ class InstituteLookupCacheTest {
 	}
 
 	@Test
-	void findBicForBlz_shouldReturnFirstAvailableBic() {
+	void findBicForBlz_shouldNotMixDataFromDiscardedRows() {
 		db.insertOrUpdate(createInstitute("50010517", "Bank without BIC", null, 1));
 		db.insertOrUpdate(createInstitute("50010517", "Bank with BIC", "BICADEFFXXX", 2));
 
-		assertEquals("BICADEFFXXX", InstituteLookupCache.findBicForBlz("50010517").orElseThrow());
+		assertTrue(InstituteLookupCache.findBicForBlz("50010517").isEmpty());
 		assertTrue(InstituteLookupCache.findBicForBlz("00000000").isEmpty());
 	}
 
@@ -161,7 +181,7 @@ class InstituteLookupCacheTest {
 		institute.setImportNumber(importNumber);
 		institute.setLastChanged(LocalDate.of(2026, Month.APRIL, 10));
 		institute.setImportFile(importHistoryId);
-		institute.setStateType(importNumber == 1 ? InstituteStatus.ACTIVE : InstituteStatus.DUPLICATE);
+		institute.setStateType(InstituteStatus.ACTIVE);
 		return institute;
 	}
 }

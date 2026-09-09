@@ -25,6 +25,11 @@ LEFT JOIN institute_db.importHistory ih ON ih.id = i.importFile;
 ${SQL_SELECT_ALL_INSTITUTES_BASE}
 ORDER BY i.id, idk.importNumber ASC;
 
+[SQL_SELECT_INSTITUTE_BANK_LOOKUP]
+SELECT blz, bic, bankName, COALESCE(importNumber, 0) AS importNumber, sourcePriority
+FROM institute_db.instituteBankLookup
+ORDER BY sourcePriority, importNumber, id;
+
 [SQL_INSERT_INSTIUTE]
 INSERT INTO institute_db.institute ( blz, bic, bankName, place, stateType, importFile, updatedAt)
 VALUES (?, ?, ?, ?, ?, ?, ?);

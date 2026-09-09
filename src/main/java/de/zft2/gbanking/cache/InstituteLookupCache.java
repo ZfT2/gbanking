@@ -1,7 +1,5 @@
 package de.zft2.gbanking.cache;
 
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -9,9 +7,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.dao.Institute;
+import de.zft2.gbanking.db.dao.InstituteBankLookup;
 
 public final class InstituteLookupCache {
 	private static final int BIC8_LENGTH = 8;
@@ -20,8 +19,10 @@ public final class InstituteLookupCache {
 	public record InstituteLookupEntry(String bankName, String bic, int importNumber) {
 	}
 
-	private static final AtomicReference<Map<String, List<InstituteLookupEntry>>> ENTRIES_BY_BLZ = new AtomicReference<>();
-	private static final AtomicReference<Map<String, List<InstituteLookupEntry>>> ENTRIES_BY_BIC = new AtomicReference<>();
+	private record LookupIndex(Map<String, List<InstituteLookupEntry>> byBlz, Map<String, List<InstituteLookupEntry>> byBic) {
+	}
+
+	private static final AtomicReference<LookupIndex> LOOKUP_INDEX = new AtomicReference<>();
 
 	private InstituteLookupCache() {
 	}
@@ -30,7 +31,7 @@ public final class InstituteLookupCache {
 		if (blz == null || blz.isBlank()) {
 			return List.of();
 		}
-		return getEntriesByBlz().getOrDefault(blz, List.of());
+		return getLookupIndex().byBlz().getOrDefault(blz.trim(), List.of());
 	}
 
 	public static List<InstituteLookupEntry> getEntriesForBic(String bic) {
@@ -38,7 +39,7 @@ public final class InstituteLookupCache {
 		if (normalizedBic == null) {
 			return List.of();
 		}
-		return getEntriesByBic().getOrDefault(normalizedBic, List.of());
+		return getLookupIndex().byBic().getOrDefault(normalizedBic, List.of());
 	}
 
 	public static List<InstituteLookupEntry> getEntriesForBankCode(String bankCode) {
@@ -86,8 +87,7 @@ public final class InstituteLookupCache {
 	}
 
 	public static void clear() {
-		ENTRIES_BY_BLZ.set(null);
-		ENTRIES_BY_BIC.set(null);
+		LOOKUP_INDEX.set(null);
 	}
 
 	public static String normalizeBlzCandidate(String value) {
@@ -104,68 +104,33 @@ public final class InstituteLookupCache {
 		return normalizedBic.matches("[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?") ? normalizedBic : null;
 	}
 
-	private static Map<String, List<InstituteLookupEntry>> getEntriesByBlz() {
-		Map<String, List<InstituteLookupEntry>> cache = ENTRIES_BY_BLZ.get();
-		if (cache != null) {
-			return cache;
+	private static LookupIndex getLookupIndex() {
+		LookupIndex cached = LOOKUP_INDEX.get();
+		if (cached != null) {
+			return cached;
 		}
-		Map<String, List<InstituteLookupEntry>> loadedEntries = loadEntriesByBlz();
-		return ENTRIES_BY_BLZ.compareAndExchange(null, loadedEntries) != null ? ENTRIES_BY_BLZ.get() : loadedEntries;
+		List<InstituteBankLookup> banks = DBController.getInstance(".").getInstituteBankLookup();
+		LookupIndex loaded = new LookupIndex(buildLookupEntries(banks, bank -> bank.blz()),
+				buildLookupEntries(banks, bank -> normalizeBicKey(bank.bic())));
+		LookupIndex previous = LOOKUP_INDEX.compareAndExchange(null, loaded);
+		return previous != null ? previous : loaded;
 	}
 
-	private static Map<String, List<InstituteLookupEntry>> getEntriesByBic() {
-		Map<String, List<InstituteLookupEntry>> cache = ENTRIES_BY_BIC.get();
-		if (cache != null) {
-			return cache;
-		}
-		Map<String, List<InstituteLookupEntry>> loadedEntries = loadEntriesByBic();
-		return ENTRIES_BY_BIC.compareAndExchange(null, loadedEntries) != null ? ENTRIES_BY_BIC.get() : loadedEntries;
-	}
-
-	private static Map<String, List<InstituteLookupEntry>> loadEntriesByBlz() {
-		Map<String, List<Institute>> institutesByBlz = new LinkedHashMap<>();
-
-		for (Institute institute : loadInstitutes()) {
-			String blz = trimToNull(institute.getBlz());
-			if (blz == null) {
-				continue;
+	private static Map<String, List<InstituteLookupEntry>> buildLookupEntries(List<InstituteBankLookup> banks,
+			Function<InstituteBankLookup, String> keyFunction) {
+		Map<String, Map<String, InstituteLookupEntry>> grouped = new LinkedHashMap<>();
+		// Preserve the view query's source priority, including for BICs shared by several BLZ.
+		for (InstituteBankLookup bank : banks) {
+			String key = keyFunction.apply(bank);
+			String bankName = trimToNull(bank.bankName());
+			if (key != null && bankName != null) {
+				grouped.computeIfAbsent(key, ignored -> new LinkedHashMap<>())
+						.putIfAbsent(bankName, new InstituteLookupEntry(bankName, bank.bic(), bank.importNumber()));
 			}
-			institutesByBlz.computeIfAbsent(blz, key -> new ArrayList<>()).add(institute);
 		}
-
-		Map<String, List<InstituteLookupEntry>> lookupByBlz = new LinkedHashMap<>();
-		for (Map.Entry<String, List<Institute>> entry : institutesByBlz.entrySet()) {
-			List<Institute> institutesForBlz = new ArrayList<>(entry.getValue());
-			institutesForBlz.sort(Comparator.comparingInt(Institute::getImportNumber));
-			lookupByBlz.put(entry.getKey(), buildLookupEntries(institutesForBlz));
-		}
-
-		return lookupByBlz;
-	}
-
-	private static Map<String, List<InstituteLookupEntry>> loadEntriesByBic() {
-		Map<String, List<Institute>> institutesByBic = new LinkedHashMap<>();
-
-		for (Institute institute : loadInstitutes()) {
-			String bic = normalizeBicKey(institute.getBic());
-			if (bic == null) {
-				continue;
-			}
-			institutesByBic.computeIfAbsent(bic, key -> new ArrayList<>()).add(institute);
-		}
-
-		Map<String, List<InstituteLookupEntry>> lookupByBic = new LinkedHashMap<>();
-		for (Map.Entry<String, List<Institute>> entry : institutesByBic.entrySet()) {
-			List<Institute> institutesForBic = new ArrayList<>(entry.getValue());
-			institutesForBic.sort(Comparator.comparingInt(Institute::getImportNumber));
-			lookupByBic.put(entry.getKey(), buildLookupEntries(institutesForBic));
-		}
-
-		return lookupByBic;
-	}
-
-	private static List<Institute> loadInstitutes() {
-		return DBController.getInstance(".").getAll(Institute.class);
+		Map<String, List<InstituteLookupEntry>> entries = new LinkedHashMap<>();
+		grouped.forEach((key, names) -> entries.put(key, List.copyOf(names.values())));
+		return Map.copyOf(entries);
 	}
 
 	private static Optional<String> findBankNameForBankCode(String bankCode) {
@@ -174,20 +139,6 @@ public final class InstituteLookupCache {
 				.map(InstituteLookupCache::trimToNull)
 				.filter(Objects::nonNull)
 				.findFirst();
-	}
-
-	private static List<InstituteLookupEntry> buildLookupEntries(List<Institute> institutesForBlz) {
-		Map<String, InstituteLookupEntry> uniqueEntriesByBankName = new LinkedHashMap<>();
-
-		for (Institute institute : institutesForBlz) {
-			String bankName = trimToNull(institute.getBankName());
-			String bic = trimToNull(institute.getBic());
-			String uniqueKey = Objects.toString(bankName, "");
-			uniqueEntriesByBankName.computeIfAbsent(uniqueKey,
-					key -> new InstituteLookupEntry(bankName, bic, institute.getImportNumber()));
-		}
-
-		return List.copyOf(uniqueEntriesByBankName.values());
 	}
 
 	private static String normalizeBicKey(String bic) {

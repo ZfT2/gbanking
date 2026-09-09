@@ -23,6 +23,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
+import de.zft2.gbanking.cache.InstituteLookupCache;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.db.dao.Institute;
@@ -49,10 +50,12 @@ class InstituteFileImportSourceIsolationIntegrationTest {
 	@BeforeEach
 	void clearDatabase() {
 		DBControllerTestUtil.clearAllTables(DBController.getConnection());
+		InstituteLookupCache.clear();
 	}
 
 	@AfterAll
 	void cleanupDatabase() throws Exception {
+		InstituteLookupCache.clear();
 		DBControllerTestUtil.closeAndNullifyConnection();
 		DBControllerTestUtil.deleteTemporaryDir(tempDir);
 	}
@@ -134,6 +137,16 @@ class InstituteFileImportSourceIsolationIntegrationTest {
 				institute -> institute.getImportNumber() > 0 && institute.getStateType() == InstituteStatus.ACTIVE);
 		assertEquals("Potsdam", activeDk.getPlace());
 		assertEquals(dbbBeforeDk, sourceSnapshot(institute -> institute.getDatasetNumber() != null));
+	}
+
+	@Test
+	void committedImportRefreshesBothBankLookupIndexes() throws Exception {
+		assertTrue(InstituteLookupCache.getEntriesForBlz("10000000").isEmpty());
+		writeOverlappingSources();
+		runAllImports();
+
+		assertEquals("Bundesbank", InstituteLookupCache.getEntriesForBlz("10000000").get(0).bankName());
+		assertEquals("Bundesbank", InstituteLookupCache.getEntriesForBic(SHARED_BIC).get(0).bankName());
 	}
 
 	private void writeOverlappingSources() throws IOException {

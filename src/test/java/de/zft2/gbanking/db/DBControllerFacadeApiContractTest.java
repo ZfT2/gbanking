@@ -61,6 +61,7 @@ class DBControllerFacadeApiContractTest {
 			"java.util.List getAllSpecific(java.lang.Class,de.zft2.gbanking.db.StatementsConfig.StatementType)",
 			"java.util.List getAllWithFilter(java.lang.Class,de.zft2.gbanking.db.enu.StateType)",
 			"java.util.List getBankAccountIdentifiers(int)",
+			"java.util.List getInstituteBankLookup()",
 			"java.util.List getSplitBookings(int)",
 			"java.util.Map getAccountsIdsByAccountName()",
 			"java.util.Map getCrossAccountsIdsByIbanOrNumber()",

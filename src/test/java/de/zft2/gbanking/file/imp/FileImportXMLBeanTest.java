@@ -19,12 +19,16 @@ import org.junit.jupiter.api.TestInstance;
 
 import de.zft2.fp3xmlextract.convert.Converter;
 import de.zft2.fp3xmlextract.data.Fp3XmlBankAccount;
+import de.zft2.gbanking.cache.InstituteLookupCache;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
+import de.zft2.gbanking.db.dao.ImportHistory;
+import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.BookingType;
+import de.zft2.gbanking.db.dao.enu.InstituteStatus;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
 import de.zft2.gbanking.gui.enu.ExportType;
@@ -45,10 +49,12 @@ class FileImportXMLBeanTest {
 	@BeforeEach
 	void clearDatabase() {
 		DBControllerTestUtil.clearAllTables(DBController.getConnection());
+		InstituteLookupCache.clear();
 	}
 
 	@AfterAll
 	void cleanupDatabase() throws Exception {
+		InstituteLookupCache.clear();
 		DBControllerTestUtil.closeAndNullifyConnection();
 		DBControllerTestUtil.deleteTemporaryDir(tempDir);
 	}
@@ -64,6 +70,7 @@ class FileImportXMLBeanTest {
 
 	@Test
 	void importFileToDatabase_shouldImportXmlAccountBookingRecipientAndCategory() throws Exception {
+		insertLookupBank("DK Bank", 1);
 		new FileImportBean(null).importFileToDatatbase(testResource("dummy_import.xml").toString());
 
 		List<BankAccount> accounts = dbController.getAll(BankAccount.class);
@@ -84,6 +91,7 @@ class FileImportXMLBeanTest {
 		assertEquals(BookingType.DEPOSIT, booking.getBookingType());
 		assertNotNull(booking.getRecipient());
 		assertEquals("Max Mustermann", booking.getRecipient().getName());
+		assertEquals("TestBank", booking.getRecipient().getBank(), "An existing imported bank name must not be replaced");
 		assertEquals("DE12345678901234567890", booking.getRecipient().getIban());
 		assertNotNull(booking.getCategory());
 		assertEquals("Sonstiges", booking.getCategory().getFullName());
@@ -103,6 +111,50 @@ class FileImportXMLBeanTest {
 		assertEquals(1, statistics.getExistingBookings());
 		assertEquals(0, statistics.getAddedBookings());
 		assertEquals(1, statistics.getSkippedBookings());
+	}
+
+	@Test
+	void importFileToDatabase_shouldCompleteMissingBankNameFromPreferredViewSource() throws Exception {
+		insertLookupBank("DBB Bank", 2);
+		insertLookupBank("EPC Bank", 3);
+		insertLookupBank("DK Bank", 1);
+		assertImportedBankName("DK Bank", false);
+	}
+
+	@Test
+	void importFileToDatabase_shouldCompleteMissingBankNameFromBicOnlySource() throws Exception {
+		insertLookupBank("EPC Bank", 3);
+		assertImportedBankName("EPC Bank", true);
+	}
+
+	private void assertImportedBankName(String bankName, boolean removeBlz) throws Exception {
+		String xml = Files.readString(testResource("dummy_import.xml")).replace("<BANKNAME>TestBank</BANKNAME>", "<BANKNAME/>");
+		if (removeBlz) {
+			xml = xml.replace("<BLZ>12345678</BLZ>", "<BLZ/>");
+		}
+		Path importFile = tempDir.resolve("missing-bank-name.xml");
+		Files.writeString(importFile, xml);
+		new FileImportBean(null).importFileToDatatbase(importFile.toString());
+
+		BankAccount account = dbController.getAll(BankAccount.class).get(0);
+		Booking booking = dbController.getAllByParentFull(Booking.class, account.getId()).get(0);
+		assertEquals(bankName, booking.getRecipient().getBank());
+	}
+
+	private void insertLookupBank(String bankName, int sourcePriority) {
+		Institute bank = new Institute();
+		bank.setBlz(sourcePriority == 3 ? null : "12345678");
+		bank.setBic("GENODEF1XXX");
+		bank.setBankName(bankName);
+		bank.setStateType(InstituteStatus.ACTIVE);
+		bank.setImportFile(dbController.insertOrUpdate(new ImportHistory("lookup.csv")).getId());
+		switch (sourcePriority) {
+		case 1 -> bank.setImportNumber(42);
+		case 2 -> bank.setDatasetNumber("000001");
+		case 3 -> bank.setCountry("Germany");
+		default -> throw new IllegalArgumentException("Unknown source priority: " + sourcePriority);
+		}
+		dbController.insertOrUpdate(bank);
 	}
 
 	@Test
