@@ -178,7 +178,7 @@ public class GBankingGui extends Application implements BaseGui {
 		root = new BorderPane();
 		root.setPadding(new Insets(4));
 
-		root.setTop(new GBankingMenuBar(this));
+		root.setTop(new GBankingNavigationBar(this));
 
 		statusLabel = new Label("Info");
 		updateProgressBar = new ProgressBar(0d);

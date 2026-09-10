@@ -15,6 +15,32 @@
     -gb-button-pressed-bottom: #d7c268;
 }
 
+/* Main navigation */
+.gbanking-navigation-bar {
+    -fx-background-color: linear-gradient(to bottom, #f8f8f8, #ececec);
+    -fx-border-color: transparent transparent #c8c8c8 transparent;
+}
+
+.gbanking-navigation-bar > .menu-bar {
+    -fx-background-color: transparent;
+}
+
+.gbanking-navigation-buttons {
+    -fx-padding: 3 5 3 4;
+}
+
+.gbanking-navigation-button {
+    -fx-padding: 0;
+}
+
+.gbanking-navigation-icon {
+    -fx-fill: transparent;
+    -fx-stroke: -gb-text-muted;
+    -fx-stroke-line-cap: round;
+    -fx-stroke-line-join: round;
+    -fx-stroke-width: 1.5;
+}
+
 /* Tables */
 .table-row-cell:striped-white {
     -fx-background-color: white;
