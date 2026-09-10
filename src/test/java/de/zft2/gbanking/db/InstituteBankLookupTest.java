@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.nio.file.Files;
+import java.nio.file.Path;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -109,14 +111,28 @@ class InstituteBankLookupTest extends DBControllerIntegrationBaseTest {
 	}
 
 	@Test
-	void standaloneStatementMatchesApplicationViewWithoutCommonTableExpressions() throws Exception {
-		String standalone = Files.readString(AppPaths.resolveInApplicationDirectory("instituteBankLookup.sql"));
-		standalone = standalone.substring(standalone.indexOf("CREATE VIEW"));
+	void bundledDatabaseViewMatchesApplicationDefinitionWithoutCommonTableExpressions() throws SQLException {
+		String bundledView = readBundledViewDefinition();
 		String application = SqlTemplateRepository.getDdl("SQL_SETUP_CREATE_VIEW_INSTITUTE_BANK_LOOKUP");
 
 		assertFalse(application.matches("(?is).*\\bWITH\\b.*"));
-		assertEquals(normalizeSql(standalone), normalizeSql(application.replace("institute_db.", "")));
+		assertEquals(normalizeSql(bundledView),
+				normalizeSql(application.replace("IF NOT EXISTS institute_db.", "")));
 		assertTrue(db.getInstituteBankLookup().isEmpty());
+	}
+
+	private static String readBundledViewDefinition() throws SQLException {
+		Path database = AppPaths.resolveInApplicationDirectory("data", "institute.db");
+		String url = "jdbc:sqlite:" + database.toUri() + "?mode=ro";
+		try (var connection = DriverManager.getConnection(url);
+				var statement = connection.prepareStatement(
+						"SELECT sql FROM sqlite_master WHERE type = 'view' AND name = ?")) {
+			statement.setString(1, "instituteBankLookup");
+			try (var result = statement.executeQuery()) {
+				assertTrue(result.next(), "The bundled institute database must contain instituteBankLookup");
+				return result.getString("sql");
+			}
+		}
 	}
 
 	private static String normalizeSql(String sql) {
