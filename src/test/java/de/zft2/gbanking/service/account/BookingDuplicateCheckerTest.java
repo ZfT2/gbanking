@@ -1,6 +1,7 @@
 package de.zft2.gbanking.service.account;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
@@ -52,6 +53,16 @@ class BookingDuplicateCheckerTest {
 
 		existingBooking.setRecipient(createRecipient("DE12345678901234567890"));
 		assertTrue(checker.isDuplicate(newBooking, List.of(existingBooking), List.of()));
+	}
+
+	@Test
+	void shouldFindExistingOnlineDuplicateForNormalizedImportBooking() {
+		Booking onlineBooking = createBooking(Source.ONLINE, "Kartenzahlung");
+		onlineBooking.setDateValue(null);
+		Booking importedBooking = createBooking(Source.IMPORT_INITIAL, "Kartenzahlung  V00010");
+		importedBooking.setAmount(new BigDecimal("42.000"));
+
+		assertSame(onlineBooking, checker.findDuplicate(importedBooking, List.of(onlineBooking), List.of()));
 	}
 
 	private static Booking createBooking(Source source, String purpose) {

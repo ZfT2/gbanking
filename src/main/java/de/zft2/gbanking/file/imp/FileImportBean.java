@@ -244,6 +244,7 @@ public class FileImportBean implements BaseMessagesDb {
 		boolean result = false;
 		Map<String, Integer> accountIdsByName = dbController.getAccountsIdsByAccountName();
 		Map<String, Integer> accountIdsByIdentifier = dbController.getCrossAccountsIdsByIbanOrNumber();
+		Map<String, Integer> importedAccountIdsByName = new HashMap<>();
 
 		totalAccounts = bankAccountList.size();
 		int importedAccountsCount = 0;
@@ -256,23 +257,33 @@ public class FileImportBean implements BaseMessagesDb {
 				bankAccountXml.setNamePP(bankAccount.getAccountName());
 			}
 			Integer existingAccountId = resolveExistingAccountId(bankAccount, accountIdsByIdentifier, accountIdsByName);
-			if (existingAccountId != null) {
-				bankAccount.setId(existingAccountId);
-			}
 			updateWorkerStateAccounts(importedAccountsCount, "UI_PROGRESS_IMPORT_ACCOUNT", bankAccount.getAccountName());
-			BankAccount persistedAccount = dbController.insertOrUpdate(bankAccount);
+			BankAccount persistedAccount = resolveAccountForImport(bankAccount, existingAccountId);
 			result = persistedAccount != null;
 			updateAccountLookupMaps(accountIdsByName, accountIdsByIdentifier, persistedAccount);
+			putIfPresent(importedAccountIdsByName, bankAccountXml.getNamePP(), persistedAccount != null ? persistedAccount.getId() : null);
 			updateAccountProgress(++importedAccountsCount);
 		}
 
 		accountIdMapByAccountname = dbController.getAccountsIdsByAccountName();
+		accountIdMapByAccountname.putAll(importedAccountIdsByName);
 		crossAccountIdMapByIdentifier = dbController.getCrossAccountsIdsByIbanOrNumber();
 
 		log.info("{} accounts written to DB during import.", totalAccounts);
 		dbController.printAccountsInDB();
 
 		return result;
+	}
+
+	private BankAccount resolveAccountForImport(BankAccount importedAccount, Integer existingAccountId) {
+		if (existingAccountId != null) {
+			BankAccount existingAccount = dbController.getById(BankAccount.class, existingAccountId);
+			if (existingAccount != null && existingAccount.getBankAccessId() != null && existingAccount.getBankAccessId() > 0) {
+				return existingAccount;
+			}
+			importedAccount.setId(existingAccountId);
+		}
+		return dbController.insertOrUpdate(importedAccount);
 	}
 
 	private long countBookings(Collection<de.zft2.fp3xmlextract.data.Fp3XmlBankAccount> bankAccountList) {
@@ -378,14 +389,15 @@ public class FileImportBean implements BaseMessagesDb {
 			String accountName = bankAccountXml.getNamePP();
 			List<de.zft2.fp3xmlextract.data.Fp3XmlBooking> bookingsList = bankAccountXml.getBookings();
 			List<Booking> bookingDaoList = new ArrayList<>();
+			List<Booking> processedBookings = new ArrayList<>();
 			Integer accountId = accountIdMapByAccountname.get(accountName);
 			List<Booking> existingBookings = accountId == null ? List.of() : dbController.getAllByParentFull(Booking.class, accountId);
 			ImportAccountStatistics accountStatistics = importStatistics.forAccount(accountName, existingBookings.size());
 
 			updateWorkerStateBookings(importedBookingsCount, "UI_PROGRESS_IMPORT_BOOKINGS_ACCOUNT_COUNT", accountName, bookingsList.size());
 
-			importedBookingsCount = writeBookingsForAccount(crossBookingMap, accountName, bookingsList, bookingDaoList, existingBookings, accountStatistics,
-					importedBookingsCount);
+			importedBookingsCount = writeBookingsForAccount(crossBookingMap, accountName, bookingsList, bookingDaoList, existingBookings,
+					processedBookings, accountStatistics, importedBookingsCount);
 
 			log.info("Imported bookings for accountId={}: written={}, skippedDuplicates={}", accountId, bookingDaoList.size(),
 					accountStatistics.getSkippedBookings());
@@ -400,11 +412,12 @@ public class FileImportBean implements BaseMessagesDb {
 	}
 
 	private long writeBookingsForAccount(Map<de.zft2.core.dto.Booking, Integer> crossBookingMap, String accountName,
-			List<de.zft2.fp3xmlextract.data.Fp3XmlBooking> bookingsList, List<Booking> bookingDaoList, List<Booking> existingBookings,
-			ImportAccountStatistics accountStatistics, long importedBookingsCount) {
+			List<de.zft2.fp3xmlextract.data.Fp3XmlBooking> bookingsList, List<Booking> bookingDaoList,
+			List<Booking> existingBookings, List<Booking> processedBookings, ImportAccountStatistics accountStatistics,
+			long importedBookingsCount) {
 
 		for (de.zft2.fp3xmlextract.data.Fp3XmlBooking xmlBooking : bookingsList) {
-			ImportedBookingResult importResult = writeBookingForAccount(crossBookingMap, accountName, existingBookings, xmlBooking);
+			ImportedBookingResult importResult = writeBookingForAccount(crossBookingMap, accountName, existingBookings, processedBookings, xmlBooking);
 			applyImportResult(bookingDaoList, accountStatistics, importResult);
 			updateBookingProgress(++importedBookingsCount);
 		}
@@ -412,19 +425,23 @@ public class FileImportBean implements BaseMessagesDb {
 	}
 
 	private ImportedBookingResult writeBookingForAccount(Map<de.zft2.core.dto.Booking, Integer> crossBookingMap, String accountName,
-			List<Booking> existingBookings, de.zft2.fp3xmlextract.data.Fp3XmlBooking xmlBooking) {
+			List<Booking> existingBookings, List<Booking> processedBookings,
+			de.zft2.fp3xmlextract.data.Fp3XmlBooking xmlBooking) {
 
 		int accountId = ImportedAccountResolver.resolveAccountId(accountName, xmlBooking, accountIdMapByAccountname);
 		Integer crossAccountId = ImportedAccountResolver.resolveCrossAccountId(xmlBooking, accountId, accountIdMapByAccountname,
 				crossAccountIdMapByIdentifier);
 		Booking bookingDao = ImportDaoMapper.maptoBookingDao(xmlBooking, accountId, crossAccountId, Source.IMPORT_INITIAL,
 				baseCurrencyByAccountId.getOrDefault(accountId, Currency.EUR));
-		Booking existingBooking = ImportedBookingMatcher.findMatchingBooking(existingBookings, bookingDao);
+		Booking existingBooking = ImportedBookingMatcher.findMatchingBooking(existingBookings, processedBookings, bookingDao);
 		boolean existing = existingBooking != null;
 		Booking resolvedBooking = existing ? existingBooking : dbController.insertOrUpdate(bookingDao);
 
 		registerPendingCrossBooking(crossBookingMap, xmlBooking, resolvedBooking);
 		boolean updated = linkCrossBookingIfPossible(crossBookingMap, xmlBooking, resolvedBooking) && existing;
+		if (resolvedBooking != null) {
+			processedBookings.add(resolvedBooking);
+		}
 		return new ImportedBookingResult(existing, updated, resolvedBooking);
 	}
 
@@ -485,14 +502,26 @@ public class FileImportBean implements BaseMessagesDb {
 
 	private Collection<Booking> persistImportedBookings(Collection<Booking> bookingDaoList) {
 		Collection<Booking> persistedBookings = new ArrayList<>();
+		Map<Integer, List<Booking>> existingBookingsByAccountId = new HashMap<>();
+		Map<Integer, List<Booking>> processedBookingsByAccountId = new HashMap<>();
 		totalBookings = bookingDaoList.size();
 		long importedBookingsCount = 0L;
 		updateWorkerStateBookings(importedBookingsCount, "UI_PROGRESS_IMPORT_BOOKINGS");
 
 		for (Booking booking : bookingDaoList) {
+			List<Booking> existingBookings = existingBookingsByAccountId.computeIfAbsent(booking.getAccountId(),
+					accountId -> new ArrayList<>(dbController.getAllByParentFull(Booking.class, accountId)));
+			List<Booking> processedBookings = processedBookingsByAccountId.computeIfAbsent(booking.getAccountId(), accountId -> new ArrayList<>());
+			Booking duplicate = ImportedBookingMatcher.findMatchingBooking(existingBookings, processedBookings, booking);
+			if (duplicate != null) {
+				processedBookings.add(duplicate);
+				updateBookingProgress(++importedBookingsCount);
+				continue;
+			}
 			Booking persistedBooking = dbController.insertOrUpdate(booking);
 			if (persistedBooking != null) {
 				persistedBookings.add(persistedBooking);
+				processedBookings.add(persistedBooking);
 			}
 			updateBookingProgress(++importedBookingsCount);
 		}

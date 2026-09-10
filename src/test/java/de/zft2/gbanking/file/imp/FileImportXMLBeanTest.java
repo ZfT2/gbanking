@@ -22,6 +22,7 @@ import de.zft2.fp3xmlextract.data.Fp3XmlBankAccount;
 import de.zft2.gbanking.cache.InstituteLookupCache;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.ImportHistory;
@@ -111,6 +112,38 @@ class FileImportXMLBeanTest {
 		assertEquals(1, statistics.getExistingBookings());
 		assertEquals(0, statistics.getAddedBookings());
 		assertEquals(1, statistics.getSkippedBookings());
+	}
+
+	@Test
+	void importFileToDatabase_shouldKeepExistingOnlineBookingInsteadOfImportDuplicate() throws Exception {
+		BankAccess bankAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("50015001"));
+		BankAccount onlineAccount = TestDataFactory.createSampleAccount(bankAccess.getId());
+		onlineAccount.setAccountName("Testkonto");
+		onlineAccount.setIban("DE56600160020008290050");
+		onlineAccount.setNumber("8290050");
+		onlineAccount = dbController.insertOrUpdate(onlineAccount);
+
+		Booking onlineBooking = new Booking();
+		onlineBooking.setAccountId(onlineAccount.getId());
+		onlineBooking.setDateBooking(java.time.LocalDate.of(2025, 1, 1));
+		onlineBooking.setPurpose("Testbuchung");
+		onlineBooking.setAmount(new BigDecimal("123.45"));
+		onlineBooking.setBookingType(BookingType.DEPOSIT);
+		onlineBooking.setSource(Source.ONLINE);
+		onlineBooking = dbController.insertOrUpdate(onlineBooking);
+
+		String xml = Files.readString(testResource("dummy_import.xml")).replace("Testbuchung</ZWECK>", "Testbuchung  V00010</ZWECK>");
+		Path importFile = tempDir.resolve("online-duplicate.xml");
+		Files.writeString(importFile, xml);
+		new FileImportBean(null).importFileToDatatbase(importFile.toString());
+
+		BankAccount persistedAccount = dbController.getById(BankAccount.class, onlineAccount.getId());
+		List<Booking> bookings = dbController.getAllByParentFull(Booking.class, onlineAccount.getId());
+		assertEquals(bankAccess.getId(), persistedAccount.getBankAccessId());
+		assertEquals(1, bookings.size());
+		assertEquals(onlineBooking.getId(), bookings.get(0).getId());
+		assertEquals(Source.ONLINE, bookings.get(0).getSource());
+		assertEquals("Testbuchung", bookings.get(0).getPurpose());
 	}
 
 	@Test

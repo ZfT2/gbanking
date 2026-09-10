@@ -3,6 +3,7 @@ package de.zft2.gbanking.service.account;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
@@ -14,7 +15,7 @@ import de.zft2.gbanking.db.dao.BookingAdditionalDetails;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.Source;
 
-final class BookingDuplicateChecker {
+public final class BookingDuplicateChecker {
 
 	private static final Set<Source> IMPORT_ONLINE_SOURCES = EnumSet.of(Source.ONLINE, Source.ONLINE_NEW, Source.IMPORT,
 			Source.IMPORT_NEW, Source.IMPORT_INITIAL, Source.IMPORT_INITIAL_NEW);
@@ -24,24 +25,39 @@ final class BookingDuplicateChecker {
 			Pattern.CASE_INSENSITIVE);
 
 	boolean isDuplicate(Booking newBooking, List<Booking> existingBookings, List<Booking> processedIncomingBookings) {
-		if (hasStableReferenceMatch(newBooking, existingBookings)
-				|| hasStableReferenceMatch(newBooking, processedIncomingBookings)) {
-			return true;
-		}
-
-		int existingFingerprintMatches = countFingerprintMatches(newBooking, existingBookings);
-		if (existingFingerprintMatches == 0) {
-			return false;
-		}
-		return countFingerprintMatches(newBooking, processedIncomingBookings) < existingFingerprintMatches;
+		return findDuplicate(newBooking, existingBookings, processedIncomingBookings) != null;
 	}
 
-	private boolean hasStableReferenceMatch(Booking newBooking, List<Booking> existingBookings) {
-		return existingBookings.stream().anyMatch(existingBooking -> IMPORT_ONLINE_SOURCES.contains(existingBooking.getSource())
-				&& hasSameStableReference(newBooking, existingBooking));
+	public Booking findDuplicate(Booking newBooking, Collection<Booking> existingBookings,
+			Collection<Booking> processedIncomingBookings) {
+		if (newBooking == null) {
+			return null;
+		}
+		Collection<Booking> existing = existingBookings != null ? existingBookings : List.of();
+		Collection<Booking> processed = processedIncomingBookings != null ? processedIncomingBookings : List.of();
+		Booking stableReferenceMatch = findStableReferenceMatch(newBooking, existing);
+		if (stableReferenceMatch != null) {
+			return stableReferenceMatch;
+		}
+		stableReferenceMatch = findStableReferenceMatch(newBooking, processed);
+		return stableReferenceMatch != null ? stableReferenceMatch
+				: findFingerprintMatch(newBooking, existing, countFingerprintMatches(newBooking, processed));
 	}
 
-	private int countFingerprintMatches(Booking newBooking, List<Booking> existingBookings) {
+	private Booking findStableReferenceMatch(Booking newBooking, Collection<Booking> existingBookings) {
+		for (Booking existingBooking : existingBookings) {
+			if (isStableReferenceDuplicate(newBooking, existingBooking)) {
+				return existingBooking;
+			}
+		}
+		return null;
+	}
+
+	private boolean isStableReferenceDuplicate(Booking newBooking, Booking existingBooking) {
+		return IMPORT_ONLINE_SOURCES.contains(existingBooking.getSource()) && hasSameStableReference(newBooking, existingBooking);
+	}
+
+	private int countFingerprintMatches(Booking newBooking, Collection<Booking> existingBookings) {
 		int count = 0;
 		for (Booking existingBooking : existingBookings) {
 			if (hasFingerprintDuplicateMatch(newBooking, existingBooking)) {
@@ -49,6 +65,18 @@ final class BookingDuplicateChecker {
 			}
 		}
 		return count;
+	}
+
+	private Booking findFingerprintMatch(Booking newBooking, Collection<Booking> existingBookings, int matchesToSkip) {
+		for (Booking existingBooking : existingBookings) {
+			if (hasFingerprintDuplicateMatch(newBooking, existingBooking)) {
+				if (matchesToSkip == 0) {
+					return existingBooking;
+				}
+				matchesToSkip--;
+			}
+		}
+		return null;
 	}
 
 	private boolean hasFingerprintDuplicateMatch(Booking newBooking, Booking existingBooking) {

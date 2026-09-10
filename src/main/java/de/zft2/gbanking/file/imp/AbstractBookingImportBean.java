@@ -39,6 +39,7 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 	private final ImportedBookingReferenceWriter bookingReferenceWriter;
 	private final ImportStatisticsCollector importStatistics = new ImportStatisticsCollector();
 	private final Map<Integer, List<Booking>> existingBookingsByAccountId = new HashMap<>();
+	private final Map<Integer, List<Booking>> processedBookingsByAccountId = new HashMap<>();
 	private final Map<String, BankAccount> accountsByIban = new HashMap<>();
 	private final Map<String, BankAccount> accountsByNumber = new HashMap<>();
 	private final Map<String, BankAccount> accountsByName = new HashMap<>();
@@ -53,6 +54,7 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 	protected Path prepareImportFile(String importFile, String messageKey) {
 		importStatistics.clear();
 		existingBookingsByAccountId.clear();
+		processedBookingsByAccountId.clear();
 		updateWorkerState(1, messageKey, importFile);
 
 		Path importPath = AppPaths.resolveInApplicationDirectory(importFile);
@@ -142,9 +144,12 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 
 	protected Booking importBookingAndReturn(BankAccount account, Booking booking, List<Booking> importedBookings) {
 		List<Booking> existingBookings = existingBookingsFor(account);
+		List<Booking> processedBookings = processedBookingsFor(account);
 		FileImportBean.ImportAccountStatistics statistics = importStatistics.forAccount(account.getAccountName(), existingBookings.size());
 
-		if (ImportedBookingMatcher.findMatchingBooking(existingBookings, booking) != null) {
+		Booking existingBooking = ImportedBookingMatcher.findMatchingBooking(existingBookings, processedBookings, booking);
+		if (existingBooking != null) {
+			processedBookings.add(existingBooking);
 			statistics.incrementSkipped();
 			return null;
 		}
@@ -154,7 +159,7 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 			return null;
 		}
 
-		existingBookings.add(persistedBooking);
+		processedBookings.add(persistedBooking);
 		if (importedBookings != null) {
 			importedBookings.add(persistedBooking);
 		}
@@ -177,12 +182,13 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 				throw new GBankingException("No database account resolved for imported account " + importAccount.getAccountName() + ".");
 			}
 			List<Booking> existingBookings = existingBookingsFor(account);
+			List<Booking> processedBookings = processedBookingsFor(account);
 			FileImportBean.ImportAccountStatistics statistics = importStatistics.forAccount(account.getAccountName(), existingBookings.size());
 
 			for (ImportBooking importBooking : importAccount.getBookings()) {
 				Booking bookingDao = ImportDaoMapper.maptoBookingDao(importBooking, account.getId(), resolveCrossAccountId(importBooking, account.getId()),
 						importBooking.getSource(), account.getBaseCurrency());
-				importBooking(crossBookingMap, importBooking, bookingDao, existingBookings, importedBookings, statistics);
+				importBooking(crossBookingMap, importBooking, bookingDao, existingBookings, processedBookings, importedBookings, statistics);
 			}
 		}
 	}
@@ -286,8 +292,9 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 	}
 
 	private void importBooking(Map<de.zft2.core.dto.Booking, Integer> crossBookingMap, ImportBooking importBooking, Booking bookingDao,
-			List<Booking> existingBookings, List<Booking> importedBookings, FileImportBean.ImportAccountStatistics statistics) {
-		Booking existingBooking = ImportedBookingMatcher.findMatchingBooking(existingBookings, bookingDao);
+			List<Booking> existingBookings, List<Booking> processedBookings, List<Booking> importedBookings,
+			FileImportBean.ImportAccountStatistics statistics) {
+		Booking existingBooking = ImportedBookingMatcher.findMatchingBooking(existingBookings, processedBookings, bookingDao);
 		boolean existing = existingBooking != null;
 		boolean updated = false;
 		Booking resolvedBooking = existing ? existingBooking : dbController.insertOrUpdate(bookingDao);
@@ -313,11 +320,13 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 		} else if (existing) {
 			statistics.incrementSkipped();
 		} else if (resolvedBooking != null) {
-			existingBookings.add(resolvedBooking);
 			if (importedBookings != null) {
 				importedBookings.add(resolvedBooking);
 			}
 			statistics.incrementAdded();
+		}
+		if (resolvedBooking != null) {
+			processedBookings.add(resolvedBooking);
 		}
 	}
 
@@ -362,5 +371,9 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 
 	private List<Booking> existingBookingsFor(BankAccount account) {
 		return existingBookingsByAccountId.computeIfAbsent(account.getId(), id -> new ArrayList<>(dbController.getAllByParentFull(Booking.class, id)));
+	}
+
+	private List<Booking> processedBookingsFor(BankAccount account) {
+		return processedBookingsByAccountId.computeIfAbsent(account.getId(), id -> new ArrayList<>());
 	}
 }
