@@ -4,7 +4,10 @@ import static de.zft2.gbanking.util.TextValues.trimToNull;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -167,9 +170,8 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 	private List<TableColumn<BankAccount, ?>> createCompactColumns() {
 		TableColumn<BankAccount, Boolean> selectedCol = createSelectAllSelectionColumn(
 				account -> account.isSelected(), (account, selected) -> account.setSelected(selected));
-		TableColumn<BankAccount, String> nameCol = createAccountNameColumn(180, 220);
-		TableColumn<BankAccount, LocalDate> updatedCol = TableColumnFactory.createUpdatedAtColumn(getText("UI_TABLE_UPDATED_AT"),
-				account -> account.getUpdatedAt(), 90);
+		TableColumn<BankAccount, String> nameCol = createAccountNameColumn(100, 220);
+		AccountUpdatedAtColumn updatedCol = createUpdatedAtColumn();
 
 		return List.of(selectedCol, nameCol, updatedCol);
 	}
@@ -184,10 +186,13 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 				account -> account.getAccountType() != null ? account.getAccountType().toString() : "", 90);
 		TableColumn<BankAccount, BigDecimal> balanceCol = TableColumnFactory.createAmountColumn(getText("UI_TABLE_BALANCE"),
 				account -> account.getBalance());
-		TableColumn<BankAccount, LocalDate> updatedCol = TableColumnFactory.createUpdatedAtColumn(getText("UI_TABLE_UPDATED_AT"),
-				account -> account.getUpdatedAt(), 90);
+		AccountUpdatedAtColumn updatedCol = createUpdatedAtColumn();
 
 		return List.of(selectedCol, nameCol, ibanCol, bankCol, typeCol, balanceCol, updatedCol);
+	}
+
+	private AccountUpdatedAtColumn createUpdatedAtColumn() {
+		return new AccountUpdatedAtColumn(getText("UI_TABLE_UPDATED_AT"));
 	}
 
 	private TableColumn<BankAccount, String> createAccountNameColumn(double minWidth, double prefWidth) {
@@ -312,7 +317,14 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 
 	public void reload() {
 		Integer selectedAccountId = accountIdToRestore();
+		LocalDate today = LocalDate.now();
+		Map<Integer, LocalDateTime> retrievalTimes = new HashMap<>();
+		masterData.stream()
+				.filter(account -> account.getSessionRetrievalAt() != null
+						&& account.getSessionRetrievalAt().toLocalDate().equals(today))
+				.forEach(account -> retrievalTimes.put(account.getId(), account.getSessionRetrievalAt()));
 		replaceItemsFrom(() -> loadAccounts(accountListScope));
+		masterData.forEach(account -> account.setSessionRetrievalAt(retrievalTimes.get(account.getId())));
 		updatePanelTitle();
 		restoreSelectedAccount(selectedAccountId);
 	}

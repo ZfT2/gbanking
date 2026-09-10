@@ -3,6 +3,7 @@ package de.zft2.gbanking.db.dao;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import de.zft2.core.dto.Account;
@@ -40,6 +41,7 @@ public class BankAccount extends Dao implements Serializable, Account<Booking> {
 	private AccountState accountState;
 	private BigDecimal balance;
 	private LocalDate createdAt;
+	private transient LocalDateTime sessionRetrievalAt;
 	private transient String parentAccount;
 
 	private List<BusinessCase> allowedBusinessCases;
@@ -270,6 +272,14 @@ public class BankAccount extends Dao implements Serializable, Account<Booking> {
 
 	public void setCreatedAt(LocalDate createdAt) {
 		this.createdAt = createdAt;
+	}
+
+	public LocalDateTime getSessionRetrievalAt() {
+		return sessionRetrievalAt;
+	}
+
+	public void setSessionRetrievalAt(LocalDateTime sessionRetrievalAt) {
+		this.sessionRetrievalAt = sessionRetrievalAt;
 	}
 
 	public List<BusinessCase> getAllowedBusinessCases() {

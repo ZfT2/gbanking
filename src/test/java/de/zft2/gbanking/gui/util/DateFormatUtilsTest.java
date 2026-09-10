@@ -20,6 +20,18 @@ class DateFormatUtilsTest {
 	}
 
 	@Test
+	void retrievalTimeShouldSwitchToDateAtMidnightAndKeepLegacyDates() {
+		LocalDate day = LocalDate.of(2026, Month.SEPTEMBER, 10);
+		LocalDateTime retrievedAt = day.atTime(9, 5, 48);
+
+		assertEquals("09:05", DateFormatUtils.formatRetrievalAt(retrievedAt, day, day));
+		assertEquals("11.09.2026", DateFormatUtils.formatRetrievalAt(retrievedAt, day.plusDays(1), day.plusDays(1)));
+		assertEquals("00:00", DateFormatUtils.formatRetrievalAt(day.atStartOfDay(), day, day));
+		assertEquals("10.09.2026", DateFormatUtils.formatRetrievalAt(null, day, day));
+		assertEquals("", DateFormatUtils.formatRetrievalAt(null, null, day));
+	}
+
+	@Test
 	void shouldFormatBookingAndValueDateInOneOrTwoLines() {
 		LocalDate bookingDate = LocalDate.of(2026, Month.APRIL, 10);
 		LocalDate sameValueDate = LocalDate.of(2026, Month.APRIL, 10);

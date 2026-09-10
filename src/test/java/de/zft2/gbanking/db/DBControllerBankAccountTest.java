@@ -95,10 +95,12 @@ class DBControllerBankAccountTest extends DBControllerIntegrationBaseTest {
 	void insertUpdateBankAccount_shouldSetCreatedAtOnce() {
 
 		BankAccount account = TestDataFactory.createSampleAccount(null);
+		account.setSessionRetrievalAt(LocalDateTime.of(2026, Month.SEPTEMBER, 10, 9, 5));
 		db.insertOrUpdate(account);
 
 		BankAccount createdAccount = db.getById(BankAccount.class, account.getId());
 		assertNotNull(createdAccount.getCreatedAt());
+		assertNull(createdAccount.getSessionRetrievalAt());
 		LocalDate createdAt = createdAccount.getCreatedAt();
 
 		createdAccount.setAccountName("Updated account name");

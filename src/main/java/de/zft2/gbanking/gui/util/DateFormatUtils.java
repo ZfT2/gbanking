@@ -9,6 +9,7 @@ public final class DateFormatUtils {
 	private static final DateTimeFormatter SHORT_DATE = DateTimeFormatter.ofPattern("dd.MM.yy");
 	private static final DateTimeFormatter LONG_DATE = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 	private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+	private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm");
 
 	private DateFormatUtils() {
 	}
@@ -23,6 +24,10 @@ public final class DateFormatUtils {
 
 	public static String formatDateTime(LocalDateTime dateTime) {
 		return dateTime == null ? "" : DATE_TIME.format(dateTime);
+	}
+
+	public static String formatRetrievalAt(LocalDateTime retrievedAt, LocalDate updatedAt, LocalDate today) {
+		return retrievedAt != null && retrievedAt.toLocalDate().equals(today) ? TIME.format(retrievedAt) : formatLong(updatedAt);
 	}
 
 	public static String formatBookingAndValue(LocalDate bookingDate, LocalDate valueDate) {

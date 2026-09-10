@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -399,6 +400,9 @@ public class GBankingGui extends Application implements BaseGui {
 		if (result.wrongPin()) {
 			blockedBankKeys.add(bankKey);
 			skippedBanks.add(formatBankLabel(bankAccount));
+		}
+		if (result.successful()) {
+			bankAccount.setSessionRetrievalAt(LocalDateTime.now());
 		}
 	}
 
