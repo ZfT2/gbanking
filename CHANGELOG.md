@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-11
+
+### Added
+- Interpret years two digit years >= 90 as the 1990s
+- Add bankname validation dialog for file imports
+- show exact time in account list after retrieval of bookings
+- add central navigation buttons
+- add view to institute db to get only single result per institute
+- search trough more recipient fields in transaction filter
+
+### Fixed
+- Avoid duplicate bookings for file imports after online bookings
+- JUnit Test for institute view
+- Add re-autorisation for enablebanking to retrieve older bookings
+- Retrieve more data from enablebaning connector, account naming
+- Handle account number separate, use not as iban fallback anymore
+- Do not reload (empty) tenant if dialog cancel button is pressed
+
+### Build
+- Extend build / ci to create also beta releases
+
+### Maintenance
+- release: prepare next development version 0.6.1-SNAPSHOT
+
+### Other
+- Add validity dates to institute entries
+
 ## [0.6.0] - 2026-09-07
 
 ### Added
@@ -394,52 +421,4 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 - release: prepare next development version 0.7.1-SNAPSHOT
-
-## [0.7.0] - 2026-06-02
-
-### Added
-- add rebooking creation tool
-- add category context menu
-- add rebooking detection tool
-- visible link crossbookings in transaction table
-- Search and link crossbookings with online request
-- Show amount in callback dialog
-- Add field to moneytransfer validation message
-- Add urgent moneytransfer type
-- Bankname tooltip in account list
-- pre select account if view changes
-- IBAN calculation
-- Check bank parameter data to enable/disable program functions
-- Extend foreign moneytransfer
-- Handle of cancel bookings
-
-### Fixed
-- shrink fix mac build
-- try to fix mac build
-- DB-migration test
-- Category panel issues
-- update/duplicate detection for institute import
-- moneytransfers bank name lookup
-- delete institute CSV
-- avoid editing of sent moneytransfers
-- amount formatting in moneytransfer form
-- width of amount column
-- same-day booking requests
-
-### Changed
-- Normalize booking db table
-- Recipient handling
-- Institute in own global db
-
-### Maintenance
-- release: prepare next development version 0.7.1-SNAPSHOT
-- cleanup institute test data
-- added institute.db
-- commit hook to avoid SNAPSHOT versions in dependencies
-- delete also bpd and upd if bankaccess is deleted
-- add db constraint triggers for booking/recipient relation
-- add db constraint triggers
-- Normalize line endings
-- Update bank list
-- release: prepare next development version 0.6.1-SNAPSHOT
 
