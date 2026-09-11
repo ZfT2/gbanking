@@ -37,6 +37,7 @@ import de.zft2.gbanking.db.dao.enu.AccountIdentifierType;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.SourceGroup;
 import de.zft2.gbanking.db.dao.logic.StatementsLogic;
+import de.zft2.gbanking.db.dao.logic.StatementsLogicRecipient;
 import de.zft2.gbanking.db.dao.mapper.AbstractDaoMapper;
 import de.zft2.gbanking.db.dao.mapper.BookingMapper;
 import de.zft2.gbanking.exception.GBankingException;
@@ -241,6 +242,16 @@ public class DBController extends DbExecutor {
 
 	public Recipient resolveRecipient(Recipient recipient) {
 		return recipient != null ? insertOrUpdate(recipient) : null;
+	}
+
+	public Recipient resolveRecipientForImportedBooking(Recipient recipient) {
+		if (recipient == null) {
+			return null;
+		}
+		return withDbTransaction(() -> {
+			StatementsLogic<Recipient> logic = StatementsConfig.getLogicForDaoType(Recipient.class);
+			return ((StatementsLogicRecipient) logic).insertOrReuseForImportedBooking(recipient);
+		});
 	}
 
 	public Recipient resolveRecipientForManualBooking(Booking booking, Recipient recipient) {

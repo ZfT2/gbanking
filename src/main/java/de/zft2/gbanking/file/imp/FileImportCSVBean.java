@@ -63,11 +63,21 @@ public class FileImportCSVBean extends AbstractBookingImportBean {
 	}
 
 	public FileImportCSVBean(BaseWorker worker, BankAccount contextAccount, String definitionName) {
-		this(worker, contextAccount, definitionName, new CsvImportAnalyzer());
+		this(worker, contextAccount, definitionName, new CsvImportAnalyzer(), null);
 	}
 
 	FileImportCSVBean(BaseWorker worker, BankAccount contextAccount, String definitionName, CsvImportAnalyzer analyzer) {
-		super(worker, contextAccount);
+		this(worker, contextAccount, definitionName, analyzer, null);
+	}
+
+	FileImportCSVBean(BaseWorker worker, BankAccount contextAccount, String definitionName,
+			ImportedBankNameCorrectionHandler bankNameCorrectionHandler) {
+		this(worker, contextAccount, definitionName, new CsvImportAnalyzer(), bankNameCorrectionHandler);
+	}
+
+	private FileImportCSVBean(BaseWorker worker, BankAccount contextAccount, String definitionName, CsvImportAnalyzer analyzer,
+			ImportedBankNameCorrectionHandler bankNameCorrectionHandler) {
+		super(worker, contextAccount, bankNameCorrectionHandler);
 		this.definitionName = definitionName;
 		this.analyzer = analyzer;
 	}

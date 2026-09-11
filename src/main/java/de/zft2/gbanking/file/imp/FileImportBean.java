@@ -57,6 +57,7 @@ public class FileImportBean implements BaseMessagesDb {
 	private final BaseWorker worker;
 	private final BankAccount contextAccount;
 	private final boolean forceFp3Import;
+	private final ImportedBankNameCorrectionHandler bankNameCorrectionHandler;
 	private final ImportedBookingReferenceWriter bookingReferenceWriter;
 	private final ImportStatisticsCollector importStatistics = new ImportStatisticsCollector();
 	private int currentProgress = -1;
@@ -66,9 +67,15 @@ public class FileImportBean implements BaseMessagesDb {
 	}
 
 	public FileImportBean(BaseWorker worker, BankAccount contextAccount, boolean forceFp3Import) {
+		this(worker, contextAccount, forceFp3Import, null);
+	}
+
+	FileImportBean(BaseWorker worker, BankAccount contextAccount, boolean forceFp3Import,
+			ImportedBankNameCorrectionHandler bankNameCorrectionHandler) {
 		this.worker = worker;
 		this.contextAccount = contextAccount;
 		this.forceFp3Import = forceFp3Import;
+		this.bankNameCorrectionHandler = bankNameCorrectionHandler;
 		this.bookingReferenceWriter = new ImportedBookingReferenceWriter(dbController);
 	}
 
@@ -535,7 +542,7 @@ public class FileImportBean implements BaseMessagesDb {
 		}
 
 		updateWorkerState(PROGRESS_RECIPIENTS_START, "UI_PROGRESS_IMPORT_CONTACTS");
-		bookingReferenceWriter.writeRecipients(importedBookings);
+		bookingReferenceWriter.writeRecipients(importedBookings, bankNameCorrectionHandler);
 
 		updateWorkerState(PROGRESS_CATEGORIES_START, "UI_PROGRESS_IMPORT_CATEGORIES");
 		bookingReferenceWriter.writeCategories(importedBookings);

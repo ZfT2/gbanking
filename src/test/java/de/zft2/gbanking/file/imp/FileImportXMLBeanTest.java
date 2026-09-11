@@ -3,6 +3,8 @@ package de.zft2.gbanking.file.imp;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.math.BigDecimal;
@@ -10,6 +12,8 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CancellationException;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -27,6 +31,7 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.ImportHistory;
 import de.zft2.gbanking.db.dao.Institute;
+import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.InstituteStatus;
@@ -160,6 +165,79 @@ class FileImportXMLBeanTest {
 		assertImportedBankName("EPC Bank", true);
 	}
 
+	@Test
+	void importFileToDatabase_shouldPersistSelectedBankNameCorrection() throws Exception {
+		insertValidationData();
+
+		Booking booking = importDummyXml(findings -> {
+			assertEquals("Testkonto", findings.get(0).accountName());
+			return Map.of(findings.get(0).bookingId(), "Expected Bank");
+		});
+
+		assertEquals("Expected Bank", booking.getRecipient().getBank());
+	}
+
+	@Test
+	void importFileToDatabase_shouldKeepImportedBankNameWhenCorrectionIsSkipped() throws Exception {
+		insertValidationData();
+
+		Booking booking = importDummyXml(findings -> Map.of());
+
+		assertEquals("TestBank", booking.getRecipient().getBank());
+	}
+
+	@Test
+	void importFileToDatabase_shouldRollbackIfBankNameValidationIsInterrupted() {
+		insertValidationData();
+		FileImportBean importBean = new FileImportBean(null, null, false, findings -> {
+			throw new IllegalStateException("Simulated validation interruption");
+		});
+
+		assertThrows(RuntimeException.class, () -> importBean.importFileToDatatbase(testResource("dummy_import.xml").toString()));
+
+		assertOnlyValidationDataRemains();
+	}
+
+	@Test
+	void fileImportTask_shouldCancelAndRollbackIfBankNameValidationIsCancelled() throws Exception {
+		insertValidationData();
+		FileImportTask task = new FileImportTask(testResource("dummy_import.xml").toString(), ExportType.BOOKINGS_XML,
+				null, null, findings -> {
+					throw new CancellationException("Simulated user cancellation");
+				});
+
+		JavaFxTestSupport.callFx(task::call);
+
+		assertTrue(task.isCancelled());
+		assertOnlyValidationDataRemains();
+	}
+
+	private void assertOnlyValidationDataRemains() {
+		assertEquals(1, dbController.getAll(BankAccount.class).size());
+		assertEquals(1, dbController.getAll(Booking.class).size());
+		assertEquals(1, dbController.getAll(Recipient.class).size());
+	}
+
+	private Booking importDummyXml(ImportedBankNameCorrectionHandler correctionHandler) throws Exception {
+		new FileImportBean(null, null, false, correctionHandler).importFileToDatatbase(testResource("dummy_import.xml").toString());
+		BankAccount account = dbController.getAll(BankAccount.class).stream()
+				.filter(candidate -> "Testkonto".equals(candidate.getAccountName())).findFirst().orElseThrow();
+		return dbController.getAllByParentFull(Booking.class, account.getId()).get(0);
+	}
+
+	private void insertValidationData() {
+		insertDkLookupBank("12345678", "GENODEF1XXX", "Expected Bank", 1);
+		insertDkLookupBank("87654321", "TESTDEFFXXX", "TestBank", 2);
+		BankAccount account = TestDataFactory.createSampleAccount(null);
+		account.setAccountName("Validation evidence");
+		account = dbController.insertOrUpdate(account);
+		Recipient recipient = dbController.insertOrUpdate(new Recipient("Known recipient", "DE00123456789012345678", "GENODEF1XXX",
+				"1234567890", "12345678", "Expected Bank", Source.IMPORT));
+		Booking booking = TestDataFactory.createSampleBookingWithRecipient(account.getId(), recipient.getId());
+		booking.setSource(Source.IMPORT);
+		dbController.insertOrUpdate(booking);
+	}
+
 	private void assertImportedBankName(String bankName, boolean removeBlz) throws Exception {
 		String xml = Files.readString(testResource("dummy_import.xml")).replace("<BANKNAME>TestBank</BANKNAME>", "<BANKNAME/>");
 		if (removeBlz) {
@@ -187,6 +265,17 @@ class FileImportXMLBeanTest {
 		case 3 -> bank.setCountry("Germany");
 		default -> throw new IllegalArgumentException("Unknown source priority: " + sourcePriority);
 		}
+		dbController.insertOrUpdate(bank);
+	}
+
+	private void insertDkLookupBank(String blz, String bic, String bankName, int importNumber) {
+		Institute bank = new Institute();
+		bank.setBlz(blz);
+		bank.setBic(bic);
+		bank.setBankName(bankName);
+		bank.setStateType(InstituteStatus.ACTIVE);
+		bank.setImportFile(dbController.insertOrUpdate(new ImportHistory("validation.csv")).getId());
+		bank.setImportNumber(importNumber);
 		dbController.insertOrUpdate(bank);
 	}
 

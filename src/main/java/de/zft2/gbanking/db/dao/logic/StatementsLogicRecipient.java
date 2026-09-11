@@ -41,6 +41,38 @@ public class StatementsLogicRecipient extends StatementsLogicDefault<Recipient> 
 		return executeInsertUpdateStatement(StatementType.INSERT, recipient);
 	}
 
+	public Recipient insertOrReuseForImportedBooking(Recipient recipient) {
+		boolean indexedAccountIdentifierLookup = canUseIndexedAccountIdentifierLookup(recipient);
+		List<Recipient> candidates = findMatchingRecipientCandidates(recipient, indexedAccountIdentifierLookup);
+		Recipient reusableRecipient = findReusableWithoutUpdate(recipient, candidates);
+		if (reusableRecipient != null) {
+			return reusableRecipient;
+		}
+
+		completeMissingBankName(recipient);
+		reusableRecipient = candidates.stream().filter(recipient::equals).findFirst().orElse(null);
+		if (reusableRecipient != null) {
+			return reusableRecipient;
+		}
+
+		recipient.setId(0);
+		return executeInsertUpdateStatement(StatementType.INSERT, recipient);
+	}
+
+	private Recipient findReusableWithoutUpdate(Recipient recipient, List<Recipient> candidates) {
+		Recipient reusableRecipient = null;
+		for (Recipient existingRecipient : candidates) {
+			boolean exactMatch = existingRecipient.equals(recipient);
+			boolean missingImportedBank = isImportRecipient(recipient) && !hasText(recipient.getBank())
+					&& existingRecipient.hasSameDataWithCompatibleBank(recipient);
+			if ((exactMatch || missingImportedBank) && (reusableRecipient == null
+					|| readabilityScore(existingRecipient) > readabilityScore(reusableRecipient))) {
+				reusableRecipient = existingRecipient;
+			}
+		}
+		return reusableRecipient;
+	}
+
 	private Recipient findMatchingRecipient(Recipient recipient, List<Recipient> candidates) {
 		Recipient matchingRecipient = null;
 		for (Recipient existingRecipient : candidates) {

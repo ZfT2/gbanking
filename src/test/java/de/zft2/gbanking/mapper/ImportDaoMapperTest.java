@@ -66,5 +66,6 @@ class ImportDaoMapperTest extends CoreBookingUtil {
 				.iterator().next();
 
 		assertEquals(3, booking.getAccountId());
+		assertEquals("Fallbackkonto", booking.getAccountName());
 	}
 }

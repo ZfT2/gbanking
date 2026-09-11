@@ -42,6 +42,7 @@ class DBControllerFacadeApiContractTest {
 			"de.zft2.gbanking.db.dao.Dao insertOrUpdate(de.zft2.gbanking.db.dao.Dao)",
 			"de.zft2.gbanking.db.dao.Recipient findPreferredRecipientByIban(java.lang.String)",
 			"de.zft2.gbanking.db.dao.Recipient resolveRecipient(de.zft2.gbanking.db.dao.Recipient)",
+			"de.zft2.gbanking.db.dao.Recipient resolveRecipientForImportedBooking(de.zft2.gbanking.db.dao.Recipient)",
 			"de.zft2.gbanking.db.dao.Recipient resolveRecipientForManualBooking(de.zft2.gbanking.db.dao.Booking,de.zft2.gbanking.db.dao.Recipient)",
 			"int clearBookingCategories(java.util.Collection)",
 			"int clearBookingCrossBookingIds(java.util.Collection)",

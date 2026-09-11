@@ -1,8 +1,10 @@
 package de.zft2.gbanking.file.imp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -24,7 +26,7 @@ class ImportedBookingReferenceWriterTest {
 	@Test
 	void writeRecipients_shouldResolveEqualRecipientsOnceAndUpdateBookingsGrouped() {
 		DBController dbController = mock(DBController.class);
-		when(dbController.resolveRecipient(any(Recipient.class))).thenAnswer(invocation -> {
+		when(dbController.resolveRecipientForImportedBooking(any(Recipient.class))).thenAnswer(invocation -> {
 			Recipient recipient = invocation.getArgument(0);
 			int id = "Different Recipient".equals(recipient.getName()) ? 22 : 11;
 			return resolvedRecipient(recipient, id);
@@ -37,7 +39,7 @@ class ImportedBookingReferenceWriterTest {
 		new ImportedBookingReferenceWriter(dbController).writeRecipients(List.of(upperCaseBooking, readableBooking, differentBooking));
 
 		ArgumentCaptor<Recipient> recipientCaptor = ArgumentCaptor.forClass(Recipient.class);
-		verify(dbController, times(2)).resolveRecipient(recipientCaptor.capture());
+		verify(dbController, times(2)).resolveRecipientForImportedBooking(recipientCaptor.capture());
 		assertEquals("Readable Recipient", recipientCaptor.getAllValues().get(0).getName());
 		assertEquals("Loud Bank", recipientCaptor.getAllValues().get(0).getBank());
 		assertEquals("Different Recipient", recipientCaptor.getAllValues().get(1).getName());
@@ -51,6 +53,33 @@ class ImportedBookingReferenceWriterTest {
 		assertEquals(11, upperCaseBooking.getRecipient().getId());
 		assertEquals(11, readableBooking.getRecipient().getId());
 		assertEquals(22, differentBooking.getRecipient().getId());
+	}
+
+	@Test
+	void writeRecipients_shouldApplyOnlySelectedBankNameCorrections() {
+		DBController dbController = mock(DBController.class);
+		when(dbController.resolveRecipientForImportedBooking(any(Recipient.class)))
+				.thenAnswer(invocation -> resolvedRecipient(invocation.getArgument(0), 11));
+		Booking correctedBooking = booking(1, recipient("Corrected Recipient", "DE123", "Wrong Bank"));
+		Booking unchangedBooking = booking(2, recipient("Unchanged Recipient", "DE456", "Other Wrong Bank"));
+
+		new ImportedBookingReferenceWriter(dbController).writeRecipients(List.of(correctedBooking, unchangedBooking), Map.of(1, "Correct Bank"));
+
+		ArgumentCaptor<Recipient> recipientCaptor = ArgumentCaptor.forClass(Recipient.class);
+		verify(dbController, times(2)).resolveRecipientForImportedBooking(recipientCaptor.capture());
+		assertEquals("Correct Bank", recipientCaptor.getAllValues().get(0).getBank());
+		assertEquals("Other Wrong Bank", recipientCaptor.getAllValues().get(1).getBank());
+	}
+
+	@Test
+	void writeRecipients_shouldFailIfRecipientCannotBeResolved() {
+		DBController dbController = mock(DBController.class);
+		Booking booking = booking(1, recipient("Recipient", "DE123", "Bank"));
+
+		ImportedBookingReferenceWriter writer = new ImportedBookingReferenceWriter(dbController);
+
+		assertThrows(NullPointerException.class, () -> writer.writeRecipients(List.of(booking)));
+		verify(dbController, never()).updateBookingsWithRecipients(any());
 	}
 
 	private static Set<Integer> onlyBookingIds(Map<Recipient, Set<Integer>> updateMap) {

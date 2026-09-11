@@ -159,6 +159,7 @@ public class ImportDaoMapper {
 		Source bookingSource = source != null ? source : Source.IMPORT;
 
 		booking.setAccountId(accountId);
+		booking.setAccountName(importBooking.getAccountName());
 		booking.setSource(bookingSource);
 		booking.setBookingType(getBookingType(importBooking));
 		mapAmounts(importBooking, booking, baseCurrency, getCurrency(importBooking));

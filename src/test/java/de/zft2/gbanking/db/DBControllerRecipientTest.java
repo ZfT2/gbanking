@@ -206,6 +206,23 @@ class DBControllerRecipientTest extends DBControllerIntegrationBaseTest {
 	}
 
 	@Test
+	void importedBookingResolution_shouldNeverChangeReferencedRecipient() {
+		Recipient existingRecipient = new Recipient("Max Mustermann", "DE1234567890", "BANKDEFFXXX", "67890", "12020010", null,
+				Source.ONLINE);
+		db.insertOrUpdate(existingRecipient);
+		referenceRecipientWithBooking(existingRecipient);
+		Recipient importedRecipient = new Recipient("Max Mustermann", "de1234567890", "bankdeffxxx", "67890", "12020010",
+				"Corrected Bank", Source.IMPORT);
+
+		Recipient resolvedRecipient = db.resolveRecipientForImportedBooking(importedRecipient);
+
+		assertNotEquals(existingRecipient.getId(), resolvedRecipient.getId());
+		assertNull(db.getByIdFull(Recipient.class, existingRecipient.getId()).getBank());
+		assertEquals("Corrected Bank", resolvedRecipient.getBank());
+		assertEquals(2, db.getAll(Recipient.class).size());
+	}
+
+	@Test
 	void importedRecipientWithoutBank_shouldResolveBankFromGermanIban() {
 		insertInstitute("50010517", "Lookup Bank", "LOOKDEFFXXX");
 		Recipient importedRecipient = new Recipient("Max Mustermann", "DE44500105175407324931", null, null, null, null, Source.IMPORT);

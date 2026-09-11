@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import de.zft2.gbanking.db.DBController;
@@ -27,9 +28,25 @@ final class ImportedBookingReferenceWriter {
 	}
 
 	void writeRecipients(Collection<Booking> bookings) {
+		writeRecipients(bookings, Map.of());
+	}
+
+	void writeRecipients(Collection<Booking> bookings, ImportedBankNameCorrectionHandler correctionHandler) {
+		Map<Integer, String> corrections = Map.of();
+		if (correctionHandler != null) {
+			List<ImportedBankNameFinding> findings = new ImportedBankNameValidator(dbController).validate(bookings);
+			if (!findings.isEmpty()) {
+				corrections = correctionHandler.selectCorrections(findings);
+			}
+		}
+		writeRecipients(bookings, corrections != null ? corrections : Map.of());
+	}
+
+	void writeRecipients(Collection<Booking> bookings, Map<Integer, String> corrections) {
 		List<Booking> recipientBookings = bookings.stream()
 				.filter(booking -> booking.getRecipient() != null && booking.getRecipientId() <= 0)
 				.toList();
+		applyCorrections(recipientBookings, corrections);
 		assignBankNamesByValidity(recipientBookings);
 		Map<RecipientIdentityKey, RecipientReferenceGroup> recipientGroups = new LinkedHashMap<>();
 
@@ -39,13 +56,24 @@ final class ImportedBookingReferenceWriter {
 		}
 
 		for (RecipientReferenceGroup recipientGroup : recipientGroups.values()) {
-			Recipient recipient = dbController.resolveRecipient(recipientGroup.recipient());
-			if (recipient == null) {
-				continue;
-			}
+			Recipient recipient = Objects.requireNonNull(
+					dbController.resolveRecipientForImportedBooking(recipientGroup.recipient()),
+					"Imported recipient resolution must not return null");
 
 			recipientGroup.bookings().forEach(booking -> booking.setRecipient(recipient));
 			dbController.updateBookingsWithRecipients(Map.of(recipient, recipientGroup.bookingIds()));
+		}
+	}
+
+	private static void applyCorrections(List<Booking> bookings, Map<Integer, String> corrections) {
+		if (corrections == null || corrections.isEmpty()) {
+			return;
+		}
+		for (Booking booking : bookings) {
+			String correctedBankName = corrections.get(booking.getId());
+			if (correctedBankName != null) {
+				booking.getRecipient().setBank(correctedBankName);
+			}
 		}
 	}
 

@@ -50,7 +50,12 @@ public class FileImportMT940Bean extends AbstractBookingImportBean {
 	}
 
 	public FileImportMT940Bean(BaseWorker worker, BankAccount contextAccount) {
-		super(worker, contextAccount);
+		this(worker, contextAccount, null);
+	}
+
+	FileImportMT940Bean(BaseWorker worker, BankAccount contextAccount,
+			ImportedBankNameCorrectionHandler bankNameCorrectionHandler) {
+		super(worker, contextAccount, bankNameCorrectionHandler);
 	}
 
 	public boolean importFile(String importFile) {

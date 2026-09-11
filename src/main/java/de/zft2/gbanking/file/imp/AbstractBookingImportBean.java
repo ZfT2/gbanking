@@ -36,6 +36,7 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 
 	private final BaseWorker worker;
 	private final BankAccount contextAccount;
+	private final ImportedBankNameCorrectionHandler bankNameCorrectionHandler;
 	private final ImportedBookingReferenceWriter bookingReferenceWriter;
 	private final ImportStatisticsCollector importStatistics = new ImportStatisticsCollector();
 	private final Map<Integer, List<Booking>> existingBookingsByAccountId = new HashMap<>();
@@ -46,8 +47,14 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 	private final Map<String, BankAccount> accountsByBlzAndNumber = new HashMap<>();
 
 	protected AbstractBookingImportBean(BaseWorker worker, BankAccount contextAccount) {
+		this(worker, contextAccount, null);
+	}
+
+	protected AbstractBookingImportBean(BaseWorker worker, BankAccount contextAccount,
+			ImportedBankNameCorrectionHandler bankNameCorrectionHandler) {
 		this.worker = worker;
 		this.contextAccount = contextAccount;
+		this.bankNameCorrectionHandler = bankNameCorrectionHandler;
 		this.bookingReferenceWriter = new ImportedBookingReferenceWriter(dbController);
 	}
 
@@ -219,7 +226,7 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 		if (importedBookings == null || importedBookings.isEmpty()) {
 			return;
 		}
-		bookingReferenceWriter.writeRecipients(importedBookings);
+		bookingReferenceWriter.writeRecipients(importedBookings, bankNameCorrectionHandler);
 		bookingReferenceWriter.writeCategories(importedBookings);
 	}
 

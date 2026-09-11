@@ -2,6 +2,7 @@ package de.zft2.gbanking.file.imp;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 
 import javax.xml.parsers.ParserConfigurationException;
 
@@ -23,6 +24,7 @@ public class FileImportTask extends BaseFileTask {
 	private List<RejectedRow> rejectedRows = List.of();
 	private final BankAccount contextAccount;
 	private final String csvDefinitionName;
+	private final ImportedBankNameCorrectionHandler bankNameCorrectionHandler;
 
 	public FileImportTask(String fileName) {
 		this(fileName, ExportType.BOOKINGS_XML, null, null);
@@ -33,10 +35,16 @@ public class FileImportTask extends BaseFileTask {
 	}
 
 	public FileImportTask(String fileName, ExportType exportType, BankAccount contextAccount, String csvDefinitionName) {
+		this(fileName, exportType, contextAccount, csvDefinitionName, null);
+	}
+
+	public FileImportTask(String fileName, ExportType exportType, BankAccount contextAccount, String csvDefinitionName,
+			ImportedBankNameCorrectionHandler bankNameCorrectionHandler) {
 		super(fileName);
 		this.exportType = exportType;
 		this.contextAccount = contextAccount;
 		this.csvDefinitionName = csvDefinitionName;
+		this.bankNameCorrectionHandler = bankNameCorrectionHandler;
 	}
 
 	@Override
@@ -44,39 +52,43 @@ public class FileImportTask extends BaseFileTask {
 		log.info("Starting booking file import. type={}, file={}", () -> exportType, this::fileNameOnly);
 		log.debug("Booking file import path: {}", fileName);
 		setWorkerProgress(0);
-		switch (exportType) {
-		case BOOKINGS_XML -> importBookingsXml();
-		case BOOKINGS_CSV -> importBookingsCsv();
-		case BOOKINGS_FP3 -> importBookingsFp3();
-		case BOOKINGS_MT940 -> importBookingsMt940();
-		default -> throw new GBankingException("Unknown import type: " + exportType);
+		try {
+			switch (exportType) {
+			case BOOKINGS_XML -> importBookingsXml();
+			case BOOKINGS_CSV -> importBookingsCsv();
+			case BOOKINGS_FP3 -> importBookingsFp3();
+			case BOOKINGS_MT940 -> importBookingsMt940();
+			default -> throw new GBankingException("Unknown import type: " + exportType);
+			}
+		} catch (CancellationException ignored) {
+			cancel();
 		}
 		return null;
 	}
 
 	private void importBookingsXml() {
-		FileImportBean fileImportBean = new FileImportBean(this);
+		FileImportBean fileImportBean = new FileImportBean(this, null, false, bankNameCorrectionHandler);
 		fileImportBean.importFile(fileName);
 		importSummaryText = fileImportBean.getImportSummaryText();
 		importStatistics = fileImportBean.getImportStatistics();
 	}
 
 	private void importBookingsCsv() throws IOException {
-		FileImportCSVBean fileImportBean = new FileImportCSVBean(this, contextAccount, csvDefinitionName);
+		FileImportCSVBean fileImportBean = new FileImportCSVBean(this, contextAccount, csvDefinitionName, bankNameCorrectionHandler);
 		fileImportBean.importFileToDatabase(fileName);
 		importStatistics = fileImportBean.getImportStatistics();
 		rejectedRows = fileImportBean.getRejectedRows();
 	}
 
 	private void importBookingsFp3() {
-		FileImportBean fileImportBean = new FileImportBean(this, contextAccount, true);
+		FileImportBean fileImportBean = new FileImportBean(this, contextAccount, true, bankNameCorrectionHandler);
 		fileImportBean.importFile(fileName);
 		importSummaryText = fileImportBean.getImportSummaryText();
 		importStatistics = fileImportBean.getImportStatistics();
 	}
 
 	private void importBookingsMt940() throws IOException {
-		FileImportMT940Bean fileImportBean = new FileImportMT940Bean(this, contextAccount);
+		FileImportMT940Bean fileImportBean = new FileImportMT940Bean(this, contextAccount, bankNameCorrectionHandler);
 		fileImportBean.importFileToDatabase(fileName);
 		importStatistics = fileImportBean.getImportStatistics();
 	}

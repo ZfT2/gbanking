@@ -8,6 +8,7 @@ import de.zft2.gbanking.file.imp.FileImportBean.ImportAccountStatistics;
 import de.zft2.gbanking.file.imp.FileImportCSVBean.RejectedRow;
 import de.zft2.gbanking.file.imp.FileImportTask;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
+import de.zft2.gbanking.gui.dialog.ImportedBankNameValidationDialog;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.panel.account.AccountListPanel;
@@ -62,7 +63,8 @@ public class FileImportProgressBarPanel extends BaseFileProgressBarPanel {
 
 	@Override
 	public void startTask(String fileName, ExportType exportType, AccountListPanel accountListPanel) {
-		task = new FileImportTask(fileName, exportType, contextAccount, csvDefinitionName);
+		task = new FileImportTask(fileName, exportType, contextAccount, csvDefinitionName,
+				new ImportedBankNameValidationDialog(dialogStage));
 		super.startTask(accountListPanel);
 	}
 
