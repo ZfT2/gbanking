@@ -59,7 +59,6 @@ class InstituteLookupCacheTest {
 		assertEquals(1, entries.size());
 		assertEquals("Bank A", entries.get(0).bankName());
 		assertEquals("BICADEFFXXX", entries.get(0).bic());
-		assertEquals(1, entries.get(0).importNumber());
 		assertTrue(InstituteLookupCache.getEntriesForBic("BICBDEFFXXX").isEmpty());
 	}
 
@@ -94,10 +93,8 @@ class InstituteLookupCacheTest {
 		assertEquals(2, entries.size());
 		assertEquals("Bank A", entries.get(0).bankName());
 		assertEquals("BICBDEFFXXX", entries.get(0).bic());
-		assertEquals(1, entries.get(0).importNumber());
 		assertEquals("Bank B", entries.get(1).bankName());
 		assertEquals("BICBDEFFXXX", entries.get(1).bic());
-		assertEquals(2, entries.get(1).importNumber());
 		assertTrue(InstituteLookupCache.getEntriesForBic(" ").isEmpty());
 	}
 
@@ -111,7 +108,7 @@ class InstituteLookupCacheTest {
 	}
 
 	@Test
-	void getEntriesForBic_shouldKeepSourcePriorityAheadOfImportNumber() {
+	void getEntriesForBic_shouldKeepSourcePriority() {
 		Institute dbb = createInstitute("20000000", "DBB Bank", "BICADEFFXXX", 0);
 		dbb.setLastChanged(null);
 		dbb.setDatasetNumber("000001");

@@ -2,6 +2,8 @@ package de.zft2.gbanking.file.imp.institute;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.Comparator;
 import java.util.Objects;
 
@@ -9,6 +11,7 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
 
 import de.zft2.gbanking.db.dao.Institute;
+import de.zft2.gbanking.db.dao.enu.InstituteStatus;
 import de.zft2.gbanking.gui.BaseWorker;
 
 /**
@@ -70,6 +73,24 @@ public class InstituteFileImportEpc extends InstituteFileImport {
 	}
 
 	@Override
+	protected LocalDate getSourceValidityDate(Institute institute) {
+		return parseDate(institute.getReadinessDate());
+	}
+
+	@Override
+	protected LocalDate getSourceValidityEndDate(Institute institute) {
+		return parseDate(institute.getSchemeLeavingDate());
+	}
+
+	@Override
+	protected void applySourceState(Institute institute, Snapshot snapshot) {
+		LocalDate validTo = getSourceValidityEndDate(institute);
+		if (validTo != null && validTo.isBefore(snapshot.date())) {
+			institute.setStateType(InstituteStatus.ARCHIVED);
+		}
+	}
+
+	@Override
 	protected Institute mapRecord(CSVRecord csvRecord) {
 		Institute institute = createImportedInstitute();
 		String bic = csvRecord.get("BIC");
@@ -93,7 +114,8 @@ public class InstituteFileImportEpc extends InstituteFileImport {
 
 	@Override
 	protected boolean isSameInstituteIdentity(Institute a, Institute b) {
-		return (a.getCountry() != null && b.getCountry() != null) && Objects.equals(a.getBic(), b.getBic());
+		return a.getCountry() != null && b.getCountry() != null && Objects.equals(a.getBic(), b.getBic())
+				&& Objects.equals(a.getBankName(), b.getBankName()) && Objects.equals(a.getPlace(), b.getPlace());
 	}
 
 	@Override
@@ -110,6 +132,14 @@ public class InstituteFileImportEpc extends InstituteFileImport {
 
 	private static boolean hasText(String value) {
 		return value != null && !value.isBlank();
+	}
+
+	private static LocalDate parseDate(String value) {
+		try {
+			return hasText(value) ? LocalDate.parse(value) : null;
+		} catch (DateTimeParseException exception) {
+			return null;
+		}
 	}
 
 }

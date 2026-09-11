@@ -2,6 +2,7 @@ package de.zft2.gbanking.file.imp.institute;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -10,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -250,6 +252,40 @@ class InstituteFileImportDkIntegrationTest extends BaseInstituteFileImportTest {
 		assertTrue(Files.exists(datedBasePath.resolve("import/archive").resolve(baseFileName + "_20260101.csv")));
 		assertTrue(Files.exists(datedBasePath.resolve("import/archive").resolve(baseFileName + "_20260102.csv")));
 		assertTrue(Files.exists(datedBasePath.resolve("import/archive").resolve(baseFileName + "_20260103.csv")));
+	}
+
+	@Test
+	void testReappearingInstituteKeepsOneContinuousValidityInterval() throws Exception {
+		Path importBasePath = tempDir.resolve("reappearing-institute-import");
+		Path importDir = importBasePath.resolve("import");
+		Files.createDirectories(importDir);
+
+		String baseFileName = "fints_institute NEU mit BIC Master";
+		String firstFile = baseFileName + "_20260101.csv";
+		String missingFile = baseFileName + "_20260102.csv";
+		String lastFile = baseFileName + "_20260103.csv";
+		String firstBank = instituteCsvRow(1, "10010010", "TESTDEFFXXX", "Test Bank", "Berlin");
+		String secondBank = instituteCsvRow(2, "20030000", "TESTDEHHXXX", "Other Bank", "Hamburg");
+		Files.writeString(importDir.resolve(firstFile), instituteCsv(List.of(firstBank, secondBank)), StandardCharsets.UTF_8);
+		Files.writeString(importDir.resolve(missingFile), instituteCsv(List.of(secondBank)), StandardCharsets.UTF_8);
+		Files.writeString(importDir.resolve(lastFile), instituteCsv(List.of(firstBank, secondBank)), StandardCharsets.UTF_8);
+
+		InstituteFileImport importer = InstituteFileImport.getInstance(InstituteFileImportDk.class, importBasePath.toString(), baseFileName,
+				StandardCharsets.UTF_8, null);
+		importer.runImport();
+
+		List<Institute> institutes = dbController.getAll(Institute.class);
+		Institute reappearing = institutes.stream()
+				.filter(institute -> "10010010".equals(institute.getBlz()))
+				.findFirst()
+				.orElseThrow();
+
+		assertEquals(2, institutes.size(), "Reappearance must reuse the original institute row");
+		assertEquals(InstituteStatus.ACTIVE, reappearing.getStateType());
+		assertEquals(LocalDate.of(2026, 1, 1), reappearing.getValidFrom());
+		assertNull(reappearing.getValidTo());
+		assertEquals(firstFile, reappearing.getFirstSeenFile());
+		assertEquals(lastFile, reappearing.getLastSeenFile());
 	}
 
 	@Test

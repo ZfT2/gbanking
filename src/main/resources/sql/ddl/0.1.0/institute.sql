@@ -45,6 +45,13 @@ CREATE TABLE IF NOT EXISTS institute_db.importHistory (
 
 ;
 
+[SQL_SETUP_INSERT_IMPORT_HISTORY_INIT]
+INSERT INTO institute_db.importHistory (importFileName, updatedAt)
+SELECT 'INIT', datetime()
+WHERE NOT EXISTS (SELECT 1 FROM institute_db.importHistory);
+
+;
+
 [SQL_SETUP_CREATE_INSTITUTE]
 CREATE TABLE IF NOT EXISTS institute_db.institute (
   id INTEGER PRIMARY KEY,
@@ -52,13 +59,32 @@ CREATE TABLE IF NOT EXISTS institute_db.institute (
   bic TEXT,
   bankName TEXT NOT NULL,
   place TEXT,
+  validFrom TEXT,
+  validTo TEXT,
   stateType INTEGER NOT NULL,
   importFile INTEGER NOT NULL,
   updatedAt TEXT NOT NULL,
   FOREIGN KEY (stateType) REFERENCES instituteStatus(id),
   FOREIGN KEY (importFile) REFERENCES importHistory(id),
   CHECK (blz IS NOT NULL OR bic IS NOT NULL),
+  CHECK (validTo IS NULL OR validFrom IS NULL OR validFrom <= validTo),
   CHECK (stateType BETWEEN 1 AND 3));
+;
+
+[SQL_SETUP_CREATE_INSTITUTE_VALIDITY]
+CREATE TABLE IF NOT EXISTS institute_db.instituteValidity (
+  id INTEGER PRIMARY KEY,
+  institute_id INTEGER NOT NULL UNIQUE,
+  validFromType TEXT NOT NULL,
+  validToType TEXT,
+  firstSeenFile INTEGER NOT NULL,
+  lastSeenFile INTEGER NOT NULL,
+  updatedAt TEXT NOT NULL,
+  FOREIGN KEY(institute_id) REFERENCES institute(id) ON DELETE CASCADE,
+  FOREIGN KEY(firstSeenFile) REFERENCES importHistory(id),
+  FOREIGN KEY(lastSeenFile) REFERENCES importHistory(id),
+  CHECK (validFromType IN ('SOURCE_DATE', 'FIRST_SEEN', 'FILE_MONTH')),
+  CHECK (validToType IS NULL OR validToType IN ('SOURCE_DATE', 'FIRST_MISSING', 'FILE_MONTH')));
 ;
 
 [SQL_SETUP_CREATE_INSTITUTE_DK]
@@ -162,12 +188,11 @@ CREATE TABLE IF NOT EXISTS institute_db.instituteAdditional (
   FOREIGN KEY(institute_id) REFERENCES institute(id) ON DELETE CASCADE);
 ;
 
-[SQL_SETUP_CREATE_VIEW_INSTITUTE_BANK_LOOKUP]
-CREATE VIEW IF NOT EXISTS institute_db.instituteBankLookup AS
+[SQL_SETUP_CREATE_VIEW_BANK_NAME_LOOKUP]
+CREATE VIEW IF NOT EXISTS institute_db.bankNameLookup AS
 SELECT
     b.id, b.blz, b.bic, b.bankName, b.place,
-    b.stateType, b.source, b.sourcePriority, b.importNumber,
-    b.importFile, h.importFileName, b.updatedAt
+    b.stateType, b.source, b.importFile, h.importFileName, b.updatedAt
 FROM (
     SELECT selected.*,
         MIN(CASE WHEN blz IS NOT NULL THEN sourcePriority END)
@@ -191,18 +216,18 @@ FROM (
                     NULLIF(TRIM(i.blz), '') AS blz,
                     NULLIF(UPPER(REPLACE(TRIM(i.bic), ' ', '')), '') AS bic,
                     i.bankName, i.place, i.stateType, i.importFile, i.updatedAt,
-                    s.source, s.sourcePriority, s.importNumber
+                    s.source, s.sourcePriority
                 FROM institute i
                 JOIN (
-                    SELECT institute_id, 'DK' AS source, 1 AS sourcePriority, importNumber FROM instituteDk
+                    SELECT institute_id, 'DK' AS source, 1 AS sourcePriority FROM instituteDk
                     UNION ALL
-                    SELECT institute_id, 'DBB', 2, NULL FROM instituteDbb
+                    SELECT institute_id, 'DBB', 2 FROM instituteDbb
                     UNION ALL
-                    SELECT institute_id, 'EPC', 3, NULL FROM instituteEpc
+                    SELECT institute_id, 'EPC', 3 FROM instituteEpc
                     UNION ALL
-                    SELECT institute_id, 'Dbb-Reachable', 4, NULL FROM instituteDbbReachable
+                    SELECT institute_id, 'Dbb-Reachable', 4 FROM instituteDbbReachable
                     UNION ALL
-                    SELECT institute_id, 'Additional', 5, NULL FROM instituteAdditional
+                    SELECT institute_id, 'Additional', 5 FROM instituteAdditional
                 ) s ON s.institute_id = i.id
                 WHERE i.stateType = 1
             ) candidates

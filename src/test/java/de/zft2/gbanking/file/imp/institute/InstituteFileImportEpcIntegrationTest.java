@@ -2,11 +2,13 @@ package de.zft2.gbanking.file.imp.institute;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +24,7 @@ import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.enu.InstituteStatus;
+import de.zft2.gbanking.db.dao.enu.InstituteValidityDateType;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class InstituteFileImportEpcIntegrationTest extends BaseInstituteFileImportTest {
@@ -110,5 +113,38 @@ class InstituteFileImportEpcIntegrationTest extends BaseInstituteFileImportTest 
 		restoreFile(importDir, archiveDir, FILE_NAME_01);
 	}
 
+	@Test
+	void usesReadinessAndLeavingDatesForValidityAndState() throws Exception {
+		Path sourceBase = tempDir.resolve("epc-validity-source");
+		Path importDir = sourceBase.resolve("import");
+		Files.createDirectories(importDir.resolve("archive"));
+		String fileName = "epc_sct_20260907.csv";
+		String content = "Country,ParticipantName,Address,City,BIC,Readiness Date,Scheme Leaving Date,Scheme Options\r\n"
+				+ "DE,Active Bank,Street 1,Berlin,ACTIVEDEFF,2020-01-02,,SCT\r\n"
+				+ "DE,Former Bank,Street 2,Hamburg,FORMERDEFF,2019-02-03,2023-03-13,SCT\r\n";
+		Files.writeString(importDir.resolve(fileName), content);
 
+		InstituteFileImport importer = InstituteFileImport.getInstance(InstituteFileImportEpc.class, sourceBase.toString(),
+				InstituteFileImportEpc.DEFAULT_FILENAME, null, null);
+		importer.runImport();
+
+		List<Institute> institutes = dbController.getAll(Institute.class);
+		Institute active = institutes.stream()
+				.filter(institute -> "Active Bank".equals(institute.getBankName()))
+				.findFirst()
+				.orElseThrow();
+		Institute former = institutes.stream()
+				.filter(institute -> "Former Bank".equals(institute.getBankName()))
+				.findFirst()
+				.orElseThrow();
+		assertEquals(LocalDate.of(2020, 1, 2), active.getValidFrom());
+		assertNull(active.getValidTo());
+		assertEquals(InstituteStatus.ACTIVE, active.getStateType());
+		assertEquals(LocalDate.of(2019, 2, 3), former.getValidFrom());
+		assertEquals(LocalDate.of(2023, 3, 13), former.getValidTo());
+		assertEquals(InstituteValidityDateType.SOURCE_DATE, former.getValidToType());
+		assertEquals(InstituteStatus.ARCHIVED, former.getStateType());
+		assertEquals(fileName, former.getFirstSeenFile());
+		assertEquals(fileName, former.getLastSeenFile());
+	}
 }

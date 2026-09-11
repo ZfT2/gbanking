@@ -20,6 +20,7 @@ import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.db.dao.ImportHistory;
 import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.enu.InstituteStatus;
+import de.zft2.gbanking.db.dao.enu.InstituteValidityDateType;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class InstituteFileImportDbbReachableIntegrationTest extends BaseInstituteFileImportTest {
@@ -67,6 +68,8 @@ class InstituteFileImportDbbReachableIntegrationTest extends BaseInstituteFileIm
 		Institute initialReachable = findReachableByBic(afterInitialImport, DBB_BIC);
 		assertEquals(1, initialReachable.getServiceSct());
 		assertEquals(1, initialReachable.getServiceScc());
+		assertEquals(LocalDate.of(2026, 8, 17), initialReachable.getValidFrom());
+		assertEquals(InstituteValidityDateType.SOURCE_DATE, initialReachable.getValidFromType());
 
 		writeImportFile(row(DBB_BIC, "SPARKASSE AACHEN", 1, 1, 0, 1, 0));
 		runImport();

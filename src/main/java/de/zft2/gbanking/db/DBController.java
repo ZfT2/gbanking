@@ -105,11 +105,11 @@ public class DBController extends DbExecutor {
 	public List<InstituteBankLookup> getInstituteBankLookup() {
 		return withDbAccess(() -> {
 			try {
-				return jdbc().query(DaoSqlStatements.SQL_SELECT_INSTITUTE_BANK_LOOKUP, null, resultSet -> {
+				return jdbc().query(DaoSqlStatements.SQL_SELECT_BANK_NAME_LOOKUP, null, resultSet -> {
 					List<InstituteBankLookup> banks = new ArrayList<>();
 					while (resultSet.next()) {
 						banks.add(new InstituteBankLookup(resultSet.getString("blz"), resultSet.getString("bic"),
-								resultSet.getString("bankName"), resultSet.getInt("importNumber"), resultSet.getInt("sourcePriority")));
+								resultSet.getString("bankName")));
 					}
 					return banks;
 				});

@@ -2,6 +2,7 @@ package de.zft2.gbanking.db;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
@@ -51,12 +52,16 @@ class DbConnectionHandlerInstituteDatabaseTest {
 		assertTrue(tableExists("institute_db", "institute"));
 		assertTrue(tableExists("institute_db", "instituteStatus"));
 		assertTrue(tableExists("institute_db", "importHistory"));
+		assertTrue(tableExists("institute_db", "instituteValidity"));
+		assertTrue(validityImportHistoryForeignKeyExists("firstSeenFile"));
+		assertTrue(validityImportHistoryForeignKeyExists("lastSeenFile"));
 		assertTrue(tableExists("institute_db", "instituteDbbReachable"));
 		assertTrue(tableExists("institute_db", "instituteAdditional"));
-		assertTrue(sqliteObjectExists("institute_db", "view", "instituteBankLookup"));
+		assertTrue(sqliteObjectExists("institute_db", "view", "bankNameLookup"));
 		assertTrue(indexExists("institute_db", "idx_institute_blz_state"));
 		assertInstituteSchemaComplete();
 		assertEquals(3, countInstituteStatusRows());
+		assertEquals("INIT", selectFirstImportFileName());
 
 		ImportHistory importHistory = dbController.insertOrUpdate(new ImportHistory("shared-test.csv"));
 		Institute institute = new Institute();
@@ -85,7 +90,7 @@ class DbConnectionHandlerInstituteDatabaseTest {
 		tenantPaths.createDirectories();
 		DbRuntimeContext.setCurrentTenantPaths(tenantPaths);
 
-		DBController.getInstance(".");
+		DBController dbController = DBController.getInstance(".");
 
 		assertTrue(Files.isRegularFile(workDatabaseDirectory.resolve("gbanking.db")));
 		assertTrue(Files.isRegularFile(dataRoot.resolve("institute.db")));
@@ -94,6 +99,11 @@ class DbConnectionHandlerInstituteDatabaseTest {
 		assertTrue(Files.size(dataRoot.resolve("institute.db"))
 				>= Files.size(AppPaths.resolveInApplicationDirectory("data").resolve("institute.db")));
 		assertInstituteSchemaComplete();
+		Institute institute = dbController.getAll(Institute.class).get(0);
+		assertNotNull(institute.getValidFrom());
+		assertNotNull(institute.getFirstSeenFile());
+		assertNotNull(institute.getLastSeenFile());
+		assertNotNull(institute.getValidityUpdatedAt());
 	}
 
 	@Test
@@ -132,6 +142,7 @@ class DbConnectionHandlerInstituteDatabaseTest {
 		DBController.getInstance(".");
 		DBControllerTestUtil.closeAndNullifyConnection();
 		assertTrue(tableExistsInFile(instituteDatabase, "instituteAdditional"));
+		assertTrue(tableExistsInFile(instituteDatabase, "instituteValidity"));
 
 		Path referenceDatabase = tempDir.resolve("institute-reference.db");
 		Files.copy(instituteDatabase, referenceDatabase);
@@ -164,14 +175,14 @@ class DbConnectionHandlerInstituteDatabaseTest {
 		institute.setImportFile(importFile);
 		dbController.insertOrUpdate(institute);
 		try (Statement statement = DBController.getConnection().createStatement()) {
-			statement.executeUpdate("DROP VIEW institute_db.instituteBankLookup");
+			statement.executeUpdate("DROP VIEW institute_db.bankNameLookup");
 		}
 		DBControllerTestUtil.closeAndNullifyConnection();
 
 		dbController = DBController.getInstance(tempDir.toString());
 
 		assertInstituteSchemaComplete();
-		assertFalse(sqliteObjectExists("institute_db", "view", "instituteBankLookup"));
+		assertFalse(sqliteObjectExists("institute_db", "view", "bankNameLookup"));
 		assertEquals(1, countInstituteRows());
 		Institute storedInstitute = dbController.getAll(Institute.class).get(0);
 		assertEquals("Existing Bank", storedInstitute.getBankName());
@@ -250,11 +261,32 @@ class DbConnectionHandlerInstituteDatabaseTest {
 		}
 	}
 
+	private static String selectFirstImportFileName() throws SQLException {
+		try (Statement statement = DBController.getConnection().createStatement();
+				var resultSet = statement.executeQuery("SELECT importFileName FROM institute_db.importHistory ORDER BY id LIMIT 1")) {
+			assertTrue(resultSet.next());
+			return resultSet.getString(1);
+		}
+	}
+
 	private static int countInstituteRows() throws SQLException {
 		try (Statement statement = DBController.getConnection().createStatement();
 				var rs = statement.executeQuery("SELECT COUNT(*) AS count FROM institute_db.institute")) {
 			assertTrue(rs.next());
 			return rs.getInt("count");
+		}
+	}
+
+	private static boolean validityImportHistoryForeignKeyExists(String column) throws SQLException {
+		try (Statement statement = DBController.getConnection().createStatement();
+				var resultSet = statement.executeQuery("PRAGMA institute_db.foreign_key_list('instituteValidity')")) {
+			while (resultSet.next()) {
+				if ("importHistory".equals(resultSet.getString("table")) && column.equals(resultSet.getString("from"))
+						&& "id".equals(resultSet.getString("to"))) {
+					return true;
+				}
+			}
+			return false;
 		}
 	}
 

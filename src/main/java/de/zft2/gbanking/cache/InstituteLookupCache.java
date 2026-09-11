@@ -16,7 +16,7 @@ public final class InstituteLookupCache {
 	private static final int BIC8_LENGTH = 8;
 	private static final int BIC11_LENGTH = 11;
 
-	public record InstituteLookupEntry(String bankName, String bic, int importNumber) {
+	public record InstituteLookupEntry(String bankName, String bic) {
 	}
 
 	private record LookupIndex(Map<String, List<InstituteLookupEntry>> byBlz, Map<String, List<InstituteLookupEntry>> byBic) {
@@ -125,7 +125,7 @@ public final class InstituteLookupCache {
 			String bankName = trimToNull(bank.bankName());
 			if (key != null && bankName != null) {
 				grouped.computeIfAbsent(key, ignored -> new LinkedHashMap<>())
-						.putIfAbsent(bankName, new InstituteLookupEntry(bankName, bank.bic(), bank.importNumber()));
+						.putIfAbsent(bankName, new InstituteLookupEntry(bankName, bank.bic()));
 			}
 		}
 		Map<String, List<InstituteLookupEntry>> entries = new LinkedHashMap<>();

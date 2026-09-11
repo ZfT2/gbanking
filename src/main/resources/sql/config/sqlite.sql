@@ -41,12 +41,13 @@ PRAGMA foreign_keys;
 SELECT MAX(updatedAt) FROM importHistory;
 
 [SQL_IS_INSTITUTE_SCHEMA_COMPLETE]
-SELECT COUNT(*) = 12
+SELECT COUNT(*) = 13
 FROM institute_db.sqlite_master
 WHERE (type = 'table' AND name IN (
   'instituteStatus',
   'importHistory',
   'institute',
+  'instituteValidity',
   'instituteDk',
   'instituteDbb',
   'instituteEpc',

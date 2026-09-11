@@ -38,7 +38,7 @@ public class InstituteDetailPanel extends VBox implements BaseMessagesBean {
 		titledPane.setCollapsible(false);
 		titledPane.setContent(tabs);
 		titledPane.setMaxWidth(Double.MAX_VALUE);
-		tabs.setPrefHeight(215);
+		tabs.setPrefHeight(285);
 		getChildren().setAll(titledPane);
 		setFillWidth(true);
 		clear();
@@ -79,6 +79,13 @@ public class InstituteDetailPanel extends VBox implements BaseMessagesBean {
 		add(grid, "UI_LABEL_IMPORT_FILE", institute.getImportFileName(), 0, 2);
 		addNode(grid, "UI_LABEL_SOURCE", createSourceLinks(institute), 1, 2);
 		add(grid, "UI_LABEL_UPDATED_AT", institute.getUpdatedAt(), 2, 2);
+		add(grid, "UI_TABLE_VALID_FROM", institute.getValidFrom(), 0, 3);
+		add(grid, "UI_TABLE_VALID_UNTIL", institute.getValidTo(), 1, 3);
+		add(grid, "UI_LABEL_VALID_FROM_TYPE", institute.getValidFromType(), 2, 3);
+		add(grid, "UI_LABEL_VALID_TO_TYPE", institute.getValidToType(), 3, 3);
+		add(grid, "UI_LABEL_FIRST_SEEN_FILE", institute.getFirstSeenFile(), 0, 4);
+		add(grid, "UI_LABEL_LAST_SEEN_FILE", institute.getLastSeenFile(), 1, 4);
+		add(grid, "UI_LABEL_VALIDITY_UPDATED_AT", institute.getValidityUpdatedAt(), 2, 4);
 		return grid;
 	}
 

@@ -87,7 +87,9 @@ public class InstituteFileImportDbb extends InstituteFileImport {
 
 	@Override
 	protected boolean isSameInstituteIdentity(Institute a, Institute b) {
-		return Objects.equals(a.getBlz(), b.getBlz()) && Objects.equals(a.getBic(), b.getBic()) && Objects.equals(a.getDatasetNumber(), b.getDatasetNumber());
+		return Objects.equals(a.getBlz(), b.getBlz()) && Objects.equals(a.getBic(), b.getBic())
+				&& Objects.equals(a.getDatasetNumber(), b.getDatasetNumber()) && Objects.equals(a.getBankName(), b.getBankName())
+				&& Objects.equals(a.getPlace(), b.getPlace());
 	}
 
 	@Override

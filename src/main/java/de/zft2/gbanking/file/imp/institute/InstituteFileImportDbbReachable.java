@@ -1,17 +1,32 @@
 package de.zft2.gbanking.file.imp.institute;
 
+import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Comparator;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.dao.Institute;
+import de.zft2.gbanking.db.dao.enu.InstituteValidityDateType;
 import de.zft2.gbanking.gui.BaseWorker;
 
 public class InstituteFileImportDbbReachable extends InstituteFileImport {
+
+	private static final Logger log = LogManager.getLogger(InstituteFileImportDbbReachable.class);
+	private static final Pattern VALID_FROM_HEADER = Pattern.compile("^Gueltig ab / valid from (\\d{2}\\.\\d{2}\\.\\d{4})");
+	private static final DateTimeFormatter HEADER_DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.uuuu");
 
 	public static final String DEFAULT_FILENAME = "verzeichnis-erreichbare-zahlungsdienstleister-data.csv";
 
@@ -72,7 +87,8 @@ public class InstituteFileImportDbbReachable extends InstituteFileImport {
 
 	@Override
 	protected boolean isSameInstituteIdentity(Institute a, Institute b) {
-		return a.getBic() != null && b.getBic() != null && a.getBic().equalsIgnoreCase(b.getBic());
+		return a.getBic() != null && b.getBic() != null && a.getBic().equalsIgnoreCase(b.getBic())
+				&& Objects.equals(a.getBankName(), b.getBankName());
 	}
 
 	@Override
@@ -103,7 +119,23 @@ public class InstituteFileImportDbbReachable extends InstituteFileImport {
 	}
 
 	@Override
-	protected int getLinesToSkip() {
-		return 2;
+	protected int getPreambleLinesToSkip(Path file) {
+		return 1;
+	}
+
+	@Override
+	protected Snapshot getSnapshot(Path file) {
+		try (var reader = Files.newBufferedReader(file, charset)) {
+			String header = reader.readLine();
+			if (header != null) {
+				Matcher matcher = VALID_FROM_HEADER.matcher(header);
+				if (matcher.find()) {
+					return new Snapshot(LocalDate.parse(matcher.group(1), HEADER_DATE_FORMAT), InstituteValidityDateType.SOURCE_DATE);
+				}
+			}
+		} catch (IOException | DateTimeParseException exception) {
+			log.warn("Could not parse DBB reachable validity date from {}", file.getFileName(), exception);
+		}
+		return super.getSnapshot(file);
 	}
 }

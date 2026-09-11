@@ -38,15 +38,15 @@ class InstituteBankLookupTest extends DBControllerIntegrationBaseTest {
 		Institute dk = insertBank(1, "10000000", "TESTDEFFXXX", InstituteStatus.ACTIVE);
 		insertBank(1, "10000000", "TESTDEFFXXX", InstituteStatus.ARCHIVED);
 		insertBank(1, "10000000", "TESTDEFFXXX", InstituteStatus.DUPLICATE);
-		insertBank(2, "20000000", null, InstituteStatus.ACTIVE);
-		insertBank(3, null, "EPCTDEFFXXX", InstituteStatus.ACTIVE);
-		insertBank(4, null, "REACDEFF", InstituteStatus.ACTIVE);
-		insertBank(5, "50000000", null, InstituteStatus.ACTIVE);
+		Institute dbb = insertBank(2, "20000000", null, InstituteStatus.ACTIVE);
+		Institute epc = insertBank(3, null, "EPCTDEFFXXX", InstituteStatus.ACTIVE);
+		Institute reachable = insertBank(4, null, "REACDEFF", InstituteStatus.ACTIVE);
+		Institute additional = insertBank(5, "50000000", null, InstituteStatus.ACTIVE);
 
 		List<InstituteBankLookup> banks = db.getInstituteBankLookup();
 
-		assertEquals(List.of(1, 2, 3, 4, 5), banks.stream().map(bank -> bank.sourcePriority()).toList());
-		assertEquals(dk.getBankName(), banks.get(0).bankName());
+		assertEquals(List.of(dk.getBankName(), dbb.getBankName(), epc.getBankName(), reachable.getBankName(),
+				additional.getBankName()), banks.stream().map(InstituteBankLookup::bankName).toList());
 		assertEquals(9, db.getAll(Institute.class).size(), "The directory must still expose the complete history");
 	}
 
@@ -67,21 +67,22 @@ class InstituteBankLookupTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void discardedBlzRowsDoNotSuppressOtherBics() {
-		insertBank(1, "10000000", "TESTDEFFXXX", InstituteStatus.ACTIVE);
+		Institute dk = insertBank(1, "10000000", "TESTDEFFXXX", InstituteStatus.ACTIVE);
 		insertBank(2, "10000000", "OTHRDEFFXXX", InstituteStatus.ACTIVE);
 		Institute epc = insertBank(3, null, "OTHRDEFFXXX", InstituteStatus.ACTIVE);
 
-		assertEquals(List.of(1, 3), db.getInstituteBankLookup().stream().map(bank -> bank.sourcePriority()).toList());
-		assertEquals(epc.getBankName(), db.getInstituteBankLookup().get(1).bankName());
+		assertEquals(List.of(dk.getBankName(), epc.getBankName()), db.getInstituteBankLookup().stream()
+				.map(InstituteBankLookup::bankName).toList());
 	}
 
 	@Test
 	void lowerPriorityBlzDoesNotSuppressHigherPriorityBicOnlyBank() {
-		insertBank(3, null, "TESTDEFFXXX", InstituteStatus.ACTIVE);
+		Institute epc = insertBank(3, null, "TESTDEFFXXX", InstituteStatus.ACTIVE);
 		insertBank(4, " ", "TESTDEFF", InstituteStatus.ACTIVE);
-		insertBank(5, "10000000", "TESTDEFFXXX", InstituteStatus.ACTIVE);
+		Institute additional = insertBank(5, "10000000", "TESTDEFFXXX", InstituteStatus.ACTIVE);
 
-		assertEquals(List.of(3, 5), db.getInstituteBankLookup().stream().map(bank -> bank.sourcePriority()).toList());
+		assertEquals(List.of(epc.getBankName(), additional.getBankName()), db.getInstituteBankLookup().stream()
+				.map(InstituteBankLookup::bankName).toList());
 	}
 
 	@Test
@@ -100,25 +101,44 @@ class InstituteBankLookupTest extends DBControllerIntegrationBaseTest {
 	void exposesSeparateBlzAndBicWithoutInternalKeys() throws Exception {
 		List<String> columns = new ArrayList<>();
 		try (var statement = DBController.getConnection().createStatement();
-				var result = statement.executeQuery("PRAGMA institute_db.table_info(instituteBankLookup)")) {
+				var result = statement.executeQuery("PRAGMA institute_db.table_info(bankNameLookup)")) {
 			while (result.next()) {
 				columns.add(result.getString("name"));
 			}
 		}
 
 		assertEquals(List.of("id", "blz", "bic", "bankName", "place", "stateType", "source",
-				"sourcePriority", "importNumber", "importFile", "importFileName", "updatedAt"), columns);
+				"importFile", "importFileName", "updatedAt"), columns);
 	}
 
 	@Test
 	void bundledDatabaseViewMatchesApplicationDefinitionWithoutCommonTableExpressions() throws SQLException {
 		String bundledView = readBundledViewDefinition();
-		String application = SqlTemplateRepository.getDdl("SQL_SETUP_CREATE_VIEW_INSTITUTE_BANK_LOOKUP");
+		String application = SqlTemplateRepository.getDdl("SQL_SETUP_CREATE_VIEW_BANK_NAME_LOOKUP");
 
 		assertFalse(application.matches("(?is).*\\bWITH\\b.*"));
 		assertEquals(normalizeSql(bundledView),
 				normalizeSql(application.replace("IF NOT EXISTS institute_db.", "")));
 		assertTrue(db.getInstituteBankLookup().isEmpty());
+	}
+
+	@Test
+	void bundledDatabaseContainsOneValidityRowPerInstitute() throws SQLException {
+		Path database = AppPaths.resolveInApplicationDirectory("data", "institute.db");
+		String url = "jdbc:sqlite:" + database.toUri() + "?mode=ro";
+		try (var connection = DriverManager.getConnection(url);
+				var statement = connection.createStatement();
+				var result = statement.executeQuery("SELECT "
+						+ "(SELECT COUNT(*) FROM institute) AS instituteCount, "
+						+ "(SELECT COUNT(*) FROM instituteValidity) AS validityCount, "
+						+ "(SELECT COUNT(DISTINCT institute_id) FROM instituteValidity) AS distinctInstituteCount, "
+						+ "(SELECT COUNT(*) FROM instituteAdditional a JOIN institute i ON i.id = a.institute_id "
+						+ " WHERE i.validTo IS NULL) AS currentAdditionalCount")) {
+			assertTrue(result.next());
+			assertEquals(result.getInt("instituteCount"), result.getInt("validityCount"));
+			assertEquals(result.getInt("validityCount"), result.getInt("distinctInstituteCount"));
+			assertTrue(result.getInt("currentAdditionalCount") > 0);
+		}
 	}
 
 	private static String readBundledViewDefinition() throws SQLException {
@@ -127,9 +147,9 @@ class InstituteBankLookupTest extends DBControllerIntegrationBaseTest {
 		try (var connection = DriverManager.getConnection(url);
 				var statement = connection.prepareStatement(
 						"SELECT sql FROM sqlite_master WHERE type = 'view' AND name = ?")) {
-			statement.setString(1, "instituteBankLookup");
+			statement.setString(1, "bankNameLookup");
 			try (var result = statement.executeQuery()) {
-				assertTrue(result.next(), "The bundled institute database must contain instituteBankLookup");
+				assertTrue(result.next(), "The bundled institute database must contain bankNameLookup");
 				return result.getString("sql");
 			}
 		}

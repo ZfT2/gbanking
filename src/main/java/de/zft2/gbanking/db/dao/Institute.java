@@ -3,6 +3,7 @@ package de.zft2.gbanking.db.dao;
 import java.io.Serializable;
 import java.time.LocalDate;
 
+import de.zft2.gbanking.db.dao.enu.InstituteValidityDateType;
 import de.zft2.gbanking.db.enu.IdType;
 
 public class Institute extends Dao implements Serializable {
@@ -19,6 +20,13 @@ public class Institute extends Dao implements Serializable {
 	private transient IdType stateType;
 	private Integer importFile;
 	private String importFileName;
+	private LocalDate validFrom;
+	private LocalDate validTo;
+	private InstituteValidityDateType validFromType;
+	private InstituteValidityDateType validToType;
+	private String firstSeenFile;
+	private String lastSeenFile;
+	private LocalDate validityUpdatedAt;
 
 	/** DK data **/
 	private int importNumber;
@@ -498,6 +506,62 @@ public class Institute extends Dao implements Serializable {
 
 	public void setImportFileName(String importFileName) {
 		this.importFileName = importFileName;
+	}
+
+	public LocalDate getValidFrom() {
+		return validFrom;
+	}
+
+	public void setValidFrom(LocalDate validFrom) {
+		this.validFrom = validFrom;
+	}
+
+	public LocalDate getValidTo() {
+		return validTo;
+	}
+
+	public void setValidTo(LocalDate validTo) {
+		this.validTo = validTo;
+	}
+
+	public InstituteValidityDateType getValidFromType() {
+		return validFromType;
+	}
+
+	public void setValidFromType(InstituteValidityDateType validFromType) {
+		this.validFromType = validFromType;
+	}
+
+	public InstituteValidityDateType getValidToType() {
+		return validToType;
+	}
+
+	public void setValidToType(InstituteValidityDateType validToType) {
+		this.validToType = validToType;
+	}
+
+	public String getFirstSeenFile() {
+		return firstSeenFile;
+	}
+
+	public void setFirstSeenFile(String firstSeenFile) {
+		this.firstSeenFile = firstSeenFile;
+	}
+
+	public String getLastSeenFile() {
+		return lastSeenFile;
+	}
+
+	public void setLastSeenFile(String lastSeenFile) {
+		this.lastSeenFile = lastSeenFile;
+	}
+
+	public LocalDate getValidityUpdatedAt() {
+		return validityUpdatedAt;
+	}
+
+	public void setValidityUpdatedAt(LocalDate validityUpdatedAt) {
+		this.validityUpdatedAt = validityUpdatedAt;
 	}
 
 	@Override

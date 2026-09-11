@@ -31,10 +31,10 @@ public class InstituteListPanel extends AbstractFilterableTablePanel<Institute> 
 				institute -> displayCountry(institute), 90);
 		TableColumn<Institute, String> blz = TableColumnFactory.createFixedTextColumn(getText("UI_LABEL_BLZ"), institute -> institute.getBlz(), 95);
 		TableColumn<Institute, String> bic = TableColumnFactory.createFixedTextColumn(getText("UI_LABEL_BIC"), institute -> institute.getBic(), 115);
-		TableColumn<Institute, String> validFrom = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_VALID_FROM"),
-				institute -> institute.getReadinessDate(), 90);
-		TableColumn<Institute, String> validUntil = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_VALID_UNTIL"),
-				institute -> institute.getSchemeLeavingDate(), 90);
+		TableColumn<Institute, LocalDate> validFrom = TableColumnFactory.createCalendarDateColumn(getText("UI_TABLE_VALID_FROM"),
+				institute -> institute.getValidFrom(), 90);
+		TableColumn<Institute, LocalDate> validUntil = TableColumnFactory.createCalendarDateColumn(getText("UI_TABLE_VALID_UNTIL"),
+				institute -> institute.getValidTo(), 90);
 		TableColumn<Institute, LocalDate> sourceDataAsOf = TableColumnFactory.createCalendarDateColumn(getText("UI_TABLE_SOURCE_DATA_AS_OF"),
 				institute -> institute.getLastChanged(), 100);
 		TableColumn<Institute, LocalDate> dataAsOf = TableColumnFactory.createCalendarDateColumn(getText("UI_TABLE_DATA_AS_OF"),
@@ -51,6 +51,8 @@ public class InstituteListPanel extends AbstractFilterableTablePanel<Institute> 
 				institute.getAdditionalBankNameShort(), institute.getAdditionalPostcode(), institute.getAdditionalCheckdigitMethod(),
 				institute.getAdditionalDeletionMarker(), institute.getAdditionalBlzSuccession(), institute.getAdditionalIbanRule(),
 				institute.getAdditionalIbanRuleVersion(),
+				institute.getValidFrom() != null ? institute.getValidFrom().toString() : null,
+				institute.getValidTo() != null ? institute.getValidTo().toString() : null,
 				institute.getLastChanged() != null ? institute.getLastChanged().toString() : null,
 				institute.getUpdatedAt() != null ? institute.getUpdatedAt().toString() : null, InstituteSource.displayNames(institute));
 	}

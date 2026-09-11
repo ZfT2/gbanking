@@ -48,6 +48,11 @@ public class InstituteFileImportDk extends InstituteFileImport {
 	}
 
 	@Override
+	protected LocalDate getSourceValidityDate(Institute institute) {
+		return institute.getLastChanged();
+	}
+
+	@Override
 	protected void prepareMatchedInstitutes(List<MatchedInstitute> matchedInstitutes) {
 		// Release occupied numbers before any final update; the file transaction restores all states on failure.
 		for (MatchedInstitute matchedInstitute : matchedInstitutes) {

@@ -71,7 +71,7 @@ public class BankNameLookupField extends StackPane {
 	public void setManualBankName(String bankName) {
 		bankNameCombo.getItems().clear();
 		bankNameField.setText(Objects.toString(bankName, ""));
-		selectedEntry.set(new InstituteLookupEntry(bankName, null, Integer.MAX_VALUE));
+		selectedEntry.set(new InstituteLookupEntry(bankName, null));
 		showTextField();
 	}
 

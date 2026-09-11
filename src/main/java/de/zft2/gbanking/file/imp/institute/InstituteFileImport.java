@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -36,7 +37,10 @@ import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.ImportHistory;
 import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.enu.InstituteStatus;
+import de.zft2.gbanking.db.dao.enu.InstituteValidityDateType;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.db.repository.InstituteValidityRepository;
+import de.zft2.gbanking.db.repository.InstituteValidityRepository.Observation;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.BaseWorker;
 import de.zft2.gbanking.util.AppPaths;
@@ -50,6 +54,7 @@ public abstract class InstituteFileImport implements BaseMessages {
 	private static final Pattern DATED_CSV_SUFFIX = Pattern.compile("_(\\d{8})\\.csv$", Pattern.CASE_INSENSITIVE);
 
 	protected final DBController dbController = DBController.getInstance(".");
+	private final InstituteValidityRepository validityRepository = new InstituteValidityRepository();
 	protected BaseWorker worker;
 
 	protected Path baseDirectory = AppPaths.getApplicationBaseDirectory();
@@ -164,24 +169,31 @@ public abstract class InstituteFileImport implements BaseMessages {
 		updateWorkerState(35, getGroupingMessageKey());
 		Map<String, List<Institute>> groupedInstitutes = importedInstitutes.stream().collect(Collectors.groupingBy(this::getGroupKey));
 		setStatesForGroups(groupedInstitutes);
-		reconcileInstitutes(groupedInstitutes.values().stream().flatMap(List::stream).toList());
+		List<Institute> groupedList = groupedInstitutes.values().stream().flatMap(List::stream).toList();
+		Snapshot snapshot = getSnapshot(file);
+		groupedList.forEach(institute -> prepareValidity(institute, snapshot));
+		List<Integer> archivedInstituteIds = reconcileInstitutes(groupedList, snapshot.date().minusDays(1));
+		validityRepository.close(archivedInstituteIds);
+		validityRepository.markSeen(groupedList.stream()
+				.map(institute -> createValidityObservation(institute, importHistoryId))
+				.toList());
 	}
 
 	private List<Institute> parseCsv(Path file) throws IOException {
 		List<Institute> importedInstitutes = new ArrayList<>();
+		int preambleLines = getPreambleLinesToSkip(file);
 		long totalRows;
 		try (Stream<String> lineStream = Files.lines(file, charset)) {
-			totalRows = Math.max(1, lineStream.skip(getLinesToSkip()).count());
+			totalRows = Math.max(1, lineStream.skip(preambleLines).count());
 		}
 
 		try (Reader reader = Files.newBufferedReader(file, charset); BufferedReader bufferedReader = new BufferedReader(reader)) {
-
-			for (int line = 1; line < getLinesToSkip(); line++) {
+			for (int line = 0; line < preambleLines; line++) {
 				String skippedLine = bufferedReader.readLine();
-				log.debug("Skip line {} before CSV header: {}", line, skippedLine);
+				log.debug("Skip line {} before CSV data: {}", line + 1, skippedLine);
 			}
 
-			try (CSVParser parser = csvFormat().parse(bufferedReader)) {
+			try (CSVParser parser = csvFormat(file).parse(bufferedReader)) {
 				int rowIndex = 0;
 				for (CSVRecord csvRecord : parser) {
 					rowIndex++;
@@ -194,6 +206,10 @@ public abstract class InstituteFileImport implements BaseMessages {
 			}
 		}
 		return importedInstitutes;
+	}
+
+	protected CSVFormat csvFormat(Path file) {
+		return csvFormat();
 	}
 
 	private Integer createImportHistory(Path file) {
@@ -215,23 +231,26 @@ public abstract class InstituteFileImport implements BaseMessages {
 		}
 	}
 
-	private void reconcileInstitutes(List<Institute> importedInstitutes) {
-		List<Institute> currentInstitutes = dbController.getAll(Institute.class).stream()
+	private List<Integer> reconcileInstitutes(List<Institute> importedInstitutes, LocalDate inferredValidTo) {
+		List<Institute> storedInstitutes = dbController.getAll(Institute.class).stream()
 				.filter(this::isRelevantCurrentInstitute)
-				.filter(this::isCurrentInstitute)
 				.toList();
+		Map<String, List<Institute>> storedInstitutesByGroup = storedInstitutes.stream()
+				.collect(Collectors.groupingBy(institute -> normalizeGroupKey(getGroupKey(institute))));
 		Set<Integer> matchedInstituteIds = new HashSet<>();
 		List<Institute> institutesToInsert = new ArrayList<>();
 		List<MatchedInstitute> institutesToUpdate = new ArrayList<>();
 
-		matchInstitutes(importedInstitutes, currentInstitutes, matchedInstituteIds, institutesToInsert, institutesToUpdate);
+		matchInstitutes(importedInstitutes, storedInstitutesByGroup, matchedInstituteIds, institutesToInsert, institutesToUpdate);
 		prepareMatchedInstitutes(institutesToUpdate);
-		archiveUnmatchedInstitutes(currentInstitutes, matchedInstituteIds);
+		List<Integer> archivedInstituteIds = archiveUnmatchedInstitutes(storedInstitutes, matchedInstituteIds, inferredValidTo);
 		updateMatchedInstitutes(institutesToUpdate);
 		insertNewInstitutes(institutesToInsert);
+		return archivedInstituteIds;
 	}
 
-	private void matchInstitutes(List<Institute> importedInstitutes, List<Institute> currentInstitutes, Set<Integer> matchedInstituteIds,
+	private void matchInstitutes(List<Institute> importedInstitutes, Map<String, List<Institute>> storedInstitutesByGroup,
+			Set<Integer> matchedInstituteIds,
 			List<Institute> institutesToInsert, List<MatchedInstitute> institutesToUpdate) {
 		int total = importedInstitutes.size();
 		int processed = 0;
@@ -239,13 +258,15 @@ public abstract class InstituteFileImport implements BaseMessages {
 			processed++;
 			updateWorkerRange(processed, total, 35, 90, getProcessingMessageKey(), processed, total, getGroupKey(imported));
 
-			Optional<Institute> existingInstitute = findCurrentInstitute(currentInstitutes, matchedInstituteIds, imported);
+			List<Institute> matchingGroup = storedInstitutesByGroup.getOrDefault(normalizeGroupKey(getGroupKey(imported)), List.of());
+			Optional<Institute> existingInstitute = findMatchingInstitute(matchingGroup, matchedInstituteIds, imported);
 			if (existingInstitute.isEmpty()) {
 				institutesToInsert.add(imported);
 				continue;
 			}
 
 			Institute existing = existingInstitute.get();
+			imported.setId(existing.getId());
 			matchedInstituteIds.add(existing.getId());
 			if (needsCurrentImportMetadataUpdate(existing, imported)) {
 				institutesToUpdate.add(new MatchedInstitute(existing, imported));
@@ -253,8 +274,12 @@ public abstract class InstituteFileImport implements BaseMessages {
 		}
 	}
 
-	private Optional<Institute> findCurrentInstitute(List<Institute> currentInstitutes, Set<Integer> matchedInstituteIds, Institute imported) {
-		return currentInstitutes.stream()
+	private static String normalizeGroupKey(String groupKey) {
+		return groupKey == null ? "" : groupKey.toUpperCase(Locale.ROOT);
+	}
+
+	private Optional<Institute> findMatchingInstitute(List<Institute> storedInstitutes, Set<Integer> matchedInstituteIds, Institute imported) {
+		return storedInstitutes.stream()
 				.filter(existing -> !matchedInstituteIds.contains(existing.getId()))
 				.filter(existing -> isSameInstituteIdentity(existing, imported))
 				.min(Comparator.comparing((Institute existing) -> !hasSameContent(existing, imported))
@@ -269,13 +294,20 @@ public abstract class InstituteFileImport implements BaseMessages {
 				|| !hasSameContent(existing, imported);
 	}
 
-	private void archiveUnmatchedInstitutes(List<Institute> currentInstitutes, Set<Integer> matchedInstituteIds) {
-		for (Institute existing : currentInstitutes) {
-			if (!matchedInstituteIds.contains(existing.getId())) {
+	private List<Integer> archiveUnmatchedInstitutes(List<Institute> storedInstitutes, Set<Integer> matchedInstituteIds,
+			LocalDate inferredValidTo) {
+		List<Integer> archivedInstituteIds = new ArrayList<>();
+		for (Institute existing : storedInstitutes) {
+			if (!matchedInstituteIds.contains(existing.getId()) && isCurrentInstitute(existing)) {
 				existing.setStateType(InstituteStatus.ARCHIVED);
+				if (existing.getValidToType() != InstituteValidityDateType.SOURCE_DATE) {
+					existing.setValidTo(getValidTo(existing.getValidFrom(), inferredValidTo));
+				}
 				dbController.insertOrUpdate(existing);
+				archivedInstituteIds.add(existing.getId());
 			}
 		}
+		return archivedInstituteIds;
 	}
 
 	private void updateMatchedInstitutes(List<MatchedInstitute> institutesToUpdate) {
@@ -285,12 +317,18 @@ public abstract class InstituteFileImport implements BaseMessages {
 			boolean contentChanged = !hasSameContent(existing, imported);
 
 			copyImportedFields(existing, imported);
+			existing.setValidFrom(existing.getValidFrom() != null ? existing.getValidFrom() : imported.getValidFrom());
+			existing.setValidTo(imported.getValidTo());
 			existing.setStateType(imported.getStateType());
 			if (contentChanged || existing.getImportFile() == null) {
 				existing.setImportFile(imported.getImportFile());
 			}
 			dbController.insertOrUpdate(existing);
 		}
+	}
+
+	private static LocalDate getValidTo(LocalDate validFrom, LocalDate inferredValidTo) {
+		return validFrom != null && validFrom.isAfter(inferredValidTo) ? validFrom : inferredValidTo;
 	}
 
 	private void insertNewInstitutes(List<Institute> institutesToInsert) {
@@ -333,6 +371,18 @@ public abstract class InstituteFileImport implements BaseMessages {
 		return false;
 	}
 
+	protected LocalDate getSourceValidityDate(Institute institute) {
+		return null;
+	}
+
+	protected LocalDate getSourceValidityEndDate(Institute institute) {
+		return null;
+	}
+
+	protected void applySourceState(Institute institute, Snapshot snapshot) {
+		// Most sources express the current state solely through snapshot membership.
+	}
+
 	protected void prepareMatchedInstitutes(List<MatchedInstitute> matchedInstitutes) {
 		// Most import formats need no post-processing before persistence.
 	}
@@ -353,16 +403,16 @@ public abstract class InstituteFileImport implements BaseMessages {
 
 	private List<Path> resolveImportFiles() throws IOException {
 		Path importDirectory = baseDirectory.resolve(IMPORT_DIR);
-		List<Path> datedImportFiles = findDatedImportFiles(importDirectory);
-		if (!datedImportFiles.isEmpty()) {
-			return datedImportFiles;
+		List<Path> snapshotFiles = findSnapshotFiles(importDirectory);
+		if (!snapshotFiles.isEmpty()) {
+			return snapshotFiles;
 		}
 
 		Path file = importDirectory.resolve(currentFileName);
 		return Files.exists(file) ? List.of(file) : List.of();
 	}
 
-	private List<Path> findDatedImportFiles(Path importDirectory) throws IOException {
+	protected List<Path> findSnapshotFiles(Path importDirectory) throws IOException {
 		if (!Files.isDirectory(importDirectory)) {
 			return List.of();
 		}
@@ -398,6 +448,37 @@ public abstract class InstituteFileImport implements BaseMessages {
 		return DATED_CSV_SUFFIX.matcher(currentFileName).replaceFirst("").replaceFirst("(?i)\\.csv$", "");
 	}
 
+	private void prepareValidity(Institute institute, Snapshot snapshot) {
+		LocalDate sourceDate = getSourceValidityDate(institute);
+		institute.setValidFrom(sourceDate != null ? sourceDate : snapshot.date());
+		institute.setValidFromType(sourceDate != null
+				? InstituteValidityDateType.SOURCE_DATE
+				: snapshot.type());
+		LocalDate validTo = getSourceValidityEndDate(institute);
+		institute.setValidTo(validTo);
+		institute.setValidToType(validTo != null ? InstituteValidityDateType.SOURCE_DATE : null);
+		applySourceState(institute, snapshot);
+	}
+
+	private static Observation createValidityObservation(Institute institute, int importHistoryId) {
+		return new Observation(institute.getId(), institute.getValidFromType(), institute.getValidToType(), importHistoryId);
+	}
+
+	protected Snapshot getSnapshot(Path file) {
+		Path fileName = file.getFileName();
+		if (fileName != null) {
+			Matcher matcher = DATED_CSV_SUFFIX.matcher(fileName.toString());
+			if (matcher.find()) {
+				try {
+					return new Snapshot(LocalDate.parse(matcher.group(1), DateTimeFormatter.BASIC_ISO_DATE),
+							InstituteValidityDateType.FIRST_SEEN);
+				} catch (DateTimeParseException exception) {
+					log.warn("Could not parse institute snapshot date from {}", fileName, exception);
+				}
+			}
+		}
+		return new Snapshot(LocalDate.now(ZoneId.systemDefault()), InstituteValidityDateType.FIRST_SEEN);
+	}
 
 	protected void updateWorkerState(int progress, String messageKey, Object... args) {
 		if (worker == null) {
@@ -424,8 +505,6 @@ public abstract class InstituteFileImport implements BaseMessages {
 		worker.setWorkerProgress(Math.min(progress, end));
 	}
 
-
-
 	private void moveToArchive(Path file) throws IOException {
 		Path target = baseDirectory.resolve(ARCHIVE_DIR).resolve(file.getFileName());
 		Files.move(file, target, StandardCopyOption.REPLACE_EXISTING);
@@ -442,14 +521,17 @@ public abstract class InstituteFileImport implements BaseMessages {
 		return institute.getStateType() == InstituteStatus.ACTIVE || institute.getStateType() == InstituteStatus.DUPLICATE;
 	}
 
-	protected int getLinesToSkip() {
-		return 1;
+	protected int getPreambleLinesToSkip(Path file) throws IOException {
+		return 0;
 	}
 
 	record MatchedInstitute(Institute existing, Institute toImport) {
 	}
 
 	private record DatedImportFile(Path path, LocalDate date, String fileName) {
+	}
+
+	protected record Snapshot(LocalDate date, InstituteValidityDateType type) {
 	}
 
 }

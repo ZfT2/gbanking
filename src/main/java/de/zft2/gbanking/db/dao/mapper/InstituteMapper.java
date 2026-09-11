@@ -4,11 +4,13 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.time.LocalDate;
 
 import de.zft2.gbanking.db.StatementsConfig.ResultType;
 import de.zft2.gbanking.db.StatementsConfig.StatementType;
 import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.enu.InstituteStatus;
+import de.zft2.gbanking.db.dao.enu.InstituteValidityDateType;
 import de.zft2.gbanking.util.TypeConverter;
 
 public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
@@ -33,6 +35,8 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 		ps.setString(index++, institute.getBic());
 		ps.setString(index++, institute.getBankName());
 		ps.setString(index++, institute.getPlace());
+		ps.setString(index++, toIsoDate(institute.getValidFrom()));
+		ps.setString(index++, toIsoDate(institute.getValidTo()));
 		ps.setInt(index++, institute.getStateType().getDbStateId());
 		index = setIntegerNullable(index, institute.getImportFile(), ps);
 		ps.setTimestamp(index++, TypeConverter.toSqlTimestampNow());
@@ -55,6 +59,13 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 		institute.setStateType(InstituteStatus.forInt(rs.getInt("stateType")));
 		institute.setImportFile(getIntegerNullable("importFile", rs));
 		institute.setImportFileName(rs.getString("importFileName"));
+		institute.setValidFrom(getIsoDateNullable("validFrom", rs));
+		institute.setValidTo(getIsoDateNullable("validTo", rs));
+		institute.setValidFromType(InstituteValidityDateType.forString(rs.getString("validFromType")));
+		institute.setValidToType(InstituteValidityDateType.forString(rs.getString("validToType")));
+		institute.setFirstSeenFile(rs.getString("firstSeenFile"));
+		institute.setLastSeenFile(rs.getString("lastSeenFile"));
+		institute.setValidityUpdatedAt(TypeConverter.toLocalDateFromSqlDate(rs.getDate("validityUpdatedAt")));
 
 		institute.setImportNumber(rs.getInt("importNumber"));
 		institute.setDataCenter(rs.getString("dataCenter"));
@@ -107,6 +118,15 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 		institute.setAdditionalBlzSuccession(rs.getString("additionalBlzSuccession"));
 		institute.setAdditionalIbanRule(rs.getString("additionalIbanRule"));
 		institute.setAdditionalIbanRuleVersion(rs.getString("additionalIbanRuleVersion"));
+	}
+
+	private static LocalDate getIsoDateNullable(String field, ResultSet resultSet) throws SQLException {
+		String value = resultSet.getString(field);
+		return value == null ? null : LocalDate.parse(value);
+	}
+
+	private static String toIsoDate(LocalDate value) {
+		return value == null ? null : value.toString();
 	}
 
 	public boolean hasDkData(Institute institute) {

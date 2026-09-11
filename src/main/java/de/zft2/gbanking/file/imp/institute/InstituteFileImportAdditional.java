@@ -1,19 +1,37 @@
 package de.zft2.gbanking.file.imp.institute;
 
+import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.DateTimeException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.dao.Institute;
+import de.zft2.gbanking.db.dao.enu.InstituteValidityDateType;
 import de.zft2.gbanking.gui.BaseWorker;
 
 public class InstituteFileImportAdditional extends InstituteFileImport {
 
 	public static final String DEFAULT_FILENAME = "blz_additional_gbanking.csv";
+	private static final Logger log = LogManager.getLogger(InstituteFileImportAdditional.class);
+	private static final Pattern HISTORICAL_FILE_NAME = Pattern.compile("^blz(\\d{2})(0[1-9]|1[0-2])\\.txt$",
+			Pattern.CASE_INSENSITIVE);
+	private static final DateTimeFormatter SOURCE_DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.uuuu");
+	private static final String METADATA_MARKER = "********";
 
 	private static final String COLUMN_BLZ = "BLZ";
 	private static final String COLUMN_BANK_NAME = "Institutsname";
@@ -26,6 +44,10 @@ public class InstituteFileImportAdditional extends InstituteFileImport {
 	private static final String COLUMN_BLZ_SUCCESSION = "Nachfolge-BLZ";
 	private static final String COLUMN_IBAN_RULE = "IBAN-Regel";
 	private static final String COLUMN_IBAN_RULE_VERSION = "IBAN-Regel-Version";
+	private static final String[] HISTORICAL_COLUMNS = {
+			COLUMN_BLZ, COLUMN_BANK_NAME, COLUMN_PLACE, COLUMN_BANK_NAME_SHORT, COLUMN_CHECKDIGIT_METHOD, COLUMN_BIC,
+			COLUMN_POSTCODE, COLUMN_DELETION_MARKER, COLUMN_BLZ_SUCCESSION, COLUMN_IBAN_RULE, COLUMN_IBAN_RULE_VERSION
+	};
 
 	protected InstituteFileImportAdditional(String basePath, String fileName, Charset charset, BaseWorker worker) {
 		super(basePath, fileName, charset, worker);
@@ -34,6 +56,60 @@ public class InstituteFileImportAdditional extends InstituteFileImport {
 	@Override
 	protected CSVFormat csvFormat() {
 		return CSVFormat.DEFAULT.builder().setDelimiter(';').setHeader().setSkipHeaderRecord(true).get();
+	}
+
+	@Override
+	protected CSVFormat csvFormat(Path file) {
+		if (isHistoricalFile(file)) {
+			return CSVFormat.DEFAULT.builder().setDelimiter(';').setHeader(HISTORICAL_COLUMNS).get();
+		}
+		return super.csvFormat(file);
+	}
+
+	@Override
+	protected List<Path> findSnapshotFiles(Path importDirectory) throws IOException {
+		if (Files.isDirectory(importDirectory)) {
+			try (var files = Files.list(importDirectory)) {
+				List<Path> historicalFiles = files.filter(Files::isRegularFile)
+						.filter(this::isHistoricalFile)
+						.sorted(Comparator.comparing(this::getFileMonth).thenComparing(path -> path.getFileName().toString()))
+						.toList();
+				if (!historicalFiles.isEmpty()) {
+					return historicalFiles;
+				}
+			}
+		}
+		return super.findSnapshotFiles(importDirectory);
+	}
+
+	@Override
+	protected int getPreambleLinesToSkip(Path file) throws IOException {
+		if (!isHistoricalFile(file)) {
+			return super.getPreambleLinesToSkip(file);
+		}
+		try (var reader = Files.newBufferedReader(file, charset)) {
+			String firstLine = reader.readLine();
+			return firstLine != null && firstLine.startsWith(METADATA_MARKER + ";") ? 1 : 0;
+		}
+	}
+
+	@Override
+	protected Snapshot getSnapshot(Path file) {
+		if (!isHistoricalFile(file)) {
+			return super.getSnapshot(file);
+		}
+		try (var reader = Files.newBufferedReader(file, charset)) {
+			String firstLine = reader.readLine();
+			if (firstLine != null && firstLine.startsWith(METADATA_MARKER + ";")) {
+				String[] header = firstLine.split(";", -1);
+				if (header.length >= 3) {
+					return new Snapshot(LocalDate.parse(header[2], SOURCE_DATE_FORMAT), InstituteValidityDateType.SOURCE_DATE);
+				}
+			}
+		} catch (IOException | DateTimeParseException exception) {
+			log.warn("Could not parse Additional validity date from {}", file.getFileName(), exception);
+		}
+		return new Snapshot(getFileMonth(file), InstituteValidityDateType.FILE_MONTH);
 	}
 
 	@Override
@@ -54,7 +130,7 @@ public class InstituteFileImportAdditional extends InstituteFileImport {
 	protected Institute mapRecord(CSVRecord csvRecord) {
 		String blz = value(csvRecord, COLUMN_BLZ);
 		String bankName = value(csvRecord, COLUMN_BANK_NAME);
-		if (blz == null || bankName == null) {
+		if (blz == null || bankName == null || METADATA_MARKER.equals(blz)) {
 			return null;
 		}
 
@@ -126,5 +202,26 @@ public class InstituteFileImportAdditional extends InstituteFileImport {
 
 	static Charset getCharset(Charset charset) {
 		return charset != null ? charset : StandardCharsets.ISO_8859_1;
+	}
+
+	private boolean isHistoricalFile(Path file) {
+		Path fileName = file.getFileName();
+		return fileName != null && HISTORICAL_FILE_NAME.matcher(fileName.toString()).matches();
+	}
+
+	private LocalDate getFileMonth(Path file) {
+		Path fileName = file.getFileName();
+		if (fileName == null) {
+			return super.getSnapshot(file).date();
+		}
+		Matcher matcher = HISTORICAL_FILE_NAME.matcher(fileName.toString());
+		if (matcher.matches()) {
+			try {
+				return LocalDate.of(2000 + Integer.parseInt(matcher.group(1)), Integer.parseInt(matcher.group(2)), 1);
+			} catch (DateTimeException exception) {
+				log.warn("Could not parse Additional snapshot month from {}", fileName, exception);
+			}
+		}
+		return super.getSnapshot(file).date();
 	}
 }
