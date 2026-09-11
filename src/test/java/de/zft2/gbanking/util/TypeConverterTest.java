@@ -26,6 +26,16 @@ class TypeConverterTest {
 	}
 
 	@Test
+	void shouldResolveTwoDigitYearsUsing1990AsBoundary() {
+		assertEquals(LocalDate.of(2089, Month.DECEMBER, 31), TypeConverter.toLocalDateFromDateStrShort("31.12.89"));
+		assertEquals(LocalDate.of(1990, Month.JANUARY, 1), TypeConverter.toLocalDateFromDateStrShort("01.01.90"));
+		assertEquals(LocalDate.of(1999, Month.MAY, 20), TypeConverter.toLocalDateFromDateStrShort("20.05.99"));
+		assertEquals(2089, TypeConverter.expandTwoDigitYear(89));
+		assertEquals(1990, TypeConverter.expandTwoDigitYear(90));
+		assertEquals(1999, TypeConverter.expandTwoDigitYear(1999));
+	}
+
+	@Test
 	void shouldReturnNullForInvalidDateStrings() {
 		assertNull(TypeConverter.toLocalDateFromDateStr("2026-04-10"));
 		assertNull(TypeConverter.toLocalDateFromDateStrShort("10/04/26"));

@@ -37,6 +37,9 @@ class BookingCsvFormatTest {
 		assertEquals(date, BookingCsvFormat.parseDate("2026-04-10"));
 		assertEquals(date, BookingCsvFormat.parseDate("10.04.2026"));
 		assertEquals(date, BookingCsvFormat.parseDate("10.04.26"));
+		assertEquals(LocalDate.of(2089, Month.DECEMBER, 31), BookingCsvFormat.parseDate("31.12.89"));
+		assertEquals(LocalDate.of(1990, Month.JANUARY, 1), BookingCsvFormat.parseDate("01.01.90"));
+		assertEquals(LocalDate.of(1999, Month.MAY, 20), BookingCsvFormat.parseDate("20.05.99"));
 		assertNull(BookingCsvFormat.parseDate(null));
 		assertNull(BookingCsvFormat.parseDate("   "));
 	}

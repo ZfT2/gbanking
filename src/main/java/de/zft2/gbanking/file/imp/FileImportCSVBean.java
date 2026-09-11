@@ -43,6 +43,7 @@ import de.zft2.gbanking.file.imp.dto.ImportBankAccount;
 import de.zft2.gbanking.file.imp.dto.ImportBooking;
 import de.zft2.gbanking.gui.BaseWorker;
 import de.zft2.gbanking.mapper.ImportDaoMapper;
+import de.zft2.gbanking.util.TypeConverter;
 
 public class FileImportCSVBean extends AbstractBookingImportBean {
 
@@ -359,10 +360,7 @@ public class FileImportCSVBean extends AbstractBookingImportBean {
 		}
 		int day = Integer.parseInt(parts[order.indexOf('T')]);
 		int month = Integer.parseInt(parts[order.indexOf('M')]);
-		int year = Integer.parseInt(parts[order.indexOf('J')]);
-		if (year < 100) {
-			year += year >= 70 ? 1900 : 2000;
-		}
+		int year = TypeConverter.expandTwoDigitYear(Integer.parseInt(parts[order.indexOf('J')]));
 		return LocalDate.of(year, month, day);
 	}
 

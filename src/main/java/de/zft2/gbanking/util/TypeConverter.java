@@ -5,6 +5,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -26,7 +28,12 @@ public class TypeConverter {
 
 	public static final String ISO8601_PATTERN = SQLiteConfig.DEFAULT_DATE_STRING_FORMAT;
 
-	private static final DateTimeFormatter DATE_FORMATTER_SHORT = DateTimeFormatter.ofPattern(DATE_PATTERN_SHORT);
+	private static final int YEARS_PER_CENTURY = 100;
+	private static final int SHORT_DATE_BASE_YEAR = 1990;
+	private static final DateTimeFormatter DATE_FORMATTER_SHORT = new DateTimeFormatterBuilder()
+			.appendPattern("dd.MM.")
+			.appendValueReduced(ChronoField.YEAR, 2, 2, SHORT_DATE_BASE_YEAR)
+			.toFormatter();
 	private static final DateTimeFormatter DATE_FORMATTER_LONG = DateTimeFormatter.ofPattern(DATE_PATTERN_LONG);
 
 	public static String toDateStringShort(LocalDate date) {
@@ -71,6 +78,15 @@ public class TypeConverter {
 
 	public static LocalDate toLocalDateFromDateStrFlexible(String date) {
 		return toLocalDate(date, DATE_FORMATTER_SHORT, DATE_FORMATTER_LONG);
+	}
+
+	public static int expandTwoDigitYear(int year) {
+		if (year < 0 || year >= YEARS_PER_CENTURY) {
+			return year;
+		}
+		int centuryStart = SHORT_DATE_BASE_YEAR - SHORT_DATE_BASE_YEAR % YEARS_PER_CENTURY;
+		int expandedYear = centuryStart + year;
+		return expandedYear < SHORT_DATE_BASE_YEAR ? expandedYear + YEARS_PER_CENTURY : expandedYear;
 	}
 
 	public static LocalDate toLocalDateFromTimestampStr(String date) {

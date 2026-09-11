@@ -200,6 +200,37 @@ class FileImportCSVBeanTest {
 		assertEquals("DE02120300000000202051", booking.getRecipient().getIban());
 	}
 
+	@Test
+	void importFileToDatabase_shouldResolveOrderedTwoDigitYearsUsing1990AsBoundary() throws Exception {
+		BankAccount account = createAccount("Datumsgrenze", "DE77777777777777777777", "77777777");
+		Path definitionFile = tempDir.resolve("date-boundary-" + System.nanoTime() + ".properties");
+		Files.writeString(definitionFile, """
+				[Buchung: Datumsgrenze]
+				Datum=Datum
+				Betrag=Betrag
+				Zweck=Zweck
+				Format.DecimalSeparator=,
+				Format.DateOrder=TMJ
+				""".stripIndent(), StandardCharsets.UTF_8);
+		Path csvFile = writeCsv("""
+				Datum;Betrag;Zweck
+				31.12.89;1,00;Jahr 89
+				01.01.90;2,00;Jahr 90
+				""");
+		CsvImportAnalyzer analyzer = new CsvImportAnalyzer(new CsvImportDefinitionRepository(definitionFile));
+
+		new FileImportCSVBean(null, account, "Buchung: Datumsgrenze", analyzer).importFileToDatabase(csvFile.toString());
+
+		List<Booking> bookings = dbController.getAllByParentFull(Booking.class, account.getId());
+		assertEquals(2, bookings.size());
+		assertEquals(LocalDate.of(2089, 12, 31), bookingWithPurpose(bookings, "Jahr 89").getDateBooking());
+		assertEquals(LocalDate.of(1990, 1, 1), bookingWithPurpose(bookings, "Jahr 90").getDateBooking());
+	}
+
+	private static Booking bookingWithPurpose(List<Booking> bookings, String purpose) {
+		return bookings.stream().filter(booking -> purpose.equals(booking.getPurpose())).findFirst().orElseThrow();
+	}
+
 	private BankAccount createAccount(String name, String iban, String number) {
 		BankAccount account = TestDataFactory.createSampleAccount(null);
 		account.setAccountName(name);
