@@ -103,7 +103,7 @@ public class TypeConverter {
 	}
 
 	public static LocalDateTime toLocalDateTime(String value) {
-		return value != null && !value.isBlank() ? LocalDateTime.parse(value) : null;
+		return value != null && !value.isBlank() ? LocalDateTime.parse(value.replace(' ', 'T')) : null;
 	}
 
 	private static LocalDate toLocalDate(DateTimeFormatter formatter, String date) {

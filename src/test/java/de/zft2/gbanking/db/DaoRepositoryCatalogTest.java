@@ -33,12 +33,14 @@ import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.db.dao.Upd;
 import de.zft2.gbanking.db.dao.logic.MnDao;
+import de.zft2.gbanking.db.dao.stock.StockDaoTypes;
 import de.zft2.gbanking.db.repository.BankAccessRepository;
 import de.zft2.gbanking.db.repository.BankAccountRepository;
 import de.zft2.gbanking.db.repository.BookingRepository;
 import de.zft2.gbanking.db.repository.CategoryRuleRepository;
 import de.zft2.gbanking.db.repository.MoneyTransferForeignRepository;
 import de.zft2.gbanking.db.repository.ReadOnlyDaoRepository;
+import de.zft2.gbanking.db.repository.StockDaoRepository;
 import de.zft2.gbanking.exception.GBankingException;
 
 class DaoRepositoryCatalogTest {
@@ -49,6 +51,9 @@ class DaoRepositoryCatalogTest {
 			DaoRepositoryCatalog catalog = session.repositoryCatalog();
 
 			for (Class<? extends Dao> type : persistedTypes()) {
+				assertSame(type, catalog.repository(type).type());
+			}
+			for (Class<? extends Dao> type : StockDaoTypes.all()) {
 				assertSame(type, catalog.repository(type).type());
 			}
 			assertSame(session.repositories(), session.repositories());
@@ -70,6 +75,7 @@ class DaoRepositoryCatalogTest {
 			assertInstanceOf(ReadOnlyDaoRepository.class, catalog.repository(Bpd.class));
 			assertInstanceOf(ReadOnlyDaoRepository.class, catalog.repository(ParameterData.class));
 			assertInstanceOf(ReadOnlyDaoRepository.class, catalog.repository(Upd.class));
+			StockDaoTypes.all().forEach(type -> assertInstanceOf(StockDaoRepository.class, catalog.repository(type)));
 		}
 	}
 

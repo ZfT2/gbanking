@@ -61,6 +61,7 @@ import de.zft2.gbanking.db.dao.logic.StatementsLogicInstitute;
 import de.zft2.gbanking.db.dao.logic.StatementsLogicMoneyTransfer;
 import de.zft2.gbanking.db.dao.logic.StatementsLogicMoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.logic.StatementsLogicRecipient;
+import de.zft2.gbanking.db.dao.logic.StatementsLogicStock;
 import de.zft2.gbanking.db.dao.mapper.AbstractDaoMapper;
 import de.zft2.gbanking.db.dao.mapper.BankAccessMapper;
 import de.zft2.gbanking.db.dao.mapper.BankAccountMapper;
@@ -83,7 +84,10 @@ import de.zft2.gbanking.db.dao.mapper.ParameterDataMapper;
 import de.zft2.gbanking.db.dao.mapper.Psd2ClientConfigurationMapper;
 import de.zft2.gbanking.db.dao.mapper.RecipientMapper;
 import de.zft2.gbanking.db.dao.mapper.SettingMapper;
+import de.zft2.gbanking.db.dao.mapper.StockDaoMapper;
 import de.zft2.gbanking.db.dao.mapper.UpdMapper;
+import de.zft2.gbanking.db.dao.stock.StockDao;
+import de.zft2.gbanking.db.dao.stock.StockDaoMetadata;
 import de.zft2.gbanking.exception.GBankingException;
 
 public final class StatementsConfig {
@@ -333,12 +337,18 @@ public final class StatementsConfig {
 	}
 
 	public static String getTableViewName(Class<? extends Dao> type) {
+		if (StockDao.class.isAssignableFrom(type)) {
+			return stockMetadata(type).tableName();
+		}
 		String tableViewName = getMetadata(type).tableViewName();
 		return tableViewName != null ? tableViewName : type.getSimpleName();
 	}
 
 	@SuppressWarnings("unchecked")
 	public static <T extends Dao, V> AbstractDaoMapper<T, V> getMapperForDaoType(Class<? extends Dao> type) {
+		if (StockDao.class.isAssignableFrom(type)) {
+			return (AbstractDaoMapper<T, V>) new StockDaoMapper<>(type.asSubclass(StockDao.class));
+		}
 		DaoMetadata<?, ?> metadata = DAO_METADATA.get(type);
 		if (metadata == null) {
 			metadata = DEFAULT_METADATA;
@@ -348,6 +358,9 @@ public final class StatementsConfig {
 
 	@SuppressWarnings("unchecked")
 	public static <T extends Dao> StatementsLogic<T> getLogicForDaoType(Class<? extends Dao> type) {
+		if (StockDao.class.isAssignableFrom(type)) {
+			return (StatementsLogic<T>) new StatementsLogicStock<>();
+		}
 		DaoMetadata<?, ?> metadata = DAO_METADATA.get(type);
 		if (metadata == null) {
 			metadata = DEFAULT_METADATA;
@@ -362,5 +375,10 @@ public final class StatementsConfig {
 
 		Class<? extends Dao> type = collection.iterator().next().getClass();
 		return getLogicForDaoType(type);
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	private static StockDaoMetadata<?> stockMetadata(Class<? extends Dao> type) {
+		return StockDaoMetadata.of((Class) type.asSubclass(StockDao.class));
 	}
 }

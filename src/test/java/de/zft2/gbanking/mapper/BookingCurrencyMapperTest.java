@@ -73,6 +73,8 @@ class BookingCurrencyMapperTest {
 		assertEquals(40, Currency.values().length);
 		assertEquals(Currency.PEN, Currency.forInt(40));
 		assertEquals(Currency.MXN, Currency.forCode("mxn"));
+		assertEquals(2, Currency.EUR.getMinorUnitDigits());
+		assertEquals(0, Currency.JPY.getMinorUnitDigits());
 	}
 
 	@Test

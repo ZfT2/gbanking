@@ -19,6 +19,8 @@ import de.zft2.gbanking.db.dao.Psd2ClientConfiguration;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.db.dao.Upd;
+import de.zft2.gbanking.db.dao.stock.StockDao;
+import de.zft2.gbanking.db.dao.stock.StockDaoTypes;
 import de.zft2.gbanking.db.repository.BankAccessRepository;
 import de.zft2.gbanking.db.repository.BankAccountRepository;
 import de.zft2.gbanking.db.repository.BookingRepository;
@@ -26,6 +28,7 @@ import de.zft2.gbanking.db.repository.CategoryRuleRepository;
 import de.zft2.gbanking.db.repository.JdbcDaoRepository;
 import de.zft2.gbanking.db.repository.MoneyTransferForeignRepository;
 import de.zft2.gbanking.db.repository.ReadOnlyDaoRepository;
+import de.zft2.gbanking.db.repository.StockDaoRepository;
 import de.zft2.gbanking.exception.GBankingException;
 
 final class DaoRepositoryCatalog {
@@ -55,6 +58,7 @@ final class DaoRepositoryCatalog {
 		registerSimple(Recipient.class);
 		registerSimple(Setting.class);
 		registerReadOnly(Upd.class);
+		StockDaoTypes.all().forEach(this::registerStock);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -72,6 +76,10 @@ final class DaoRepositoryCatalog {
 
 	private <T extends Dao> void registerReadOnly(Class<T> type) {
 		register(new ReadOnlyDaoRepository<>(type, session));
+	}
+
+	private <T extends StockDao> void registerStock(Class<T> type) {
+		register(new StockDaoRepository<>(type, session));
 	}
 
 	private <T extends Dao> void register(DaoRepository<T> repository) {

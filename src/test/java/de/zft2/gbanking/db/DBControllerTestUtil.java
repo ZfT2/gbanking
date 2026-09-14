@@ -75,7 +75,8 @@ public class DBControllerTestUtil {
 	}
 
 	private static boolean isStaticLookupTable(String schema, String tableName) {
-		return "institute_db".equals(schema) && "instituteStatus".equalsIgnoreCase(tableName);
+		return "institute_db".equals(schema) && "instituteStatus".equalsIgnoreCase(tableName)
+				|| "main".equals(schema) && "stockNumericScale".equalsIgnoreCase(tableName);
 	}
 
 	private static void dropIntegrityTriggers(Statement stmt) throws SQLException {

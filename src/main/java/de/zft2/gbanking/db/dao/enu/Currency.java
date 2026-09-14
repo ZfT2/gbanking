@@ -7,51 +7,53 @@ import de.zft2.gbanking.exception.GBankingException;
 
 public enum Currency implements IdType {
 
-	EUR(1),
-	USD(2),
-	GBP(3),
-	CHF(4),
-	JPY(5),
-	CAD(6),
-	AUD(7),
-	CNY(8),
-	SEK(9),
-	NOK(10),
-	DKK(11),
-	PLN(12),
-	CZK(13),
-	HUF(14),
-	TRY(15),
-	NZD(16),
-	SGD(17),
-	HKD(18),
-	KRW(19),
-	INR(20),
-	BRL(21),
-	MXN(22),
-	ZAR(23),
-	RUB(24),
-	AED(25),
-	SAR(26),
-	ILS(27),
-	THB(28),
-	IDR(29),
-	MYR(30),
-	PHP(31),
-	TWD(32),
-	VND(33),
-	RON(34),
-	ISK(35),
-	UAH(36),
-	CLP(37),
-	COP(38),
-	ARS(39),
-	PEN(40);
+	EUR(1, 2),
+	USD(2, 2),
+	GBP(3, 2),
+	CHF(4, 2),
+	JPY(5, 0),
+	CAD(6, 2),
+	AUD(7, 2),
+	CNY(8, 2),
+	SEK(9, 2),
+	NOK(10, 2),
+	DKK(11, 2),
+	PLN(12, 2),
+	CZK(13, 2),
+	HUF(14, 2),
+	TRY(15, 2),
+	NZD(16, 2),
+	SGD(17, 2),
+	HKD(18, 2),
+	KRW(19, 0),
+	INR(20, 2),
+	BRL(21, 2),
+	MXN(22, 2),
+	ZAR(23, 2),
+	RUB(24, 2),
+	AED(25, 2),
+	SAR(26, 2),
+	ILS(27, 2),
+	THB(28, 2),
+	IDR(29, 2),
+	MYR(30, 2),
+	PHP(31, 2),
+	TWD(32, 2),
+	VND(33, 0),
+	RON(34, 2),
+	ISK(35, 0),
+	UAH(36, 2),
+	CLP(37, 0),
+	COP(38, 2),
+	ARS(39, 2),
+	PEN(40, 2);
 
 	private final int dbStateId;
+	private final int minorUnitDigits;
 
-	Currency(int dbStateId) {
+	Currency(int dbStateId, int minorUnitDigits) {
 		this.dbStateId = dbStateId;
+		this.minorUnitDigits = minorUnitDigits;
 	}
 
 	public static Currency forInt(int intValue) {
@@ -78,5 +80,9 @@ public enum Currency implements IdType {
 	@Override
 	public int getDbStateId() {
 		return dbStateId;
+	}
+
+	public int getMinorUnitDigits() {
+		return minorUnitDigits;
 	}
 }
