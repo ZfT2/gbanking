@@ -286,7 +286,7 @@ public class ImportDaoMapper {
 		if (crossBookingId != null) {
 			bookingDao.setCrossBookingId(crossBookingId);
 			if (bookingDao.getBookingType() != BookingType.CANCEL) {
-				bookingDao.setBookingType(bookingDao.getAmount().compareTo(BigDecimal.ZERO) < 0 ? BookingType.REBOOKING_OUT : BookingType.REBOOKING_IN);
+				bookingDao.setBookingType(BookingType.rebookingFromAmount(bookingDao.getAmount()));
 			}
 		}
 	}

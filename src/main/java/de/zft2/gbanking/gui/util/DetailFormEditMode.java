@@ -35,8 +35,7 @@ public final class DetailFormEditMode {
 
 	private static void setButtonsVisible(Collection<Button> buttons, boolean visible) {
 		for (Button button : buttons) {
-			button.setVisible(visible);
-			button.setManaged(visible);
+			FxNodeSupport.setVisibleManaged(button, visible);
 		}
 	}
 }

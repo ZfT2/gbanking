@@ -9,6 +9,7 @@ import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.panel.account.AccountListPanel;
+import de.zft2.gbanking.gui.panel.account.AccountSelectionTarget;
 import de.zft2.gbanking.gui.panel.layout.MasterContentPane;
 import de.zft2.gbanking.gui.panel.moneytransfer.MoneyTransferDetailListTabPanel;
 import de.zft2.gbanking.gui.panel.moneytransfer.MoneyTransferInputBasePanel;
@@ -19,7 +20,7 @@ import de.zft2.gbanking.service.ServiceRegistry;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 
-public class MoneyTransferOverviewPanel extends OverviewBasePanel {
+public class MoneyTransferOverviewPanel extends OverviewBasePanel implements AccountSelectionTarget {
 
 	private static final Logger log = LogManager.getLogger(MoneyTransferOverviewPanel.class);
 
@@ -38,10 +39,10 @@ public class MoneyTransferOverviewPanel extends OverviewBasePanel {
 
 	MoneyTransferOverviewPanel(BankingCapabilityService bankingCapabilityService) {
 		this.bankingCapabilityService = bankingCapabilityService;
+		initializePanel();
 	}
 
-	@Override
-	public void createOverallPanel(boolean show) {
+	private void initializePanel() {
 		setPageContext(PageContext.ACCOUNTS_MONEYTRANSFERS);
 
 		accountListPanel = new AccountListPanel(this);
@@ -53,7 +54,7 @@ public class MoneyTransferOverviewPanel extends OverviewBasePanel {
 		tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> switchTab(newTab));
 
 		MasterContentPane mainPane = new MasterContentPane(accountListPanel, tabPane, "moneyTransfers.main", ACCOUNT_DIVIDER);
-		setOverviewContent("UI_PANEL_MONEYTRANSFERS", mainPane, show);
+		setOverviewContent("UI_PANEL_MONEYTRANSFERS", mainPane);
 
 		tabPane.getSelectionModel().selectFirst();
 		switchTab(tabPane.getTabs().get(0));
@@ -93,6 +94,7 @@ public class MoneyTransferOverviewPanel extends OverviewBasePanel {
 		selectedTab.refreshCapabilityState();
 	}
 
+	@Override
 	public void handleAccountSelection(BankAccount selectedAccount) {
 		setSelectedAccount(selectedAccount);
 		refreshCapabilityState();

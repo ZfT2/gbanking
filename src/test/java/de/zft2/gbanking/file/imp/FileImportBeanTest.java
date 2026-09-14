@@ -36,7 +36,7 @@ import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.db.dao.enu.BookingType;
-import de.zft2.gbanking.gui.BaseWorker;
+import de.zft2.gbanking.concurrent.ProgressReporter;
 import de.zft2.gbanking.messages.Messages;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -90,19 +90,19 @@ class FileImportBeanTest extends CoreBookingUtil {
 
 	@Test
 	void writeAccountsToDBShouldReportAccountWithoutBookingCount() {
-		BaseWorker worker = mock(BaseWorker.class);
-		FileImportBean importBean = new FileImportBean(worker);
+		ProgressReporter reporter = mock(ProgressReporter.class);
+		FileImportBean importBean = new FileImportBean(reporter);
 		var account = createXmlBankAccount("Statuskonto - 1234", "DE00000000000000001234", "1234", "BANKDE12345");
 
 		importBean.writeAccountsToDB(List.of(account));
 
-		verify(worker).setProcessingState("Importiere Konto: Statuskonto - 1234");
+		verify(reporter).reportState("Importiere Konto: Statuskonto - 1234");
 	}
 
 	@Test
 	void writeBookingsToDBShouldReportProgressAcrossAllAccounts() {
-		BaseWorker worker = mock(BaseWorker.class);
-		FileImportBean importBean = new FileImportBean(worker);
+		ProgressReporter reporter = mock(ProgressReporter.class);
+		FileImportBean importBean = new FileImportBean(reporter);
 		var firstAccount = createXmlBankAccount("Fortschritt 1", "DE00000000000000002001", "2001", "BANKDE02001");
 		firstAccount.setBookings(
 				List.of(createXmlBooking("01.01.2026", "01.01.2026", "Buchung 1", BigDecimal.ONE, "Fortschritt 1")));
@@ -116,9 +116,9 @@ class FileImportBeanTest extends CoreBookingUtil {
 		importBean.writeAccountsToDB(accounts);
 		importBean.writeBookingsToDB(accounts);
 
-		ArgumentCaptor<Integer> progressCaptor = ArgumentCaptor.forClass(Integer.class);
-		verify(worker, atLeastOnce()).setWorkerProgress(progressCaptor.capture());
-		assertEquals(List.of(0, 3, 5, 26, 48, 69, 90, 98, 100), progressCaptor.getAllValues());
+		ArgumentCaptor<Double> progressCaptor = ArgumentCaptor.forClass(Double.class);
+		verify(reporter, atLeastOnce()).reportProgress(progressCaptor.capture());
+		assertEquals(List.of(0.0, 3.0, 5.0, 26.0, 48.0, 69.0, 90.0, 98.0, 100.0), progressCaptor.getAllValues());
 	}
 
 	@Test

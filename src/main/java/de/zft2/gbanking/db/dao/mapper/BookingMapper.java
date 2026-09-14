@@ -48,8 +48,8 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 	private int setCoreParams(Booking booking, PreparedStatement ps, int index) throws SQLException {
 		ps.setInt(index++, booking.getAccountId());
 		index = setIntegerNullable(index, booking.getParentBookingId(), ps);
-		ps.setDate(index++, TypeConverter.toSqlDateShort(booking.getDateBooking()));
-		ps.setDate(index++, TypeConverter.toSqlDateShort(booking.getDateValue()));
+		ps.setDate(index++, TypeConverter.toSqlDate(booking.getDateBooking()));
+		ps.setDate(index++, TypeConverter.toSqlDate(booking.getDateValue()));
 		ps.setString(index++, booking.getPurpose());
 		ps.setBigDecimal(index++, booking.getAmount());
 		setEnumNullable(index++, booking.getBookingType(), ps);
@@ -113,7 +113,7 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 		BookingCreditCardDetails details = Objects.requireNonNull(booking.getCreditCardDetails(), "creditCardDetails");
 
 		ps.setInt(index++, booking.getId());
-		ps.setDate(index++, TypeConverter.toSqlDateShort(details.getTransactionDate()));
+		ps.setDate(index++, TypeConverter.toSqlDate(details.getTransactionDate()));
 		ps.setString(index++, details.getType());
 		ps.setString(index++, details.getMerchantArea());
 		ps.setString(index++, details.getMerchantCategory());
@@ -171,8 +171,8 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 	@Override
 	public int setParamsSpecific(Booking booking, StatementType statementType, int parameterIndex, PreparedStatement ps) throws SQLException {
 		if (statementType == StatementType.SELECT_WITH_PARENT_AND_DATE_RANGE) {
-			ps.setDate(parameterIndex++, TypeConverter.toSqlDateShort(booking.getDateBooking()));
-			ps.setDate(parameterIndex++, TypeConverter.toSqlDateShort(booking.getDateValue()));
+			ps.setDate(parameterIndex++, TypeConverter.toSqlDate(booking.getDateBooking()));
+			ps.setDate(parameterIndex++, TypeConverter.toSqlDate(booking.getDateValue()));
 		}
 		return parameterIndex;
 	}

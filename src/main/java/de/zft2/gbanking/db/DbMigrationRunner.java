@@ -193,55 +193,18 @@ public final class DbMigrationRunner {
 	}
 
 	private static void applyMigration(Connection connection, SqlTemplateRepository.VersionScript script, String appVersion) throws SQLException {
-		boolean oldAutoCommit = connection.getAutoCommit();
-		connection.setAutoCommit(false);
-		boolean transactionUsable = true;
-		Throwable failure = null;
-		try (Statement statement = connection.createStatement()) {
-			for (String sql : script.getStatements()) {
-				if (!sql.isBlank()) {
-					statement.executeUpdate(sql);
+		JdbcTransaction.run(connection, () -> {
+			try (Statement statement = connection.createStatement()) {
+				for (String sql : script.getStatements()) {
+					if (!sql.isBlank()) {
+						statement.executeUpdate(sql);
+					}
 				}
 			}
 			upsertHiddenSetting(connection, script.getSettingKey(), appVersion, "Automatisch angewendete DB-Migration " + script.getVersion());
 			upsertHiddenSetting(connection, SETTING_SCHEMA_VERSION, script.getVersion(), LAST_USED_SCHEMAVERSION_SUCCESS);
-			connection.commit();
-			log.info("Applied DB migration {}", script.getResource());
-		} catch (SQLException | RuntimeException exception) {
-			failure = exception;
-			transactionUsable = rollback(connection, exception);
-			throw exception;
-		} finally {
-			restoreAutoCommit(connection, oldAutoCommit, transactionUsable, failure);
-		}
-	}
-
-	private static boolean rollback(Connection connection, Throwable originalFailure) {
-		try {
-			connection.rollback();
-			return true;
-		} catch (SQLException | RuntimeException rollbackFailure) {
-			originalFailure.addSuppressed(rollbackFailure);
-			return false;
-		}
-	}
-
-	private static void restoreAutoCommit(Connection connection, boolean oldAutoCommit,
-			boolean transactionUsable, Throwable originalFailure) throws SQLException {
-		if (!transactionUsable) {
-			return;
-		}
-		try {
-			connection.setAutoCommit(oldAutoCommit);
-		} catch (SQLException | RuntimeException restoreFailure) {
-			if (originalFailure == null) {
-				if (restoreFailure instanceof SQLException sqlFailure) {
-					throw sqlFailure;
-				}
-				throw restoreFailure;
-			}
-			originalFailure.addSuppressed(restoreFailure);
-		}
+		});
+		log.info("Applied DB migration {}", script.getResource());
 	}
 
 	private static void upsertHiddenSetting(Connection connection, String attribute, String value, String comment) throws SQLException {

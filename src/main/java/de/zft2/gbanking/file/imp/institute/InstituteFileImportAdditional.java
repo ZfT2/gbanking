@@ -22,7 +22,7 @@ import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.enu.InstituteValidityDateType;
-import de.zft2.gbanking.gui.BaseWorker;
+import de.zft2.gbanking.concurrent.ProgressReporter;
 
 public class InstituteFileImportAdditional extends InstituteFileImport {
 
@@ -49,8 +49,8 @@ public class InstituteFileImportAdditional extends InstituteFileImport {
 			COLUMN_POSTCODE, COLUMN_DELETION_MARKER, COLUMN_BLZ_SUCCESSION, COLUMN_IBAN_RULE, COLUMN_IBAN_RULE_VERSION
 	};
 
-	protected InstituteFileImportAdditional(String basePath, String fileName, Charset charset, BaseWorker worker) {
-		super(basePath, fileName, charset, worker);
+	protected InstituteFileImportAdditional(String basePath, String fileName, Charset charset, ProgressReporter progressReporter) {
+		super(basePath, fileName, charset, progressReporter);
 	}
 
 	@Override
@@ -72,7 +72,8 @@ public class InstituteFileImportAdditional extends InstituteFileImport {
 			try (var files = Files.list(importDirectory)) {
 				List<Path> historicalFiles = files.filter(Files::isRegularFile)
 						.filter(this::isHistoricalFile)
-						.sorted(Comparator.comparing(this::getFileMonth).thenComparing(path -> path.getFileName().toString()))
+						.sorted(Comparator.comparing(this::getFileMonth)
+								.thenComparing(path -> Objects.requireNonNull(path.getFileName()).toString()))
 						.toList();
 				if (!historicalFiles.isEmpty()) {
 					return historicalFiles;

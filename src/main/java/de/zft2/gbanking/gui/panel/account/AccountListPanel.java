@@ -5,28 +5,18 @@ import static de.zft2.gbanking.util.TextValues.trimToNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import de.zft2.gbanking.db.dao.BankAccount;
-import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.gui.GuiContext;
 import de.zft2.gbanking.gui.model.AccountTableModel;
 import de.zft2.gbanking.gui.panel.AbstractFilterableTablePanel;
-import de.zft2.gbanking.gui.panel.overview.AccountsTransactionsOverviewPanel;
-import de.zft2.gbanking.gui.panel.overview.AllAccountsOverviewPanel;
-import de.zft2.gbanking.gui.panel.overview.CategoryOverviewPanel;
-import de.zft2.gbanking.gui.panel.overview.MoneyTransferOverviewPanel;
-import de.zft2.gbanking.gui.panel.overview.OverviewBasePanel;
-import de.zft2.gbanking.gui.panel.transaction.TransactionListPanel;
 import de.zft2.gbanking.gui.util.BookingFileActionSupport;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
 import javafx.scene.control.ContextMenu;
@@ -38,8 +28,6 @@ import javafx.scene.control.Tooltip;
 
 public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> {
 
-	private static final Logger log = LogManager.getLogger(AccountListPanel.class);
-
 	private static final double ACCOUNT_LIST_MIN_WIDTH = 280;
 	private static final double ACCOUNT_LIST_PREF_WIDTH = 335;
 	private static final double ACCOUNT_LIST_MAX_WIDTH = 400;
@@ -47,24 +35,23 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 	private static final String UI_PANEL_ACCOUNT = "UI_PANEL_ACCOUNT";
 	private static final String UI_PANEL_ACCOUNT_ONLINE_ONLY_SUFFIX = "UI_PANEL_ACCOUNT_ONLINE_ONLY_SUFFIX";
 
-	private final OverviewBasePanel parentPanel;
+	private final AccountSelectionTarget selectionTarget;
 	private final AccountTableModel modelAccount;
 	private final AccountListScope accountListScope;
 	private final String panelTitleKey;
-	private boolean restoringSelection;
 
-	public AccountListPanel(OverviewBasePanel parentPanel) {
-		this(parentPanel, AccountListScope.FOLLOW_VIEW_SETTING, UI_PANEL_ACCOUNT);
+	public AccountListPanel(AccountSelectionTarget selectionTarget) {
+		this(selectionTarget, AccountListScope.FOLLOW_VIEW_SETTING, UI_PANEL_ACCOUNT);
 	}
 
-	public AccountListPanel(OverviewBasePanel parentPanel, AccountListScope accountListScope, String panelTitleKey) {
-		this(parentPanel, accountListScope, panelTitleKey, createModel(accountListScope));
+	public AccountListPanel(AccountSelectionTarget selectionTarget, AccountListScope accountListScope, String panelTitleKey) {
+		this(selectionTarget, accountListScope, panelTitleKey, createModel(accountListScope));
 	}
 
-	private AccountListPanel(OverviewBasePanel parentPanel, AccountListScope accountListScope, String panelTitleKey,
+	private AccountListPanel(AccountSelectionTarget selectionTarget, AccountListScope accountListScope, String panelTitleKey,
 			AccountTableModel modelAccount) {
 		super(modelAccount.getAccounts());
-		this.parentPanel = parentPanel;
+		this.selectionTarget = selectionTarget;
 		this.modelAccount = modelAccount;
 		this.accountListScope = accountListScope;
 		this.panelTitleKey = panelTitleKey;
@@ -74,7 +61,7 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 	private void createInnerAccountListPanel() {
 		applyWidthProfile();
 		configureColumns();
-		configureTableLayout("accounts." + parentPanel.getPageContext().name());
+		configureTableLayout("accounts." + selectionTarget.getPageContext().name());
 		configureContextMenu();
 		tableView.setEditable(true);
 		updatePanelTitle();
@@ -82,34 +69,7 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 	}
 
 	private void configureSelection() {
-		tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldAccount, selectedAccount) -> {
-			if (restoringSelection || selectedAccount == null) {
-				return;
-			}
-			if (parentPanel.getPageContext() == PageContext.ACCOUNTS_TRANSACTIONS && !canLeaveTransactionDetails()) {
-				restoreSelection(oldAccount);
-				return;
-			}
-			handleSelection(selectedAccount);
-		});
-	}
-
-	private boolean canLeaveTransactionDetails() {
-		AccountsTransactionsOverviewPanel parent = (AccountsTransactionsOverviewPanel) parentPanel;
-		return parent.getTransactionDetailPanel().confirmDiscardUnsavedSplitBookings();
-	}
-
-	private void restoreSelection(BankAccount account) {
-		restoringSelection = true;
-		try {
-			if (account != null) {
-				tableView.getSelectionModel().select(account);
-			} else {
-				tableView.getSelectionModel().clearSelection();
-			}
-		} finally {
-			restoringSelection = false;
-		}
+		onGuardedSelection(() -> selectionTarget.canChangeAccountSelection(), account -> handleSelection(account));
 	}
 
 	private void configureContextMenu() {
@@ -151,7 +111,7 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 	}
 
 	private void applyWidthProfile() {
-		if (parentPanel.getPageContext() == PageContext.ALL_ACCOUNTS) {
+		if (selectionTarget.getPageContext() == PageContext.ALL_ACCOUNTS) {
 			setMinWidth(0);
 			setPrefWidth(USE_COMPUTED_SIZE);
 			setMaxWidth(Double.MAX_VALUE);
@@ -164,7 +124,7 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 	}
 
 	private void configureColumns() {
-		setColumns(parentPanel.getPageContext() == PageContext.ALL_ACCOUNTS ? createAllAccountsColumns() : createCompactColumns());
+		setColumns(selectionTarget.getPageContext() == PageContext.ALL_ACCOUNTS ? createAllAccountsColumns() : createCompactColumns());
 	}
 
 	private List<TableColumn<BankAccount, ?>> createCompactColumns() {
@@ -223,44 +183,7 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 
 	private void handleSelection(BankAccount selectedAccount) {
 		GuiContext.setSelectedAccount(selectedAccount);
-		PageContext context = parentPanel.getPageContext();
-
-		if (context == PageContext.ACCOUNTS_TRANSACTIONS) {
-			handleAccountsTransactionsSelection(selectedAccount);
-		} else if (context == PageContext.ALL_ACCOUNTS) {
-			((AllAccountsOverviewPanel) parentPanel).getAccountDetailPanel().updatePanelFieldValues(selectedAccount);
-		} else if (context == PageContext.ACCOUNTS_MONEYTRANSFERS) {
-			handleMoneyTransfersSelection(selectedAccount);
-		} else if (context == PageContext.CATEGORIES) {
-			handleCategoriesSelection(selectedAccount);
-		}
-	}
-
-	private void handleAccountsTransactionsSelection(BankAccount selectedAccount) {
-		log.log(Level.INFO, () -> getText("LOG_ACCOUNT_SELECTED", selectedAccount.getId()));
-
-		AccountsTransactionsOverviewPanel parent = (AccountsTransactionsOverviewPanel) parentPanel;
-		parent.getTransactionDetailPanel().clearDisplayedBooking();
-
-		List<Booking> bookingList = dbController.getAllByParentFull(Booking.class, selectedAccount.getId());
-		TransactionListPanel transactionListPanel = parent.getTransactionListPanel();
-
-		transactionListPanel.updatePanelBorder(getText("UI_PANEL_TRANSACTIONS") + " - " + selectedAccount.getAccountName());
-		transactionListPanel.updateModelBooking(bookingList);
-		parent.enableAccountDetailPanel();
-		parent.getAccountDetailPanel().updatePanelFieldValues(selectedAccount);
-		parent.getTransactionDetailPanel().setCurrentAccount(selectedAccount);
-		parent.getAccountStatementPanel().updateAccount(selectedAccount);
-	}
-
-	private void handleMoneyTransfersSelection(BankAccount selectedAccount) {
-		MoneyTransferOverviewPanel parent = (MoneyTransferOverviewPanel) parentPanel;
-		parent.handleAccountSelection(selectedAccount);
-	}
-
-	private void handleCategoriesSelection(BankAccount selectedAccount) {
-		CategoryOverviewPanel parent = (CategoryOverviewPanel) parentPanel;
-		parent.handleAccountSelection(selectedAccount);
+		selectionTarget.handleAccountSelection(selectedAccount);
 	}
 
 	public AccountTableModel getModelAccount() {
@@ -302,7 +225,7 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 				.findFirst()
 				.orElse(account);
 		if (tableView.getSelectionModel().getSelectedItem() == accountToSelect) {
-			if (parentPanel.getPageContext() == PageContext.ACCOUNTS_TRANSACTIONS && !canLeaveTransactionDetails()) {
+			if (!selectionTarget.canChangeAccountSelection()) {
 				return;
 			}
 			handleSelection(accountToSelect);
@@ -317,7 +240,7 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 
 	public void reload() {
 		Integer selectedAccountId = accountIdToRestore();
-		LocalDate today = LocalDate.now();
+		LocalDate today = LocalDate.now(ZoneId.systemDefault());
 		Map<Integer, LocalDateTime> retrievalTimes = new HashMap<>();
 		masterData.stream()
 				.filter(account -> account.getSessionRetrievalAt() != null
@@ -340,7 +263,7 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 		if (accountListScope == AccountListScope.FOLLOW_VIEW_SETTING && GuiContext.isOnlyOnlineAccountsVisible()) {
 			title += " " + getText(UI_PANEL_ACCOUNT_ONLINE_ONLY_SUFFIX);
 		}
-		if (parentPanel.getPageContext() == PageContext.ALL_ACCOUNTS) {
+		if (selectionTarget.getPageContext() == PageContext.ALL_ACCOUNTS) {
 			title += " (" + masterData.size() + ")";
 		}
 		setPanelTitle(title);

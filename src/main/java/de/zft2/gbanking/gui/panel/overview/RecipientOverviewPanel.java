@@ -8,6 +8,7 @@ import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.gui.panel.layout.DetailListPane;
 import de.zft2.gbanking.gui.panel.recipient.RecipientDetailPanel;
 import de.zft2.gbanking.gui.panel.recipient.RecipientListPanel;
+import de.zft2.gbanking.gui.panel.recipient.RecipientListPanel.ViewMode;
 
 public class RecipientOverviewPanel extends OverviewBasePanel {
 
@@ -19,13 +20,14 @@ public class RecipientOverviewPanel extends OverviewBasePanel {
 
 	public RecipientOverviewPanel() {
 		recipientDetailPanel = new RecipientDetailPanel(this);
-		recipientListPanel = new RecipientListPanel(this);
+		recipientListPanel = new RecipientListPanel(ViewMode.RECIPIENTS,
+				recipient -> recipientDetailPanel.updatePanelFieldValues(recipient));
+		initializePanel();
 	}
 
-	@Override
-	public void createOverallPanel(boolean show) {
+	private void initializePanel() {
 		setPageContext(PageContext.RECIPIENTS);
-		setOverviewContent("UI_PANEL_RECIPIENTS", new DetailListPane(recipientDetailPanel, recipientListPanel), show);
+		setOverviewContent("UI_PANEL_RECIPIENTS", new DetailListPane(recipientDetailPanel, recipientListPanel));
 
 		log.info("RecipientOverviewPanel initialized");
 	}

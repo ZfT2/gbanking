@@ -32,6 +32,7 @@ import de.zft2.gbanking.gui.panel.overview.AccountsTransactionsOverviewPanel;
 import de.zft2.gbanking.gui.panel.overview.TransactionsOverviewBasePanel;
 import de.zft2.gbanking.gui.util.DateFormatUtils;
 import de.zft2.gbanking.gui.util.FxTableUtils;
+import de.zft2.gbanking.gui.util.FxNodeSupport;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
 import de.zft2.gbanking.service.booking.BookingService;
 import de.zft2.gbanking.service.ServiceRegistry;
@@ -106,7 +107,6 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	private TableColumn<Booking, String> categoryCol;
 	private TableColumn<Booking, BigDecimal> amountCol;
 	private TableColumn<Booking, Booking> balanceCol;
-	private boolean restoringSelection;
 	private boolean updatingFilters;
 	private BigDecimal amountFromFilterValue;
 	private BigDecimal amountToFilterValue;
@@ -216,8 +216,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 				createFilterField(getText("UI_LABEL_CATEGORY"), categoryFilter),
 				createFilterField(getText("UI_FILTER_BOOKING_STATE"), bookingStateFilter),
 				resetBox);
-		pane.setManaged(false);
-		pane.setVisible(false);
+		FxNodeSupport.setVisibleManaged(pane, false);
 		return pane;
 	}
 
@@ -229,8 +228,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 		configureFilterWidth(toggle, FILTER_TOGGLE_WIDTH);
 		toggle.selectedProperty().addListener((obs, wasExpanded, isExpanded) -> {
 			boolean expanded = Boolean.TRUE.equals(isExpanded);
-			advancedFilters.setManaged(expanded);
-			advancedFilters.setVisible(expanded);
+			FxNodeSupport.setVisibleManaged(advancedFilters, expanded);
 			toggle.setText(expanded ? FILTER_COLLAPSE_SYMBOL : FILTER_EXPAND_SYMBOL);
 			String tooltipText = getText(expanded ? "UI_FILTER_DETAILS_HIDE" : "UI_FILTER_DETAILS_SHOW");
 			tooltip.setText(tooltipText);
@@ -397,29 +395,8 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	}
 
 	private void configureBookingSelection() {
-		tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldBooking, selectedBooking) -> {
-			if (restoringSelection || selectedBooking == null) {
-				return;
-			}
-			if (!parentPanel.getTransactionDetailPanel().confirmDiscardUnsavedSplitBookings()) {
-				restoreSelection(oldBooking);
-				return;
-			}
-			handleBookingSelection(selectedBooking);
-		});
-	}
-
-	private void restoreSelection(Booking booking) {
-		restoringSelection = true;
-		try {
-			if (booking != null) {
-				tableView.getSelectionModel().select(booking);
-			} else {
-				tableView.getSelectionModel().clearSelection();
-			}
-		} finally {
-			restoringSelection = false;
-		}
+		onGuardedSelection(() -> parentPanel.getTransactionDetailPanel().confirmDiscardUnsavedSplitBookings(),
+				booking -> handleBookingSelection(booking));
 	}
 
 	private List<TableColumn<Booking, ?>> createColumns() {
@@ -714,11 +691,9 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 				}
 
 				recipientLabel.setText(recipientName);
-				recipientLabel.setVisible(recipientName != null);
-				recipientLabel.setManaged(recipientName != null);
+				FxNodeSupport.setVisibleManaged(recipientLabel, recipientName != null);
 				purposeLabel.setText(purpose);
-				purposeLabel.setVisible(purpose != null);
-				purposeLabel.setManaged(purpose != null);
+				FxNodeSupport.setVisibleManaged(purposeLabel, purpose != null);
 				setGraphic(graphic);
 			}
 		};

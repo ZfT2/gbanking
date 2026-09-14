@@ -1,5 +1,6 @@
 package de.zft2.gbanking.file.imp;
 
+import static de.zft2.gbanking.util.TextValues.removeLeadingBom;
 import static de.zft2.gbanking.util.TextValues.trimToNull;
 
 import java.io.IOException;
@@ -24,13 +25,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.dao.BankAccount;
+import de.zft2.gbanking.concurrent.ProgressReporter;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.SepaCancellationCode;
 import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.file.exp.FileExportBean.ExportConstants;
-import de.zft2.gbanking.gui.BaseWorker;
 
 public class MoneyTransferCsvImportBean extends MoneyTransferImportBean {
 
@@ -51,12 +52,12 @@ public class MoneyTransferCsvImportBean extends MoneyTransferImportBean {
 		this(null, MoneyTransferStatus.IMPORTED);
 	}
 
-	public MoneyTransferCsvImportBean(BaseWorker worker) {
-		this(worker, MoneyTransferStatus.IMPORTED);
+	public MoneyTransferCsvImportBean(ProgressReporter progressReporter) {
+		this(progressReporter, MoneyTransferStatus.IMPORTED);
 	}
 
-	public MoneyTransferCsvImportBean(BaseWorker worker, MoneyTransferStatus importStatus) {
-		super(worker, importStatus);
+	public MoneyTransferCsvImportBean(ProgressReporter progressReporter, MoneyTransferStatus importStatus) {
+		super(progressReporter, importStatus);
 	}
 
 	public ImportResult importFile(Path importFile) throws IOException {
@@ -82,7 +83,7 @@ public class MoneyTransferCsvImportBean extends MoneyTransferImportBean {
 
 	private List<ParsedTransfer> readTransfers(Path importFile) throws IOException {
 		updateWorker(0, "UI_MONEYTRANSFER_IMPORT_PROGRESS_READING");
-		String csvContent = stripBom(Files.readString(importFile, StandardCharsets.UTF_8));
+		String csvContent = removeLeadingBom(Files.readString(importFile, StandardCharsets.UTF_8));
 		try (CSVParser parser = CSVFormat.DEFAULT.builder().setDelimiter(';').setHeader().setSkipHeaderRecord(true).setTrim(true).get()
 				.parse(new StringReader(csvContent))) {
 			CsvHeaders headers = resolveHeaders(parser);
@@ -93,13 +94,6 @@ public class MoneyTransferCsvImportBean extends MoneyTransferImportBean {
 				return parseRecord(csvRecord, headers);
 			}).toList();
 		}
-	}
-
-	private String stripBom(String csvContent) {
-		if (csvContent != null && !csvContent.isEmpty() && csvContent.charAt(0) == '\uFEFF') {
-			return csvContent.substring(1);
-		}
-		return csvContent;
 	}
 
 	private CsvHeaders resolveHeaders(CSVParser parser) {

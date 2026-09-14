@@ -12,6 +12,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -33,7 +34,7 @@ class AbstractDaoMapperFactoryTest {
 
 		ResultSet resultSet = mock(ResultSet.class);
 		when(resultSet.getInt("id")).thenReturn(17);
-		when(resultSet.getDate(SqlFields.DAO_UPDATEDAT)).thenReturn(Date.valueOf(LocalDate.of(2026, 7, 27)));
+		when(resultSet.getDate(SqlFields.DAO_UPDATEDAT)).thenReturn(Date.valueOf(LocalDate.of(2026, Month.JULY, 27)));
 		when(resultSet.getString("name")).thenReturn("Miete");
 		when(resultSet.getString("fullName")).thenReturn("Wohnen:Miete");
 
@@ -42,7 +43,7 @@ class AbstractDaoMapperFactoryTest {
 		assertEquals(17, category.getId());
 		assertEquals("Miete", category.getName());
 		assertEquals("Wohnen:Miete", category.getFullName());
-		assertEquals(LocalDate.of(2026, 7, 27), category.getUpdatedAt());
+		assertEquals(LocalDate.of(2026, Month.JULY, 27), category.getUpdatedAt());
 	}
 
 	@Test

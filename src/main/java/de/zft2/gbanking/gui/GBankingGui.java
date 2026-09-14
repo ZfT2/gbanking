@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -28,24 +29,18 @@ import org.apache.logging.log4j.Logger;
 import de.zft2.gbanking.cache.InstituteLookupCache;
 import de.zft2.gbanking.concurrent.CancellationSupport;
 import de.zft2.gbanking.db.BuildInfo;
+import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
-import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
-import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
-import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.gui.BackgroundActionCoordinator.ActionScope;
+import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.gui.BackgroundActionCoordinator.QuiesceMode;
 import de.zft2.gbanking.gui.BackgroundActionCoordinator.QuiesceResult;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
-import de.zft2.gbanking.gui.dialog.CsvImportDialogSupport;
-import de.zft2.gbanking.gui.dialog.MoneyTransferImportStatusDialog;
 import de.zft2.gbanking.gui.dialog.tenant.TenantLoginDialog;
 import de.zft2.gbanking.gui.dialog.tenant.TenantLoginDialog.BackupOperationResult;
 import de.zft2.gbanking.gui.enu.ExportType;
-import de.zft2.gbanking.gui.enu.FileType;
 import de.zft2.gbanking.gui.enu.PageContext;
-import de.zft2.gbanking.gui.model.AccountTableModel;
 import de.zft2.gbanking.gui.panel.about.AboutPanel;
 import de.zft2.gbanking.gui.panel.action.PinAskDialog;
 import de.zft2.gbanking.gui.panel.overview.AccountsTransactionsOverviewPanel;
@@ -54,13 +49,14 @@ import de.zft2.gbanking.gui.panel.overview.MoneyTransferOverviewPanel;
 import de.zft2.gbanking.gui.panel.overview.OpenActionsOverviewPanel;
 import de.zft2.gbanking.gui.panel.overview.OverviewBasePanel;
 import de.zft2.gbanking.gui.panel.setting.SettingsDialog;
-import de.zft2.gbanking.gui.progress.FileExportProgressBarPanel;
-import de.zft2.gbanking.gui.progress.FileImportProgressBarPanel;
-import de.zft2.gbanking.gui.progress.MoneyTransferImportProgressBarPanel;
 import de.zft2.gbanking.gui.util.FileChooserDirectorySupport;
+import de.zft2.gbanking.gui.util.FxThreadSupport;
 import de.zft2.gbanking.logging.DiagnosticPackageCreator;
 import de.zft2.gbanking.logging.LoggingSettings;
 import de.zft2.gbanking.messages.Messages;
+import de.zft2.gbanking.service.BankingCapabilityService;
+import de.zft2.gbanking.service.GBankingService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.account.AccountTransactionRetrievalResult;
 import de.zft2.gbanking.service.account.AccountTransactionService;
 import de.zft2.gbanking.service.action.OpenActionsExecutionUtil;
@@ -70,14 +66,7 @@ import de.zft2.gbanking.service.action.OpenActionsExecutionUtil.ActionType;
 import de.zft2.gbanking.service.action.OpenActionsExecutionUtil.ExecutionSummary;
 import de.zft2.gbanking.service.action.OpenActionsSelection;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
-import de.zft2.gbanking.service.BankingCapabilityService;
-import de.zft2.gbanking.service.GBankingService;
 import de.zft2.gbanking.service.moneytransfer.MoneyTransferService;
-import de.zft2.gbanking.service.ServiceRegistry;
-import de.zft2.gbanking.update.PreparedUpdate;
-import de.zft2.gbanking.update.UpdateProgressListener;
-import de.zft2.gbanking.update.UpdateRelease;
-import de.zft2.gbanking.update.UpdateManager;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -89,7 +78,6 @@ import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
-import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -102,8 +90,6 @@ public class GBankingGui extends Application implements BaseGui {
 
 	static final List<String> HELP_DOCUMENTS = List.of("manual_de.html", "manual_en.html", "csv-booking-format.html",
 			"csv-booking-format_en.html", "gbanking-doc.css");
-	private static final double BYTES_PER_MEGABYTE = 1024d * 1024d;
-	private static final double MAX_PROGRESS = 1d;
 	private static final int UPDATE_PROGRESS_BAR_HEIGHT = 10;
 	private static final int UPDATE_PROGRESS_BAR_WIDTH = 160;
 	private static final int OPEN_ACTION_RESULT_COLUMNS = 90;
@@ -112,8 +98,6 @@ public class GBankingGui extends Application implements BaseGui {
 	private static final Duration BACKGROUND_ACTION_TIMEOUT = Duration.ofSeconds(30);
 	static final PageContext START_PAGE = PageContext.ACCOUNTS_TRANSACTIONS;
 
-	private final FileChooser fileChooser = new FileChooser();
-	private final UpdateManager updateManager = new UpdateManager();
 	private final DiagnosticPackageCreator diagnosticPackageCreator = new DiagnosticPackageCreator();
 
 	private final Map<String, String> optionsMap = new HashMap<>();
@@ -133,12 +117,15 @@ public class GBankingGui extends Application implements BaseGui {
 	private TenantLoginDialog tenantLoginDialog;
 
 	private Stage primaryStage;
-	private boolean lifecycleTransitionInProgress;
+	private FileTransferCoordinator fileTransferCoordinator;
+	private ApplicationUpdateCoordinator applicationUpdateCoordinator;
+	private volatile boolean lifecycleTransitionInProgress;
 	private String statusBeforeLifecycleTransition;
 
 	@Override
 	public void start(Stage stage) {
 		this.primaryStage = stage;
+		fileTransferCoordinator = new FileTransferCoordinator(stage);
 		GuiContext.setMoneyTransferTemplateHandler((booking, orderType) -> openMoneyTransferTemplate(booking, orderType));
 		log.info("Starting GBanking application.");
 
@@ -187,7 +174,8 @@ public class GBankingGui extends Application implements BaseGui {
 		updateProgressBar.setMaxWidth(UPDATE_PROGRESS_BAR_WIDTH);
 		updateProgressBar.setMaxHeight(UPDATE_PROGRESS_BAR_HEIGHT);
 		updateProgressLabel = new Label();
-		hideUpdateDownloadProgress();
+		applicationUpdateCoordinator = new ApplicationUpdateCoordinator(this, statusLabel, updateProgressBar, updateProgressLabel);
+		applicationUpdateCoordinator.hideDownloadProgress();
 
 		HBox statusBox = new HBox(10, statusLabel, updateProgressBar, updateProgressLabel);
 		statusBox.setAlignment(Pos.CENTER_LEFT);
@@ -235,7 +223,7 @@ public class GBankingGui extends Application implements BaseGui {
 		bankingCapabilityService = ServiceRegistry.getService(BankingCapabilityService.class);
 		moneyTransferService = ServiceRegistry.getService(MoneyTransferService.class);
 		log.info("Main window initialization completed.");
-		updateManager.cleanupSuccessfulUpdateBackups();
+		applicationUpdateCoordinator.cleanupSuccessfulUpdateBackups();
 	}
 
 	OverviewBasePanel activateOverview(PageContext pageContext) {
@@ -402,7 +390,7 @@ public class GBankingGui extends Application implements BaseGui {
 			skippedBanks.add(formatBankLabel(bankAccount));
 		}
 		if (result.successful()) {
-			bankAccount.setSessionRetrievalAt(LocalDateTime.now());
+			bankAccount.setSessionRetrievalAt(LocalDateTime.now(ZoneId.systemDefault()));
 		}
 	}
 
@@ -432,9 +420,7 @@ public class GBankingGui extends Application implements BaseGui {
 		Map<Integer, BankAccount> accountMap = new LinkedHashMap<>();
 		for (MoneyTransfer moneytransfer : moneytransferList) {
 			int accountId = moneytransfer.getAccountId();
-			if (!accountMap.containsKey(accountId)) {
-				accountMap.put(accountId, moneyTransferService.getAccountForOpenMoneytransfers(accountId));
-			}
+			accountMap.computeIfAbsent(accountId, ignored -> moneyTransferService.getAccountForOpenMoneytransfers(accountId));
 		}
 		Map<Integer, char[]> pinMap = new PinRequestCoordinator(pinWindow).requestPinsByAccountId(accountMap);
 		if (pinMap.isEmpty()) {
@@ -717,167 +703,7 @@ public class GBankingGui extends Application implements BaseGui {
 	}
 
 	void checkForApplicationUpdates() {
-		log.info("Checking for application updates.");
-		hideUpdateDownloadProgress();
-		if (!updateManager.canInstallUpdates()) {
-			showWarning(primaryStage, getText("UI_UPDATE_UNSUPPORTED_LAYOUT"));
-			return;
-		}
-
-		Task<Optional<UpdateRelease>> updateCheckTask = new Task<>() {
-			@Override
-			protected Optional<UpdateRelease> call() throws Exception {
-				updateMessage(getText("UI_UPDATE_CHECKING"));
-				return updateManager.findUpdate();
-			}
-		};
-		bindStatus(updateCheckTask);
-		updateCheckTask.setOnSucceeded(event -> handleUpdateCheckResult(updateCheckTask.getValue()));
-		updateCheckTask.setOnFailed(event -> showUpdateFailure(updateCheckTask.getException()));
-		startBackgroundTask(updateCheckTask, "gbanking-update-check", ActionScope.INDEPENDENT);
-	}
-
-	private void handleUpdateCheckResult(Optional<UpdateRelease> updateRelease) {
-		if (updateRelease.isEmpty()) {
-			log.info("No application update available.");
-			showInfo(primaryStage, getText("UI_UPDATE_NO_UPDATE", BuildInfo.getProgramVersion()));
-			return;
-		}
-
-		UpdateRelease release = updateRelease.get();
-		log.info("Application update available. currentVersion={}, latestVersion={}", BuildInfo.getProgramVersion(), release.version());
-		if (DialogWindowSupport.showConfirmation(primaryStage,
-				getText("UI_UPDATE_AVAILABLE", release.version(), BuildInfo.getProgramVersion()), ButtonType.OK, ButtonType.CANCEL)) {
-			installApplicationUpdate(release);
-		}
-	}
-
-	private void installApplicationUpdate(UpdateRelease release) {
-		Task<PreparedUpdate> installTask = new Task<>() {
-			@Override
-			protected PreparedUpdate call() throws Exception {
-				CancellationSupport.throwIfCancellationRequested();
-				updateMessage(getText("UI_UPDATE_PREPARING"));
-				updateDownloadProgress(0L, release.applicationAsset().size());
-				PreparedUpdate preparedUpdate = updateManager.downloadAndPrepare(release, new UpdateProgressListener() {
-					@Override
-					public void onProgress(String message) {
-						CancellationSupport.throwIfCancellationRequested();
-						updateMessage(getText("UI_UPDATE_PREPARING"));
-					}
-
-					@Override
-					public void onDownloadProgress(long downloadedBytes, long totalBytes) {
-						CancellationSupport.throwIfCancellationRequested();
-						long effectiveTotalBytes = totalBytes > 0 ? totalBytes : release.applicationAsset().size();
-						if (effectiveTotalBytes > 0) {
-							updateProgress(downloadedBytes, effectiveTotalBytes);
-						} else {
-							updateProgress(-1, 1);
-						}
-						updateDownloadProgress(downloadedBytes, effectiveTotalBytes);
-					}
-				});
-				CancellationSupport.throwIfCancellationRequested();
-				updateMessage(getText("UI_UPDATE_EXECUTING"));
-				return preparedUpdate;
-			}
-		};
-		bindStatus(installTask);
-		installTask.setOnSucceeded(event -> launchPreparedUpdate(installTask.getValue()));
-		installTask.setOnFailed(event -> showUpdateFailure(installTask.getException()));
-		startBackgroundTask(installTask, "gbanking-update-install", ActionScope.INDEPENDENT);
-	}
-
-	private void launchPreparedUpdate(PreparedUpdate preparedUpdate) {
-		hideUpdateDownloadProgress();
-		if (statusLabel != null) {
-			statusLabel.setText(getText("UI_UPDATE_EXECUTING"));
-		}
-		beginLifecycleTransition(() -> backupAndLaunchPreparedUpdate(preparedUpdate), false);
-	}
-
-	private void backupAndLaunchPreparedUpdate(PreparedUpdate preparedUpdate) {
-		BackupOperationResult backupResult = tenantLoginDialog.runBackupOperation(null);
-		if (!backupResult.succeeded()) {
-			abortLifecycleTransition();
-			String messageKey = backupResult.integrityCheckFailed() ? "UI_UPDATE_BACKUP_INTEGRITY_ERROR"
-					: "UI_UPDATE_BACKUP_ERROR";
-			showWarning(primaryStage, getText(messageKey));
-			return;
-		}
-
-		try {
-			updateManager.launchInstaller(preparedUpdate);
-			log.info("Shutting down GBanking for application update.");
-			completeShutdown();
-		} catch (Exception e) {
-			abortLifecycleTransition();
-			showUpdateFailure(e);
-		}
-	}
-
-	private void bindStatus(Task<?> task) {
-		task.messageProperty().addListener((obs, oldMessage, newMessage) -> {
-			if (statusLabel != null && newMessage != null && !newMessage.isBlank()) {
-				statusLabel.setText(newMessage);
-			}
-		});
-	}
-
-	private void updateDownloadProgress(long downloadedBytes, long totalBytes) {
-		runOnFxThread(() -> {
-			if (updateProgressBar == null || updateProgressLabel == null) {
-				return;
-			}
-			updateProgressBar.setVisible(true);
-			updateProgressBar.setManaged(true);
-			updateProgressLabel.setVisible(true);
-			updateProgressLabel.setManaged(true);
-
-			if (totalBytes > 0) {
-				double progress = Math.min(MAX_PROGRESS, Math.max(0d, downloadedBytes / (double) totalBytes));
-				updateProgressBar.setProgress(progress);
-				updateProgressLabel.setText(getText("UI_UPDATE_DOWNLOAD_PROGRESS", formatMegabytes(downloadedBytes), formatMegabytes(totalBytes)));
-			} else {
-				updateProgressBar.setProgress(ProgressIndicator.INDETERMINATE_PROGRESS);
-				updateProgressLabel.setText(getText("UI_UPDATE_DOWNLOAD_PROGRESS_UNKNOWN", formatMegabytes(downloadedBytes)));
-			}
-		});
-	}
-
-	private void hideUpdateDownloadProgress() {
-		runOnFxThread(() -> {
-			if (updateProgressBar == null || updateProgressLabel == null) {
-				return;
-			}
-			updateProgressBar.setProgress(0d);
-			updateProgressBar.setVisible(false);
-			updateProgressBar.setManaged(false);
-			updateProgressLabel.setText("");
-			updateProgressLabel.setVisible(false);
-			updateProgressLabel.setManaged(false);
-		});
-	}
-
-	private String formatMegabytes(long bytes) {
-		double megabytes = Math.max(0L, bytes) / BYTES_PER_MEGABYTE;
-		return String.format(Messages.getLocale(), "%.1f", megabytes);
-	}
-
-	private void runOnFxThread(Runnable runnable) {
-		if (Platform.isFxApplicationThread()) {
-			runnable.run();
-		} else {
-			Platform.runLater(runnable);
-		}
-	}
-
-	private void showUpdateFailure(Throwable throwable) {
-		hideUpdateDownloadProgress();
-		log.error("Application update failed", throwable);
-		String message = throwable != null && throwable.getMessage() != null ? throwable.getMessage() : "unknown";
-		showWarning(primaryStage, getText("UI_UPDATE_ERROR", message));
+		applicationUpdateCoordinator.checkForUpdates();
 	}
 
 	void showAboutWindow() {
@@ -951,133 +777,15 @@ public class GBankingGui extends Application implements BaseGui {
 	}
 
 	void processBookingImport(ExportType importType) {
-		Path importFile = chooseImportFile(importType.getFileType());
-		if (importFile == null) {
-			log.debug("Booking import cancelled. type={}", importType);
-			return;
-		}
-		try {
-			BankAccount contextAccount = null;
-			String csvDefinitionName = null;
-			if (importType == ExportType.BOOKINGS_CSV) {
-				AccountsTransactionsOverviewPanel overviewPanel = (AccountsTransactionsOverviewPanel) OverviewPanelFactory
-						.retrievePanel(PageContext.ACCOUNTS_TRANSACTIONS.name());
-				BankAccount suggestedAccount = overviewPanel != null ? overviewPanel.getSelectedAccount() : null;
-				var selection = CsvImportDialogSupport.prepare(primaryStage, importFile, null, suggestedAccount);
-				if (selection.isEmpty()) {
-					return;
-				}
-				contextAccount = selection.get().account();
-				csvDefinitionName = selection.get().definitionName();
-			}
-			log.info("Starting booking import. type={}, file={}", () -> importType, () -> fileName(importFile));
-			log.debug("Booking import path: {}", importFile);
-			importFile(importFile, importType, contextAccount, csvDefinitionName);
-		} catch (Exception e) {
-			log.error("Import failed. type={}, file={}", importType, fileName(importFile), e);
-		}
+		fileTransferCoordinator.processBookingImport(importType);
 	}
 
 	void processMoneyTransferImport(ExportType importType) {
-		Path importFile = chooseImportFile(importType.getFileType());
-		if (importFile == null) {
-			log.debug("Money transfer import cancelled. type={}", importType);
-			return;
-		}
-		Optional<MoneyTransferStatus> importStatus = MoneyTransferImportStatusDialog.show(primaryStage);
-		if (importStatus.isEmpty()) {
-			log.debug("Money transfer import target selection cancelled. type={}", importType);
-			return;
-		}
-		try {
-			log.info("Starting money transfer import. type={}, file={}", () -> importType, () -> fileName(importFile));
-			log.debug("Money transfer import path: {}", importFile);
-			importMoneyTransferFile(importFile, importType, importStatus.get());
-		} catch (Exception e) {
-			log.error("Money transfer import failed. type={}, file={}", importType, fileName(importFile), e);
-			showWarning(primaryStage, e.getMessage());
-		}
-	}
-
-	private void importMoneyTransferFile(Path importFile, ExportType importType, MoneyTransferStatus importStatus) {
-		MoneyTransferImportProgressBarPanel progressPanel = new MoneyTransferImportProgressBarPanel(primaryStage, null, () -> {
-			MoneyTransferOverviewPanel moneyTransferPanel = (MoneyTransferOverviewPanel) OverviewPanelFactory
-					.retrievePanel(PageContext.ACCOUNTS_MONEYTRANSFERS.name());
-			if (moneyTransferPanel != null) {
-				moneyTransferPanel.refreshOnShow();
-			}
-		}, importType, importStatus);
-		Stage progressWindow = progressPanel.createNewFileImportProgressBarWindow();
-		AccountsTransactionsOverviewPanel overviewPanel = (AccountsTransactionsOverviewPanel) OverviewPanelFactory
-				.retrievePanel(PageContext.ACCOUNTS_TRANSACTIONS.name());
-		progressPanel.startTask(importFile.toString(), importType, overviewPanel != null ? overviewPanel.getAccountListPanel() : null);
-		progressWindow.show();
+		fileTransferCoordinator.processMoneyTransferImport(importType);
 	}
 
 	void processExport(ExportType exportType) {
-		AccountsTransactionsOverviewPanel overviewPanel = (AccountsTransactionsOverviewPanel) OverviewPanelFactory
-				.retrievePanel(PageContext.ACCOUNTS_TRANSACTIONS.name());
-		if (overviewPanel == null || overviewPanel.getAccountListPanel() == null) {
-			return;
-		}
-
-		AccountTableModel modelAccount = overviewPanel.getAccountListPanel().getModelAccount();
-		List<BankAccount> checkedAccounts = modelAccount.getCheckedAccounts();
-
-		if (exportType == ExportType.BOOKINGS_FP3) {
-			checkedAccounts = resolveSingleAccountExport(checkedAccounts);
-			if (checkedAccounts.isEmpty()) {
-				showWarning(primaryStage, getText("ALERT_BOOKINGS_FP3_EXPORT_ACCOUNT_REQUIRED"));
-				return;
-			}
-		}
-
-		if (checkedAccounts.isEmpty()) {
-			log.info("no Accounts selected, so using all!");
-			checkedAccounts = modelAccount.getAccounts();
-		}
-
-		Path exportFile = chooseExportFile(exportType.getFileType());
-		if (exportFile == null) {
-			log.debug("Export cancelled. type={}", exportType);
-			return;
-		}
-
-		try {
-			int accountCount = checkedAccounts.size();
-			log.info("Starting export. type={}, file={}, accounts={}", () -> exportType, () -> fileName(exportFile), () -> accountCount);
-			log.debug("Export path: {}", exportFile);
-			exportFile(exportFile, checkedAccounts, exportType);
-		} catch (Exception e) {
-			log.error("Export failed. type={}, file={}", exportType, fileName(exportFile), e);
-		}
-	}
-
-	private List<BankAccount> resolveSingleAccountExport(List<BankAccount> checkedAccounts) {
-		if (checkedAccounts.size() == 1) {
-			return checkedAccounts;
-		}
-		if (!checkedAccounts.isEmpty()) {
-			return List.of();
-		}
-		AccountsTransactionsOverviewPanel overviewPanel = (AccountsTransactionsOverviewPanel) OverviewPanelFactory
-				.retrievePanel(PageContext.ACCOUNTS_TRANSACTIONS.name());
-		BankAccount selectedAccount = overviewPanel.getAccountListPanel().getSelectedAccount();
-		return selectedAccount != null ? List.of(selectedAccount) : List.of();
-	}
-
-	private Path chooseImportFile(FileType fileType) {
-		FileChooserDirectorySupport.configure(fileChooser, EnvironmentOptions.DEFAULT_DIR_IMPORT);
-		fileChooser.getExtensionFilters().clear();
-		fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(fileType.getDescription(), fileType.getExtensionPatterns()));
-		return FileChooserDirectorySupport.remember(fileChooser.showOpenDialog(primaryStage), EnvironmentOptions.DEFAULT_DIR_IMPORT);
-	}
-
-	private Path chooseExportFile(FileType fileType) {
-		FileChooserDirectorySupport.configure(fileChooser, EnvironmentOptions.DEFAULT_DIR_EXPORT);
-		fileChooser.getExtensionFilters().clear();
-		fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(fileType.getDescription(), fileType.getExtensionPatterns()));
-		return FileChooserDirectorySupport.remember(fileChooser.showSaveDialog(primaryStage), EnvironmentOptions.DEFAULT_DIR_EXPORT);
+		fileTransferCoordinator.processExport(exportType);
 	}
 
 	private String fileName(Path path) {
@@ -1087,31 +795,12 @@ public class GBankingGui extends Application implements BaseGui {
 		return fileName != null ? fileName.toString() : null;
 	}
 
-	private void importFile(Path chosenFile, ExportType exportType, BankAccount contextAccount, String csvDefinitionName) {
-		FileImportProgressBarPanel progressPanel = new FileImportProgressBarPanel(primaryStage, contextAccount, null, csvDefinitionName);
-		Stage progressWindow = progressPanel.createNewFileImportProgressBarWindow();
-		AccountsTransactionsOverviewPanel overviewPanel = (AccountsTransactionsOverviewPanel) OverviewPanelFactory
-				.retrievePanel(PageContext.ACCOUNTS_TRANSACTIONS.name());
-		progressPanel.startTask(chosenFile.toString(), exportType, overviewPanel.getAccountListPanel());
-		progressWindow.show();
-	}
-
-	private void exportFile(Path chosenFile, List<BankAccount> checkedAccounts, ExportType exportType) {
-		FileExportProgressBarPanel progressPanel = new FileExportProgressBarPanel(primaryStage, checkedAccounts);
-
-		Stage progressWindow = progressPanel.createNewFileImportProgressBarWindow();
-		AccountsTransactionsOverviewPanel overviewPanel = (AccountsTransactionsOverviewPanel) OverviewPanelFactory
-				.retrievePanel(PageContext.ACCOUNTS_TRANSACTIONS.name());
-		progressPanel.startTask(chosenFile.toString(), exportType, overviewPanel.getAccountListPanel());
-		progressWindow.show();
-	}
-
 	void shutdownApplication() {
 		log.info("Shutting down GBanking application.");
 		beginLifecycleTransition(this::completeShutdown, true);
 	}
 
-	private void completeShutdown() {
+	void completeShutdown() {
 		storeOptionsQuietly();
 		if (!tenantLoginDialog.closeTenantDatabase()) {
 			log.error("Tenant database could not be encrypted during shutdown");
@@ -1153,6 +842,14 @@ public class GBankingGui extends Application implements BaseGui {
 			log.info("Restoring tenant backup {}.", fileName(backupFile));
 		}
 		beginLifecycleTransition(() -> completeTenantRestore(backupFile), true);
+	}
+
+	void beginUpdateLifecycleTransition(Runnable transition) {
+		beginLifecycleTransition(transition, false);
+	}
+
+	BackupOperationResult runTenantBackupForUpdate() {
+		return tenantLoginDialog.runBackupOperation(null);
 	}
 
 	private Path chooseTenantBackupFile() {
@@ -1240,7 +937,7 @@ public class GBankingGui extends Application implements BaseGui {
 		setLifecycleStatus();
 
 		BackgroundActionCoordinator coordinator = BackgroundActionCoordinator.getInstance();
-		coordinator.quiesce(QuiesceMode.WAIT, Duration.ZERO).whenComplete((result, failure) -> runOnFxThread(() -> {
+		coordinator.quiesce(QuiesceMode.WAIT, Duration.ZERO).whenComplete((result, failure) -> FxThreadSupport.run(() -> {
 			if (failure != null) {
 				handleLifecycleFailure(failure);
 				return;
@@ -1259,7 +956,7 @@ public class GBankingGui extends Application implements BaseGui {
 
 	private void awaitBackgroundActions(Runnable transition, QuiesceMode mode) {
 		BackgroundActionCoordinator.getInstance().quiesce(mode, BACKGROUND_ACTION_TIMEOUT)
-				.whenComplete((result, failure) -> runOnFxThread(() -> handleQuiesceResult(transition, result, failure)));
+				.whenComplete((result, failure) -> FxThreadSupport.run(() -> handleQuiesceResult(transition, result, failure)));
 	}
 
 	private void handleQuiesceResult(Runnable transition, QuiesceResult result, Throwable failure) {
@@ -1312,7 +1009,7 @@ public class GBankingGui extends Application implements BaseGui {
 		abortLifecycleTransition();
 	}
 
-	private void abortLifecycleTransition() {
+	void abortLifecycleTransition() {
 		BackgroundActionCoordinator.getInstance().resume();
 		finishLifecycleTransition();
 	}
@@ -1345,6 +1042,7 @@ public class GBankingGui extends Application implements BaseGui {
 		statusLabel = null;
 		updateProgressBar = null;
 		updateProgressLabel = null;
+		applicationUpdateCoordinator = null;
 		versionLabel = null;
 	}
 

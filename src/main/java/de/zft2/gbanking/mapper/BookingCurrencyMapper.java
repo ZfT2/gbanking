@@ -69,7 +69,8 @@ public final class BookingCurrencyMapper {
 		}
 		BookingFee fee = new BookingFee();
 		fee.setAmount(amount);
-		fee.setCurrency(currency != null ? currency : baseCurrency != null ? baseCurrency : Currency.EUR);
+		Currency effectiveCurrency = currency != null ? currency : baseCurrency;
+		fee.setCurrency(effectiveCurrency != null ? effectiveCurrency : Currency.EUR);
 		return fee;
 	}
 

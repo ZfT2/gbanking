@@ -6,6 +6,7 @@ import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.panel.overview.MoneyTransferOverviewPanel;
 import de.zft2.gbanking.gui.panel.recipient.RecipientListPanel;
+import de.zft2.gbanking.gui.panel.recipient.RecipientListPanel.ViewMode;
 import javafx.geometry.Insets;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
@@ -37,7 +38,8 @@ public class MoneyTransferDetailListTabPanel extends BorderPane implements BaseM
 		default -> throw new IllegalStateException("Unsupported order type: " + orderType);
 		}
 
-		RecipientListPanel recipientListPanel = new RecipientListPanel(this);
+		RecipientListPanel recipientListPanel = new RecipientListPanel(ViewMode.MONEY_TRANSFER,
+				recipient -> moneyTransferInputPanel.updatePanelFieldValues(recipient));
 		recipientListPanel.setPrefWidth(650);
 		recipientListPanel.setMinWidth(500);
 

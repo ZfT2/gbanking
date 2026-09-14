@@ -1,6 +1,7 @@
 package de.zft2.gbanking.enablebanking;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -41,8 +42,8 @@ final class EnablebankingJson {
 		return value != null && !value.isBlank();
 	}
 
-	static List<?> list(Object value) {
-		return value instanceof List<?> result ? result : List.of();
+	static List<Object> list(Object value) {
+		return value instanceof List<?> result ? new ArrayList<>(result) : List.of();
 	}
 
 	static Number number(Object value) {
@@ -66,7 +67,10 @@ final class EnablebankingJson {
 	}
 
 	static String string(Object value) {
-		return value instanceof String text ? text : value != null && !(value instanceof Map<?, ?>) ? value.toString() : null;
+		if (value instanceof String text) {
+			return text;
+		}
+		return value != null && !(value instanceof Map<?, ?>) ? value.toString() : null;
 	}
 
 	static String trimToNull(String value) {

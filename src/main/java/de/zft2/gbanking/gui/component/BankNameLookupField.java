@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Objects;
 
 import de.zft2.gbanking.cache.InstituteLookupCache.InstituteLookupEntry;
+import de.zft2.gbanking.gui.util.FxNodeSupport;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.gui.util.FormStyleUtils.FieldWidth;
 import javafx.beans.property.ObjectProperty;
@@ -29,8 +30,7 @@ public class BankNameLookupField extends StackPane {
 		FormStyleUtils.setReadOnlyStyle(true, bankNameField);
 
 		bankNameCombo.setEditable(false);
-		bankNameCombo.setVisible(false);
-		bankNameCombo.setManaged(false);
+		FxNodeSupport.setVisibleManaged(bankNameCombo, false);
 		bankNameCombo.setConverter(new javafx.util.StringConverter<>() {
 			@Override
 			public String toString(InstituteLookupEntry entry) {
@@ -107,17 +107,13 @@ public class BankNameLookupField extends StackPane {
 	}
 
 	private void showTextField() {
-		bankNameField.setVisible(true);
-		bankNameField.setManaged(true);
+		FxNodeSupport.setVisibleManaged(bankNameField, true);
 		bankNameField.setEditable(manualEntryEditable);
-		bankNameCombo.setVisible(false);
-		bankNameCombo.setManaged(false);
+		FxNodeSupport.setVisibleManaged(bankNameCombo, false);
 	}
 
 	private void showComboBox() {
-		bankNameField.setVisible(false);
-		bankNameField.setManaged(false);
-		bankNameCombo.setVisible(true);
-		bankNameCombo.setManaged(true);
+		FxNodeSupport.setVisibleManaged(bankNameField, false);
+		FxNodeSupport.setVisibleManaged(bankNameCombo, true);
 	}
 }

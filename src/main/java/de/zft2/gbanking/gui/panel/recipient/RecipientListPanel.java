@@ -1,13 +1,12 @@
 package de.zft2.gbanking.gui.panel.recipient;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Consumer;
 
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.gui.panel.AbstractFilterableTablePanel;
-import de.zft2.gbanking.gui.panel.moneytransfer.MoneyTransferDetailListTabPanel;
-import de.zft2.gbanking.gui.panel.moneytransfer.MoneyTransferInputBasePanel;
-import de.zft2.gbanking.gui.panel.overview.RecipientOverviewPanel;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
 import javafx.collections.FXCollections;
 import javafx.scene.control.TableColumn;
@@ -16,26 +15,39 @@ public class RecipientListPanel extends AbstractFilterableTablePanel<Recipient> 
 
 	private static final String TITLE_KEY = "UI_PANEL_RECIPIENTS_BOOK";
 
-	private final Object parentPanel;
-	private final PageContext pageContext;
+	public enum ViewMode {
+		MONEY_TRANSFER(PageContext.ACCOUNTS_MONEYTRANSFERS, true),
+		RECIPIENTS(PageContext.RECIPIENTS, false);
 
-	public RecipientListPanel(Object parentPanel) {
+		private final PageContext pageContext;
+		private final boolean compact;
+
+		ViewMode(PageContext pageContext, boolean compact) {
+			this.pageContext = pageContext;
+			this.compact = compact;
+		}
+	}
+
+	private final ViewMode viewMode;
+	private final Consumer<Recipient> selectionHandler;
+
+	public RecipientListPanel(ViewMode viewMode, Consumer<Recipient> selectionHandler) {
 		super(FXCollections.observableArrayList());
-		this.parentPanel = parentPanel;
-		this.pageContext = parentPanel instanceof MoneyTransferDetailListTabPanel ? PageContext.ACCOUNTS_MONEYTRANSFERS : PageContext.RECIPIENTS;
+		this.viewMode = Objects.requireNonNull(viewMode, "viewMode");
+		this.selectionHandler = Objects.requireNonNull(selectionHandler, "selectionHandler");
 		createInnerRecipientListPanel();
 	}
 
 	private void createInnerRecipientListPanel() {
 		setPanelTitleByKey(TITLE_KEY);
 		setColumns(createColumns());
-		configureTableLayout("recipients." + pageContext.name());
-		onSelection(this::handleSelection);
+		configureTableLayout("recipients." + viewMode.pageContext.name());
+		onSelection(recipient -> selectionHandler.accept(recipient));
 		reload();
 	}
 
 	private List<TableColumn<Recipient, ?>> createColumns() {
-		boolean compact = pageContext == PageContext.ACCOUNTS_MONEYTRANSFERS;
+		boolean compact = viewMode.compact;
 		TableColumn<Recipient, Boolean> selectedCol = createSelectAllSelectionColumn(
 				recipient -> recipient.isSelected(), (recipient, selected) -> recipient.setSelected(selected));
 		TableColumn<Recipient, String> nameCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_NAME"), Recipient::getName, 160, 200);
@@ -71,18 +83,6 @@ public class RecipientListPanel extends AbstractFilterableTablePanel<Recipient> 
 			}
 		}
 		return null;
-	}
-
-	private void handleSelection(Recipient selectedRecipient) {
-		if (pageContext == PageContext.ACCOUNTS_MONEYTRANSFERS) {
-			MoneyTransferDetailListTabPanel parent = (MoneyTransferDetailListTabPanel) parentPanel;
-			MoneyTransferInputBasePanel moneyTransferInputPanel = parent.getMoneyTransferInputPanel();
-			moneyTransferInputPanel.updatePanelFieldValues(selectedRecipient);
-			return;
-		}
-
-		RecipientOverviewPanel parent = (RecipientOverviewPanel) parentPanel;
-		parent.getRecipientDetailPanel().updatePanelFieldValues(selectedRecipient);
 	}
 
 	@Override

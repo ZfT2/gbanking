@@ -25,7 +25,7 @@ class DBControllerFacadeApiContractTest {
 			"boolean delete(de.zft2.gbanking.db.dao.Dao,de.zft2.gbanking.db.StatementsConfig.StatementType)",
 			"boolean insertAccountBookings(java.util.Collection)",
 			"boolean insertBusinessCases(de.zft2.gbanking.db.dao.BankAccount)",
-			"boolean insertOrUpdatePD(de.zft2.gbanking.db.dao.BankAccess)",
+			"void insertOrUpdatePD(de.zft2.gbanking.db.dao.BankAccess)",
 			"boolean isRecipientDeletable(de.zft2.gbanking.db.dao.Recipient)",
 			"boolean isRecipientEditable(de.zft2.gbanking.db.dao.Recipient)",
 			"boolean updateBookingsWithCategories(java.util.Map)",

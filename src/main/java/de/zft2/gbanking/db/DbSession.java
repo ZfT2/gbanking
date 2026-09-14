@@ -121,7 +121,7 @@ public final class DbSession implements AutoCloseable {
 			connection.close();
 			closed = true;
 		} catch (SQLException | RuntimeException exception) {
-			failure = addFailure(failure, exception);
+			failure = JdbcFailures.add(failure, exception);
 		}
 		if (failure instanceof SQLException sqlFailure) {
 			throw sqlFailure;
@@ -131,11 +131,4 @@ public final class DbSession implements AutoCloseable {
 		}
 	}
 
-	private static Exception addFailure(Exception failure, Exception additionalFailure) {
-		if (failure == null) {
-			return additionalFailure;
-		}
-		failure.addSuppressed(additionalFailure);
-		return failure;
-	}
 }

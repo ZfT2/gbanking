@@ -128,8 +128,9 @@ class FileImportCsvCreditcardTest {
 				""");
 
 		FileImportCSVBean importer = new FileImportCSVBean(null, account);
+		String fileName = csvFile.toString();
 
-		assertThrows(GBankingException.class, () -> importer.importFileToDatabase(csvFile.toString()));
+		assertThrows(GBankingException.class, () -> importer.importFileToDatabase(fileName));
 		assertEquals(List.of(), dbController.getAllByParentFull(Booking.class, account.getId()));
 	}
 

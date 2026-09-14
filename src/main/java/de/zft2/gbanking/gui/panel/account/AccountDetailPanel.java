@@ -11,15 +11,17 @@ import de.zft2.gbanking.db.dao.BankAccountRetrievalStatus;
 import de.zft2.gbanking.db.dao.enu.AccountState;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.Source;
-import de.zft2.gbanking.gui.dialog.AccountIdentifiersDialog;
-import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.GuiContext;
 import de.zft2.gbanking.gui.KeyboardShortcutDispatcher;
+import de.zft2.gbanking.gui.dialog.AccountIdentifiersDialog;
+import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.panel.AbstractReadonlyDetailPanel;
 import de.zft2.gbanking.gui.util.DateFormatUtils;
 import de.zft2.gbanking.gui.util.DetailFormEditMode;
 import de.zft2.gbanking.gui.util.FormFields;
+import de.zft2.gbanking.gui.util.FormGridHelper;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
+import de.zft2.gbanking.gui.util.FxNodeSupport;
 import de.zft2.gbanking.gui.util.FxTableUtils;
 import javafx.collections.FXCollections;
 import javafx.scene.Node;
@@ -32,8 +34,6 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Control;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.Priority;
 
 public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 
@@ -102,15 +102,7 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 	}
 
 	private void configureGrid() {
-		formGrid.getColumnConstraints().clear();
-		formGrid.getColumnConstraints().addAll(createGrowColumn(), createGrowColumn(), createGrowColumn());
-	}
-
-	private ColumnConstraints createGrowColumn() {
-		ColumnConstraints constraints = new ColumnConstraints();
-		constraints.setHgrow(Priority.ALWAYS);
-		constraints.setFillWidth(true);
-		return constraints;
+		FormGridHelper.setEqualGrowColumns(formGrid, 3);
 	}
 
 	private void createPanel() {
@@ -122,10 +114,6 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 
 		makeReadOnly(accountIbanText, bankNameText, accountTypText, bankAccessText, currencyText, bankBalanceText, bicText, blzText, numberText, subnumberText,
 				ownerNameText, ownerName2Text, createdAtText, updatedAtText, retrievalAtText, retrievalResultText, retrievalCountsText);
-
-		FormStyleUtils.setReadOnlyStyle(true, accountIbanText, bankNameText, accountTypText, bankAccessText, currencyText, bankBalanceText, bicText, blzText,
-				numberText, subnumberText, ownerNameText, ownerName2Text, createdAtText, updatedAtText, retrievalAtText, retrievalResultText,
-				retrievalCountsText);
 		setBankBalanceVisible(false);
 
 		disable(isSEPAAccount);
@@ -553,8 +541,7 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 
 	private void setBankBalanceVisible(boolean visible) {
 		if (bankBalanceRow != null) {
-			bankBalanceRow.setVisible(visible);
-			bankBalanceRow.setManaged(visible);
+			FxNodeSupport.setVisibleManaged(bankBalanceRow, visible);
 		}
 	}
 

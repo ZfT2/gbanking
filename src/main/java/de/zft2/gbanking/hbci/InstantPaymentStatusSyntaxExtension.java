@@ -4,8 +4,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import javax.xml.XMLConstants;
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.logging.log4j.LogManager;
@@ -17,6 +15,8 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
+
+import de.zft2.gbanking.util.SecureXml;
 
 public final class InstantPaymentStatusSyntaxExtension {
 
@@ -44,26 +44,12 @@ public final class InstantPaymentStatusSyntaxExtension {
 			if (input == null) {
 				throw new HBCI_Exception("Missing GBanking HBCI syntax extension: " + RESOURCE);
 			}
-			Document extension = createDocumentBuilderFactory().newDocumentBuilder().parse(input);
+			Document extension = SecureXml.newDocumentBuilderFactory(false).newDocumentBuilder().parse(input);
 			appendGroups(syntax, extension.getDocumentElement());
 			return true;
 		} catch (IOException | ParserConfigurationException | SAXException exception) {
 			throw new HBCI_Exception("Could not load GBanking HBCI syntax extension", exception);
 		}
-	}
-
-	private static DocumentBuilderFactory createDocumentBuilderFactory() throws ParserConfigurationException {
-		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-		factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-		factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-		factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-		factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-		factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
-		factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-		factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-		factory.setXIncludeAware(false);
-		factory.setExpandEntityReferences(false);
-		return factory;
 	}
 
 	private static void appendGroups(Document syntax, Element extension) {

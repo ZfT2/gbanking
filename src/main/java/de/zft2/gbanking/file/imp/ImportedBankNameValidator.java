@@ -1,5 +1,6 @@
 package de.zft2.gbanking.file.imp;
 
+import static de.zft2.gbanking.util.TextValues.isMoreReadable;
 import static de.zft2.gbanking.util.TextValues.trimToNull;
 
 import java.text.Normalizer;
@@ -8,6 +9,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -76,17 +78,13 @@ final class ImportedBankNameValidator {
 				continue;
 			}
 			List<Evidence> relevantEvidence = trustedEvidence.getOrDefault(identifier, List.of());
-			if (instituteIndex.matchesExpected(identifier, currentBankName) || matchesEvidence(currentBankName, relevantEvidence)) {
-				continue;
-			}
-			if (!instituteIndex.isConfidentMismatch(identifier, currentBankName)
-					|| !hasAlternativeEvidence(currentBankName, relevantEvidence)) {
-				continue;
-			}
-
-			List<String> candidates = candidatesFor(booking, identifier, relevantEvidence, instituteIndex);
-			if (!candidates.isEmpty()) {
-				findings.add(toFinding(booking, recipient, candidates));
+			if (!instituteIndex.matchesExpected(identifier, currentBankName) && !matchesEvidence(currentBankName, relevantEvidence)
+					&& instituteIndex.isConfidentMismatch(identifier, currentBankName)
+					&& hasAlternativeEvidence(currentBankName, relevantEvidence)) {
+				List<String> candidates = candidatesFor(booking, identifier, relevantEvidence, instituteIndex);
+				if (!candidates.isEmpty()) {
+					findings.add(toFinding(booking, recipient, candidates));
+				}
 			}
 		}
 		return List.copyOf(findings);
@@ -172,11 +170,6 @@ final class ImportedBankNameValidator {
 		return firstValue != null ? firstValue : trimToNull(second);
 	}
 
-	private static String normalizedText(String value) {
-		String text = trimToNull(value);
-		return text != null ? text.toUpperCase(Locale.ROOT) : null;
-	}
-
 	private enum EvidenceSource {
 		EXISTING(0), CURRENT_IMPORT(1), INSTITUTE(2);
 
@@ -223,6 +216,11 @@ final class ImportedBankNameValidator {
 			return new RecipientKey(normalizedText(counterpart.getName()), normalizedText(counterpart.getIban()),
 					normalizeBic(counterpart.getBic()), trimToNull(counterpart.getAccountNumber()), trimToNull(counterpart.getBlz()));
 		}
+
+		private static String normalizedText(String value) {
+			String text = trimToNull(value);
+			return text != null ? text.toUpperCase(Locale.ROOT) : null;
+		}
 	}
 
 	private record Evidence(BankIdentifier identifier, RecipientKey recipientKey, String bankName, LocalDate date,
@@ -253,7 +251,7 @@ final class ImportedBankNameValidator {
 		}
 
 		private void add(String candidateName, long distance, int priority, boolean sameRecipient, boolean activeInstitute) {
-			if (readabilityScore(candidateName) > readabilityScore(name)) {
+			if (isMoreReadable(candidateName, name)) {
 				name = candidateName;
 			}
 			dateDistance = Math.min(dateDistance, distance);
@@ -291,7 +289,8 @@ final class ImportedBankNameValidator {
 	private static final class InstituteIndex {
 
 		private final Map<BankIdentifier, List<OfficialName>> namesByIdentifier = new HashMap<>();
-		private final Map<BankIdentifierType, Map<String, Set<BankIdentifier>>> identifiersByPrimaryAlias = new HashMap<>();
+		private final Map<BankIdentifierType, Map<String, Set<BankIdentifier>>> identifiersByPrimaryAlias =
+				new EnumMap<>(BankIdentifierType.class);
 		private final Map<BankIdentifier, Set<BankIdentifier>> bicIdentifiersByBlz = new HashMap<>();
 
 		private InstituteIndex(Collection<Institute> institutes) {
@@ -362,6 +361,29 @@ final class ImportedBankNameValidator {
 		private boolean matchesAny(String bankName, List<OfficialName> officialNames) {
 			return officialNames.stream().anyMatch(officialName -> bankNamesMatch(bankName, officialName.name())
 					|| regionalBankNamesMatch(bankName, officialName.name()));
+		}
+
+		private static boolean regionalBankNamesMatch(String first, String second) {
+			List<String> firstTokens = bankNameTokens(first);
+			List<String> secondTokens = bankNameTokens(second);
+			String bankType = regionalBankType(firstTokens);
+			if (bankType == null || !bankType.equals(regionalBankType(secondTokens))) {
+				return false;
+			}
+			Set<String> locations = regionalLocationTokens(firstTokens, bankType);
+			return secondTokens.stream().filter(token -> isRegionalLocationToken(token, bankType)).anyMatch(locations::contains);
+		}
+
+		private static String regionalBankType(List<String> tokens) {
+			return tokens.stream().flatMap(token -> REGIONAL_BANK_TYPES.stream().filter(token::endsWith)).findFirst().orElse(null);
+		}
+
+		private static Set<String> regionalLocationTokens(List<String> tokens, String bankType) {
+			return tokens.stream().filter(token -> isRegionalLocationToken(token, bankType)).collect(Collectors.toSet());
+		}
+
+		private static boolean isRegionalLocationToken(String token, String bankType) {
+			return !token.endsWith(bankType) && !REGIONAL_GENERIC_TOKENS.contains(token);
 		}
 
 		private boolean matchesExpected(BankIdentifier identifier, String bankName) {
@@ -453,25 +475,6 @@ final class ImportedBankNameValidator {
 		}
 	}
 
-	private static boolean regionalBankNamesMatch(String first, String second) {
-		List<String> firstTokens = bankNameTokens(first);
-		List<String> secondTokens = bankNameTokens(second);
-		String bankType = regionalBankType(firstTokens);
-		if (bankType == null || !bankType.equals(regionalBankType(secondTokens))) {
-			return false;
-		}
-		Set<String> locations = regionalLocationTokens(firstTokens, bankType);
-		return secondTokens.stream().filter(token -> isRegionalLocationToken(token, bankType)).anyMatch(locations::contains);
-	}
-
-	private static Set<String> regionalLocationTokens(List<String> tokens, String bankType) {
-		return tokens.stream().filter(token -> isRegionalLocationToken(token, bankType)).collect(Collectors.toSet());
-	}
-
-	private static boolean isRegionalLocationToken(String token, String bankType) {
-		return !token.endsWith(bankType) && !REGIONAL_GENERIC_TOKENS.contains(token);
-	}
-
 	private static List<String> bankNameTokens(String value) {
 		String normalized = normalizeBankName(value);
 		return normalized == null ? List.of()
@@ -487,10 +490,6 @@ final class ImportedBankNameValidator {
 		case "SSK" -> "STADTSPARKASSE";
 		default -> token;
 		};
-	}
-
-	private static String regionalBankType(List<String> tokens) {
-		return tokens.stream().flatMap(token -> REGIONAL_BANK_TYPES.stream().filter(token::endsWith)).findFirst().orElse(null);
 	}
 
 	private static void addBankNamePrefixAliases(Set<String> aliases, List<String> tokens) {
@@ -531,12 +530,4 @@ final class ImportedBankNameValidator {
 		return normalized != null && normalized.length() == 11 ? normalized.substring(0, 8) : normalized;
 	}
 
-	private static int readabilityScore(String value) {
-		if (value == null) {
-			return 0;
-		}
-		boolean upper = value.chars().anyMatch(Character::isUpperCase);
-		boolean lower = value.chars().anyMatch(Character::isLowerCase);
-		return upper && lower ? 2 : lower ? 1 : 0;
-	}
 }

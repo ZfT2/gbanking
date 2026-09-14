@@ -39,7 +39,8 @@ class JdbcDaoRepositoryTest {
 		when(connection.prepareStatement(anyString())).thenAnswer(invocation -> {
 			preparedSql.add(invocation.getArgument(0));
 			PreparedStatement statement = mock(PreparedStatement.class);
-			when(statement.executeQuery()).thenReturn(mock(ResultSet.class));
+			ResultSet resultSet = mock(ResultSet.class);
+			when(statement.executeQuery()).thenReturn(resultSet);
 			statements.add(statement);
 			return statement;
 		});

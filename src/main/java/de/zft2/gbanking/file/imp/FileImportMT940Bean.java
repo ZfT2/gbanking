@@ -28,6 +28,7 @@ import org.kapott.hbci.structures.Konto;
 import org.kapott.hbci.structures.Value;
 
 import de.zft2.core.dto.DefaultCounterpart;
+import de.zft2.gbanking.concurrent.ProgressReporter;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.AccountState;
@@ -37,7 +38,6 @@ import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.file.imp.dto.ImportBankAccount;
 import de.zft2.gbanking.file.imp.dto.ImportBooking;
-import de.zft2.gbanking.gui.BaseWorker;
 import de.zft2.gbanking.mapper.ImportDaoMapper;
 import de.zft2.gbanking.util.TypeConverter;
 
@@ -45,17 +45,17 @@ public class FileImportMT940Bean extends AbstractBookingImportBean {
 
 	private static final Logger log = LogManager.getLogger(FileImportMT940Bean.class);
 
-	public FileImportMT940Bean(BaseWorker worker) {
-		this(worker, null);
+	public FileImportMT940Bean(ProgressReporter progressReporter) {
+		this(progressReporter, null);
 	}
 
-	public FileImportMT940Bean(BaseWorker worker, BankAccount contextAccount) {
-		this(worker, contextAccount, null);
+	public FileImportMT940Bean(ProgressReporter progressReporter, BankAccount contextAccount) {
+		this(progressReporter, contextAccount, null);
 	}
 
-	FileImportMT940Bean(BaseWorker worker, BankAccount contextAccount,
+	FileImportMT940Bean(ProgressReporter progressReporter, BankAccount contextAccount,
 			ImportedBankNameCorrectionHandler bankNameCorrectionHandler) {
-		super(worker, contextAccount, bankNameCorrectionHandler);
+		super(progressReporter, contextAccount, bankNameCorrectionHandler);
 	}
 
 	public boolean importFile(String importFile) {
@@ -140,8 +140,8 @@ public class FileImportMT940Bean extends AbstractBookingImportBean {
 		ImportBooking booking = new ImportBooking();
 
 		booking.setAccountName(account.getNamePP());
-		booking.setDateBooking(TypeConverter.toLocalDateFromDate(line.bdate));
-		booking.setDateValue(TypeConverter.toLocalDateFromDate(line.valuta));
+		booking.setDateBooking(TypeConverter.toLocalDate(line.bdate));
+		booking.setDateValue(TypeConverter.toLocalDate(line.valuta));
 		booking.setPurpose(resolvePurpose(line));
 		booking.setAmount(line.value != null ? line.value.getBigDecimalValue() : null);
 		booking.setCurrency(line.value != null ? line.value.getCurr() : null);
@@ -169,10 +169,7 @@ public class FileImportMT940Bean extends AbstractBookingImportBean {
 	}
 
 	private BookingType resolveBookingType(BigDecimal amount) {
-		if (amount == null) {
-			return null;
-		}
-		return amount.signum() < 0 ? BookingType.REMOVAL : BookingType.DEPOSIT;
+		return BookingType.fromAmount(amount);
 	}
 
 	private void mapAdditionalFields(ImportBooking booking, UmsLine line) {

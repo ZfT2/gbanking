@@ -8,11 +8,11 @@ import de.zft2.gbanking.db.dao.enu.OrderType;
 import javafx.scene.Node;
 import javafx.scene.control.DatePicker;
 
-public class MoneyTransferInputScheduledPanel extends MoneyTransferInputBasePanel {
+final class MoneyTransferInputScheduledPanel extends MoneyTransferInputBasePanel {
 
 	private final DatePicker executionDatePicker = new DatePicker();
 
-	public MoneyTransferInputScheduledPanel(MoneyTransferDetailListTabPanel parent) {
+	MoneyTransferInputScheduledPanel(MoneyTransferDetailListTabPanel parent) {
 		super(parent);
 		initializeSpecificFields();
 		buttonSubmit.setText(getText("UI_BUTTON_SCHEDULED_MONEYTRANSFER_SAVE"));

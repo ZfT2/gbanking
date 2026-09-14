@@ -50,12 +50,15 @@ class TenantLoginDialogTest {
 	}
 
 	@Test
-	void successfulCloseShouldClearKeyAndRequireFreshAuthentication() throws Exception {
+	void successfulCloseShouldClearKeyAndRequireFreshAuthentication() {
 		try (var progress = mockLifecycleProgress(false)) {
 			assertTrue(loginDialog.closeTenantDatabase());
+			var dataKey = session.dataKey();
+			byte[] emptyContent = new byte[0];
+			Path encryptedStatement = tempDir.resolve("statement.enc");
 
-			assertThrows(IllegalStateException.class, () -> session.dataKey().toSecretKey());
-			assertThrows(IllegalStateException.class, () -> TenantFileEncryptionContext.encrypt(new byte[0], tempDir.resolve("statement.enc")));
+			assertThrows(IllegalStateException.class, () -> dataKey.toSecretKey());
+			assertThrows(IllegalStateException.class, () -> TenantFileEncryptionContext.encrypt(emptyContent, encryptedStatement));
 			assertFalse(loginDialog.reopenActiveTenant());
 			assertTrue(loginDialog.getActiveBackupDirectory().isEmpty());
 			assertTrue(tenantStore.authenticateSession(session.profile().id(), new char[0]).isEmpty());

@@ -22,7 +22,7 @@ import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingAdditionalDetails;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.exception.ExportException;
-import de.zft2.gbanking.gui.BaseWorker;
+import de.zft2.gbanking.concurrent.ProgressReporter;
 
 public class FileExportMT940Bean extends FileExportBean {
 
@@ -36,8 +36,8 @@ public class FileExportMT940Bean extends FileExportBean {
 	private static final DateTimeFormatter BOOKING_DATE = DateTimeFormatter.ofPattern("MMdd");
 	private static final Comparator<Booking> BOOKING_ORDER = Comparator.comparing(FileExportMT940Bean::sortDate).thenComparingInt(Booking::getId);
 
-	public FileExportMT940Bean(BaseWorker worker) {
-		super(worker);
+	public FileExportMT940Bean(ProgressReporter progressReporter) {
+		super(progressReporter);
 	}
 
 	@Override

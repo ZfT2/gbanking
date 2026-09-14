@@ -3,13 +3,13 @@ package de.zft2.gbanking.db;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
 
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
@@ -45,7 +45,7 @@ class DaoRepositoryCatalogTest {
 
 	@Test
 	void shouldProvideTypedRepositoryForEveryPersistedDaoType() throws Exception {
-		try (DbSession session = new DbSession(Path.of("repository-test.db"), Mockito.mock(Connection.class))) {
+		try (DbSession session = new DbSession(Path.of("repository-test.db"), mock(Connection.class))) {
 			DaoRepositoryCatalog catalog = session.repositoryCatalog();
 
 			for (Class<? extends Dao> type : persistedTypes()) {
@@ -59,7 +59,7 @@ class DaoRepositoryCatalogTest {
 
 	@Test
 	void shouldUseSpecializedRepositoriesForAggregateRoots() throws Exception {
-		try (DbSession session = new DbSession(Path.of("repository-test.db"), Mockito.mock(Connection.class))) {
+		try (DbSession session = new DbSession(Path.of("repository-test.db"), mock(Connection.class))) {
 			DaoRepositoryCatalog catalog = session.repositoryCatalog();
 
 			assertInstanceOf(BankAccessRepository.class, catalog.repository(BankAccess.class));

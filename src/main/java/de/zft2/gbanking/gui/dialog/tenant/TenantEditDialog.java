@@ -15,7 +15,7 @@ import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
-public class TenantEditDialog implements BaseMessages {
+final class TenantEditDialog implements BaseMessages {
 
 	private final Window parentWindow;
 	private final TenantStore tenantStore;
@@ -32,16 +32,16 @@ public class TenantEditDialog implements BaseMessages {
 		private Stage dialog;
 	}
 
-	public TenantEditDialog(Window parentWindow, TenantStore tenantStore) {
+	TenantEditDialog(Window parentWindow, TenantStore tenantStore) {
 		this.parentWindow = parentWindow;
 		this.tenantStore = tenantStore;
 	}
 
-	public TenantProfile showCreateDialog() {
+	TenantProfile showCreateDialog() {
 		return showDialog(null);
 	}
 
-	public TenantProfile showEditDialog(TenantProfile tenant) {
+	TenantProfile showEditDialog(TenantProfile tenant) {
 		return showDialog(tenant);
 	}
 

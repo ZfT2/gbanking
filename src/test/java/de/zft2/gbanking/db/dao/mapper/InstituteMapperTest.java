@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -39,7 +40,7 @@ class InstituteMapperTest {
 				institute -> institute.setRdh10(Boolean.FALSE),
 				institute -> institute.setPinUrl("https://pin.example"),
 				institute -> institute.setVersion("1.0"),
-				institute -> institute.setLastChanged(LocalDate.of(2026, 7, 29))),
+				institute -> institute.setLastChanged(LocalDate.of(2026, Month.JULY, 29))),
 				institute -> mapper.hasDkData(institute));
 	}
 

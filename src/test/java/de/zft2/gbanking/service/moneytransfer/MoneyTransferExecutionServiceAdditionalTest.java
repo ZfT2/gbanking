@@ -89,13 +89,13 @@ class MoneyTransferExecutionServiceAdditionalTest {
 			MoneyTransferService.class);
 
 	@BeforeEach
-	void setUp() throws Exception {
+	void setUp() {
 		clearDatabase();
 		ServiceStubbingUtil.initStubbedServicesInContext(SERVICES_TO_STUB);
 	}
 
 	@AfterEach
-	void tearDown() throws Exception {
+	void tearDown() {
 		ServiceStubbingUtil.unloadStubbedServicesInContext(SERVICES_TO_STUB);
 	}
 
@@ -644,10 +644,11 @@ class MoneyTransferExecutionServiceAdditionalTest {
 						boolean.class },
 				changedTransfer, BankOrderOperation.EDIT, mock(GBankingHBCICallback.class), mock(HBCIExecStatus.class), result, true);
 		LocalDateTime start = LocalDateTime.now();
+		Object communicationState = createCommunicationState(start, start.plusSeconds(1));
 		invokePrivate(service, "persistExecutionResult",
-				new Class<?>[] { MoneyTransfer.class, BankOrderOperation.class, boolean.class, LocalDateTime.class, LocalDateTime.class,
+				new Class<?>[] { MoneyTransfer.class, BankOrderOperation.class, boolean.class, communicationState.getClass(),
 						MoneyTransferStatus.class, String.class, bankResponse.getClass() },
-				changedTransfer, BankOrderOperation.EDIT, true, start, start.plusSeconds(1), MoneyTransferStatus.INVENTORY, "accepted", bankResponse);
+				changedTransfer, BankOrderOperation.EDIT, true, communicationState, MoneyTransferStatus.INVENTORY, "accepted", bankResponse);
 
 		List<MoneyTransfer> transfers = dbController.getAllByParent(MoneyTransfer.class, account.getId());
 		assertEquals(MoneyTransferStatus.SUPERSEDED,
@@ -825,6 +826,22 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	private static String fieldLabel(String key) {
 		return Messages.getInstance().getMessage(key);
+	}
+
+	private static Object createCommunicationState(LocalDateTime start, LocalDateTime finish) throws Exception {
+		Class<?> stateType = Class.forName(MoneyTransferExecutionService.class.getName() + "$CommunicationState");
+		var constructor = stateType.getDeclaredConstructor();
+		constructor.setAccessible(true);
+		Object state = constructor.newInstance();
+		setField(state, "start", start);
+		setField(state, "finish", finish);
+		return state;
+	}
+
+	private static void setField(Object target, String name, Object value) throws Exception {
+		var field = target.getClass().getDeclaredField(name);
+		field.setAccessible(true);
+		field.set(target, value);
 	}
 
 	private static Object invokePrivate(Object target, String methodName, Class<?>[] parameterTypes, Object... args) throws Exception {

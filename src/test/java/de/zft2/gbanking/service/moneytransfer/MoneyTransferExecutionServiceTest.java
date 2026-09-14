@@ -55,7 +55,7 @@ class MoneyTransferExecutionServiceTest {
 	}
 
 	@BeforeEach
-	void setup() throws Exception {
+	void setup() {
 		clearDatabase();
 		ServiceStubbingUtil.initStubbedServicesInContext(SERVICES_TO_STUB);
 	}
@@ -71,7 +71,7 @@ class MoneyTransferExecutionServiceTest {
 	}
 
 	@AfterEach
-	void tearDown() throws Exception {
+	void tearDown() {
 		ServiceStubbingUtil.unloadStubbedServicesInContext(SERVICES_TO_STUB);
 	}
 

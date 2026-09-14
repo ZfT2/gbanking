@@ -3,27 +3,32 @@ package de.zft2.gbanking.gui.panel.overview;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.gui.panel.account.AccountDetailPanel;
 import de.zft2.gbanking.gui.panel.account.AccountListPanel;
+import de.zft2.gbanking.gui.panel.account.AccountSelectionTarget;
 import de.zft2.gbanking.gui.panel.layout.DetailListPane;
 
-public class AllAccountsOverviewPanel extends OverviewBasePanel {
+public class AllAccountsOverviewPanel extends OverviewBasePanel implements AccountSelectionTarget {
 
 	private static final Logger log = LogManager.getLogger(AllAccountsOverviewPanel.class);
 
 	private AccountListPanel accountListPanel;
 	private AccountDetailPanel accountDetailPanel;
 
-	@Override
-	public void createOverallPanel(boolean show) {
+	public AllAccountsOverviewPanel() {
+		initializePanel();
+	}
+
+	private void initializePanel() {
 		setPageContext(PageContext.ALL_ACCOUNTS);
 		log.info("Initializing AllAccountsOverviewPanel");
 
 		accountDetailPanel = new AccountDetailPanel(true, () -> refreshAccountList());
 		accountListPanel = new AccountListPanel(this);
 
-		setOverviewContent("UI_PANEL_ALL_ACCOUNTS", new DetailListPane(accountDetailPanel, accountListPanel), show);
+		setOverviewContent("UI_PANEL_ALL_ACCOUNTS", new DetailListPane(accountDetailPanel, accountListPanel));
 	}
 
 	public AccountDetailPanel getAccountDetailPanel() {
@@ -32,6 +37,11 @@ public class AllAccountsOverviewPanel extends OverviewBasePanel {
 
 	public AccountListPanel getAccountListPanel() {
 		return accountListPanel;
+	}
+
+	@Override
+	public void handleAccountSelection(BankAccount account) {
+		accountDetailPanel.updatePanelFieldValues(account);
 	}
 
 	@Override

@@ -38,7 +38,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
-public class EnablebankingSetupDialog implements BaseMessages {
+final class EnablebankingSetupDialog implements BaseMessages {
 
 	private static final double DIALOG_WIDTH = 700;
 	private static final double DIALOG_HEIGHT = 520;
@@ -50,13 +50,13 @@ public class EnablebankingSetupDialog implements BaseMessages {
 	private BankAccess authorizedAccess;
 	private boolean saved;
 
-	public EnablebankingSetupDialog(Window owner, Runnable onSaved) {
+	EnablebankingSetupDialog(Window owner, Runnable onSaved) {
 		dialog = DialogWindowSupport.createModalStage(owner, "UI_ENABLEBANKING_SETUP_TITLE");
 		this.onSaved = onSaved;
 		this.setupService = ServiceRegistry.getService(EnablebankingSetupService.class);
 	}
 
-	public void show() {
+	void show() {
 		dialog.setScene(createConfigurationScene());
 		dialog.setOnCloseRequest(event -> cancelAuthorization());
 		dialog.showAndWait();
@@ -114,9 +114,10 @@ public class EnablebankingSetupDialog implements BaseMessages {
 		authorize.setDisable(true);
 		Button cancel = new Button(getText("UI_BUTTON_CANCEL"));
 		institution.valueProperty().addListener((observable, oldValue, newValue) -> authorize.setDisable(newValue == null));
+		ConfigurationFields configurationFields = new ConfigurationFields(applicationId, privateKeyFile, callbackUrl);
 
-		loadInstitutions.setOnAction(event -> loadInstitutions(applicationId, privateKeyFile, callbackUrl,
-				institutions, country, institution, authorize, loadInstitutions));
+		loadInstitutions.setOnAction(event -> loadInstitutions(configurationFields, institutions, country,
+				institution, authorize, loadInstitutions));
 		authorize.setOnAction(event -> authorize(existingConfiguration(), institution.getValue(),
 				psuType.getValue(), authMethod.getValue(), authorize, cancel));
 		cancel.setOnAction(event -> close());
@@ -133,12 +134,12 @@ public class EnablebankingSetupDialog implements BaseMessages {
 		return loadedConfiguration;
 	}
 
-	private void loadInstitutions(TextField applicationId, TextField privateKeyFile, TextField callbackUrl,
-			List<EnablebankingAspsp> institutions, ComboBox<String> country,
+	private void loadInstitutions(ConfigurationFields fields, List<EnablebankingAspsp> institutions, ComboBox<String> country,
 			ComboBox<EnablebankingAspsp> institution, Button authorize, Button loadButton) {
 		startTask("gbanking-enablebanking-load-institutions", () -> {
-			String pem = privateKeyFile.getText().isBlank() ? null : Files.readString(Path.of(privateKeyFile.getText()));
-			return setupService.configure(applicationId.getText(), pem, callbackUrl.getText());
+			String privateKeyFile = fields.privateKeyFile().getText();
+			String pem = privateKeyFile.isBlank() ? null : Files.readString(Path.of(privateKeyFile));
+			return setupService.configure(fields.applicationId().getText(), pem, fields.callbackUrl().getText());
 		}, result -> {
 			loadedConfiguration = setupService.getPersonalConfiguration();
 			institutions.clear();
@@ -317,5 +318,8 @@ public class EnablebankingSetupDialog implements BaseMessages {
 		for (Button button : buttons) {
 			button.setDisable(disabled);
 		}
+	}
+
+	private record ConfigurationFields(TextField applicationId, TextField privateKeyFile, TextField callbackUrl) {
 	}
 }

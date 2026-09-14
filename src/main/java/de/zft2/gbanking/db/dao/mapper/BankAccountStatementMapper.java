@@ -4,8 +4,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 import de.zft2.gbanking.db.StatementsConfig.ResultType;
 import de.zft2.gbanking.db.dao.BankAccountStatement;
@@ -24,10 +22,10 @@ public class BankAccountStatementMapper extends AbstractDaoMapper<BankAccountSta
 		ps.setString(index++, statement.getAccountName());
 		ps.setString(index++, statement.getFileName());
 		ps.setString(index++, statement.getFormat());
-		ps.setString(index++, formatDateTime(statement.getRetrievedAt()));
-		ps.setDate(index++, toSqlDate(statement.getStatementDate()));
-		ps.setDate(index++, toSqlDate(statement.getStartDate()));
-		ps.setDate(index++, toSqlDate(statement.getEndDate()));
+		ps.setString(index++, TypeConverter.toDateTimeString(statement.getRetrievedAt()));
+		ps.setDate(index++, TypeConverter.toSqlDate(statement.getStatementDate()));
+		ps.setDate(index++, TypeConverter.toSqlDate(statement.getStartDate()));
+		ps.setDate(index++, TypeConverter.toSqlDate(statement.getEndDate()));
 		ps.setInt(index++, statement.getYear());
 		ps.setInt(index++, statement.getNumber());
 		ps.setLong(index++, statement.getSize());
@@ -41,7 +39,7 @@ public class BankAccountStatementMapper extends AbstractDaoMapper<BankAccountSta
 			ps.setNull(index++, Types.BLOB);
 		}
 		ps.setBoolean(index++, statement.isAcknowledged());
-		ps.setString(index++, formatDateTime(statement.getAcknowledgedAt()));
+		ps.setString(index++, TypeConverter.toDateTimeString(statement.getAcknowledgedAt()));
 		ps.setTimestamp(index++, TypeConverter.toSqlTimestampNow());
 		if (statement.getId() > 0) {
 			ps.setInt(index, statement.getId());
@@ -54,10 +52,10 @@ public class BankAccountStatementMapper extends AbstractDaoMapper<BankAccountSta
 		statement.setAccountName(rs.getString("accountName"));
 		statement.setFileName(rs.getString("fileName"));
 		statement.setFormat(rs.getString("format"));
-		statement.setRetrievedAt(parseDateTime(rs.getString("retrievedAt")));
-		statement.setStatementDate(toLocalDate(rs.getDate("statementDate")));
-		statement.setStartDate(toLocalDate(rs.getDate("startDate")));
-		statement.setEndDate(toLocalDate(rs.getDate("endDate")));
+		statement.setRetrievedAt(TypeConverter.toLocalDateTime(rs.getString("retrievedAt")));
+		statement.setStatementDate(TypeConverter.toLocalDate(rs.getDate("statementDate")));
+		statement.setStartDate(TypeConverter.toLocalDate(rs.getDate("startDate")));
+		statement.setEndDate(TypeConverter.toLocalDate(rs.getDate("endDate")));
 		statement.setYear(rs.getInt("year"));
 		statement.setNumber(rs.getInt("number"));
 		statement.setSize(rs.getLong("size"));
@@ -67,22 +65,6 @@ public class BankAccountStatementMapper extends AbstractDaoMapper<BankAccountSta
 		statement.setReceiptAvailable(rs.getBoolean("receiptAvailable"));
 		statement.setReceipt(rs.getBytes("receipt"));
 		statement.setAcknowledged(rs.getBoolean("acknowledged"));
-		statement.setAcknowledgedAt(parseDateTime(rs.getString("acknowledgedAt")));
-	}
-
-	private java.sql.Date toSqlDate(LocalDate date) {
-		return date != null ? java.sql.Date.valueOf(date) : null;
-	}
-
-	private LocalDate toLocalDate(java.sql.Date date) {
-		return date != null ? date.toLocalDate() : null;
-	}
-
-	private String formatDateTime(LocalDateTime dateTime) {
-		return dateTime != null ? dateTime.toString() : null;
-	}
-
-	private LocalDateTime parseDateTime(String value) {
-		return value != null && !value.isBlank() ? LocalDateTime.parse(value) : null;
+		statement.setAcknowledgedAt(TypeConverter.toLocalDateTime(rs.getString("acknowledgedAt")));
 	}
 }

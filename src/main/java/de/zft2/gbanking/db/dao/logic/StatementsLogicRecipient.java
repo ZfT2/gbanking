@@ -1,5 +1,7 @@
 package de.zft2.gbanking.db.dao.logic;
 
+import static de.zft2.gbanking.util.TextValues.isMoreReadable;
+
 import java.util.List;
 import java.util.Objects;
 
@@ -8,6 +10,7 @@ import de.zft2.gbanking.db.DaoSqlStatements;
 import de.zft2.gbanking.db.StatementsConfig.StatementType;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.SourceGroup;
+import de.zft2.gbanking.util.TextValues;
 
 public class StatementsLogicRecipient extends StatementsLogicDefault<Recipient> implements StatementsLogic<Recipient> {
 	
@@ -195,25 +198,11 @@ public class StatementsLogicRecipient extends StatementsLogicDefault<Recipient> 
 	}
 
 	private boolean hasBetterReadability(String candidateText, String currentText) {
-		return readabilityScore(candidateText) > readabilityScore(currentText);
+		return isMoreReadable(candidateText, currentText);
 	}
 
 	private int readabilityScore(Recipient recipient) {
-		return readabilityScore(recipient.getName()) + readabilityScore(recipient.getBank());
-	}
-
-	private int readabilityScore(String value) {
-		boolean upperCaseLetter = false;
-		boolean lowerCaseLetter = false;
-		if (value != null) {
-			for (int index = 0; index < value.length(); index++) {
-				char character = value.charAt(index);
-				upperCaseLetter |= Character.isUpperCase(character);
-				lowerCaseLetter |= Character.isLowerCase(character);
-			}
-		}
-		final int lower = lowerCaseLetter ? 1 : 0;
-		return upperCaseLetter && lowerCaseLetter ? 2 : lower;
+		return TextValues.readabilityScore(recipient.getName()) + TextValues.readabilityScore(recipient.getBank());
 	}
 
 	private boolean isUnreferenced(Recipient recipient) {

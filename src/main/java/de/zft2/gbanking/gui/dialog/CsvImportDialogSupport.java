@@ -22,6 +22,8 @@ import javafx.stage.Window;
 
 public final class CsvImportDialogSupport {
 
+	private static final String DIALOG_TITLE = "UI_CSV_IMPORT_TITLE";
+
 	private CsvImportDialogSupport() {
 	}
 
@@ -56,7 +58,7 @@ public final class CsvImportDialogSupport {
 		} else {
 			message = text("ERROR_CSV_IMPORT_UNKNOWN_DEFINITION", analysis.definitionFile().toString());
 		}
-		DialogWindowSupport.showAlert(owner, Alert.AlertType.ERROR, text("UI_CSV_IMPORT_TITLE"), null, message);
+		DialogWindowSupport.showAlert(owner, Alert.AlertType.ERROR, text(DIALOG_TITLE), null, message);
 	}
 
 	private static String missingFieldsMessage(List<Match> matches) {
@@ -73,7 +75,7 @@ public final class CsvImportDialogSupport {
 		if (matches.size() == 1) {
 			return Optional.of(matches.get(0));
 		}
-		return DialogWindowSupport.showSelection(owner, text("UI_CSV_IMPORT_TITLE"), text("UI_CSV_IMPORT_FILTER_SELECT_HEADER"),
+		return DialogWindowSupport.showSelection(owner, text(DIALOG_TITLE), text("UI_CSV_IMPORT_FILTER_SELECT_HEADER"),
 				text("UI_CSV_IMPORT_FILTER_SELECT_TEXT"), matches.get(0), matches);
 	}
 
@@ -90,7 +92,7 @@ public final class CsvImportDialogSupport {
 		}
 		ButtonType continueButton = new ButtonType(text("UI_BUTTON_CONTINUE"), ButtonBar.ButtonData.OK_DONE);
 		ButtonType cancelButton = new ButtonType(text("UI_BUTTON_CANCEL"), ButtonBar.ButtonData.CANCEL_CLOSE);
-		return DialogWindowSupport.showConfirmation(owner, Alert.AlertType.WARNING, text("UI_CSV_IMPORT_TITLE"),
+		return DialogWindowSupport.showConfirmation(owner, Alert.AlertType.WARNING, text(DIALOG_TITLE),
 				text("WARNING_CSV_IMPORT_HEADER", match.definition().getName()), String.join(System.lineSeparator(), warnings), continueButton,
 				cancelButton);
 	}
@@ -103,7 +105,7 @@ public final class CsvImportDialogSupport {
 			return Optional.empty();
 		}
 		BankAccount defaultAccount = findSuggestedAccount(accounts, suggestedAccount);
-		return DialogWindowSupport.showSelection(owner, text("UI_CSV_IMPORT_TITLE"),
+		return DialogWindowSupport.showSelection(owner, text(DIALOG_TITLE),
 				text("UI_CSV_IMPORT_ACCOUNT_SELECT_HEADER", definitionName), text("UI_CSV_IMPORT_ACCOUNT_SELECT_TEXT"), defaultAccount, accounts);
 	}
 

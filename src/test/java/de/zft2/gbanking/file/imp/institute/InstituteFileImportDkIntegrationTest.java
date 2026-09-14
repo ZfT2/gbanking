@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -282,7 +283,7 @@ class InstituteFileImportDkIntegrationTest extends BaseInstituteFileImportTest {
 
 		assertEquals(2, institutes.size(), "Reappearance must reuse the original institute row");
 		assertEquals(InstituteStatus.ACTIVE, reappearing.getStateType());
-		assertEquals(LocalDate.of(2026, 1, 1), reappearing.getValidFrom());
+		assertEquals(LocalDate.of(2026, Month.JANUARY, 1), reappearing.getValidFrom());
 		assertNull(reappearing.getValidTo());
 		assertEquals(firstFile, reappearing.getFirstSeenFile());
 		assertEquals(lastFile, reappearing.getLastSeenFile());

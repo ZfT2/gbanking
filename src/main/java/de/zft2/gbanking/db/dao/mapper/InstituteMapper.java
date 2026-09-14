@@ -204,7 +204,7 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 		index = setBooleanNullable(index, institute.getRdh10(), ps);
 		ps.setString(index++, institute.getPinUrl());
 		ps.setString(index++, institute.getVersion());
-		setDateNullable(index++, TypeConverter.toSqlDateShort(institute.getLastChanged()), ps);
+		setDateNullable(index++, TypeConverter.toSqlDate(institute.getLastChanged()), ps);
 		ps.setTimestamp(index++, TypeConverter.toSqlTimestampNow());
 
 		if (statementType == StatementType.UPDATE)

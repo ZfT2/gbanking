@@ -19,14 +19,14 @@ import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.enu.LocalizedEnumValue;
 import de.zft2.gbanking.exception.ExportException;
-import de.zft2.gbanking.gui.BaseWorker;
+import de.zft2.gbanking.concurrent.ProgressReporter;
 
 public class FileExportOrdersCSVBean extends FileExportBean {
 
 	private static Logger log = LogManager.getLogger(FileExportOrdersCSVBean.class);
 
-	public FileExportOrdersCSVBean(BaseWorker worker) {
-		super(worker);
+	public FileExportOrdersCSVBean(ProgressReporter progressReporter) {
+		super(progressReporter);
 	}
 
 	@Override

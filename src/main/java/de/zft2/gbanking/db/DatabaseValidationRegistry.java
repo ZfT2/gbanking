@@ -55,9 +55,10 @@ final class DatabaseValidationRegistry {
 		long now = nanoTime.getAsLong();
 		ValidationTicket previous = reusableTicket(normalizedFile, fingerprint.get(), now).orElse(null);
 		boolean fullCheck = fullIntegrityCheck || previous != null && previous.fullIntegrityCheck();
-		String version = instituteVersion != null
-				? instituteVersion
-				: previous != null ? previous.instituteVersion() : null;
+		String version = instituteVersion;
+		if (version == null && previous != null) {
+			version = previous.instituteVersion();
+		}
 		tickets.put(normalizedFile, new ValidationTicket(fingerprint.get(), fullCheck, version, now));
 		prune(now);
 	}

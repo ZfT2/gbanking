@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Date;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.kapott.hbci.GV_Result.GVRKUms.UmsLine;
 import org.kapott.hbci.structures.Konto;
 import org.kapott.hbci.structures.Value;
@@ -20,31 +22,14 @@ import de.zft2.gbanking.exception.GBankingException;
 
 class HbciMapperTest {
 
-	@Test
-	void mapKontoToBankAccount_shouldUseZeroWhenHbciAccountTypeIsMissing() {
-		Konto konto = createKonto(null);
+	@ParameterizedTest
+	@CsvSource(value = { "<null>, 0", "Girokonto, 0", "0001, 1" }, nullValues = "<null>")
+	void mapKontoToBankAccount_shouldMapHbciAccountType(String accountType, int expectedAccountType) {
+		Konto konto = createKonto(accountType);
 
 		BankAccount bankAccount = HbciMapper.mapKontoToBankAccount("Sparkasse", konto);
 
-		assertEquals(0, bankAccount.getHbciAccountType());
-	}
-
-	@Test
-	void mapKontoToBankAccount_shouldUseZeroWhenHbciAccountTypeIsInvalid() {
-		Konto konto = createKonto("Girokonto");
-
-		BankAccount bankAccount = HbciMapper.mapKontoToBankAccount("Sparkasse", konto);
-
-		assertEquals(0, bankAccount.getHbciAccountType());
-	}
-
-	@Test
-	void mapKontoToBankAccount_shouldPreserveNumericHbciAccountType() {
-		Konto konto = createKonto("0001");
-
-		BankAccount bankAccount = HbciMapper.mapKontoToBankAccount("Sparkasse", konto);
-
-		assertEquals(1, bankAccount.getHbciAccountType());
+		assertEquals(expectedAccountType, bankAccount.getHbciAccountType());
 	}
 
 	@Test

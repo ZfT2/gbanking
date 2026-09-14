@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 
 import org.junit.jupiter.api.AfterAll;
@@ -194,7 +195,7 @@ class FileImportCSVBeanTest {
 
 		Booking booking = dbController.getAllByParentFull(Booking.class, account.getId()).get(0);
 		assertEquals(new BigDecimal("-1234.56"), booking.getAmount());
-		assertEquals(LocalDate.of(2026, 8, 20), booking.getDateBooking());
+		assertEquals(LocalDate.of(2026, Month.AUGUST, 20), booking.getDateBooking());
 		assertEquals("Rechnung" + System.lineSeparator() + "August", booking.getPurpose());
 		assertEquals("Beispiel GmbH", booking.getRecipient().getName());
 		assertEquals("DE02120300000000202051", booking.getRecipient().getIban());
@@ -223,8 +224,8 @@ class FileImportCSVBeanTest {
 
 		List<Booking> bookings = dbController.getAllByParentFull(Booking.class, account.getId());
 		assertEquals(2, bookings.size());
-		assertEquals(LocalDate.of(2089, 12, 31), bookingWithPurpose(bookings, "Jahr 89").getDateBooking());
-		assertEquals(LocalDate.of(1990, 1, 1), bookingWithPurpose(bookings, "Jahr 90").getDateBooking());
+		assertEquals(LocalDate.of(2089, Month.DECEMBER, 31), bookingWithPurpose(bookings, "Jahr 89").getDateBooking());
+		assertEquals(LocalDate.of(1990, Month.JANUARY, 1), bookingWithPurpose(bookings, "Jahr 90").getDateBooking());
 	}
 
 	private static Booking bookingWithPurpose(List<Booking> bookings, String purpose) {
@@ -246,7 +247,7 @@ class FileImportCSVBeanTest {
 		institute.setBankName(bankName);
 		institute.setBic(bic);
 		institute.setImportNumber(1);
-		institute.setLastChanged(LocalDate.of(2026, 4, 10));
+		institute.setLastChanged(LocalDate.of(2026, Month.APRIL, 10));
 		institute.setImportFile(importHistoryId);
 		institute.setStateType(InstituteStatus.ACTIVE);
 		dbController.insertOrUpdate(institute);

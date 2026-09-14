@@ -12,6 +12,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import de.zft2.gbanking.BaseMessagesDb;
+import de.zft2.gbanking.concurrent.ProgressReporter;
+import de.zft2.gbanking.concurrent.ProgressReporters;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
@@ -23,18 +25,17 @@ import de.zft2.gbanking.db.dao.enu.SepaCancellationCode;
 import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
-import de.zft2.gbanking.gui.BaseWorker;
 
 public abstract class MoneyTransferImportBean implements BaseMessagesDb {
 
-	private final BaseWorker worker;
+	private final ProgressReporter progressReporter;
 	private final MoneyTransferStatus importStatus;
 
-	protected MoneyTransferImportBean(BaseWorker worker, MoneyTransferStatus importStatus) {
+	protected MoneyTransferImportBean(ProgressReporter progressReporter, MoneyTransferStatus importStatus) {
 		if (importStatus != MoneyTransferStatus.NEW && importStatus != MoneyTransferStatus.IMPORTED) {
 			throw new IllegalArgumentException("Import status must be NEW or IMPORTED");
 		}
-		this.worker = worker;
+		this.progressReporter = ProgressReporters.orNone(progressReporter);
 		this.importStatus = importStatus;
 	}
 
@@ -203,10 +204,8 @@ public abstract class MoneyTransferImportBean implements BaseMessagesDb {
 	}
 
 	protected void updateWorker(int progress, String messageKey, String... values) {
-		if (worker != null) {
-			worker.setProcessingState(getText(messageKey, values));
-			worker.setWorkerProgress(progress);
-		}
+		progressReporter.reportState(getText(messageKey, values));
+		progressReporter.reportProgress(progress);
 	}
 
 	protected String fileName(Path path) {

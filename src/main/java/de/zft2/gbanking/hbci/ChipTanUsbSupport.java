@@ -1,7 +1,5 @@
 package de.zft2.gbanking.hbci;
 
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,9 +10,9 @@ import javax.smartcardio.TerminalFactory;
 import org.kapott.hbci.smartcardio.ChipTanCardService;
 import org.kapott.hbci.smartcardio.SmartCardService;
 
-import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.db.dao.enu.DataType;
+import de.zft2.gbanking.service.settings.SettingDefinition;
+import de.zft2.gbanking.service.settings.SettingsStore;
 
 public final class ChipTanUsbSupport {
 
@@ -23,15 +21,16 @@ public final class ChipTanUsbSupport {
 
 	private static final String COMMENT_ENABLED = "chipTAN-USB über Kartenleser für TAN-Eingaben aktivieren";
 	private static final String COMMENT_READER_NAME = "Kartenlesername für chipTAN-USB; leer = ersten verfügbaren Leser verwenden";
+	private static final SettingDefinition ENABLED = new SettingDefinition(SETTING_ENABLED, "false", DataType.BOOLEAN, true, true,
+			COMMENT_ENABLED);
+	private static final SettingDefinition READER_NAME = new SettingDefinition(SETTING_READER_NAME, "", DataType.STRING, true, true,
+			COMMENT_READER_NAME);
 
 	private ChipTanUsbSupport() {
 	}
 
 	public static void ensureSettingsExist() {
-		DBController dbController = DBController.getInstance(".");
-		List<Setting> settings = dbController.getAll(Setting.class);
-		ensureSetting(dbController, settings, SETTING_ENABLED, "false", DataType.BOOLEAN, COMMENT_ENABLED);
-		ensureSetting(dbController, settings, SETTING_READER_NAME, "", DataType.STRING, COMMENT_READER_NAME);
+		SettingsStore.current().ensure(ENABLED, READER_NAME);
 	}
 
 	public static boolean isEnabled() {
@@ -71,29 +70,8 @@ public final class ChipTanUsbSupport {
 		return result;
 	}
 
-	private static void ensureSetting(DBController dbController, List<Setting> settings, String attribute, String defaultValue, DataType dataType, String comment) {
-		boolean exists = settings != null && settings.stream().anyMatch(setting -> attribute.equals(setting.getAttribute()));
-		if (exists) {
-			return;
-		}
-
-		Setting setting = new Setting();
-		setting.setAttribute(attribute);
-		setting.setValue(defaultValue);
-		setting.setDataType(dataType);
-		setting.setEditable(true);
-		setting.setVisible(true);
-		setting.setComment(comment);
-		setting.setUpdatedAt(LocalDate.now(ZoneId.systemDefault()));
-		dbController.insertOrUpdate(setting);
-	}
-
 	private static String getSettingValue(String attribute, String defaultValue) {
-		return DBController.getInstance(".").getAll(Setting.class).stream()
-				.filter(setting -> attribute.equals(setting.getAttribute()))
-				.map(Setting::getValue)
-				.findFirst()
-				.orElse(defaultValue);
+		return SettingsStore.current().getString(attribute, defaultValue);
 	}
 
 	private static String normalize(String value) {

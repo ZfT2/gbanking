@@ -30,12 +30,12 @@ public class BankAccessOverviewPanel extends OverviewBasePanel {
 		bankAccessDetailPanel = new BankAccessDetailPanel(this);
 		bankAccessListPanel = new BankAccessListPanel(this);
 		bankMessagePanel = new BankMessagePanel();
+		initializePanel();
 	}
 
-	@Override
-	public void createOverallPanel(boolean show) {
+	private void initializePanel() {
 		setPageContext(PageContext.BANKACCESS);
-		setOverviewContent("UI_PANEL_BANK_ACCESS", createTabPane(), show);
+		setOverviewContent("UI_PANEL_BANK_ACCESS", createTabPane());
 	}
 
 	private TabPane createTabPane() {

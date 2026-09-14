@@ -6,7 +6,6 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -23,6 +22,7 @@ import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.tenant.TenantFileEncryptionContext;
 import de.zft2.gbanking.tenant.TenantPaths;
 import de.zft2.gbanking.util.AppPaths;
+import de.zft2.gbanking.util.TypeConverter;
 
 class AccountStatementFileManager {
 
@@ -216,7 +216,7 @@ class AccountStatementFileManager {
 	}
 
 	private String statementId(GVRKontoauszugEntry entry) {
-		LocalDate statementDate = toLocalDate(entry.getDate());
+		LocalDate statementDate = TypeConverter.toLocalDate(entry.getDate());
 		int year = entry.getYear() > 0 ? entry.getYear() : statementYear(statementDate);
 		int number = entry.getNumber() > 0 ? entry.getNumber() : statementNumber(statementDate);
 		return yearText(year) + "-" + String.format(Locale.ROOT, "%04d", number);
@@ -276,16 +276,6 @@ class AccountStatementFileManager {
 			return "bin";
 		}
 		return format.getExtention().toLowerCase(Locale.ROOT);
-	}
-
-	private LocalDate toLocalDate(java.util.Date date) {
-		if (date == null) {
-			return null;
-		}
-		if (date instanceof java.sql.Date sqlDate) {
-			return sqlDate.toLocalDate();
-		}
-		return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
 	}
 
 	private String firstText(String... values) {

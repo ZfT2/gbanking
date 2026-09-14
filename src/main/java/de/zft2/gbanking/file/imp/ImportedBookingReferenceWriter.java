@@ -1,5 +1,6 @@
 package de.zft2.gbanking.file.imp;
 
+import static de.zft2.gbanking.util.TextValues.isMoreReadable;
 import static de.zft2.gbanking.util.TextValues.trimToNull;
 
 import java.util.ArrayList;
@@ -135,6 +136,11 @@ final class ImportedBookingReferenceWriter {
 		private RecipientIdentityKey withoutBank() {
 			return new RecipientIdentityKey(name, iban, bic, accountNumber, blz, null);
 		}
+
+		private static String caseInsensitiveValue(String value) {
+			String normalizedValue = trimToNull(value);
+			return normalizedValue != null ? normalizedValue.toLowerCase(Locale.ROOT) : null;
+		}
 	}
 
 	private static final class RecipientReferenceGroup {
@@ -175,29 +181,7 @@ final class ImportedBookingReferenceWriter {
 		}
 
 		private static boolean hasBetterReadability(String candidateText, String currentText) {
-			return readabilityScore(candidateText) > readabilityScore(currentText);
-		}
-
-		private static int readabilityScore(String value) {
-			boolean upperCaseLetter = false;
-			boolean lowerCaseLetter = false;
-			if (value != null) {
-				for (int index = 0; index < value.length(); index++) {
-					char character = value.charAt(index);
-					upperCaseLetter |= Character.isUpperCase(character);
-					lowerCaseLetter |= Character.isLowerCase(character);
-				}
-			}
-			int lower = lowerCaseLetter ? 1 : 0;
-			return upperCaseLetter && lowerCaseLetter ? 2 : lower;
+			return isMoreReadable(candidateText, currentText);
 		}
 	}
-
-
-
-	private static String caseInsensitiveValue(String value) {
-		String normalizedValue = trimToNull(value);
-		return normalizedValue != null ? normalizedValue.toLowerCase(Locale.ROOT) : null;
-	}
-
 }

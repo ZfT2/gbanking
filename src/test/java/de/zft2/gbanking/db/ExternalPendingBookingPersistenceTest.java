@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,13 +29,13 @@ class ExternalPendingBookingPersistenceTest extends DBControllerIntegrationBaseT
 		db.insertOrUpdate(access);
 		BankAccount account = TestDataFactory.createSampleAccount(access.getId());
 		db.insertOrUpdate(account);
-		db.insertOrUpdate(pending(account, LocalDate.of(2026, 7, 1), "old"));
-		db.insertOrUpdate(pending(account, LocalDate.of(2026, 8, 10), "replace"));
-		Booking current = pending(account, LocalDate.of(2026, 8, 15), "current");
+		db.insertOrUpdate(pending(account, LocalDate.of(2026, Month.JULY, 1), "old"));
+		db.insertOrUpdate(pending(account, LocalDate.of(2026, Month.AUGUST, 10), "replace"));
+		Booking current = pending(account, LocalDate.of(2026, Month.AUGUST, 15), "current");
 
 		AccountTransactionRetrievalResult result = new AccountTransactionService().persistExternalAccountData(account,
 				Optional.empty(), List.of(), Optional.of(new PendingBookingSnapshot(List.of(current),
-						LocalDate.of(2026, 8, 1))), "Enablebanking");
+						LocalDate.of(2026, Month.AUGUST, 1))), "Enablebanking");
 
 		List<Booking> pending = db.getAllByParent(Booking.class, account.getId()).stream()
 				.filter(booking -> booking.getSource().isPrenotification()).toList();

@@ -77,8 +77,9 @@ class ImportedBookingReferenceWriterTest {
 		Booking booking = booking(1, recipient("Recipient", "DE123", "Bank"));
 
 		ImportedBookingReferenceWriter writer = new ImportedBookingReferenceWriter(dbController);
+		List<Booking> bookings = List.of(booking);
 
-		assertThrows(NullPointerException.class, () -> writer.writeRecipients(List.of(booking)));
+		assertThrows(NullPointerException.class, () -> writer.writeRecipients(bookings));
 		verify(dbController, never()).updateBookingsWithRecipients(any());
 	}
 

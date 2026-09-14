@@ -64,9 +64,10 @@ class PinRequestCoordinatorTest {
 			}
 			throw new IllegalStateException();
 		});
+		List<BankAccount> accounts = List.of(account(1, 10), account(2, 20));
 
 		assertThrows(IllegalStateException.class,
-				() -> coordinator.requestPinsByBankAccess(List.of(account(1, 10), account(2, 20))));
+				() -> coordinator.requestPinsByBankAccess(accounts));
 		assertArrayEquals(new char[enteredPin.length], enteredPin);
 	}
 

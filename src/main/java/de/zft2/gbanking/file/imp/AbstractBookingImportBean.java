@@ -2,7 +2,6 @@ package de.zft2.gbanking.file.imp;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -16,43 +15,41 @@ import org.apache.logging.log4j.Logger;
 import de.zft2.core.dto.Booking.Typ;
 import de.zft2.core.dto.Counterpart;
 import de.zft2.gbanking.BaseMessagesDb;
+import de.zft2.gbanking.concurrent.ProgressReporter;
+import de.zft2.gbanking.concurrent.ProgressReporters;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
-import de.zft2.gbanking.db.dao.BookingAdditionalDetails;
-import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.file.imp.dto.ImportBankAccount;
 import de.zft2.gbanking.file.imp.dto.ImportBooking;
-import de.zft2.gbanking.gui.BaseWorker;
 import de.zft2.gbanking.mapper.ImportDaoMapper;
 import de.zft2.gbanking.rebooking.RebookingRules;
-import de.zft2.gbanking.service.importproperties.ImportPropertiesSynchronizationService;
 import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.service.importproperties.ImportPropertiesSynchronizationService;
 import de.zft2.gbanking.util.AppPaths;
 
 abstract class AbstractBookingImportBean implements BaseMessagesDb {
 
 	private static final Logger log = LogManager.getLogger(AbstractBookingImportBean.class);
 
-	private final BaseWorker worker;
+	private final ProgressReporter progressReporter;
 	private final BankAccount contextAccount;
 	private final ImportedBankNameCorrectionHandler bankNameCorrectionHandler;
 	private final ImportedBookingReferenceWriter bookingReferenceWriter;
 	private final ImportStatisticsCollector importStatistics = new ImportStatisticsCollector();
-	private final Map<Integer, List<Booking>> existingBookingsByAccountId = new HashMap<>();
-	private final Map<Integer, List<Booking>> processedBookingsByAccountId = new HashMap<>();
+	private final ImportedBookingPersistence bookingPersistence = new ImportedBookingPersistence(dbController);
 	private final Map<String, BankAccount> accountsByIban = new HashMap<>();
 	private final Map<String, BankAccount> accountsByNumber = new HashMap<>();
 	private final Map<String, BankAccount> accountsByName = new HashMap<>();
 	private final Map<String, BankAccount> accountsByBlzAndNumber = new HashMap<>();
 
-	protected AbstractBookingImportBean(BaseWorker worker, BankAccount contextAccount) {
-		this(worker, contextAccount, null);
+	protected AbstractBookingImportBean(ProgressReporter progressReporter, BankAccount contextAccount) {
+		this(progressReporter, contextAccount, null);
 	}
 
-	protected AbstractBookingImportBean(BaseWorker worker, BankAccount contextAccount,
+	protected AbstractBookingImportBean(ProgressReporter progressReporter, BankAccount contextAccount,
 			ImportedBankNameCorrectionHandler bankNameCorrectionHandler) {
-		this.worker = worker;
+		this.progressReporter = ProgressReporters.orNone(progressReporter);
 		this.contextAccount = contextAccount;
 		this.bankNameCorrectionHandler = bankNameCorrectionHandler;
 		this.bookingReferenceWriter = new ImportedBookingReferenceWriter(dbController);
@@ -60,8 +57,7 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 
 	protected Path prepareImportFile(String importFile, String messageKey) {
 		importStatistics.clear();
-		existingBookingsByAccountId.clear();
-		processedBookingsByAccountId.clear();
+		bookingPersistence.reset();
 		updateWorkerState(1, messageKey, importFile);
 
 		Path importPath = AppPaths.resolveInApplicationDirectory(importFile);
@@ -145,35 +141,6 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 		return normalizedIban != null && normalizedAccountNumber != null && normalizedIban.endsWith(normalizedAccountNumber);
 	}
 
-	protected boolean importBooking(BankAccount account, Booking booking, List<Booking> importedBookings) {
-		return importBookingAndReturn(account, booking, importedBookings) != null;
-	}
-
-	protected Booking importBookingAndReturn(BankAccount account, Booking booking, List<Booking> importedBookings) {
-		List<Booking> existingBookings = existingBookingsFor(account);
-		List<Booking> processedBookings = processedBookingsFor(account);
-		FileImportBean.ImportAccountStatistics statistics = importStatistics.forAccount(account.getAccountName(), existingBookings.size());
-
-		Booking existingBooking = ImportedBookingMatcher.findMatchingBooking(existingBookings, processedBookings, booking);
-		if (existingBooking != null) {
-			processedBookings.add(existingBooking);
-			statistics.incrementSkipped();
-			return null;
-		}
-
-		Booking persistedBooking = dbController.insertOrUpdate(booking);
-		if (persistedBooking == null) {
-			return null;
-		}
-
-		processedBookings.add(persistedBooking);
-		if (importedBookings != null) {
-			importedBookings.add(persistedBooking);
-		}
-		statistics.incrementAdded();
-		return persistedBooking;
-	}
-
 	protected void importBookings(Collection<ImportBankAccount> importAccounts, Map<ImportBankAccount, BankAccount> accountsByImportAccount,
 			List<Booking> importedBookings) {
 		if (importAccounts == null || importAccounts.isEmpty()) {
@@ -188,14 +155,13 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 			if (account == null) {
 				throw new GBankingException("No database account resolved for imported account " + importAccount.getAccountName() + ".");
 			}
-			List<Booking> existingBookings = existingBookingsFor(account);
-			List<Booking> processedBookings = processedBookingsFor(account);
-			FileImportBean.ImportAccountStatistics statistics = importStatistics.forAccount(account.getAccountName(), existingBookings.size());
+			FileImportBean.ImportAccountStatistics statistics = importStatistics.forAccount(account.getAccountName(),
+					bookingPersistence.existingBookingCount(account.getId()));
 
 			for (ImportBooking importBooking : importAccount.getBookings()) {
 				Booking bookingDao = ImportDaoMapper.maptoBookingDao(importBooking, account.getId(), resolveCrossAccountId(importBooking, account.getId()),
 						importBooking.getSource(), account.getBaseCurrency());
-				importBooking(crossBookingMap, importBooking, bookingDao, existingBookings, processedBookings, importedBookings, statistics);
+				importBooking(crossBookingMap, importBooking, bookingDao, importedBookings, statistics);
 			}
 		}
 	}
@@ -238,10 +204,8 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 	}
 
 	protected void updateWorkerState(int progress, String messageKey, Object... param) {
-		if (worker != null) {
-			worker.setProcessingState(getText(messageKey, param));
-			worker.setWorkerProgress(progress);
-		}
+		progressReporter.reportState(getText(messageKey, param));
+		progressReporter.reportProgress(progress);
 	}
 
 	protected String normalizeKey(String value) {
@@ -299,12 +263,12 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 	}
 
 	private void importBooking(Map<de.zft2.core.dto.Booking, Integer> crossBookingMap, ImportBooking importBooking, Booking bookingDao,
-			List<Booking> existingBookings, List<Booking> processedBookings, List<Booking> importedBookings,
+			List<Booking> importedBookings,
 			FileImportBean.ImportAccountStatistics statistics) {
-		Booking existingBooking = ImportedBookingMatcher.findMatchingBooking(existingBookings, processedBookings, bookingDao);
-		boolean existing = existingBooking != null;
+		ImportedBookingPersistence.Result persistenceResult = bookingPersistence.persist(bookingDao);
+		boolean existing = persistenceResult.existing();
 		boolean updated = false;
-		Booking resolvedBooking = existing ? existingBooking : dbController.insertOrUpdate(bookingDao);
+		Booking resolvedBooking = persistenceResult.booking();
 
 		if (importBooking.getCrossBooking() != null && !crossBookingMap.containsKey(importBooking) && resolvedBooking != null) {
 			crossBookingMap.put(importBooking.getCrossBooking(), resolvedBooking.getId());
@@ -332,22 +296,11 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 			}
 			statistics.incrementAdded();
 		}
-		if (resolvedBooking != null) {
-			processedBookings.add(resolvedBooking);
-		}
 	}
 
 	private boolean canLinkCrossBooking(Booking booking, Booking crossBooking) {
 		return !RebookingRules.isForbiddenSameAccountRebooking(booking.getAccountId(), crossBooking.getAccountId(),
-				isCancellation(booking) || isCancellation(crossBooking));
-	}
-
-	private boolean isCancellation(Booking booking) {
-		if (booking == null) {
-			return false;
-		}
-		BookingAdditionalDetails details = booking.getAdditionalDetails();
-		return booking.getBookingType() == BookingType.CANCEL || (details != null && Boolean.TRUE.equals(details.getStorno()));
+				RebookingRules.hasCancellationSignal(booking) || RebookingRules.hasCancellationSignal(crossBooking));
 	}
 
 	List<FileImportBean.ImportAccountStatistics> getImportStatistics() {
@@ -376,11 +329,4 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 		return sourceMap.get(normalizeKey(key));
 	}
 
-	private List<Booking> existingBookingsFor(BankAccount account) {
-		return existingBookingsByAccountId.computeIfAbsent(account.getId(), id -> new ArrayList<>(dbController.getAllByParentFull(Booking.class, id)));
-	}
-
-	private List<Booking> processedBookingsFor(BankAccount account) {
-		return processedBookingsByAccountId.computeIfAbsent(account.getId(), id -> new ArrayList<>());
-	}
 }

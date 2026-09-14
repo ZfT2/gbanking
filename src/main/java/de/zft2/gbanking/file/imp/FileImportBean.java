@@ -19,18 +19,17 @@ import org.xml.sax.SAXException;
 import de.zft2.fp3xmlextract.convert.Converter;
 import de.zft2.fp3xmlextract.convert.Fp3XmlBookingProcessor;
 import de.zft2.gbanking.BaseMessagesDb;
+import de.zft2.gbanking.concurrent.ProgressReporter;
+import de.zft2.gbanking.concurrent.ProgressReporters;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
-import de.zft2.gbanking.db.dao.BookingAdditionalDetails;
-import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
-import de.zft2.gbanking.gui.BaseWorker;
 import de.zft2.gbanking.mapper.ImportDaoMapper;
 import de.zft2.gbanking.rebooking.RebookingRules;
-import de.zft2.gbanking.service.importproperties.ImportPropertiesSynchronizationService;
 import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.service.importproperties.ImportPropertiesSynchronizationService;
 import de.zft2.gbanking.util.AppPaths;
 
 public class FileImportBean implements BaseMessagesDb {
@@ -54,25 +53,26 @@ public class FileImportBean implements BaseMessagesDb {
 	private int totalAccounts = 0;
 	private long totalBookings = 0L;
 
-	private final BaseWorker worker;
+	private final ProgressReporter progressReporter;
 	private final BankAccount contextAccount;
 	private final boolean forceFp3Import;
 	private final ImportedBankNameCorrectionHandler bankNameCorrectionHandler;
 	private final ImportedBookingReferenceWriter bookingReferenceWriter;
+	private final ImportedBookingPersistence bookingPersistence = new ImportedBookingPersistence(dbController);
 	private final ImportStatisticsCollector importStatistics = new ImportStatisticsCollector();
 	private int currentProgress = -1;
 
-	public FileImportBean(BaseWorker worker) {
-		this(worker, null, false);
+	public FileImportBean(ProgressReporter progressReporter) {
+		this(progressReporter, null, false);
 	}
 
-	public FileImportBean(BaseWorker worker, BankAccount contextAccount, boolean forceFp3Import) {
-		this(worker, contextAccount, forceFp3Import, null);
+	public FileImportBean(ProgressReporter progressReporter, BankAccount contextAccount, boolean forceFp3Import) {
+		this(progressReporter, contextAccount, forceFp3Import, null);
 	}
 
-	FileImportBean(BaseWorker worker, BankAccount contextAccount, boolean forceFp3Import,
+	FileImportBean(ProgressReporter progressReporter, BankAccount contextAccount, boolean forceFp3Import,
 			ImportedBankNameCorrectionHandler bankNameCorrectionHandler) {
-		this.worker = worker;
+		this.progressReporter = ProgressReporters.orNone(progressReporter);
 		this.contextAccount = contextAccount;
 		this.forceFp3Import = forceFp3Import;
 		this.bankNameCorrectionHandler = bankNameCorrectionHandler;
@@ -101,21 +101,15 @@ public class FileImportBean implements BaseMessagesDb {
 	}
 
 	private void updateWorkerState(int progress, String messageKey, Object... param) {
-		if (worker == null) {
-			return;
-		}
-		worker.setProcessingState(getText(messageKey, param));
+		progressReporter.reportState(getText(messageKey, param));
 		updateWorkerProgress(progress);
 	}
 
 	private void updateWorkerProgress(int progress) {
-		if (worker == null) {
-			return;
-		}
 		int boundedProgress = Math.max(0, Math.min(progress, PROGRESS_FINISHED));
 		if (boundedProgress != currentProgress) {
 			currentProgress = boundedProgress;
-			worker.setWorkerProgress(boundedProgress);
+			progressReporter.reportProgress(boundedProgress);
 		}
 	}
 
@@ -383,6 +377,7 @@ public class FileImportBean implements BaseMessagesDb {
 	private boolean writeBookingsToDB(Collection<de.zft2.fp3xmlextract.data.Fp3XmlBankAccount> bankAccountList, long bookingCount) {
 
 		importStatistics.clear();
+		bookingPersistence.reset();
 
 		Map<de.zft2.core.dto.Booking, Integer> crossBookingMap = new HashMap<>();
 
@@ -396,15 +391,14 @@ public class FileImportBean implements BaseMessagesDb {
 			String accountName = bankAccountXml.getNamePP();
 			List<de.zft2.fp3xmlextract.data.Fp3XmlBooking> bookingsList = bankAccountXml.getBookings();
 			List<Booking> bookingDaoList = new ArrayList<>();
-			List<Booking> processedBookings = new ArrayList<>();
 			Integer accountId = accountIdMapByAccountname.get(accountName);
-			List<Booking> existingBookings = accountId == null ? List.of() : dbController.getAllByParentFull(Booking.class, accountId);
-			ImportAccountStatistics accountStatistics = importStatistics.forAccount(accountName, existingBookings.size());
+			int existingBookingCount = accountId == null ? 0 : bookingPersistence.existingBookingCount(accountId);
+			ImportAccountStatistics accountStatistics = importStatistics.forAccount(accountName, existingBookingCount);
 
 			updateWorkerStateBookings(importedBookingsCount, "UI_PROGRESS_IMPORT_BOOKINGS_ACCOUNT_COUNT", accountName, bookingsList.size());
 
-			importedBookingsCount = writeBookingsForAccount(crossBookingMap, accountName, bookingsList, bookingDaoList, existingBookings,
-					processedBookings, accountStatistics, importedBookingsCount);
+			importedBookingsCount = writeBookingsForAccount(crossBookingMap, accountName, bookingsList, bookingDaoList,
+					accountStatistics, importedBookingsCount);
 
 			log.info("Imported bookings for accountId={}: written={}, skippedDuplicates={}", accountId, bookingDaoList.size(),
 					accountStatistics.getSkippedBookings());
@@ -419,12 +413,11 @@ public class FileImportBean implements BaseMessagesDb {
 	}
 
 	private long writeBookingsForAccount(Map<de.zft2.core.dto.Booking, Integer> crossBookingMap, String accountName,
-			List<de.zft2.fp3xmlextract.data.Fp3XmlBooking> bookingsList, List<Booking> bookingDaoList,
-			List<Booking> existingBookings, List<Booking> processedBookings, ImportAccountStatistics accountStatistics,
+			List<de.zft2.fp3xmlextract.data.Fp3XmlBooking> bookingsList, List<Booking> bookingDaoList, ImportAccountStatistics accountStatistics,
 			long importedBookingsCount) {
 
 		for (de.zft2.fp3xmlextract.data.Fp3XmlBooking xmlBooking : bookingsList) {
-			ImportedBookingResult importResult = writeBookingForAccount(crossBookingMap, accountName, existingBookings, processedBookings, xmlBooking);
+			ImportedBookingResult importResult = writeBookingForAccount(crossBookingMap, accountName, xmlBooking);
 			applyImportResult(bookingDaoList, accountStatistics, importResult);
 			updateBookingProgress(++importedBookingsCount);
 		}
@@ -432,7 +425,6 @@ public class FileImportBean implements BaseMessagesDb {
 	}
 
 	private ImportedBookingResult writeBookingForAccount(Map<de.zft2.core.dto.Booking, Integer> crossBookingMap, String accountName,
-			List<Booking> existingBookings, List<Booking> processedBookings,
 			de.zft2.fp3xmlextract.data.Fp3XmlBooking xmlBooking) {
 
 		int accountId = ImportedAccountResolver.resolveAccountId(accountName, xmlBooking, accountIdMapByAccountname);
@@ -440,15 +432,12 @@ public class FileImportBean implements BaseMessagesDb {
 				crossAccountIdMapByIdentifier);
 		Booking bookingDao = ImportDaoMapper.maptoBookingDao(xmlBooking, accountId, crossAccountId, Source.IMPORT_INITIAL,
 				baseCurrencyByAccountId.getOrDefault(accountId, Currency.EUR));
-		Booking existingBooking = ImportedBookingMatcher.findMatchingBooking(existingBookings, processedBookings, bookingDao);
-		boolean existing = existingBooking != null;
-		Booking resolvedBooking = existing ? existingBooking : dbController.insertOrUpdate(bookingDao);
+		ImportedBookingPersistence.Result persistenceResult = bookingPersistence.persist(bookingDao);
+		boolean existing = persistenceResult.existing();
+		Booking resolvedBooking = persistenceResult.booking();
 
 		registerPendingCrossBooking(crossBookingMap, xmlBooking, resolvedBooking);
 		boolean updated = linkCrossBookingIfPossible(crossBookingMap, xmlBooking, resolvedBooking) && existing;
-		if (resolvedBooking != null) {
-			processedBookings.add(resolvedBooking);
-		}
 		return new ImportedBookingResult(existing, updated, resolvedBooking);
 	}
 
@@ -496,39 +485,25 @@ public class FileImportBean implements BaseMessagesDb {
 
 	private boolean canLinkCrossBooking(Booking booking, Booking crossBooking) {
 		return !RebookingRules.isForbiddenSameAccountRebooking(booking.getAccountId(), crossBooking.getAccountId(),
-				isCancellation(booking) || isCancellation(crossBooking));
-	}
-
-	private boolean isCancellation(Booking booking) {
-		if (booking == null) {
-			return false;
-		}
-		BookingAdditionalDetails details = booking.getAdditionalDetails();
-		return booking.getBookingType() == BookingType.CANCEL || (details != null && Boolean.TRUE.equals(details.getStorno()));
+				RebookingRules.hasCancellationSignal(booking) || RebookingRules.hasCancellationSignal(crossBooking));
 	}
 
 	private Collection<Booking> persistImportedBookings(Collection<Booking> bookingDaoList) {
 		Collection<Booking> persistedBookings = new ArrayList<>();
-		Map<Integer, List<Booking>> existingBookingsByAccountId = new HashMap<>();
-		Map<Integer, List<Booking>> processedBookingsByAccountId = new HashMap<>();
+		bookingPersistence.reset();
 		totalBookings = bookingDaoList.size();
 		long importedBookingsCount = 0L;
 		updateWorkerStateBookings(importedBookingsCount, "UI_PROGRESS_IMPORT_BOOKINGS");
 
 		for (Booking booking : bookingDaoList) {
-			List<Booking> existingBookings = existingBookingsByAccountId.computeIfAbsent(booking.getAccountId(),
-					accountId -> new ArrayList<>(dbController.getAllByParentFull(Booking.class, accountId)));
-			List<Booking> processedBookings = processedBookingsByAccountId.computeIfAbsent(booking.getAccountId(), accountId -> new ArrayList<>());
-			Booking duplicate = ImportedBookingMatcher.findMatchingBooking(existingBookings, processedBookings, booking);
-			if (duplicate != null) {
-				processedBookings.add(duplicate);
+			ImportedBookingPersistence.Result persistenceResult = bookingPersistence.persist(booking);
+			if (persistenceResult.existing()) {
 				updateBookingProgress(++importedBookingsCount);
 				continue;
 			}
-			Booking persistedBooking = dbController.insertOrUpdate(booking);
+			Booking persistedBooking = persistenceResult.booking();
 			if (persistedBooking != null) {
 				persistedBookings.add(persistedBooking);
-				processedBookings.add(persistedBooking);
 			}
 			updateBookingProgress(++importedBookingsCount);
 		}

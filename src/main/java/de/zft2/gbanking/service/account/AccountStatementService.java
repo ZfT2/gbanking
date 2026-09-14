@@ -1,7 +1,5 @@
 package de.zft2.gbanking.service.account;
 
-import static de.zft2.gbanking.util.TextValues.trimToNull;
-
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -48,6 +46,9 @@ import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.HbciSessionRunner;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
+import de.zft2.gbanking.service.account.AccountStatementRequestPlanner.StatementOverviewEntry;
+import de.zft2.gbanking.service.account.AccountStatementRequestPlanner.StatementRequest;
+import de.zft2.gbanking.util.TypeConverter;
 
 public class AccountStatementService extends AbstractDbService {
 
@@ -59,10 +60,6 @@ public class AccountStatementService extends AbstractDbService {
 	private static final String RECEIPT_JOB = "Receipt";
 	private static final String OVERVIEW_BUSINESS_CASE = "HKKAU";
 	private static final String UI_JOB_STATEMENT = "UI_DIALOG_HBCI_JOB_STATEMENT";
-	private static final Set<String> OVERVIEW_RESULT_FIELDS = Set.of("number", "acknowledgement", "retrievable", "year", "date", "time",
-			"creationtype", "documentid");
-	private static final int FIRST_RETRIEVAL_LOOKBACK_YEARS = 4;
-	private static final int REDOWNLOAD_LOOKBACK_MONTHS = FIRST_RETRIEVAL_LOOKBACK_YEARS * 12;
 	private static final int REDOWNLOAD_EMPTY_RESULT_LIMIT = 6;
 
 	private final BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
@@ -95,7 +92,7 @@ public class AccountStatementService extends AbstractDbService {
 		BankAccess bankAccess = hbciSupport.initBankAccess(bankAccount, pin);
 		if (bankAccess == null) {
 			log.info("HBCI account statement retrieval skipped, no bank access available.");
-			clearSecret(pin);
+			HbciSessionRunner.clearSecret(pin);
 			return AccountStatementRetrievalResult.failure();
 		}
 
@@ -123,7 +120,7 @@ public class AccountStatementService extends AbstractDbService {
 		BankAccess bankAccess = hbciSupport.initBankAccess(bankAccount, pin);
 		if (bankAccess == null) {
 			log.info("HBCI account statement receipt acknowledgement skipped, no bank access available.");
-			clearSecret(pin);
+			HbciSessionRunner.clearSecret(pin);
 			return AccountStatementAcknowledgementResult.failure();
 		}
 
@@ -228,8 +225,8 @@ public class AccountStatementService extends AbstractDbService {
 			return StatementRetrievalBatchResult.success(List.of());
 		}
 
-		Set<String> knownStatementIds = createKnownStatementIds(storedStatements, currentStatements);
-		List<StatementRequest> statementRequests = createOverviewDownloadRequests(overviewResult.entries(), knownStatementIds);
+		Set<String> knownStatementIds = AccountStatementRequestPlanner.createKnownStatementIds(storedStatements, currentStatements);
+		List<StatementRequest> statementRequests = AccountStatementRequestPlanner.createOverviewDownloadRequests(overviewResult.entries(), knownStatementIds);
 		if (statementRequests.isEmpty()) {
 			log.info("No downloadable account statements from HKKAU overview are missing for account id {}.", bankAccount.getId());
 			return StatementRetrievalBatchResult.success(List.of());
@@ -270,7 +267,7 @@ public class AccountStatementService extends AbstractDbService {
 			return StatementOverviewResult.success(List.of());
 		}
 
-		List<StatementOverviewEntry> overviewEntries = readStatementOverviewEntries(overviewJobResult.getResultData());
+		List<StatementOverviewEntry> overviewEntries = AccountStatementRequestPlanner.readOverviewEntries(overviewJobResult.getResultData());
 		log.info("Received {} account statement overview entries from HKKAU for account id {}.", overviewEntries.size(), bankAccountId);
 		return StatementOverviewResult.success(overviewEntries);
 	}
@@ -309,7 +306,7 @@ public class AccountStatementService extends AbstractDbService {
 	private StatementRetrievalBatchResult redownloadAcknowledgedAccountStatements(BankAccount bankAccount, HbciSessionRunner.HbciSession session,
 			Konto konto, String statementJobName, List<BankAccountStatement> storedStatements, Set<String> retrievedStatementKeys) {
 		YearMonth startMonth = YearMonth.now(ZoneId.systemDefault()).minusMonths(1);
-		List<StatementRequest> statementRequests = createRedownloadRequests(storedStatements, startMonth);
+		List<StatementRequest> statementRequests = AccountStatementRequestPlanner.createRedownloadRequests(storedStatements, startMonth);
 		log.info("Starting redownload of acknowledged account statements for account id {} with {} request(s).", bankAccount.getId(),
 				statementRequests.size());
 		return retrieveStatementRequests(bankAccount, session, konto, statementJobName, statementRequests, retrievedStatementKeys);
@@ -412,171 +409,9 @@ public class AccountStatementService extends AbstractDbService {
 		return receiptsOk ? StatementRetrievalBatchResult.success(accountStatements) : StatementRetrievalBatchResult.failure(accountStatements);
 	}
 
-	List<StatementRequest> createRedownloadRequests(List<BankAccountStatement> storedStatements, YearMonth startMonth) {
-		List<StatementRequest> statementRequests = new ArrayList<>();
-		Set<String> requestedStatementIds = new HashSet<>();
-		addStoredRedownloadRequests(statementRequests, requestedStatementIds, storedStatements);
-		addFallbackRedownloadRequests(statementRequests, requestedStatementIds, startMonth);
-		return statementRequests;
-	}
-
-	private void addStoredRedownloadRequests(List<StatementRequest> statementRequests, Set<String> requestedStatementIds,
-			List<BankAccountStatement> storedStatements) {
-		List<BankAccountStatement> acknowledgedStatements = new ArrayList<>();
-		if (storedStatements != null) {
-			for (BankAccountStatement statement : storedStatements) {
-				if (isRedownloadableStoredStatement(statement)) {
-					acknowledgedStatements.add(statement);
-				}
-			}
-		}
-
-		acknowledgedStatements.sort((left, right) -> {
-			int yearCompare = Integer.compare(right.getYear(), left.getYear());
-			return yearCompare != 0 ? yearCompare : Integer.compare(right.getNumber(), left.getNumber());
-		});
-
-		for (BankAccountStatement statement : acknowledgedStatements) {
-			addRedownloadRequest(statementRequests, requestedStatementIds,
-					new StatementRequest(toStatementRequestYear(statement.getYear()), statement.getNumber(), true));
-		}
-	}
-
-	private boolean isRedownloadableStoredStatement(BankAccountStatement statement) {
-		return statement != null && statement.isAcknowledged() && statement.getNumber() > 0;
-	}
-
-	private void addFallbackRedownloadRequests(List<StatementRequest> statementRequests, Set<String> requestedStatementIds, YearMonth startMonth) {
-		YearMonth statementMonth = startMonth != null ? startMonth : YearMonth.now(ZoneId.systemDefault()).minusMonths(1);
-		for (int monthOffset = 0; monthOffset < REDOWNLOAD_LOOKBACK_MONTHS; monthOffset++) {
-			addRedownloadRequest(statementRequests, requestedStatementIds,
-					new StatementRequest(statementMonth.getYear(), statementMonth.getMonthValue(), false));
-			statementMonth = statementMonth.minusMonths(1);
-		}
-	}
-
-	private void addRedownloadRequest(List<StatementRequest> statementRequests, Set<String> requestedStatementIds, StatementRequest statementRequest) {
-		String statementId = statementId(statementRequest.year(), statementRequest.number());
-		if (requestedStatementIds.add(statementId)) {
-			statementRequests.add(statementRequest);
-		}
-	}
-
-	List<StatementRequest> createOverviewDownloadRequests(List<StatementOverviewEntry> overviewEntries, Set<String> knownStatementIds) {
-		List<StatementOverviewEntry> downloadableEntries = new ArrayList<>();
-		if (overviewEntries != null) {
-			for (StatementOverviewEntry overviewEntry : overviewEntries) {
-				if (overviewEntry != null && overviewEntry.retrievable() && overviewEntry.number() > 0) {
-					downloadableEntries.add(overviewEntry);
-				}
-			}
-		}
-
-		downloadableEntries.sort((left, right) -> {
-			int yearCompare = Integer.compare(statementYearValue(right.year()), statementYearValue(left.year()));
-			return yearCompare != 0 ? yearCompare : Integer.compare(right.number(), left.number());
-		});
-
-		Set<String> requestedStatementIds = new HashSet<>();
-		if (knownStatementIds != null) {
-			requestedStatementIds.addAll(knownStatementIds);
-		}
-
-		List<StatementRequest> statementRequests = new ArrayList<>();
-		for (StatementOverviewEntry overviewEntry : downloadableEntries) {
-			addRedownloadRequest(statementRequests, requestedStatementIds,
-					new StatementRequest(overviewEntry.year(), overviewEntry.number(), true));
-		}
-		return statementRequests;
-	}
-
-	List<StatementOverviewEntry> readStatementOverviewEntries(Properties resultData) {
-		if (resultData == null || resultData.isEmpty()) {
-			return List.of();
-		}
-
-		List<String> prefixes = overviewEntryPrefixes(resultData);
-		List<StatementOverviewEntry> entries = new ArrayList<>();
-		for (String prefix : prefixes) {
-			int number = parseInt(resultData.getProperty(prefix + ".number"), 0);
-			if (number <= 0) {
-				continue;
-			}
-			Integer year = parseInteger(resultData.getProperty(prefix + ".year"));
-			entries.add(new StatementOverviewEntry(
-					year,
-					number,
-					parseBoolean(resultData.getProperty(prefix + ".retrievable")),
-					trimToNull(resultData.getProperty(prefix + ".acknowledgement")),
-					parseDate(resultData.getProperty(prefix + ".date")),
-					trimToNull(resultData.getProperty(prefix + ".time")),
-					trimToNull(resultData.getProperty(prefix + ".creationtype")),
-					trimToNull(resultData.getProperty(prefix + ".documentid"))));
-		}
-		return entries;
-	}
-
-	private List<String> overviewEntryPrefixes(Properties resultData) {
-		Set<String> prefixes = new HashSet<>();
-		for (String key : resultData.stringPropertyNames()) {
-			int separator = key.lastIndexOf('.');
-			if (separator <= 0 || separator == key.length() - 1) {
-				continue;
-			}
-			String fieldName = key.substring(separator + 1);
-			if (OVERVIEW_RESULT_FIELDS.contains(fieldName)) {
-				prefixes.add(key.substring(0, separator));
-			}
-		}
-
-		List<String> sortedPrefixes = new ArrayList<>(prefixes);
-		sortedPrefixes.sort((left, right) -> Integer.compare(overviewPrefixIndex(left), overviewPrefixIndex(right)));
-		return sortedPrefixes;
-	}
-
-	private int overviewPrefixIndex(String prefix) {
-		if ("content".equals(prefix)) {
-			return 0;
-		}
-		if (prefix != null && prefix.startsWith("content_")) {
-			return parseInt(prefix.substring("content_".length()), Integer.MAX_VALUE);
-		}
-		return Integer.MAX_VALUE;
-	}
-
-	private Set<String> createKnownStatementIds(List<BankAccountStatement> storedStatements, List<AccountStatement> currentStatements) {
-		Set<String> knownStatementIds = new HashSet<>();
-		if (storedStatements != null) {
-			for (BankAccountStatement statement : storedStatements) {
-				if (statement != null && statement.getNumber() > 0) {
-					knownStatementIds.add(statementId(toStatementRequestYear(statement.getYear()), statement.getNumber()));
-				}
-			}
-		}
-		if (currentStatements != null) {
-			for (AccountStatement statement : currentStatements) {
-				if (statement != null && statement.number() > 0) {
-					knownStatementIds.add(statementId(toStatementRequestYear(statement.year()), statement.number()));
-				}
-			}
-		}
-		return knownStatementIds;
-	}
-
 	private boolean shouldRetrieveStatementOverview(List<BankAccountStatement> storedStatements) {
-		return AccountStatementSettings.isDownloadOverviewEnabled() || !hasStoredStatementNumbers(storedStatements);
-	}
-
-	private boolean hasStoredStatementNumbers(List<BankAccountStatement> storedStatements) {
-		if (storedStatements == null || storedStatements.isEmpty()) {
-			return false;
-		}
-		for (BankAccountStatement statement : storedStatements) {
-			if (statement != null && statement.getNumber() > 0) {
-				return true;
-			}
-		}
-		return false;
+		return AccountStatementSettings.isDownloadOverviewEnabled()
+				|| !AccountStatementRequestPlanner.hasStoredStatementNumbers(storedStatements);
 	}
 
 	private boolean isStatementOverviewSupported(HBCIHandler handler, BankAccount bankAccount) {
@@ -609,18 +444,6 @@ public class AccountStatementService extends AbstractDbService {
 
 	private String normalizeBusinessCaseCode(String value) {
 		return value == null ? "" : value.trim().toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]", "");
-	}
-
-	private Integer toStatementRequestYear(int year) {
-		return year > 0 ? Integer.valueOf(year) : null;
-	}
-
-	private String statementId(Integer year, int number) {
-		return (year != null ? year.toString() : "") + "/" + number;
-	}
-
-	private int statementYearValue(Integer year) {
-		return year != null ? year.intValue() : 0;
 	}
 
 	private List<HBCIJob<GVRKontoauszug>> createStatementJobs(HBCIHandler handler, String statementJobName, Konto konto, List<Integer> years,
@@ -661,10 +484,7 @@ public class AccountStatementService extends AbstractDbService {
 		}
 
 		int currentYear = Year.now(ZoneId.systemDefault()).getValue();
-		List<Integer> years = new ArrayList<>();
-		for (int year = currentYear; year >= currentYear - FIRST_RETRIEVAL_LOOKBACK_YEARS; year--) {
-			years.add(year);
-		}
+		List<Integer> years = AccountStatementRequestPlanner.createInitialRetrievalYears(currentYear);
 		log.info("No stored account statements found for account id {}, requesting years {}.", bankAccount.getId(), years);
 		return years;
 	}
@@ -777,9 +597,9 @@ public class AccountStatementService extends AbstractDbService {
 		statement.setFileName(statementFileManager.logicalFileName(statementFile));
 		statement.setFormat(formatName(entry.getFormat()));
 		statement.setRetrievedAt(retrievedAt);
-		statement.setStatementDate(toLocalDate(entry.getDate()));
-		statement.setStartDate(toLocalDate(entry.getStartDate()));
-		statement.setEndDate(toLocalDate(entry.getEndDate()));
+		statement.setStatementDate(TypeConverter.toLocalDate(entry.getDate()));
+		statement.setStartDate(TypeConverter.toLocalDate(entry.getStartDate()));
+		statement.setEndDate(TypeConverter.toLocalDate(entry.getEndDate()));
 		statement.setYear(entry.getYear());
 		statement.setNumber(entry.getNumber());
 		statement.setSize(entry.getData().length);
@@ -817,7 +637,7 @@ public class AccountStatementService extends AbstractDbService {
 
 	private List<String> statementSessionKeys(BankAccount bankAccount, GVRKontoauszugEntry entry) {
 		List<String> statementKeys = new ArrayList<>();
-		int year = resolvedStatementYear(entry.getYear(), toLocalDate(entry.getDate()));
+		int year = resolvedStatementYear(entry.getYear(), TypeConverter.toLocalDate(entry.getDate()));
 		if (year > 0 && entry.getNumber() > 0) {
 			statementKeys.add(statementNumberKey(bankAccount.getId(), year, entry.getNumber()));
 		}
@@ -869,7 +689,7 @@ public class AccountStatementService extends AbstractDbService {
 		if (entry.getNumber() <= 0 || storedStatement.getNumber() <= 0 || entry.getNumber() != storedStatement.getNumber()) {
 			return false;
 		}
-		int entryYear = resolvedStatementYear(entry.getYear(), toLocalDate(entry.getDate()));
+		int entryYear = resolvedStatementYear(entry.getYear(), TypeConverter.toLocalDate(entry.getDate()));
 		int storedYear = resolvedStatementYear(storedStatement.getYear(), storedStatement.getStatementDate());
 		return entryYear > 0 && storedYear > 0 && entryYear == storedYear;
 	}
@@ -1105,60 +925,6 @@ public class AccountStatementService extends AbstractDbService {
 		return format != null ? format.name() : "UNKNOWN";
 	}
 
-	private LocalDate toLocalDate(java.util.Date date) {
-		if (date == null) {
-			return null;
-		}
-		if (date instanceof java.sql.Date sqlDate) {
-			return sqlDate.toLocalDate();
-		}
-		return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-	}
-
-	private LocalDate parseDate(String value) {
-		String normalizedValue = trimToNull(value);
-		if (normalizedValue == null) {
-			return null;
-		}
-		try {
-			if (normalizedValue.length() == 8) {
-				return LocalDate.of(
-						Integer.parseInt(normalizedValue.substring(0, 4)),
-						Integer.parseInt(normalizedValue.substring(4, 6)),
-						Integer.parseInt(normalizedValue.substring(6, 8)));
-			}
-			return LocalDate.parse(normalizedValue);
-		} catch (RuntimeException e) {
-			log.warn("Could not parse HKKAU account statement overview date {}.", normalizedValue, e);
-			return null;
-		}
-	}
-
-	private boolean parseBoolean(String value) {
-		String normalizedValue = trimToNull(value);
-		return normalizedValue != null
-				&& ("J".equalsIgnoreCase(normalizedValue) || "Y".equalsIgnoreCase(normalizedValue) || "1".equals(normalizedValue)
-						|| Boolean.parseBoolean(normalizedValue));
-	}
-
-	private Integer parseInteger(String value) {
-		String normalizedValue = trimToNull(value);
-		if (normalizedValue == null) {
-			return null;
-		}
-		try {
-			return Integer.valueOf(normalizedValue);
-		} catch (NumberFormatException e) {
-			log.warn("Could not parse HKKAU account statement overview integer {}.", normalizedValue, e);
-			return null;
-		}
-	}
-
-	private int parseInt(String value, int defaultValue) {
-		Integer parsedValue = parseInteger(value);
-		return parsedValue != null ? parsedValue.intValue() : defaultValue;
-	}
-
 	private String firstText(String... values) {
 		for (String value : values) {
 			if (value != null && !value.isBlank()) {
@@ -1172,10 +938,6 @@ public class AccountStatementService extends AbstractDbService {
 		if (value != null && !value.isBlank()) {
 			job.setParam(parameterName, value);
 		}
-	}
-
-	private void clearSecret(char[] secret) {
-		HbciSessionRunner.clearSecret(secret);
 	}
 
 	private record StatementRetrievalBatchResult(boolean successful, boolean wrongPin, List<AccountStatement> statements) {
@@ -1219,10 +981,4 @@ public class AccountStatementService extends AbstractDbService {
 		}
 	}
 
-	record StatementOverviewEntry(Integer year, int number, boolean retrievable, String acknowledgementCode, LocalDate creationDate, String creationTime,
-			String creationType, String documentId) {
-	}
-
-	record StatementRequest(Integer year, int number, boolean exactStatement) {
-	}
 }

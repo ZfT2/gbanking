@@ -134,13 +134,12 @@ public class EnablebankingSetupService extends AbstractDbService {
 			List<BankAccount> matches = existingAccounts.stream()
 					.filter(account -> sameAccount(account, remoteAccount))
 					.toList();
-			if (matches.stream().anyMatch(account -> hasPriorityAccess(account, existingAccesses))) {
-				continue;
+			if (matches.stream().noneMatch(account -> hasPriorityAccess(account, existingAccesses))) {
+				BankAccount reusableAccount = matches.stream()
+						.filter(account -> account.getBankAccessId() == null || account.getBankAccessId() <= 0)
+						.findFirst().orElse(null);
+				selectable.add(mapAccount(aspsp, remoteAccount, reusableAccount));
 			}
-			BankAccount reusableAccount = matches.stream()
-					.filter(account -> account.getBankAccessId() == null || account.getBankAccessId() <= 0)
-					.findFirst().orElse(null);
-			selectable.add(mapAccount(aspsp, remoteAccount, reusableAccount));
 		}
 		return selectable;
 	}

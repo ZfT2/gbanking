@@ -93,7 +93,7 @@ public class AccountTransactionService extends AbstractDbService {
 			return ServiceRegistry.getService(PaypalAccountTransactionService.class).retrieve(bankAccount, pin);
 		}
 		if (configuredAccess != null && configuredAccess.getAccessType() == BankAccessType.ENABLEBANKING) {
-			clearSecret(pin);
+			HbciSessionRunner.clearSecret(pin);
 			return ServiceRegistry.getService(EnablebankingAccountTransactionService.class).retrieve(bankAccount);
 		}
 		return retrieveFintsAccountTransactions(bankAccount, pin);
@@ -156,7 +156,7 @@ public class AccountTransactionService extends AbstractDbService {
 					AccountTransactionRetrievalResult.failure(getText("ERROR_ACCOUNT_TRANSACTION_RETRIEVAL_STORAGE_FAILED")), e);
 			throw e;
 		} finally {
-			clearSecret(pin);
+			HbciSessionRunner.clearSecret(pin);
 		}
 	}
 
@@ -586,7 +586,7 @@ public class AccountTransactionService extends AbstractDbService {
 		booking.setDateValue(LocalDate.now(ZoneId.systemDefault()));
 		booking.setPurpose(getText("BOOKING_PURPOSE_AUTO_ADJUSTING"));
 		booking.setAmount(amount);
-		booking.setBookingType(amount.signum() < 0 ? BookingType.REMOVAL : BookingType.DEPOSIT);
+		booking.setBookingType(BookingType.fromAmount(amount));
 		booking.setSource(Source.AUTO_ADJUSTING);
 		booking.setUpdatedAt(LocalDate.now(ZoneId.systemDefault()));
 		return booking;
@@ -864,7 +864,4 @@ public class AccountTransactionService extends AbstractDbService {
 				: normalizedMessage.substring(0, MAX_RETRIEVAL_ERROR_LENGTH);
 	}
 
-	private void clearSecret(char[] secret) {
-		HbciSessionRunner.clearSecret(secret);
-	}
 }

@@ -166,7 +166,7 @@ public class PaypalAccountTransactionService extends AbstractDbService {
 		BookingCurrencyMapper.mapAmounts(booking, baseAmount, baseAmountCurrency, bankAccount.getBaseCurrency(),
 				foreignAmount, foreignCurrency, exchangeRate);
 		booking.setFee(BookingCurrencyMapper.createFee(transaction.feeAmount(), transaction.feeCurrency(), bankAccount.getBaseCurrency()));
-		booking.setBookingType(booking.getAmount().signum() < 0 ? BookingType.REMOVAL : BookingType.DEPOSIT);
+		booking.setBookingType(BookingType.fromAmount(booking.getAmount()));
 		booking.setSource(Source.ONLINE_NEW);
 		booking.setAdditionalDetails(additionalDetails(transaction));
 		booking.setRecipient(recipient(transaction));
@@ -219,7 +219,10 @@ public class PaypalAccountTransactionService extends AbstractDbService {
 	}
 
 	private BigDecimal signedAmount(BigDecimal amount, int sign) {
-		return amount == null ? null : sign < 0 ? amount.abs().negate() : amount.abs();
+		if (amount == null) {
+			return null;
+		}
+		return sign < 0 ? amount.abs().negate() : amount.abs();
 	}
 
 	private AccountTransactionRetrievalResult persist(BankAccount account, AccountTransactionRetrievalResult result) {

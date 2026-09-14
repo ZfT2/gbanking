@@ -1,5 +1,7 @@
 package de.zft2.gbanking.file.imp.csv;
 
+import static de.zft2.gbanking.util.TextValues.removeLeadingBom;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -69,22 +71,19 @@ public class CsvImportDefinitionRepository {
 		Map<String, String> properties = new LinkedHashMap<>();
 
 		for (int index = 0; index < lines.size(); index++) {
-			String line = stripBom(lines.get(index)).trim();
-			if (line.isEmpty() || line.startsWith("#") || line.startsWith(";")) {
-				continue;
-			}
-			if (line.startsWith("[") && line.endsWith("]")) {
-				addDefinition(definitions, currentName, properties, source);
-				currentName = bookingSectionName(line);
-				properties = new LinkedHashMap<>();
-				continue;
-			}
-			if (currentName != null) {
-				int separator = line.indexOf('=');
-				if (separator <= 0) {
-					throw invalidLine(source, index + 1);
+			String line = removeLeadingBom(lines.get(index)).trim();
+			if (!line.isEmpty() && !line.startsWith("#") && !line.startsWith(";")) {
+				if (line.startsWith("[") && line.endsWith("]")) {
+					addDefinition(definitions, currentName, properties, source);
+					currentName = bookingSectionName(line);
+					properties = new LinkedHashMap<>();
+				} else if (currentName != null) {
+					int separator = line.indexOf('=');
+					if (separator <= 0) {
+						throw invalidLine(source, index + 1);
+					}
+					properties.put(line.substring(0, separator).trim(), line.substring(separator + 1).trim());
 				}
-				properties.put(line.substring(0, separator).trim(), line.substring(separator + 1).trim());
 			}
 		}
 		addDefinition(definitions, currentName, properties, source);
@@ -111,7 +110,4 @@ public class CsvImportDefinitionRepository {
 		return new GBankingException("Invalid CSV import definition in " + source + " at line " + lineNumber);
 	}
 
-	private String stripBom(String value) {
-		return value != null && !value.isEmpty() && value.charAt(0) == '\uFEFF' ? value.substring(1) : value;
-	}
 }

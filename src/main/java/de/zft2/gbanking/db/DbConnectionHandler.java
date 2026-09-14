@@ -1,7 +1,6 @@
 package de.zft2.gbanking.db;
 
 import java.io.IOException;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -25,6 +24,7 @@ import de.zft2.gbanking.db.repository.SqlTemplateRepository;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.tenant.TenantPaths;
 import de.zft2.gbanking.util.AppPaths;
+import de.zft2.gbanking.util.FileMoves;
 
 abstract class DbConnectionHandler {
 
@@ -33,6 +33,7 @@ abstract class DbConnectionHandler {
 
 	private static final String INSTITUTE_DB_ALIAS = "institute_db";
 	private static final String INSTITUTE_DB_FILE_NAME = "institute.db";
+	private static final String MAIN_DB_FILE_NAME = "gbanking.db";
 	private static final String MAIN_DB_ALIAS = "main";
 	private static final String SQL_FUNCTION_EQUALS_IGNORE_CASE = "gb_equals_ignore_case";
 	private static final int SQLITE_BUSY_TIMEOUT_MILLIS = 5_000;
@@ -94,7 +95,7 @@ abstract class DbConnectionHandler {
 		DbTransactionManager.withLifecycleLock(() -> {
 			String candidateDbFilePath = DbRuntimeContext.resolveDbDirectoryForSessionAccess(dbFilePath);
 			Path candidateDbFile = AppPaths.resolveInApplicationDirectory(candidateDbFilePath)
-					.resolve("gbanking.db").toAbsolutePath().normalize();
+					.resolve(MAIN_DB_FILE_NAME).toAbsolutePath().normalize();
 			if (isCurrentSession(candidateDbFile.toString())) {
 				return;
 			}
@@ -110,7 +111,7 @@ abstract class DbConnectionHandler {
 	private static void initializeLocked(String dbFilePath, DbMigrationProgressListener migrationProgressListener,
 			boolean allowMissingInstituteDatabase) {
 		Path dbDirectory = AppPaths.resolveInApplicationDirectory(dbFilePath);
-		Path dbFile = dbDirectory.resolve("gbanking.db").toAbsolutePath().normalize();
+		Path dbFile = dbDirectory.resolve(MAIN_DB_FILE_NAME).toAbsolutePath().normalize();
 		String path = dbFile.toString();
 
 		if (isCurrentSession(path)) {
@@ -134,8 +135,10 @@ abstract class DbConnectionHandler {
 			log.info("Using database file: {}", dbFile.getFileName());
 			log.debug("Using database path: {}", dbFile);
 			log.info("...Connection established");
-			log.info("Foreign Keys enabled: {}",
-					executeConfigStatement(newSession.connection(), "foreign_keys", "SQL_READ_FOREIGN_KEYS"));
+			if (log.isInfoEnabled()) {
+				log.info("Foreign Keys enabled: {}",
+						executeConfigStatement(newSession.connection(), "foreign_keys", "SQL_READ_FOREIGN_KEYS"));
+			}
 			registerShutdownHook();
 		} catch (SQLException exception) {
 			GBankingException failure = new GBankingException("Error in initialisation of database connection", exception);
@@ -177,7 +180,7 @@ abstract class DbConnectionHandler {
 		} finally {
 			closeSession(stagingSession, failure);
 		}
-		if (stagingSession != null && stagingSession.instituteDatabaseFile() != null) {
+		if (stagingSession.instituteDatabaseFile() != null) {
 			VALIDATIONS.remember(stagingSession.instituteDatabaseFile(), false,
 					stagingSession.instituteDatabaseVersion());
 		}
@@ -230,7 +233,7 @@ abstract class DbConnectionHandler {
 
 	private static boolean hasPendingMigrationsLocked(String dbFilePath) {
 		Path dbDirectory = AppPaths.resolveInApplicationDirectory(dbFilePath);
-		Path dbFile = dbDirectory.resolve("gbanking.db").toAbsolutePath().normalize();
+		Path dbFile = dbDirectory.resolve(MAIN_DB_FILE_NAME).toAbsolutePath().normalize();
 		if (!Files.exists(dbFile)) {
 			return false;
 		}
@@ -568,7 +571,7 @@ abstract class DbConnectionHandler {
 			if (copiedVersion.isEmpty()) {
 				throw new IOException("Copied institute database is unusable");
 			}
-			moveInstituteDatabaseTemplate(temporaryFile, instituteDbFile);
+			FileMoves.replaceAtomicallyIfSupported(temporaryFile, instituteDbFile);
 			VALIDATIONS.remember(instituteDbFile, false, copiedVersion.get());
 			log.info("{} institute database from bundled template: {}",
 					update ? "Updated" : "Initialized", instituteDbFile);
@@ -610,14 +613,6 @@ abstract class DbConnectionHandler {
 		return Optional.ofNullable(latestUpdate);
 	}
 
-	private static void moveInstituteDatabaseTemplate(Path source, Path target) throws IOException {
-		try {
-			Files.move(source, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-		} catch (AtomicMoveNotSupportedException exception) {
-			Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
-		}
-	}
-
 	private static void deleteTemporaryInstituteDatabase(Path temporaryFile, IOException originalFailure) {
 		try {
 			Files.deleteIfExists(temporaryFile);
@@ -631,26 +626,21 @@ abstract class DbConnectionHandler {
 			return false;
 		}
 
-		boolean oldAutoCommit = targetConnection.getAutoCommit();
-		targetConnection.setAutoCommit(false);
+		JdbcTransaction.run(targetConnection, () -> createInstituteDatabaseSchema(targetConnection));
+		return true;
+	}
+
+	private static void createInstituteDatabaseSchema(Connection targetConnection) throws SQLException {
 		String currentKey = null;
-		boolean transactionUsable = true;
-		Throwable failure = null;
 		try (Statement statement = targetConnection.createStatement()) {
 			for (String schemaKey : INSTITUTE_SCHEMA_KEYS) {
 				currentKey = schemaKey;
 				statement.executeUpdate(SqlTemplateRepository.getDdl(schemaKey));
 			}
-			targetConnection.commit();
 		} catch (SQLException | RuntimeException exception) {
-			failure = exception;
-			transactionUsable = rollback(targetConnection, exception);
 			throw new GBankingException(
 					"Error creating institute database schema for statement: " + currentKey, exception);
-		} finally {
-			restoreAutoCommit(targetConnection, oldAutoCommit, transactionUsable, failure);
 		}
-		return true;
 	}
 
 	private static boolean isInstituteDatabaseSchemaComplete(Connection targetConnection) throws SQLException {
@@ -658,34 +648,6 @@ abstract class DbConnectionHandler {
 				ResultSet resultSet = statement.executeQuery(
 						SqlTemplateRepository.getConfig("SQL_IS_INSTITUTE_SCHEMA_COMPLETE"))) {
 			return resultSet.next() && resultSet.getBoolean(1);
-		}
-	}
-
-	private static boolean rollback(Connection targetConnection, Throwable originalFailure) {
-		try {
-			targetConnection.rollback();
-			return true;
-		} catch (SQLException | RuntimeException rollbackFailure) {
-			originalFailure.addSuppressed(rollbackFailure);
-			return false;
-		}
-	}
-
-	private static void restoreAutoCommit(Connection targetConnection, boolean oldAutoCommit,
-			boolean transactionUsable, Throwable originalFailure) throws SQLException {
-		if (!transactionUsable) {
-			return;
-		}
-		try {
-			targetConnection.setAutoCommit(oldAutoCommit);
-		} catch (SQLException | RuntimeException restoreFailure) {
-			if (originalFailure == null) {
-				if (restoreFailure instanceof SQLException sqlFailure) {
-					throw sqlFailure;
-				}
-				throw restoreFailure;
-			}
-			originalFailure.addSuppressed(restoreFailure);
 		}
 	}
 
@@ -738,42 +700,16 @@ abstract class DbConnectionHandler {
 			return;
 		}
 
-		Exception failure = null;
 		Connection connectionToClose = sessionToClose.connection();
-		boolean usableSession = !sessionToClose.isInvalidated();
-		if (usableSession) {
-			try {
-				if (!connectionToClose.isClosed() && !connectionToClose.getAutoCommit()) {
-					log.warn("Rolling back unmanaged transaction before closing database connection");
-					connectionToClose.rollback();
-					connectionToClose.setAutoCommit(true);
-				}
-			} catch (SQLException | RuntimeException exception) {
-				failure = exception;
-				sessionToClose.invalidate();
-				usableSession = false;
-			}
-			if (usableSession && !isClosed(connectionToClose)) {
-				try {
-					optimize(sessionToClose);
-				} catch (SQLException | RuntimeException exception) {
-					failure = addFailure(failure, exception);
-				}
-				try {
-					checkpoint(connectionToClose);
-				} catch (SQLException | RuntimeException exception) {
-					failure = addFailure(failure, exception);
-				}
-			}
-		}
+		Exception failure = prepareConnectionForClose(sessionToClose, connectionToClose);
 		try {
 			sessionToClose.close();
 		} catch (SQLException | RuntimeException exception) {
-			failure = addFailure(failure, exception);
+			failure = JdbcFailures.add(failure, exception);
 		}
 		boolean connectionClosed = isClosed(connectionToClose);
 		if (!connectionClosed) {
-			failure = addFailure(failure,
+			failure = JdbcFailures.add(failure,
 					new SQLException("Database connection did not close cleanly"));
 		} else {
 			clearSessionReferences(sessionToClose);
@@ -784,20 +720,52 @@ abstract class DbConnectionHandler {
 		log.info("Connection to Database closed");
 	}
 
+	private static Exception prepareConnectionForClose(DbSession session, Connection connectionToClose) {
+		if (session.isInvalidated()) {
+			return null;
+		}
+		Exception failure = rollbackUnmanagedTransaction(session, connectionToClose);
+		if (failure == null && !isClosed(connectionToClose)) {
+			failure = runMaintenanceBeforeClose(session, connectionToClose);
+		}
+		return failure;
+	}
+
+	private static Exception rollbackUnmanagedTransaction(DbSession session, Connection connectionToClose) {
+		try {
+			if (!connectionToClose.isClosed() && !connectionToClose.getAutoCommit()) {
+				log.warn("Rolling back unmanaged transaction before closing database connection");
+				connectionToClose.rollback();
+				connectionToClose.setAutoCommit(true);
+			}
+			return null;
+		} catch (SQLException | RuntimeException exception) {
+			session.invalidate();
+			return exception;
+		}
+	}
+
+	private static Exception runMaintenanceBeforeClose(DbSession session, Connection connectionToClose) {
+		Exception failure = null;
+		try {
+			optimize(session);
+		} catch (SQLException | RuntimeException exception) {
+			failure = JdbcFailures.add(failure, exception);
+		}
+		try {
+			checkpoint(connectionToClose);
+		} catch (SQLException | RuntimeException exception) {
+			failure = JdbcFailures.add(failure, exception);
+		}
+		return failure;
+	}
+
 	private static boolean isClosed(Connection targetConnection) {
 		try {
 			return targetConnection.isClosed();
 		} catch (SQLException | RuntimeException exception) {
 			return false;
 		}
-	}
-
-	private static Exception addFailure(Exception failure, Exception additionalFailure) {
-		if (failure == null) {
-			return additionalFailure;
-		}
-		failure.addSuppressed(additionalFailure);
-		return failure;
 	}
 
 	private static String executeConfigStatement(Connection targetConnection, String columnHeader,
@@ -812,13 +780,4 @@ abstract class DbConnectionHandler {
 		}
 	}
 
-	protected void closeStatement(Statement statement) {
-		try {
-			if (statement != null) {
-				statement.close();
-			}
-		} catch (SQLException exception) {
-			log.error("Error closing (Prepared) Statement: {}", exception.getMessage());
-		}
-	}
 }

@@ -12,8 +12,10 @@ import java.nio.file.Path;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
@@ -116,8 +118,9 @@ class DBControllerInstituteBulkTest extends DBControllerIntegrationBaseTest {
 		ImportHistory importHistory = db.insertOrUpdate(new ImportHistory("institute-missing.csv"));
 		Institute institute = createInstitute(importHistory.getId(), "10000005", "MISSING5XXXX", "Missing Bank");
 		institute.setId(Integer.MAX_VALUE);
+		Set<Institute> institutes = Set.of(institute);
 
-		assertThrows(GBankingException.class, () -> db.insertAll(Set.of(institute)));
+		assertThrows(GBankingException.class, () -> db.insertAll(institutes));
 
 		assertTrue(db.getAll(Institute.class).isEmpty());
 	}
@@ -140,7 +143,7 @@ class DBControllerInstituteBulkTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void rolledBackIndexSetupShouldBeRetried() throws Exception {
-		Path databaseDirectory = DbConnectionHandler.getSession().databaseFile().getParent();
+		Path databaseDirectory = Objects.requireNonNull(DbConnectionHandler.getSession().databaseFile().getParent());
 		try (Statement statement = DBController.getConnection().createStatement()) {
 			statement.executeUpdate("DROP INDEX institute_db.idx_institute_blz_state");
 		}
@@ -165,7 +168,7 @@ class DBControllerInstituteBulkTest extends DBControllerIntegrationBaseTest {
 		institute.setImportNumber(1);
 		institute.setDataCenter("DC-" + blz);
 		institute.setHbciVersion(3.0);
-		institute.setLastChanged(LocalDate.of(2026, 7, 29));
+		institute.setLastChanged(LocalDate.of(2026, Month.JULY, 29));
 
 		institute.setDatasetNumber("DBB-" + blz);
 		institute.setPostcode("10115");
@@ -201,7 +204,7 @@ class DBControllerInstituteBulkTest extends DBControllerIntegrationBaseTest {
 		assertEquals(address, institute.getAddress());
 		assertEquals("Additional " + bankName, institute.getAdditionalBankNameShort());
 		assertEquals("IBAN-" + blz, institute.getAdditionalIbanRule());
-		assertEquals(LocalDate.of(2026, 7, 29), institute.getLastChanged());
+		assertEquals(LocalDate.of(2026, Month.JULY, 29), institute.getLastChanged());
 		assertReachableDetails(institute);
 	}
 

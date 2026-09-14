@@ -30,9 +30,10 @@ class BookingCurrencyMapperTest {
 	@Test
 	void mapAmounts_shouldRejectForeignAmountWithoutConvertedBaseAmount() {
 		Booking booking = new Booking();
+		BigDecimal amount = new BigDecimal("10.00");
 
 		GBankingException exception = assertThrows(GBankingException.class,
-				() -> BookingCurrencyMapper.mapAmounts(booking, new BigDecimal("10.00"), "USD", Currency.EUR,
+				() -> BookingCurrencyMapper.mapAmounts(booking, amount, "USD", Currency.EUR,
 						null, null, null));
 
 		assertTrue(exception.getMessage().contains("keinen Betrag in der Kontowährung EUR"));

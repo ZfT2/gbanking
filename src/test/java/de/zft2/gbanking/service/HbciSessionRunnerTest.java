@@ -1,5 +1,6 @@
 package de.zft2.gbanking.service;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -33,12 +34,12 @@ class HbciSessionRunnerTest {
 	private static final List<Class<? extends Service>> SERVICES_TO_STUB = List.of(BankAccessService.class);
 
 	@BeforeEach
-	void setUp() throws Exception {
+	void setUp() {
 		ServiceStubbingUtil.initStubbedServicesInContext(SERVICES_TO_STUB);
 	}
 
 	@AfterEach
-	void tearDown() throws Exception {
+	void tearDown() {
 		ServiceStubbingUtil.unloadStubbedServicesInContext(SERVICES_TO_STUB);
 	}
 
@@ -110,6 +111,16 @@ class HbciSessionRunnerTest {
 		} finally {
 			executor.shutdownNow();
 		}
+	}
+
+	@Test
+	void clearSecretShouldOverwriteSecretCharsAndAcceptNull() {
+		char[] secret = "12345".toCharArray();
+
+		HbciSessionRunner.clearSecret(secret);
+		HbciSessionRunner.clearSecret(null);
+
+		assertArrayEquals(new char[] { '\0', '\0', '\0', '\0', '\0' }, secret);
 	}
 
 	private boolean runTrackedOperation(HbciSessionRunner runner, BankAccess bankAccess, AtomicInteger activeOperations, AtomicBoolean overlapped,

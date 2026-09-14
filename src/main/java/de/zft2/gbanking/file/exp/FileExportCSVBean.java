@@ -20,14 +20,14 @@ import de.zft2.gbanking.db.dao.BookingSepaDetails;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.exception.ExportException;
 import de.zft2.gbanking.file.BookingCsvFormat;
-import de.zft2.gbanking.gui.BaseWorker;
+import de.zft2.gbanking.concurrent.ProgressReporter;
 
 public class FileExportCSVBean extends FileExportBean {
 
 	private static Logger log = LogManager.getLogger(FileExportCSVBean.class);
 
-	public FileExportCSVBean(BaseWorker worker) {
-		super(worker);
+	public FileExportCSVBean(ProgressReporter progressReporter) {
+		super(progressReporter);
 	}
 
 	@Override

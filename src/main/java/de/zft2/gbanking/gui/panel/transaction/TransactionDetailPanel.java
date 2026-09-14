@@ -3,13 +3,9 @@ package de.zft2.gbanking.gui.panel.transaction;
 import static de.zft2.gbanking.util.TextValues.trimToNull;
 
 import java.math.BigDecimal;
-import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 import de.zft2.gbanking.BaseMessagesDb;
@@ -33,13 +29,11 @@ import de.zft2.gbanking.gui.KeyboardShortcutDispatcher.Action;
 import de.zft2.gbanking.gui.panel.overview.TransactionsOverviewBasePanel;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.gui.util.FormStyleUtils.FieldWidth;
-import de.zft2.gbanking.gui.util.FxTableUtils;
+import de.zft2.gbanking.gui.util.FxNodeSupport;
 import de.zft2.gbanking.mapper.BookingCurrencyMapper;
 import de.zft2.gbanking.service.booking.BookingSplitService;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.util.TypeConverter;
-import javafx.beans.property.ReadOnlyObjectWrapper;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -56,15 +50,11 @@ import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
-import javafx.scene.control.cell.ComboBoxTableCell;
-import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -80,12 +70,10 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 	private static final String UI_BUTTON_EDIT_SHORT = "UI_BUTTON_EDIT_SHORT";
 	private static final String UI_BUTTON_CANCEL_SHORT = "UI_BUTTON_CANCEL_SHORT";
 	private static final String UI_BUTTON_SAVE = "UI_BUTTON_SAVE";
-	private static final String ALERT_SPLIT_BOOKING_REBOOKING_PARENT = "ALERT_SPLIT_BOOKING_REBOOKING_PARENT";
 
 	private static final double AMOUNT_FIELD_WIDTH = 104.0;
 	private static final double CURRENCY_FIELD_WIDTH = 90.0;
 	private static final double DETAIL_FIELD_WIDTH = 200.0;
-	private static final double SPLIT_TABLE_HEIGHT = 155.0;
 	private static final double UPDATED_AT_FIELD_WIDTH = 100.0;
 	private static final double ADDITIONAL_NOTE_TOGGLE_WIDTH = 32.0;
 	private static final String EXPAND_SYMBOL = "\u25bc";
@@ -95,12 +83,8 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		NEW, EDIT, READONLY
 	}
 
-	private enum CrossBookingDeleteChoice {
-		DELETE_CROSS, KEEP_CROSS, CANCEL
-	}
-
 	private final TransactionsOverviewBasePanel parentPanel;
-	private final BookingSplitService bookingSplitService;
+	private final SplitBookingEditor splitBookingEditor;
 	private EditContext context = EditContext.READONLY;
 
 	private final DatePicker dateBookingPicker = FormStyleUtils.applyWidth(new DatePicker(), FieldWidth.S);
@@ -139,24 +123,13 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 
 	private final Button newButton = new Button(getText(UI_BUTTON_NEW_SHORT));
 	private final Button editButton = new Button(getText(UI_BUTTON_EDIT_SHORT));
-	private final Button splitNewButton = new Button(getText(UI_BUTTON_NEW_SHORT));
-	private final Button splitDeleteButton = new Button(getText("UI_BUTTON_DELETE"));
-	private final Button splitSaveButton = new Button(getText(UI_BUTTON_SAVE));
 	private final Button additionalNoteEditButton = new Button(getText(UI_BUTTON_EDIT_SHORT));
 	private final Button additionalNoteCancelButton = new Button(getText(UI_BUTTON_CANCEL_SHORT));
 
-	private final ObservableList<Booking> splitBookings = FXCollections.observableArrayList();
 	private final ObservableList<Category> categoryChoices = FXCollections.observableArrayList();
-	private final ObservableList<BankAccount> splitCrossAccountChoices = FXCollections.observableArrayList();
-	private final Map<Integer, Boolean> deletedSplitBookingActions = new HashMap<>();
-	private final TableView<Booking> splitBookingTable = new TableView<>(splitBookings);
-	private final Label splitDisabledHintLabel = new Label(getText(ALERT_SPLIT_BOOKING_REBOOKING_PARENT));
-	private final Label splitSumValueLabel = new Label();
-	private final Label splitDifferenceValueLabel = new Label();
 
 	private Booking displayedBooking;
 	private BankAccount currentAccount;
-	private boolean splitBookingsDirty;
 	private boolean additionalNoteEditing;
 	private TitledPane currencyDetailsPane;
 
@@ -166,16 +139,13 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 
 	TransactionDetailPanel(TransactionsOverviewBasePanel parentPanel, BookingSplitService bookingSplitService) {
 		this.parentPanel = parentPanel;
-		this.bookingSplitService = bookingSplitService;
+		this.splitBookingEditor = new SplitBookingEditor(bookingSplitService, this::reloadParentData, createCategoryConverter());
 		createUI();
 		loadComboValues();
 		enableFields(false);
 
 		newButton.setOnAction(e -> handlePrimaryButton());
 		editButton.setOnAction(e -> handleSecondaryButton());
-		splitNewButton.setOnAction(e -> addSplitBooking());
-		splitDeleteButton.setOnAction(e -> deleteSelectedSplitBookings());
-		splitSaveButton.setOnAction(e -> saveSplitBookings());
 		additionalNoteEditButton.setOnAction(e -> handleAdditionalNoteEditButton());
 		additionalNoteCancelButton.setOnAction(e -> cancelAdditionalNoteEdit());
 		KeyboardShortcutDispatcher.register(this, Action.SAVE, this::saveFromShortcut);
@@ -183,7 +153,6 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		KeyboardShortcutDispatcher.blockRefreshWhile(this, this::hasActiveEdit);
 		bookingTypeCombo.valueProperty().addListener((observable, oldValue, newValue) -> updateCrossAccountState());
 		updateActionButtons();
-		updateSplitButtons();
 	}
 
 	private void createUI() {
@@ -196,7 +165,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		TabPane tabPane = new TabPane();
 		tabPane.setMaxHeight(Region.USE_PREF_SIZE);
 		Tab transactionDetailsTab = new Tab(getText("UI_PANEL_TRANSACTION_DETAILS"), createContentArea());
-		Tab splitBookingsTab = new Tab(getText("UI_PANEL_SPLIT_BOOKINGS"), createSplitBookingsPane());
+		Tab splitBookingsTab = new Tab(getText("UI_PANEL_SPLIT_BOOKINGS"), splitBookingEditor);
 		transactionDetailsTab.setClosable(false);
 		splitBookingsTab.setClosable(false);
 		tabPane.getTabs().addAll(transactionDetailsTab, splitBookingsTab);
@@ -215,126 +184,6 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		rightColumn.setMaxWidth(320);
 
 		return new HBox(10, leftColumn, rightColumn);
-	}
-
-	private Node createSplitBookingsPane() {
-		configureSplitBookingTable();
-		splitBookingTable.setMinHeight(SPLIT_TABLE_HEIGHT);
-		splitBookingTable.setPrefHeight(SPLIT_TABLE_HEIGHT);
-		splitBookingTable.setMaxHeight(SPLIT_TABLE_HEIGHT);
-		splitDisabledHintLabel.setWrapText(true);
-		splitDisabledHintLabel.setVisible(false);
-		splitDisabledHintLabel.setManaged(false);
-
-		HBox buttons = new HBox(10, splitNewButton, splitDeleteButton, splitSaveButton);
-		buttons.setAlignment(Pos.CENTER_RIGHT);
-		buttons.setPadding(new Insets(6, 0, 0, 0));
-		FormStyleUtils.styleButtons(splitNewButton, splitDeleteButton, splitSaveButton);
-
-		VBox content = new VBox(8, splitDisabledHintLabel, splitBookingTable, createSplitTotalsPane(), buttons);
-		content.setPadding(new Insets(6));
-		content.setMaxHeight(Region.USE_PREF_SIZE);
-		return content;
-	}
-
-	private Node createSplitTotalsPane() {
-		Label sumLabel = new Label(getText("UI_LABEL_SPLIT_SUM"));
-		Label differenceLabel = new Label(getText("UI_LABEL_SPLIT_DIFFERENCE"));
-		GridPane grid = new GridPane();
-		grid.setHgap(8);
-		grid.setVgap(4);
-		grid.setAlignment(Pos.CENTER_RIGHT);
-		grid.add(sumLabel, 0, 0);
-		grid.add(splitSumValueLabel, 1, 0);
-		grid.add(differenceLabel, 0, 1);
-		grid.add(splitDifferenceValueLabel, 1, 1);
-		splitSumValueLabel.setAlignment(Pos.CENTER_RIGHT);
-		splitDifferenceValueLabel.setAlignment(Pos.CENTER_RIGHT);
-
-		if (splitBookingTable.getColumns().size() >= 4) {
-			Region spacer = new Region();
-			spacer.prefWidthProperty().bind(splitBookingTable.getColumns().get(0).widthProperty()
-					.add(splitBookingTable.getColumns().get(1).widthProperty())
-					.add(splitBookingTable.getColumns().get(2).widthProperty()));
-			HBox footer = new HBox(spacer, grid);
-			footer.setAlignment(Pos.CENTER_LEFT);
-			return footer;
-		}
-		return grid;
-	}
-
-	private void configureSplitBookingTable() {
-		if (!splitBookingTable.getColumns().isEmpty()) {
-			return;
-		}
-
-		splitBookingTable.setEditable(true);
-		splitBookingTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-
-		TableColumn<Booking, Boolean> selectedCol = FxTableUtils.createSelectAllSelectionColumn(getText("UI_TABLE_SELECT_ALL"), splitBookings,
-				booking -> booking.isSelected(), (booking, selected) -> booking.setSelected(selected));
-		TableColumn<Booking, String> purposeCol = createEditablePurposeColumn();
-		TableColumn<Booking, Category> categoryCol = createEditableCategoryColumn();
-		TableColumn<Booking, BigDecimal> amountCol = createEditableAmountColumn();
-		TableColumn<Booking, BankAccount> crossAccountCol = createEditableCrossAccountColumn();
-
-		splitBookingTable.getColumns().addAll(List.of(selectedCol, purposeCol, categoryCol, amountCol, crossAccountCol));
-		GuiLayoutState.configureTable(splitBookingTable, "transactionDetails.splitBookings");
-	}
-
-	private TableColumn<Booking, String> createEditablePurposeColumn() {
-		TableColumn<Booking, String> column = new TableColumn<>(getText("UI_TABLE_PURPOSE"));
-		column.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getPurpose()));
-		column.setCellFactory(TextFieldTableCell.forTableColumn());
-		column.setOnEditCommit(event -> {
-			event.getRowValue().setPurpose(trimToNull(event.getNewValue()));
-			markSplitBookingsDirty();
-			splitBookingTable.refresh();
-		});
-		FxTableUtils.setPreferredWidth(column, 180, 260);
-		return column;
-	}
-
-	private TableColumn<Booking, Category> createEditableCategoryColumn() {
-		TableColumn<Booking, Category> column = new TableColumn<>(getText("UI_LABEL_CATEGORY"));
-		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getCategory()));
-		column.setCellFactory(ComboBoxTableCell.forTableColumn(createCategoryConverter(), categoryChoices));
-		column.setOnEditCommit(event -> {
-			event.getRowValue().setCategory(event.getNewValue());
-			clearCategoryRuleAssignment(event.getRowValue());
-			markSplitBookingsDirty();
-			splitBookingTable.refresh();
-		});
-		FxTableUtils.setPreferredWidth(column, 140, 220);
-		return column;
-	}
-
-	private TableColumn<Booking, BigDecimal> createEditableAmountColumn() {
-		TableColumn<Booking, BigDecimal> column = new TableColumn<>(getText("UI_TABLE_AMOUNT"));
-		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getAmount()));
-		column.setCellFactory(TextFieldTableCell.forTableColumn(createAmountConverter()));
-		column.setOnEditCommit(event -> {
-			event.getRowValue().setAmount(event.getNewValue());
-			markSplitBookingsDirty();
-			updateSplitTotals();
-			splitBookingTable.refresh();
-		});
-		FxTableUtils.setPreferredWidth(column, 90, 120);
-		return column;
-	}
-
-	private TableColumn<Booking, BankAccount> createEditableCrossAccountColumn() {
-		TableColumn<Booking, BankAccount> column = new TableColumn<>(getText("UI_TABLE_CROSS_ACCOUNT"));
-		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(findSplitCrossAccount(data.getValue().getCrossAccountId())));
-		column.setCellFactory(ComboBoxTableCell.forTableColumn(createBankAccountConverter(), splitCrossAccountChoices));
-		column.setOnEditCommit(event -> {
-			BankAccount account = event.getNewValue();
-			event.getRowValue().setCrossAccountId(account != null ? account.getId() : null);
-			markSplitBookingsDirty();
-			splitBookingTable.refresh();
-		});
-		FxTableUtils.setPreferredWidth(column, 140, 220);
-		return column;
 	}
 
 	private Node createMainDetailsPane() {
@@ -428,8 +277,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		TitledPane pane = titled(getText("UI_PANEL_BOOKING_ADDITIONAL_NOTE"), content);
 		pane.setMinWidth(0);
 		pane.setMaxWidth(Double.MAX_VALUE);
-		pane.setManaged(false);
-		pane.setVisible(false);
+		FxNodeSupport.setVisibleManaged(pane, false);
 		return pane;
 	}
 
@@ -441,8 +289,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		applyFixedWidth(toggle, ADDITIONAL_NOTE_TOGGLE_WIDTH);
 		toggle.selectedProperty().addListener((obs, wasExpanded, isExpanded) -> {
 			boolean expanded = Boolean.TRUE.equals(isExpanded);
-			additionalNotePane.setManaged(expanded);
-			additionalNotePane.setVisible(expanded);
+			FxNodeSupport.setVisibleManaged(additionalNotePane, expanded);
 			toggle.setText(expanded ? COLLAPSE_SYMBOL : EXPAND_SYMBOL);
 			String tooltipText = getText(expanded ? "UI_BOOKING_NOTE_HIDE" : "UI_BOOKING_NOTE_SHOW");
 			tooltip.setText(tooltipText);
@@ -511,11 +358,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		int row = rowGroup * 2;
 		VBox box = new VBox(2, new Label(getText(labelKey)), field);
 		grid.add(box, col, row, colspan, 2);
-
-		if (field instanceof Region) {
-			Region region = field;
-			region.setMaxWidth(Double.MAX_VALUE);
-		}
+		field.setMaxWidth(Double.MAX_VALUE);
 	}
 
 	private void addAmountCurrencyFields(GridPane grid, int col, int rowGroup) {
@@ -587,35 +430,6 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		};
 	}
 
-	private StringConverter<BankAccount> createBankAccountConverter() {
-		return new StringConverter<>() {
-			@Override
-			public String toString(BankAccount account) {
-				return account != null ? account.getAccountName() : "";
-			}
-
-			@Override
-			public BankAccount fromString(String string) {
-				return null;
-			}
-		};
-	}
-
-	private StringConverter<BigDecimal> createAmountConverter() {
-		DecimalFormat format = FxTableUtils.createGermanDecimalFormat();
-		return new StringConverter<>() {
-			@Override
-			public String toString(BigDecimal value) {
-				return value != null ? format.format(value) : "";
-			}
-
-			@Override
-			public BigDecimal fromString(String value) {
-				return parseAmount(value);
-			}
-		};
-	}
-
 	private void refreshSourceChoices(boolean manualOnly) {
 		bookingSourceCombo.setItems(FXCollections.observableArrayList(manualOnly ? List.of(Source.MANUELL) : List.of(Source.values())));
 	}
@@ -625,8 +439,9 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 				.filter(account -> currentAccount == null || account.getId() != currentAccount.getId()).toList();
 		crossAccountCombo.setItems(FXCollections.observableArrayList(accounts));
 		categoryChoices.setAll(dbController.getAll(Category.class));
-		splitCrossAccountChoices.setAll(accounts.stream()
-				.filter(account -> account.isOfflineAccount() && account.getAccountState() == AccountState.ACTIVE).toList());
+		List<BankAccount> splitCrossAccounts = accounts.stream()
+				.filter(account -> account.isOfflineAccount() && account.getAccountState() == AccountState.ACTIVE).toList();
+		splitBookingEditor.setReferenceChoices(categoryChoices, splitCrossAccounts);
 	}
 
 	private void enableFields(boolean enable) {
@@ -688,7 +503,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		refreshReferenceChoices();
 		refreshSourceChoices(true);
 		clearFields();
-		clearSplitBookings();
+		splitBookingEditor.clear();
 		bookingSourceCombo.setValue(Source.MANUELL);
 		dateBookingPicker.setValue(LocalDate.now(ZoneId.systemDefault()));
 		currencyCombo.setValue(currentAccount.getBaseCurrency());
@@ -746,8 +561,8 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		if (button != null) {
 			return fireShortcutButton(button);
 		}
-		if (hasUnsavedSplitBookings() && displayedBooking != null) {
-			loadSplitBookings(displayedBooking);
+		if (splitBookingEditor.hasUnsavedChanges() && displayedBooking != null) {
+			splitBookingEditor.discardChanges();
 			return true;
 		}
 		return false;
@@ -763,7 +578,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		if (context == EditContext.NEW) {
 			return editButton;
 		}
-		return hasUnsavedSplitBookings() ? splitSaveButton : null;
+		return splitBookingEditor.hasUnsavedChanges() ? splitBookingEditor.getSaveButton() : null;
 	}
 
 	private Button resolveCancelShortcutButton() {
@@ -785,13 +600,14 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 	}
 
 	private boolean hasActiveEdit() {
-		return context != EditContext.READONLY || additionalNoteEditing || hasUnsavedSplitBookings();
+		return context != EditContext.READONLY || additionalNoteEditing || splitBookingEditor.hasUnsavedChanges();
 	}
 
 	private void updateBookingFromUI() {
 		if (displayedBooking == null) {
 			displayedBooking = new Booking();
 		}
+		BankAccount account = Objects.requireNonNull(currentAccount, "currentAccount");
 
 		LocalDate bookingDate = readDate(dateBookingPicker);
 		LocalDate valueDate = readDate(dateValuePicker);
@@ -799,12 +615,12 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		BookingType bookingType = bookingTypeCombo.getValue();
 		Source source = context == EditContext.NEW ? Source.MANUELL : bookingSourceCombo.getValue();
 		BookingForeignCurrencyDetails foreignDetails = BookingCurrencyMapper.createForeignCurrencyDetails(amount,
-				currentAccount.getBaseCurrency(), parseAmount(foreignAmountText.getText()),
+				account.getBaseCurrency(), parseAmount(foreignAmountText.getText()),
 				foreignCurrencyCombo.getValue() != null ? foreignCurrencyCombo.getValue().name() : null, null);
 
 		validateBookingInput(bookingDate, amount, bookingType, source, foreignDetails != null);
 
-		displayedBooking.setAccountId(currentAccount != null ? currentAccount.getId() : displayedBooking.getAccountId());
+		displayedBooking.setAccountId(account.getId());
 		displayedBooking.setDateBooking(bookingDate);
 		displayedBooking.setDateValue(valueDate);
 		displayedBooking.setDate(valueDate != null ? valueDate : bookingDate);
@@ -813,7 +629,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		displayedBooking.setForeignCurrencyDetails(foreignDetails);
 		displayedBooking.setFee(BookingCurrencyMapper.createFee(parseAmount(feeAmountText.getText()),
 				feeCurrencyCombo.getValue() != null ? feeCurrencyCombo.getValue().name() : null,
-				currentAccount.getBaseCurrency()));
+				account.getBaseCurrency()));
 		displayedBooking.setBookingType(bookingType);
 		displayedBooking.setSource(source);
 		int previousCategoryId = getCategoryId(displayedBooking);
@@ -824,7 +640,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		}
 
 		BankAccount cross = crossAccountCombo.getValue();
-		displayedBooking.setCrossAccountId(isRebookingType(bookingType) && cross != null ? cross.getId() : null);
+		displayedBooking.setCrossAccountId(BookingType.isRebooking(bookingType) && cross != null ? cross.getId() : null);
 		displayedBooking.setRecipient(saveRecipientFromUI());
 		displayedBooking.setRecipientId(displayedBooking.getRecipient() != null ? displayedBooking.getRecipient().getId() : 0);
 
@@ -894,7 +710,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		editButton.setDisable(!editable);
 		enableFields(false);
 		updateActionButtons();
-		loadSplitBookings(booking);
+		splitBookingEditor.load(booking);
 	}
 
 	private void updateSepaFields(BookingSepaDetails details) {
@@ -923,8 +739,8 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		exchangeRateText.setText(foreign != null ? formatDecimal(foreign.getExchangeRateToBaseCurrency()) : null);
 		BookingFee fee = booking.getFee();
 		feeAmountText.setText(fee != null ? formatDecimal(fee.getAmount()) : null);
-		feeCurrencyCombo.setValue(fee != null ? fee.getCurrency()
-				: currentAccount != null ? currentAccount.getBaseCurrency() : Currency.EUR);
+		Currency defaultCurrency = currentAccount != null ? currentAccount.getBaseCurrency() : Currency.EUR;
+		feeCurrencyCombo.setValue(fee != null ? fee.getCurrency() : defaultCurrency);
 		currencyDetailsPane.setExpanded(foreign != null || fee != null);
 	}
 
@@ -988,30 +804,14 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		displayedBooking = null;
 		context = EditContext.READONLY;
 		clearFields();
-		clearSplitBookings();
+		splitBookingEditor.clear();
 		refreshSourceChoices(false);
 		enableFields(false);
 		updateActionButtons();
 	}
 
-	private void loadSplitBookings(Booking booking) {
-		deletedSplitBookingActions.clear();
-		splitBookingsDirty = false;
-		splitBookings.setAll(bookingSplitService.getSplitBookings(booking));
-		updateSplitTotals();
-		updateSplitButtons();
-	}
-
-	private void clearSplitBookings() {
-		deletedSplitBookingActions.clear();
-		splitBookingsDirty = false;
-		splitBookings.clear();
-		updateSplitTotals();
-		updateSplitButtons();
-	}
-
 	public boolean confirmDiscardUnsavedSplitBookings() {
-		boolean unsavedSplitBookings = hasUnsavedSplitBookings();
+		boolean unsavedSplitBookings = splitBookingEditor.hasUnsavedChanges();
 		boolean unsavedAdditionalNote = hasUnsavedAdditionalNote();
 		if (!unsavedSplitBookings && !unsavedAdditionalNote) {
 			if (additionalNoteEditing) {
@@ -1028,10 +828,6 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 			cancelAdditionalNoteEdit();
 		}
 		return discard;
-	}
-
-	private boolean hasUnsavedSplitBookings() {
-		return splitBookingsDirty || !deletedSplitBookingActions.isEmpty();
 	}
 
 	private boolean hasUnsavedAdditionalNote() {
@@ -1094,143 +890,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		FormStyleUtils.setEditable(editable, additionalNoteText, reviewRequiredCheckBox);
 		additionalNoteEditButton.setText(additionalNoteEditing ? getText(UI_BUTTON_SAVE) : getText(UI_BUTTON_EDIT_SHORT));
 		additionalNoteEditButton.setDisable(!persistedBookingSelected || context != EditContext.READONLY);
-		additionalNoteCancelButton.setVisible(additionalNoteEditing);
-		additionalNoteCancelButton.setManaged(additionalNoteEditing);
-	}
-
-	private void addSplitBooking() {
-		if (displayedBooking == null || displayedBooking.getId() <= 0) {
-			showWarning("ALERT_SPLIT_BOOKING_PARENT_MISSING");
-			return;
-		}
-		if (isSelectedBookingRebooking()) {
-			showWarning(ALERT_SPLIT_BOOKING_REBOOKING_PARENT);
-			return;
-		}
-
-		Booking splitBooking = new Booking();
-		splitBooking.setParentBookingId(displayedBooking.getId());
-		splitBooking.setAccountId(displayedBooking.getAccountId());
-		splitBooking.setDateBooking(displayedBooking.getDateBooking());
-		splitBooking.setDateValue(displayedBooking.getDateValue());
-		splitBooking.setDate(displayedBooking.getDate());
-		splitBooking.setPurpose(displayedBooking.getPurpose());
-		splitBooking.setAmount(calculateSplitDifference());
-		splitBooking.setSource(Source.MANUELL);
-		splitBooking.setCategory(displayedBooking.getCategory());
-		clearCategoryRuleAssignment(splitBooking);
-		splitBookings.add(splitBooking);
-		markSplitBookingsDirty();
-		updateSplitTotals();
-		updateSplitButtons();
-	}
-
-	private void deleteSelectedSplitBookings() {
-		List<Booking> selectedBookings = splitBookings.stream().filter(Booking::isSelected).toList();
-		if (selectedBookings.isEmpty() && splitBookingTable.getSelectionModel().getSelectedItem() != null) {
-			selectedBookings = List.of(splitBookingTable.getSelectionModel().getSelectedItem());
-		}
-		if (selectedBookings.isEmpty()) {
-			return;
-		}
-
-		Map<Integer, Boolean> selectedDeleteActions = new HashMap<>();
-		for (Booking splitBooking : selectedBookings) {
-			if (splitBooking.getId() > 0) {
-				CrossBookingDeleteChoice choice = chooseCrossBookingDeleteAction(splitBooking);
-				if (choice == CrossBookingDeleteChoice.CANCEL) {
-					return;
-				}
-				selectedDeleteActions.put(splitBooking.getId(), choice == CrossBookingDeleteChoice.DELETE_CROSS);
-			}
-		}
-		deletedSplitBookingActions.putAll(selectedDeleteActions);
-		splitBookings.removeAll(selectedBookings);
-		markSplitBookingsDirty();
-		updateSplitTotals();
-		updateSplitButtons();
-	}
-
-	private CrossBookingDeleteChoice chooseCrossBookingDeleteAction(Booking splitBooking) {
-		Integer crossBookingId = splitBooking.getCrossBookingId();
-		if (crossBookingId == null || crossBookingId <= 0) {
-			return CrossBookingDeleteChoice.DELETE_CROSS;
-		}
-
-		ButtonType deleteCrossButton = new ButtonType(getText("UI_BUTTON_YES"), ButtonBar.ButtonData.YES);
-		ButtonType keepCrossButton = new ButtonType(getText("UI_BUTTON_NO"), ButtonBar.ButtonData.NO);
-		ButtonType result = DialogWindowSupport.showChoice(getOwnerWindow(), Alert.AlertType.CONFIRMATION,
-				getText("ALERT_SPLIT_BOOKING_DELETE_CROSS_TITLE"), getText("ALERT_SPLIT_BOOKING_DELETE_CROSS_HEADER"),
-				getText("ALERT_SPLIT_BOOKING_DELETE_CROSS_TEXT"), deleteCrossButton, keepCrossButton, ButtonType.CANCEL)
-				.orElse(ButtonType.CANCEL);
-		if (result == deleteCrossButton) {
-			return CrossBookingDeleteChoice.DELETE_CROSS;
-		}
-		if (result == keepCrossButton) {
-			return CrossBookingDeleteChoice.KEEP_CROSS;
-		}
-		return CrossBookingDeleteChoice.CANCEL;
-	}
-
-	private void saveSplitBookings() {
-		if (displayedBooking == null || displayedBooking.getId() <= 0) {
-			showWarning("ALERT_SPLIT_BOOKING_PARENT_MISSING");
-			return;
-		}
-		if (isSelectedBookingRebooking()) {
-			showWarning(ALERT_SPLIT_BOOKING_REBOOKING_PARENT);
-			return;
-		}
-
-		try {
-			List<Booking> savedSplitBookings = bookingSplitService.saveSplitBookings(displayedBooking, new ArrayList<>(splitBookings),
-					deletedSplitBookingActions);
-			deletedSplitBookingActions.clear();
-			splitBookingsDirty = false;
-			splitBookings.setAll(savedSplitBookings);
-			updateSplitTotals();
-			updateSplitButtons();
-			reloadParentData();
-		} catch (Exception ex) {
-			DialogWindowSupport.showAlert(getOwnerWindow(), javafx.scene.control.Alert.AlertType.WARNING, ex.getMessage());
-		}
-	}
-
-	private void updateSplitButtons() {
-		boolean hasSavedParentBooking = displayedBooking != null && displayedBooking.getId() > 0;
-		boolean splitEditingAllowed = hasSavedParentBooking && !isSelectedBookingRebooking();
-		splitDisabledHintLabel.setVisible(hasSavedParentBooking && isSelectedBookingRebooking());
-		splitDisabledHintLabel.setManaged(hasSavedParentBooking && isSelectedBookingRebooking());
-		splitNewButton.setDisable(!splitEditingAllowed);
-		splitDeleteButton.setDisable(!splitEditingAllowed || splitBookings.isEmpty());
-		splitSaveButton.setDisable(!splitEditingAllowed);
-		splitBookingTable.setDisable(!splitEditingAllowed);
-	}
-
-	private void updateSplitTotals() {
-		if (displayedBooking == null || displayedBooking.getAmount() == null) {
-			splitSumValueLabel.setText("");
-			splitDifferenceValueLabel.setText("");
-			return;
-		}
-
-		BigDecimal splitSum = splitBookings.stream().map(Booking::getAmount).filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
-		BigDecimal difference = displayedBooking.getAmount().subtract(splitSum);
-		DecimalFormat format = FxTableUtils.createGermanDecimalFormat();
-		splitSumValueLabel.setText(format.format(splitSum));
-		splitDifferenceValueLabel.setText(format.format(difference));
-	}
-
-	private void markSplitBookingsDirty() {
-		splitBookingsDirty = true;
-	}
-
-	private BigDecimal calculateSplitDifference() {
-		if (displayedBooking == null || displayedBooking.getAmount() == null) {
-			return BigDecimal.ZERO;
-		}
-		BigDecimal splitSum = splitBookings.stream().map(Booking::getAmount).filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
-		return displayedBooking.getAmount().subtract(splitSum);
+		FxNodeSupport.setVisibleManaged(additionalNoteCancelButton, additionalNoteEditing);
 	}
 
 	private void updateActionButtons() {
@@ -1271,14 +931,14 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 			throw new IllegalArgumentException(getText("ALERT_BOOKING_SOURCE_MANUAL_ONLY"));
 		}
 
-		if (isRebookingType(bookingType) && crossAccountCombo.getValue() == null) {
+		if (BookingType.isRebooking(bookingType) && crossAccountCombo.getValue() == null) {
 			throw new IllegalArgumentException(getText("ALERT_REBOOKING_CROSS_ACCOUNT_MISSING"));
 		}
-		if (isRebookingType(bookingType) && hasForeignCurrency) {
+		if (BookingType.isRebooking(bookingType) && hasForeignCurrency) {
 			throw new IllegalArgumentException(getText("ALERT_REBOOKING_FOREIGN_CURRENCY"));
 		}
 		BankAccount crossAccount = crossAccountCombo.getValue();
-		if (isRebookingType(bookingType) && currentAccount != null && crossAccount != null
+		if (BookingType.isRebooking(bookingType) && currentAccount != null && crossAccount != null
 				&& currentAccount.getBaseCurrency() != crossAccount.getBaseCurrency()) {
 			throw new IllegalArgumentException(getText("ALERT_REBOOKING_CURRENCY_MISMATCH"));
 		}
@@ -1314,20 +974,12 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 	}
 
 	private void updateCrossAccountState() {
-		boolean enabled = context != EditContext.READONLY && isRebookingType(bookingTypeCombo.getValue());
-		if (!isRebookingType(bookingTypeCombo.getValue())) {
+		boolean enabled = context != EditContext.READONLY && BookingType.isRebooking(bookingTypeCombo.getValue());
+		if (!BookingType.isRebooking(bookingTypeCombo.getValue())) {
 			crossAccountCombo.setValue(null);
 		}
 		crossAccountCombo.setDisable(!enabled);
 		FormStyleUtils.setReadOnlyStyle(!enabled, crossAccountCombo);
-	}
-
-	private boolean isRebookingType(BookingType bookingType) {
-		return bookingType == BookingType.REBOOKING_IN || bookingType == BookingType.REBOOKING_OUT;
-	}
-
-	private boolean isSelectedBookingRebooking() {
-		return displayedBooking != null && isRebookingType(displayedBooking.getBookingType());
 	}
 
 	private boolean isNegativeAmountType(BookingType bookingType) {
@@ -1383,13 +1035,6 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 			}
 		}
 		categoryCombo.setValue(category);
-	}
-
-	private BankAccount findSplitCrossAccount(Integer accountId) {
-		if (accountId == null || accountId <= 0) {
-			return null;
-		}
-		return splitCrossAccountChoices.stream().filter(account -> account.getId() == accountId).findFirst().orElse(null);
 	}
 
 	private int getCategoryId(Booking booking) {

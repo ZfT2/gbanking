@@ -18,7 +18,7 @@ public interface StatementsLogic<T extends Dao> {
 
 	boolean insertSpecific(T dao);
 
-	boolean updateSpecific(T dao);
+	void updateSpecific(T dao);
 
 	T insertOrUpdateSingle(T entity);
 

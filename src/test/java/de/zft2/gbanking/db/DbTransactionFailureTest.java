@@ -2,6 +2,7 @@ package de.zft2.gbanking.db;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -189,9 +190,9 @@ class DbTransactionFailureTest {
 	}
 
 	@Test
-	void rollbackActionErrorShouldBeSuppressedWithoutMaskingOperationFailure() throws SQLException {
+	void rollbackActionRuntimeExceptionShouldBeSuppressedWithoutMaskingOperationFailure() throws SQLException {
 		IllegalStateException operationFailure = new IllegalStateException("operation failed");
-		AssertionError rollbackActionFailure = new AssertionError("rollback action failed");
+		IllegalArgumentException rollbackActionFailure = new IllegalArgumentException("rollback action failed");
 
 		IllegalStateException result = assertThrows(IllegalStateException.class,
 				() -> DbTransactionManager.inTransaction(() -> {
@@ -201,8 +202,42 @@ class DbTransactionFailureTest {
 					throw operationFailure;
 				}));
 
-		assertEquals(operationFailure, result);
-		assertEquals(rollbackActionFailure, result.getSuppressed()[0]);
+		assertSame(operationFailure, result);
+		assertSame(rollbackActionFailure, result.getSuppressed()[0]);
+		verify(connection).rollback();
+		verify(connection).setAutoCommit(true);
+		assertTrue(session.isOpen());
+	}
+
+	@Test
+	void operationErrorShouldTriggerRollbackAndPropagate() throws SQLException {
+		AssertionError operationFailure = new AssertionError("operation failed");
+
+		AssertionError result = assertThrows(AssertionError.class,
+				() -> DbTransactionManager.inTransaction(() -> {
+					throw operationFailure;
+				}));
+
+		assertSame(operationFailure, result);
+		verify(connection).rollback();
+		verify(connection).setAutoCommit(true);
+		assertTrue(session.isOpen());
+	}
+
+	@Test
+	void rollbackActionErrorShouldPropagateAfterConnectionCleanup() throws SQLException {
+		IllegalStateException operationFailure = new IllegalStateException("operation failed");
+		AssertionError rollbackActionFailure = new AssertionError("rollback action failed");
+
+		AssertionError result = assertThrows(AssertionError.class,
+				() -> DbTransactionManager.inTransaction(() -> {
+					DbTransactionManager.onRollback(() -> {
+						throw rollbackActionFailure;
+					});
+					throw operationFailure;
+				}));
+
+		assertSame(rollbackActionFailure, result);
 		verify(connection).rollback();
 		verify(connection).setAutoCommit(true);
 		assertTrue(session.isOpen());

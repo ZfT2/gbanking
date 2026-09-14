@@ -12,6 +12,8 @@ import org.kapott.hbci.manager.FlickerRenderer;
 
 import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
+import de.zft2.gbanking.gui.util.FxNodeSupport;
+import de.zft2.gbanking.gui.util.FxThreadSupport;
 import de.zft2.gbanking.gui.util.OperationDurationLabel;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
@@ -85,7 +87,7 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 	}
 
 	public void showDialog() {
-		runOnFxThread(() -> {
+		FxThreadSupport.run(() -> {
 			Stage stage = getOrCreateDialog();
 			durationLabel.start();
 			if (!stage.isShowing()) {
@@ -99,7 +101,7 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 		if (message == null || message.isBlank()) {
 			return;
 		}
-		runOnFxThread(() -> {
+		FxThreadSupport.run(() -> {
 			Stage stage = getOrCreateDialog();
 			appendText(messageArea, message);
 			statusLabel.setText(getLastLine(message));
@@ -113,7 +115,7 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 		if (details == null || details.isBlank()) {
 			return;
 		}
-		runOnFxThread(() -> {
+		FxThreadSupport.run(() -> {
 			Stage stage = getOrCreateDialog();
 			appendText(detailsArea, details);
 			if (!stage.isShowing()) {
@@ -124,7 +126,7 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 
 	public void updateProgress(double progress) {
 		double boundedProgress = Math.max(0d, Math.min(1d, progress));
-		runOnFxThread(() -> {
+		FxThreadSupport.run(() -> {
 			getOrCreateDialog();
 			progressBar.setProgress(boundedProgress);
 			progressLabel.setText(String.format(Locale.ROOT, "%.0f %%", boundedProgress * 100.0d));
@@ -135,14 +137,14 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 		if (currentAction == null || currentAction.isBlank()) {
 			return;
 		}
-		runOnFxThread(() -> {
+		FxThreadSupport.run(() -> {
 			getOrCreateDialog();
 			currentActionLabel.setText(currentAction.trim());
 		});
 	}
 
 	public void markFinished(boolean success) {
-		runOnFxThread(() -> {
+		FxThreadSupport.run(() -> {
 			Stage stage = getOrCreateDialog();
 			finished = true;
 			durationLabel.stop();
@@ -184,7 +186,7 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 		AtomicReference<RecipientCheckDecision> result = new AtomicReference<>();
 		CountDownLatch latch = new CountDownLatch(1);
 
-		runOnFxThread(() -> {
+		FxThreadSupport.run(() -> {
 			Stage stage = getOrCreateDialog();
 			interactionActive = true;
 			showRecipientCheck(request, confirmLabel, cancelLabel, result, latch);
@@ -239,8 +241,7 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 		detailsArea = createReadOnlyTextArea();
 		detailsArea.setPrefRowCount(10);
 		detailsBox = new VBox(8, detailsLabel, detailsArea);
-		detailsBox.setVisible(false);
-		detailsBox.setManaged(false);
+		FxNodeSupport.setVisibleManaged(detailsBox, false);
 
 		detailsButton = new Button(getText(UI_BUTTON_DETAILS_SHOW));
 		detailsButton.setOnAction(event -> toggleDetails());
@@ -254,8 +255,7 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 		interactionChoiceBox = new ComboBox<>();
 		interactionChoiceBox.setMaxWidth(Double.MAX_VALUE);
 		tanChallengeBox = new VBox(8);
-		tanChallengeBox.setVisible(false);
-		tanChallengeBox.setManaged(false);
+		FxNodeSupport.setVisibleManaged(tanChallengeBox, false);
 
 		interactionConfirmButton = new Button(getText(UI_BUTTON_OK));
 		interactionCancelButton = new Button(getText(UI_BUTTON_CANCEL));
@@ -263,8 +263,7 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 
 		interactionBox = new VBox(8, interactionLabel, tanChallengeBox, interactionTextFieldLabel, interactionTextField, interactionSecretField, interactionChoiceBox,
 				interactionButtonBar);
-		interactionBox.setVisible(false);
-		interactionBox.setManaged(false);
+		FxNodeSupport.setVisibleManaged(interactionBox, false);
 
 		recipientCheckTextField = new TextField();
 		recipientCheckChoiceBox = new ComboBox<>();
@@ -272,8 +271,7 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 		recipientCheckConfirmButton = new Button(getText(UI_BUTTON_OK));
 		recipientCheckCancelButton = new Button(getText(UI_BUTTON_CANCEL));
 		recipientCheckBox = new VBox(8);
-		recipientCheckBox.setVisible(false);
-		recipientCheckBox.setManaged(false);
+		FxNodeSupport.setVisibleManaged(recipientCheckBox, false);
 
 		closeButton = new Button(getText("UI_BUTTON_CLOSE"));
 		closeButton.setDisable(true);
@@ -296,8 +294,7 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 
 	private void toggleDetails() {
 		detailsVisible = !detailsVisible;
-		detailsBox.setVisible(detailsVisible);
-		detailsBox.setManaged(detailsVisible);
+		FxNodeSupport.setVisibleManaged(detailsBox, detailsVisible);
 		detailsButton.setText(getText(detailsVisible ? UI_BUTTON_DETAILS_HIDE : UI_BUTTON_DETAILS_SHOW));
 		if (dialog != null) {
 			dialog.sizeToScene();
@@ -325,19 +322,11 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 		return lines.length == 0 ? text : lines[lines.length - 1];
 	}
 
-	private void runOnFxThread(Runnable action) {
-		if (Platform.isFxApplicationThread()) {
-			action.run();
-		} else {
-			Platform.runLater(action);
-		}
-	}
-
 	private <T> T requestInteraction(InteractionRequest<T> request) {
 		AtomicReference<T> result = new AtomicReference<>();
 		CountDownLatch latch = new CountDownLatch(1);
 
-		runOnFxThread(() -> {
+		FxThreadSupport.run(() -> {
 			Stage stage = getOrCreateDialog();
 			interactionActive = true;
 			interactionLabel.setText(request.prompt() == null ? "" : request.prompt());
@@ -347,10 +336,8 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 			configureInteractionButtons(request.confirmLabel(), request.cancelLabel(), result, latch, request.confirmValueSupplier(),
 					request.cancelValueSupplier());
 
-			interactionBox.setVisible(true);
-			interactionBox.setManaged(true);
-			recipientCheckBox.setVisible(false);
-			recipientCheckBox.setManaged(false);
+			FxNodeSupport.setVisibleManaged(interactionBox, true);
+			FxNodeSupport.setVisibleManaged(recipientCheckBox, false);
 			if (!stage.isShowing()) {
 				stage.show();
 			}
@@ -368,8 +355,7 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 		}
 		appendText(detailsArea, details);
 		detailsVisible = true;
-		detailsBox.setVisible(true);
-		detailsBox.setManaged(true);
+		FxNodeSupport.setVisibleManaged(detailsBox, true);
 		detailsButton.setText(getText(UI_BUTTON_DETAILS_HIDE));
 	}
 
@@ -377,7 +363,7 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 		stopFlickerRenderer();
 		tanChallengeBox.getChildren().clear();
 		if (challenge == null) {
-			setInteractionControlState(tanChallengeBox, false);
+		FxNodeSupport.setVisibleManaged(tanChallengeBox, false);
 			return;
 		}
 
@@ -391,7 +377,7 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 		} else {
 			tanChallengeBox.getChildren().add(createImageView(challenge.imageBytes()));
 		}
-		setInteractionControlState(tanChallengeBox, true);
+		FxNodeSupport.setVisibleManaged(tanChallengeBox, true);
 	}
 
 	private Canvas createFlickerCanvas(String flickerCode) {
@@ -456,10 +442,10 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 	private void showRecipientCheck(RecipientCheckRequest request, String confirmLabel, String cancelLabel, AtomicReference<RecipientCheckDecision> result,
 			CountDownLatch latch) {
 		detailsVisibleBeforeRecipientCheck = detailsVisible;
-		setInteractionControlState(messageArea, false);
-		setInteractionControlState(detailsBox, false);
-		setInteractionControlState(detailsButton, false);
-		setInteractionControlState(interactionBox, false);
+		FxNodeSupport.setVisibleManaged(messageArea, false);
+		FxNodeSupport.setVisibleManaged(detailsBox, false);
+		FxNodeSupport.setVisibleManaged(detailsButton, false);
+		FxNodeSupport.setVisibleManaged(interactionBox, false);
 
 		recipientCheckBox.getChildren().setAll(createRecipientCheckContent(request));
 		configureRecipientCheckControl(request);
@@ -468,8 +454,7 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 		recipientCheckConfirmButton.setOnAction(event -> completeRecipientCheck(result, latch, true));
 		recipientCheckCancelButton.setOnAction(event -> completeRecipientCheck(result, latch, false));
 		recipientCheckBox.getChildren().add(DialogWindowSupport.createButtonBar(recipientCheckCancelButton, recipientCheckConfirmButton));
-		recipientCheckBox.setVisible(true);
-		recipientCheckBox.setManaged(true);
+		FxNodeSupport.setVisibleManaged(recipientCheckBox, true);
 	}
 
 	private List<javafx.scene.Node> createRecipientCheckContent(RecipientCheckRequest request) {
@@ -529,8 +514,8 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 		if (!recipientNameOptions.isEmpty()) {
 			recipientCheckChoiceBox.getSelectionModel().selectFirst();
 		}
-		setInteractionControlState(recipientCheckChoiceBox, !recipientNameOptions.isEmpty());
-		setInteractionControlState(recipientCheckTextField, request.freeRecipientNameInput());
+		FxNodeSupport.setVisibleManaged(recipientCheckChoiceBox, !recipientNameOptions.isEmpty());
+		FxNodeSupport.setVisibleManaged(recipientCheckTextField, request.freeRecipientNameInput());
 	}
 
 	private void completeRecipientCheck(AtomicReference<RecipientCheckDecision> result, CountDownLatch latch, boolean continueTransfer) {
@@ -557,10 +542,10 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 			interactionChoiceBox.getSelectionModel().selectFirst();
 		}
 
-		setInteractionControlState(interactionTextFieldLabel, mode == InteractionMode.TEXT);
-		setInteractionControlState(interactionTextField, mode == InteractionMode.TEXT);
-		setInteractionControlState(interactionSecretField, mode == InteractionMode.SECRET);
-		setInteractionControlState(interactionChoiceBox, mode == InteractionMode.SELECTION);
+		FxNodeSupport.setVisibleManaged(interactionTextFieldLabel, mode == InteractionMode.TEXT);
+		FxNodeSupport.setVisibleManaged(interactionTextField, mode == InteractionMode.TEXT);
+		FxNodeSupport.setVisibleManaged(interactionSecretField, mode == InteractionMode.SECRET);
+		FxNodeSupport.setVisibleManaged(interactionChoiceBox, mode == InteractionMode.SELECTION);
 	}
 
 	private <T> void configureInteractionButtons(String confirmLabel, String cancelLabel, AtomicReference<T> result, CountDownLatch latch,
@@ -569,11 +554,6 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 		interactionCancelButton.setText(cancelLabel == null || cancelLabel.isBlank() ? getText(UI_BUTTON_CANCEL) : cancelLabel);
 		interactionConfirmButton.setOnAction(event -> completeInteraction(result, latch, confirmValueSupplier.get()));
 		interactionCancelButton.setOnAction(event -> completeInteraction(result, latch, cancelValueSupplier.get()));
-	}
-
-	private void setInteractionControlState(javafx.scene.Node control, boolean visible) {
-		control.setVisible(visible);
-		control.setManaged(visible);
 	}
 
 	private String getSelectedOptionValue() {
@@ -591,12 +571,10 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 		interactionActive = false;
 		stopFlickerRenderer();
 		if (interactionBox != null) {
-			interactionBox.setVisible(false);
-			interactionBox.setManaged(false);
+			FxNodeSupport.setVisibleManaged(interactionBox, false);
 		}
 		if (recipientCheckBox != null) {
-			recipientCheckBox.setVisible(false);
-			recipientCheckBox.setManaged(false);
+			FxNodeSupport.setVisibleManaged(recipientCheckBox, false);
 			recipientCheckBox.getChildren().clear();
 		}
 		if (interactionTextField != null) {
@@ -610,8 +588,7 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 		}
 		if (tanChallengeBox != null) {
 			tanChallengeBox.getChildren().clear();
-			tanChallengeBox.setVisible(false);
-			tanChallengeBox.setManaged(false);
+			FxNodeSupport.setVisibleManaged(tanChallengeBox, false);
 		}
 		if (recipientCheckTextField != null) {
 			recipientCheckTextField.clear();
@@ -629,11 +606,10 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 	}
 
 	private void restoreRecipientCheckHiddenControls() {
-		setInteractionControlState(messageArea, true);
-		setInteractionControlState(detailsButton, true);
+		FxNodeSupport.setVisibleManaged(messageArea, true);
+		FxNodeSupport.setVisibleManaged(detailsButton, true);
 		detailsVisible = detailsVisibleBeforeRecipientCheck || !detailsArea.getText().isBlank();
-		detailsBox.setVisible(detailsVisible);
-		detailsBox.setManaged(detailsVisible);
+		FxNodeSupport.setVisibleManaged(detailsBox, detailsVisible);
 		detailsButton.setText(getText(detailsVisible ? UI_BUTTON_DETAILS_HIDE : UI_BUTTON_DETAILS_SHOW));
 		if (dialog != null) {
 			dialog.sizeToScene();

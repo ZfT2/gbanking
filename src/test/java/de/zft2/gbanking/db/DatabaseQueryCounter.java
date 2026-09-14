@@ -20,6 +20,13 @@ final class DatabaseQueryCounter {
 		}
 	}
 
+	static int count(Runnable operation) {
+		return measure(() -> {
+			operation.run();
+			return null;
+		}).queryCount();
+	}
+
 	record Measurement<T>(T result, int queryCount) {
 	}
 }

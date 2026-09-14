@@ -3,6 +3,7 @@ package de.zft2.gbanking.gui.panel;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.BiConsumer;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -34,6 +35,7 @@ public abstract class AbstractFilterableTablePanel<T> extends BorderPane impleme
 	protected final Label titleLabel = new Label();
 	protected final ObservableList<T> masterData;
 	protected final FilteredList<T> filteredData;
+	private boolean restoringSelection;
 
 	protected AbstractFilterableTablePanel(ObservableList<T> masterData) {
 		this.masterData = masterData;
@@ -89,6 +91,32 @@ public abstract class AbstractFilterableTablePanel<T> extends BorderPane impleme
 				handler.accept(selected);
 			}
 		});
+	}
+
+	protected final void onGuardedSelection(BooleanSupplier changeAllowed, Consumer<T> handler) {
+		tableView.getSelectionModel().selectedItemProperty().addListener((observable, previous, selected) -> {
+			if (restoringSelection || selected == null) {
+				return;
+			}
+			if (!changeAllowed.getAsBoolean()) {
+				restoreSelection(previous);
+				return;
+			}
+			handler.accept(selected);
+		});
+	}
+
+	private void restoreSelection(T item) {
+		restoringSelection = true;
+		try {
+			if (item == null) {
+				tableView.getSelectionModel().clearSelection();
+			} else {
+				tableView.getSelectionModel().select(item);
+			}
+		} finally {
+			restoringSelection = false;
+		}
 	}
 
 	protected void replaceItems(Collection<T> items) {

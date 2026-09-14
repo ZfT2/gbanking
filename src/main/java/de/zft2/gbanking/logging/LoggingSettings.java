@@ -1,19 +1,16 @@
 package de.zft2.gbanking.logging;
 
 import java.lang.reflect.Method;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.kapott.hbci.manager.HBCIUtils;
 import org.kapott.hbci.manager.LogFilter;
 
-import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.db.dao.enu.DataType;
 import de.zft2.gbanking.hbci.HbciProperties;
+import de.zft2.gbanking.service.settings.SettingDefinition;
+import de.zft2.gbanking.service.settings.SettingsStore;
 
 public final class LoggingSettings {
 
@@ -27,18 +24,19 @@ public final class LoggingSettings {
 	private static final LogLevelSetting DEFAULT_HBCI_LOG_LEVEL = LogLevelSetting.WARN;
 	private static final LogLevelSetting DEFAULT_GBANKING_LOG_LEVEL = LogLevelSetting.INFO;
 	private static final boolean DEFAULT_MASK_SENSITIVE_DATA = true;
+	private static final SettingDefinition HBCI_LOG_LEVEL = new SettingDefinition(SETTING_HBCI_LOG_LEVEL,
+			DEFAULT_HBCI_LOG_LEVEL.name(), DataType.ENUM, true, true, "HBCI4Java-Loglevel");
+	private static final SettingDefinition GBANKING_LOG_LEVEL = new SettingDefinition(SETTING_GBANKING_LOG_LEVEL,
+			DEFAULT_GBANKING_LOG_LEVEL.name(), DataType.ENUM, true, true, "GBanking-Loglevel");
+	private static final SettingDefinition MASK_SENSITIVE_DATA = new SettingDefinition(SETTING_MASK_SENSITIVE_DATA,
+			Boolean.toString(DEFAULT_MASK_SENSITIVE_DATA), DataType.BOOLEAN, true, true, "Vertrauliche Daten in Log-Ausgaben maskieren");
 	private static volatile boolean sensitiveDataMaskingEnabled = DEFAULT_MASK_SENSITIVE_DATA;
 
 	private LoggingSettings() {
 	}
 
 	public static void ensureSettingsExist() {
-		DBController dbController = DBController.getInstance(".");
-		List<Setting> settings = dbController.getAll(Setting.class);
-		ensureSetting(dbController, settings, SETTING_HBCI_LOG_LEVEL, DEFAULT_HBCI_LOG_LEVEL.name(), DataType.ENUM, "HBCI4Java-Loglevel");
-		ensureSetting(dbController, settings, SETTING_GBANKING_LOG_LEVEL, DEFAULT_GBANKING_LOG_LEVEL.name(), DataType.ENUM, "GBanking-Loglevel");
-		ensureSetting(dbController, settings, SETTING_MASK_SENSITIVE_DATA, Boolean.toString(DEFAULT_MASK_SENSITIVE_DATA), DataType.BOOLEAN,
-				"Vertrauliche Daten in Log-Ausgaben maskieren");
+		SettingsStore.current().ensure(HBCI_LOG_LEVEL, GBANKING_LOG_LEVEL, MASK_SENSITIVE_DATA);
 	}
 
 	public static LogLevelSetting getHbciLogLevel() {
@@ -119,39 +117,13 @@ public final class LoggingSettings {
 		}
 	}
 
-	private static void ensureSetting(DBController dbController, List<Setting> settings, String attribute, String defaultValue, DataType dataType,
-			String comment) {
-		boolean exists = settings != null && settings.stream().anyMatch(setting -> attribute.equals(setting.getAttribute()));
-		if (exists) {
-			return;
-		}
-
-		Setting setting = new Setting();
-		setting.setAttribute(attribute);
-		setting.setValue(defaultValue);
-		setting.setDataType(dataType);
-		setting.setEditable(true);
-		setting.setVisible(true);
-		setting.setComment(comment);
-		setting.setUpdatedAt(LocalDate.now(ZoneId.systemDefault()));
-		dbController.insertOrUpdate(setting);
-	}
-
 	private static LogLevelSetting getLogLevel(String attribute, LogLevelSetting defaultValue) {
 		ensureSettingsExist();
-		return DBController.getInstance(".").getAll(Setting.class).stream()
-				.filter(setting -> attribute.equals(setting.getAttribute()))
-				.map(setting -> LogLevelSetting.fromValue(setting.getValue(), defaultValue))
-				.findFirst()
-				.orElse(defaultValue);
+		return LogLevelSetting.fromValue(SettingsStore.current().getString(attribute, null), defaultValue);
 	}
 
 	private static boolean getBooleanSetting(String attribute, boolean defaultValue) {
 		ensureSettingsExist();
-		return DBController.getInstance(".").getAll(Setting.class).stream()
-				.filter(setting -> attribute.equals(setting.getAttribute()))
-				.map(setting -> Boolean.parseBoolean(setting.getValue()))
-				.findFirst()
-				.orElse(defaultValue);
+		return SettingsStore.current().getBoolean(attribute, defaultValue);
 	}
 }

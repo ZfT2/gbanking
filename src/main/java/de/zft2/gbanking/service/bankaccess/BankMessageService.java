@@ -36,6 +36,7 @@ import de.zft2.gbanking.logging.GBankingLoggingHandler;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.HbciSessionRunner;
 import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.util.TypeConverter;
 
 public class BankMessageService extends AbstractDbService {
 
@@ -62,7 +63,7 @@ public class BankMessageService extends AbstractDbService {
 		BankAccess retrievalAccess = initBankAccess(bankAccess, pin);
 		if (retrievalAccess == null) {
 			log.info("HBCI bank message retrieval skipped, no bank access available.");
-			clearSecret(pin);
+			HbciSessionRunner.clearSecret(pin);
 			return BankMessageRetrievalResult.failure();
 		}
 
@@ -364,7 +365,7 @@ public class BankMessageService extends AbstractDbService {
 		bankMessage.setType(trimToBlank(entry.type));
 		bankMessage.setFormat(trimToBlank(entry.format));
 		bankMessage.setDescription(trimToBlank(entry.description));
-		bankMessage.setVersionDate(toLocalDate(entry.date));
+		bankMessage.setVersionDate(TypeConverter.toLocalDate(entry.date));
 		bankMessage.setComments(joinComments(entry.comment));
 		bankMessage.setMessage(resolveDetailMessage(entry, detailMessages));
 		bankMessage.setRetrievedAt(retrievedAt);
@@ -382,7 +383,7 @@ public class BankMessageService extends AbstractDbService {
 	private String createMessageKey(GVRInfoList.Info entry) {
 		String keyMaterial = String.join("|",
 				normalizeForMessageKey(entry != null ? entry.code : null),
-				formatDate(toLocalDate(entry != null ? entry.date : null)),
+				formatDate(TypeConverter.toLocalDate(entry != null ? entry.date : null)),
 				normalizeForMessageKey(entry != null ? entry.description : null),
 				normalizeForMessageKey(entry != null ? entry.type : null),
 				normalizeForMessageKey(entry != null ? entry.format : null));
@@ -423,16 +424,6 @@ public class BankMessageService extends AbstractDbService {
 		return builder.toString();
 	}
 
-	private LocalDate toLocalDate(java.util.Date date) {
-		if (date == null) {
-			return null;
-		}
-		if (date instanceof java.sql.Date sqlDate) {
-			return sqlDate.toLocalDate();
-		}
-		return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-	}
-
 	private String formatDate(LocalDate date) {
 		return date != null ? date.toString() : "";
 	}
@@ -444,10 +435,6 @@ public class BankMessageService extends AbstractDbService {
 	private static String trimToBlank(String value) {
 		String trimmedValue = trimToNull(value);
 		return trimmedValue != null ? trimmedValue : "";
-	}
-
-	private void clearSecret(char[] secret) {
-		HbciSessionRunner.clearSecret(secret);
 	}
 
 	private record BankMessageOverviewResult(boolean successful, boolean wrongPin, List<GVRInfoList.Info> entries) {

@@ -12,6 +12,7 @@ import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPairGenerator;
 import java.time.LocalDate;
+import java.time.Month;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -84,9 +85,9 @@ class EnablebankingApiClientTest {
 
 	@Test
 	void shouldExposeContinuationKeyEvenForEmptyTransactionPage() {
-		EnablebankingTransactionPage first = client.getTransactions("account-uid", LocalDate.of(2026, 8, 1),
+		EnablebankingTransactionPage first = client.getTransactions("account-uid", LocalDate.of(2026, Month.AUGUST, 1),
 				"default", null);
-		EnablebankingTransactionPage second = client.getTransactions("account-uid", LocalDate.of(2026, 8, 1),
+		EnablebankingTransactionPage second = client.getTransactions("account-uid", LocalDate.of(2026, Month.AUGUST, 1),
 				"default", first.continuationKey());
 
 		assertTrue(first.transactions().isEmpty());
@@ -97,8 +98,9 @@ class EnablebankingApiClientTest {
 
 	@Test
 	void shouldExposeStructuredErrorCode() {
+		LocalDate dateFrom = LocalDate.of(2022, Month.JANUARY, 1);
 		EnablebankingException exception = assertThrows(EnablebankingException.class,
-				() -> client.getTransactions("unavailable", LocalDate.of(2022, 1, 1), "default", null));
+				() -> client.getTransactions("unavailable", dateFrom, "default", null));
 
 		assertTrue(exception.isWrongTransactionsPeriod());
 		assertEquals(400, exception.getHttpStatus());

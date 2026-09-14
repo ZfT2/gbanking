@@ -78,7 +78,7 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 					transferAccount != null ? transferAccount.getId() : null);
 			applyFailedOperationStatus(moneyTransfer, operation);
 			dbController.insertOrUpdate(moneyTransfer);
-			clearSecret(pin);
+			HbciSessionRunner.clearSecret(pin);
 			return false;
 		}
 
@@ -88,7 +88,7 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 			log.warn("Money transfer execution skipped, no bank access available. transferId={}, accountId={}", moneyTransfer.getId(), transferAccount.getId());
 			applyFailedOperationStatus(moneyTransfer, operation);
 			dbController.insertOrUpdate(moneyTransfer);
-			clearSecret(pin);
+			HbciSessionRunner.clearSecret(pin);
 			return false;
 		}
 
@@ -101,7 +101,7 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 					: communicationState.finish;
 			if (communicationState.start != null) {
 				applyFailedOperationStatus(moneyTransfer, operation);
-				persistExecutionResult(moneyTransfer, operation, false, communicationState.start, communicationState.finish,
+				persistExecutionResult(moneyTransfer, operation, false, communicationState,
 						MoneyTransferStatus.ERROR, createProtocolText(communicationState.status, communicationState.jobResult, ex), BankResponseData.EMPTY);
 			}
 			log.error("Money transfer execution failed. transferId={}, type={}, accountId={}", moneyTransfer.getId(), moneyTransfer.getOrderType(),
@@ -132,7 +132,7 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 			Thread.currentThread().interrupt();
 			throw new GBankingException(getText("EXCEPTION_MONEYTRANSFER_INSTANT_STATUS_RETRIEVAL"), exception);
 		} finally {
-			clearSecret(pin);
+			HbciSessionRunner.clearSecret(pin);
 		}
 	}
 
@@ -181,7 +181,7 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		applyRecipientNameFromVoP(moneyTransfer, session.callback());
 		BankResponseData bankResponse = updateMoneyTransferAfterExecution(moneyTransfer, operation, session.callback(), communicationState.status,
 				communicationState.jobResult, result);
-		persistExecutionResult(moneyTransfer, operation, result, communicationState.start, communicationState.finish,
+		persistExecutionResult(moneyTransfer, operation, result, communicationState,
 				result ? moneyTransfer.getMoneytransferStatus() : MoneyTransferStatus.ERROR,
 				createProtocolText(communicationState.status, communicationState.jobResult, null), bankResponse);
 		if (result && operation == BankOrderOperation.CREATE && moneyTransfer.getOrderType() == OrderType.REALTIME_TRANSFER) {
@@ -481,10 +481,6 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		return bankingCapabilityService.supportsBankOrderOperation(bankAccount, moneyTransfer.getOrderType(), operation);
 	}
 
-	private void clearSecret(char[] secret) {
-		HbciSessionRunner.clearSecret(secret);
-	}
-
 	private BankResponseData updateMoneyTransferAfterExecution(MoneyTransfer moneyTransfer, BankOrderOperation operation, GBankingHBCICallback hbciCallback,
 			HBCIExecStatus status,
 			HBCIJobResult jobResult, boolean success) {
@@ -552,14 +548,16 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		return new BankResponseData(trimToNull(returnedOrderId), sepaOrderStatus, sepaCancellationCode);
 	}
 
-	private void persistExecutionResult(MoneyTransfer moneyTransfer, BankOrderOperation operation, boolean success, LocalDateTime start,
-			LocalDateTime finish, MoneyTransferStatus protocolStatus, String protocolText, BankResponseData bankResponse) {
+	private void persistExecutionResult(MoneyTransfer moneyTransfer, BankOrderOperation operation, boolean success,
+			CommunicationState communicationState, MoneyTransferStatus protocolStatus, String protocolText,
+			BankResponseData bankResponse) {
 		dbController.executeInTransaction(() -> {
 			if (success && operation == BankOrderOperation.EDIT) {
 				archiveHistoryPredecessor(moneyTransfer);
 			}
 			dbController.insertOrUpdate(moneyTransfer);
-			saveProtocol(moneyTransfer, start, finish, protocolStatus, protocolText, bankResponse);
+			saveProtocol(moneyTransfer, communicationState.start, communicationState.finish, protocolStatus,
+					protocolText, bankResponse);
 		});
 	}
 

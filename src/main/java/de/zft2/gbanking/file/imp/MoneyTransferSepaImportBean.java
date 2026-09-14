@@ -13,8 +13,6 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.xml.XMLConstants;
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.logging.log4j.LogManager;
@@ -25,22 +23,28 @@ import org.w3c.dom.Node;
 import org.xml.sax.SAXException;
 
 import de.zft2.gbanking.db.dao.BankAccount;
+import de.zft2.gbanking.concurrent.ProgressReporter;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.exception.GBankingException;
-import de.zft2.gbanking.gui.BaseWorker;
+import de.zft2.gbanking.util.SecureXml;
 
 public class MoneyTransferSepaImportBean extends MoneyTransferImportBean {
 
 	private static final Logger log = LogManager.getLogger(MoneyTransferSepaImportBean.class);
 	private static final String PAIN_001_NAMESPACE_MARKER = ":pain.001.";
+	private static final String REQUESTED_EXECUTION_DATE = "ReqdExctnDt";
+	private static final String PAYMENT_TYPE_INFORMATION = "PmtTpInf";
+	private static final String CREDITOR_AGENT = "CdtrAgt";
+	private static final String FINANCIAL_INSTITUTION_ID = "FinInstnId";
+	private static final String MISSING_FIELD_MESSAGE = "ERROR_MONEYTRANSFER_SEPA_MISSING_FIELD";
 
 	public MoneyTransferSepaImportBean() {
 		this(null, MoneyTransferStatus.IMPORTED);
 	}
 
-	public MoneyTransferSepaImportBean(BaseWorker worker, MoneyTransferStatus importStatus) {
-		super(worker, importStatus);
+	public MoneyTransferSepaImportBean(ProgressReporter progressReporter, MoneyTransferStatus importStatus) {
+		super(progressReporter, importStatus);
 	}
 
 	public ImportResult importFile(Path importFile) throws IOException, ParserConfigurationException, SAXException {
@@ -67,7 +71,7 @@ public class MoneyTransferSepaImportBean extends MoneyTransferImportBean {
 
 	private List<ParsedTransfer> readTransfers(Path importFile) throws ParserConfigurationException, SAXException, IOException {
 		updateWorker(0, "UI_MONEYTRANSFER_SEPA_IMPORT_PROGRESS_READING");
-		Document document = createDocumentBuilderFactory().newDocumentBuilder().parse(importFile.toFile());
+		Document document = SecureXml.newDocumentBuilderFactory(true).newDocumentBuilder().parse(importFile.toFile());
 		Element root = document.getDocumentElement();
 		validateRoot(root);
 		Element initiation = requiredChild(root, "CstmrCdtTrfInitn");
@@ -77,20 +81,6 @@ public class MoneyTransferSepaImportBean extends MoneyTransferImportBean {
 			parsePaymentInformation(paymentInformation.get(i), transfers, i, paymentInformation.size());
 		}
 		return transfers;
-	}
-
-	private DocumentBuilderFactory createDocumentBuilderFactory() throws ParserConfigurationException {
-		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-		factory.setNamespaceAware(true);
-		factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-		factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-		factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-		factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
-		factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-		factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-		factory.setXIncludeAware(false);
-		factory.setExpandEntityReferences(false);
-		return factory;
 	}
 
 	private void validateRoot(Element root) {
@@ -106,9 +96,9 @@ public class MoneyTransferSepaImportBean extends MoneyTransferImportBean {
 			throw invalidValue("PmtMtd", paymentMethod);
 		}
 		String senderIban = requiredText(payment, "DbtrAcct", "Id", "IBAN");
-		LocalDate executionDate = parseExecutionDate(requiredChild(payment, "ReqdExctnDt"));
-		String paymentLocalInstrument = text(payment, "PmtTpInf", "LclInstrm", "Cd");
-		String paymentPurposeCode = text(payment, "PmtTpInf", "CtgyPurp", "Cd");
+		LocalDate executionDate = parseExecutionDate(requiredChild(payment, REQUESTED_EXECUTION_DATE));
+		String paymentLocalInstrument = text(payment, PAYMENT_TYPE_INFORMATION, "LclInstrm", "Cd");
+		String paymentPurposeCode = text(payment, PAYMENT_TYPE_INFORMATION, "CtgyPurp", "Cd");
 		List<Element> transactions = children(payment, "CdtTrfTxInf");
 		for (Element transaction : transactions) {
 			transfers.add(parseTransaction(transaction, senderIban, executionDate, paymentLocalInstrument, paymentPurposeCode));
@@ -126,16 +116,16 @@ public class MoneyTransferSepaImportBean extends MoneyTransferImportBean {
 			throw new GBankingException(getText("ERROR_MONEYTRANSFER_SEPA_UNSUPPORTED_CURRENCY", currency));
 		}
 
-		String localInstrument = firstNonBlank(text(transaction, "PmtTpInf", "LclInstrm", "Cd"), paymentLocalInstrument);
-		String purposeCode = firstNonBlank(text(transaction, "Purp", "Cd"), text(transaction, "PmtTpInf", "CtgyPurp", "Cd"),
+		String localInstrument = firstNonBlank(text(transaction, PAYMENT_TYPE_INFORMATION, "LclInstrm", "Cd"), paymentLocalInstrument);
+		String purposeCode = firstNonBlank(text(transaction, "Purp", "Cd"), text(transaction, PAYMENT_TYPE_INFORMATION, "CtgyPurp", "Cd"),
 				paymentPurposeCode);
 		String purpose = firstNonBlank(joinedText(transaction, "RmtInf", "Ustrd"),
 				text(transaction, "RmtInf", "Strd", "CdtrRefInf", "Ref"));
-		String recipientBic = firstNonBlank(text(transaction, "CdtrAgt", "FinInstnId", "BICFI"),
-				text(transaction, "CdtrAgt", "FinInstnId", "BIC"));
+		String recipientBic = firstNonBlank(text(transaction, CREDITOR_AGENT, FINANCIAL_INSTITUTION_ID, "BICFI"),
+				text(transaction, CREDITOR_AGENT, FINANCIAL_INSTITUTION_ID, "BIC"));
 		return new ParsedTransfer(senderIban, null, requiredText(transaction, "Cdtr", "Nm"),
 				requiredText(transaction, "CdtrAcct", "Id", "IBAN"), recipientBic,
-				text(transaction, "CdtrAgt", "FinInstnId", "Nm"), amount, currency, purpose, purposeCode,
+				text(transaction, CREDITOR_AGENT, FINANCIAL_INSTITUTION_ID, "Nm"), amount, currency, purpose, purposeCode,
 				text(transaction, "PmtId", "EndToEndId"), resolveOrderType(localInstrument, executionDate), executionDate, List.of());
 	}
 
@@ -149,12 +139,12 @@ public class MoneyTransferSepaImportBean extends MoneyTransferImportBean {
 	private LocalDate parseExecutionDate(Element requestedExecutionDate) {
 		String value = firstNonBlank(text(requestedExecutionDate, "Dt"), text(requestedExecutionDate, "DtTm"), directText(requestedExecutionDate));
 		if (value == null) {
-			throw new GBankingException(getText("ERROR_MONEYTRANSFER_SEPA_MISSING_FIELD", "ReqdExctnDt"));
+			throw new GBankingException(getText(MISSING_FIELD_MESSAGE, REQUESTED_EXECUTION_DATE));
 		}
 		try {
 			return LocalDate.parse(value.length() > 10 ? value.substring(0, 10) : value);
 		} catch (DateTimeParseException | IndexOutOfBoundsException exception) {
-			throw invalidValue("ReqdExctnDt", value, exception);
+			throw invalidValue(REQUESTED_EXECUTION_DATE, value, exception);
 		}
 	}
 
@@ -173,7 +163,7 @@ public class MoneyTransferSepaImportBean extends MoneyTransferImportBean {
 	private Element requiredChild(Element parent, String childName) {
 		Element child = child(parent, childName);
 		if (child == null) {
-			throw new GBankingException(getText("ERROR_MONEYTRANSFER_SEPA_MISSING_FIELD", childName));
+			throw new GBankingException(getText(MISSING_FIELD_MESSAGE, childName));
 		}
 		return child;
 	}
@@ -181,7 +171,7 @@ public class MoneyTransferSepaImportBean extends MoneyTransferImportBean {
 	private String requiredText(Element parent, String... path) {
 		String value = text(parent, path);
 		if (value == null) {
-			throw new GBankingException(getText("ERROR_MONEYTRANSFER_SEPA_MISSING_FIELD", path[path.length - 1]));
+			throw new GBankingException(getText(MISSING_FIELD_MESSAGE, path[path.length - 1]));
 		}
 		return value;
 	}
@@ -189,7 +179,7 @@ public class MoneyTransferSepaImportBean extends MoneyTransferImportBean {
 	private String requiredText(Element element) {
 		String value = directText(element);
 		if (value == null) {
-			throw new GBankingException(getText("ERROR_MONEYTRANSFER_SEPA_MISSING_FIELD", localName(element)));
+			throw new GBankingException(getText(MISSING_FIELD_MESSAGE, localName(element)));
 		}
 		return value;
 	}

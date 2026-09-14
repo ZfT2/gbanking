@@ -75,7 +75,10 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 
 	@Override
 	public void log(String msg, int level, java.util.Date date, StackTraceElement trace) {
-		hbci4javaLog.log(toLog4jLevel(level), "[hbci4java] {}", HbciLogMessageSanitizer.sanitize(msg));
+		Level logLevel = toLog4jLevel(level);
+		if (hbci4javaLog.isEnabled(logLevel)) {
+			hbci4javaLog.log(logLevel, "[hbci4java] {}", HbciLogMessageSanitizer.sanitize(msg));
+		}
 	}
 
 	@Override
@@ -117,7 +120,9 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 		}
 		case HAVE_INST_MSG -> handleInstitutionMessage(msg);
 		case HAVE_ERROR -> {
-			log.error(HbciLogMessageSanitizer.sanitize(msg));
+			if (log.isErrorEnabled()) {
+				log.error(HbciLogMessageSanitizer.sanitize(msg));
+			}
 			updateErrorAction(statusDescriptionProvider.describeFailure(msg));
 			appendFeedback(HbciStatusMessageExtractor.extractMessageLines(msg), msg);
 			successful = false;

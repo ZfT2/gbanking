@@ -26,15 +26,15 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.exception.GBankingException;
-import de.zft2.gbanking.gui.BaseWorker;
+import de.zft2.gbanking.concurrent.ProgressReporter;
 import de.zft2.gbanking.util.TypeConverter;
 
 public class FileExportXMLBean extends FileExportBean {
 
 	private static Logger log = LogManager.getLogger(FileExportXMLBean.class);
 
-	public FileExportXMLBean(BaseWorker worker) {
-		super(worker);
+	public FileExportXMLBean(ProgressReporter progressReporter) {
+		super(progressReporter);
 	}
 
 	@Override

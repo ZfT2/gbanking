@@ -11,9 +11,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.BaseMessagesDb;
+import de.zft2.gbanking.concurrent.ProgressReporter;
+import de.zft2.gbanking.concurrent.ProgressReporters;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
-import de.zft2.gbanking.gui.BaseWorker;
 import de.zft2.gbanking.util.AppPaths;
 
 public abstract class FileExportBean implements BaseMessagesDb {
@@ -102,11 +103,11 @@ public abstract class FileExportBean implements BaseMessagesDb {
 	protected int totalAccounts = 0;
 	protected long totalBookings = 0L;
 
-	protected final BaseWorker worker;
+	protected final ProgressReporter progressReporter;
 	private double currentProgress = 0.0;
 
-	protected FileExportBean(BaseWorker worker) {
-		this.worker = worker;
+	protected FileExportBean(ProgressReporter progressReporter) {
+		this.progressReporter = ProgressReporters.orNone(progressReporter);
 	}
 
 	protected void updateWorkerStateAccounts(long importedCount, String messageKey, Object... param) {
@@ -118,41 +119,29 @@ public abstract class FileExportBean implements BaseMessagesDb {
 	}
 
 	private void updateWorkerState(long importedCount, long totalCount, int percentageStart, int percentageStop, String messageKey, Object... param) {
-		if (worker != null) {
-			int progress;
-
-			if (totalCount <= 0) {
-				progress = percentageStart;
-			} else {
-				progress = (int) (importedCount / (double) totalCount * 100 * (percentageStop * 0.1));
-				progress = progress > percentageStop ? percentageStop : progress;
-				progress = progress < percentageStart ? progress + percentageStart : progress;
-			}
-
-			currentProgress = progress;
-			worker.setProcessingState(getText(messageKey, param));
-			worker.setWorkerProgress(progress);
+		int progress;
+		if (totalCount <= 0) {
+			progress = percentageStart;
 		} else {
-			log.warn("no worker instantiated.");
+			progress = (int) (importedCount / (double) totalCount * 100 * (percentageStop * 0.1));
+			progress = progress > percentageStop ? percentageStop : progress;
+			progress = progress < percentageStart ? progress + percentageStart : progress;
 		}
+
+		currentProgress = progress;
+		progressReporter.reportState(getText(messageKey, param));
+		progressReporter.reportProgress(progress);
 	}
 
 	protected void updateWorkerState(int progress, boolean updateProgress, String messageKey, Object... param) {
-		if (worker != null) {
-			worker.setProcessingState(getText(messageKey, param));
-
-			currentProgress = updateProgress ? currentProgress + progress : progress;
-
-			if (currentProgress < 0) {
-				currentProgress = 0;
-			} else if (currentProgress > 100) {
-				currentProgress = 100;
-			}
-
-			worker.setWorkerProgress(currentProgress);
-		} else {
-			log.warn("no worker instantiated.");
+		progressReporter.reportState(getText(messageKey, param));
+		currentProgress = updateProgress ? currentProgress + progress : progress;
+		if (currentProgress < 0) {
+			currentProgress = 0;
+		} else if (currentProgress > 100) {
+			currentProgress = 100;
 		}
+		progressReporter.reportProgress(currentProgress);
 	}
 
 	protected Path prepareExportPath(String fileName) throws IOException {

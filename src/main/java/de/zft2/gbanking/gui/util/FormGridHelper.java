@@ -5,6 +5,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Control;
 import javafx.scene.control.Label;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -25,6 +26,16 @@ public final class FormGridHelper {
 		grid.setPadding(new Insets(4));
 		grid.getStyleClass().add("gbanking-form-grid");
 		return grid;
+	}
+
+	public static void setEqualGrowColumns(GridPane grid, int columnCount) {
+		grid.getColumnConstraints().clear();
+		for (int column = 0; column < columnCount; column++) {
+			ColumnConstraints constraints = new ColumnConstraints();
+			constraints.setHgrow(Priority.ALWAYS);
+			constraints.setFillWidth(true);
+			grid.getColumnConstraints().add(constraints);
+		}
 	}
 
 	public static void addFieldAbove(GridPane grid, String labelText, Node field, int col, int rowGroup) {

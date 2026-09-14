@@ -7,6 +7,7 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.gui.panel.account.AccountListPanel;
+import de.zft2.gbanking.gui.panel.account.AccountSelectionTarget;
 import de.zft2.gbanking.gui.panel.category.CategoryInputPanel;
 import de.zft2.gbanking.gui.panel.category.CategoryListPanel;
 import de.zft2.gbanking.gui.panel.category.CategoryRuleInputPanel;
@@ -18,7 +19,7 @@ import javafx.scene.Node;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 
-public class CategoryOverviewPanel extends OverviewBasePanel {
+public class CategoryOverviewPanel extends OverviewBasePanel implements AccountSelectionTarget {
 
 	private static final Logger log = LogManager.getLogger(CategoryOverviewPanel.class);
 
@@ -36,10 +37,10 @@ public class CategoryOverviewPanel extends OverviewBasePanel {
 		categoryRuleListPanel = new CategoryRuleListPanel(this);
 		categoryInputPanel = new CategoryInputPanel(this);
 		categoryListPanel = new CategoryListPanel(this);
+		initializePanel();
 	}
 
-	@Override
-	public void createOverallPanel(boolean show) {
+	private void initializePanel() {
 		setPageContext(PageContext.CATEGORIES);
 
 		accountListPanel = new AccountListPanel(this);
@@ -50,7 +51,7 @@ public class CategoryOverviewPanel extends OverviewBasePanel {
 		GuiLayoutState.configureTabPane(tabPane, "categories.main");
 
 		MasterContentPane mainPane = new MasterContentPane(accountListPanel, tabPane, "categories.main", ACCOUNT_DIVIDER);
-		setOverviewContent("UI_PANEL_CATEGORIES", mainPane, show);
+		setOverviewContent("UI_PANEL_CATEGORIES", mainPane);
 
 		log.info("CategoryOverviewPanel initialized");
 	}
@@ -67,6 +68,7 @@ public class CategoryOverviewPanel extends OverviewBasePanel {
 		return tab;
 	}
 
+	@Override
 	public void handleAccountSelection(BankAccount bankAccount) {
 		selectedAccount = bankAccount;
 		categoryRuleInputPanel.updatePanelFieldValues(bankAccount);

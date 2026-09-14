@@ -24,8 +24,11 @@ final class UpdateBackupCleaner {
 		}
 
 		try (Stream<Path> paths = Files.list(updatesDirectory)) {
-			List<Path> updateDirectories = paths.filter(path -> Files.isDirectory(path))
-					.filter(path -> path.getFileName().toString().startsWith(UPDATE_DIRECTORY_PREFIX))
+			List<Path> updateDirectories = paths.filter(path -> {
+				Path fileName = path.getFileName();
+				return Files.isDirectory(path) && fileName != null
+						&& fileName.toString().startsWith(UPDATE_DIRECTORY_PREFIX);
+			})
 					.toList();
 			for (Path updateDirectory : updateDirectories) {
 				deleteBackup(updateDirectory.resolve(BACKUP_DIRECTORY));

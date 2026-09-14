@@ -42,6 +42,7 @@ public class CategoryAnalysisOverviewPanel extends AnalysisOverviewPanel {
 	public CategoryAnalysisOverviewPanel() {
 		super(PageContext.CATEGORY_ANALYSIS, "UI_PANEL_CATEGORY_ANALYSIS", "category.analysis.configuration",
 				"UI_CATEGORY_ANALYSIS_SETTING_COMMENT");
+		initializePanel();
 	}
 
 	@Override

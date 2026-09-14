@@ -2,6 +2,7 @@ package de.zft2.gbanking.db.dao.logic;
 
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -53,7 +54,7 @@ public class StatementsLogicMoneyTransfer extends StatementsLogicDefault<MoneyTr
 				|| moneyTransfer.getBankOrderId().isBlank()) {
 			return;
 		}
-		LocalDateTime now = LocalDateTime.now();
+		LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
 		MoneyTransferProtocol protocol = new MoneyTransferProtocol(moneyTransfer.getId(), moneyTransfer.getMoneytransferStatus(), now, now);
 		protocol.setBankOrderId(moneyTransfer.getBankOrderId().trim());
 		new StatementsLogicMoneyTransferProtocol().insertOrUpdateSingle(protocol);

@@ -2,8 +2,9 @@ package de.zft2.gbanking.gui.panel;
 
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputControl;
+
+import de.zft2.gbanking.gui.util.FormStyleUtils;
 
 public abstract class AbstractReadonlyDetailPanel extends AbstractTitledFormPanel {
 
@@ -11,16 +12,11 @@ public abstract class AbstractReadonlyDetailPanel extends AbstractTitledFormPane
 		super(titleKey);
 	}
 
-	protected final void makeReadOnly(TextField... fields) {
-		for (TextField field : fields) {
-			field.setEditable(false);
+	protected final void makeReadOnly(TextInputControl... controls) {
+		for (TextInputControl control : controls) {
+			control.setEditable(false);
 		}
-	}
-
-	protected final void makeReadOnly(TextArea... areas) {
-		for (TextArea area : areas) {
-			area.setEditable(false);
-		}
+		FormStyleUtils.setReadOnlyStyle(true, controls);
 	}
 
 	protected final void disable(CheckBox... boxes) {

@@ -12,15 +12,15 @@ import org.apache.commons.csv.CSVRecord;
 
 import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.enu.InstituteStatus;
-import de.zft2.gbanking.gui.BaseWorker;
+import de.zft2.gbanking.concurrent.ProgressReporter;
 import de.zft2.gbanking.util.TypeConverter;
 
 public class InstituteFileImportDk extends InstituteFileImport {
 
 	public static final String DEFAULT_FILENAME = "fints_institute NEU mit BIC Master.csv";
 
-	protected InstituteFileImportDk(String basePath, String fileName, Charset charset, BaseWorker worker) {
-		super(basePath, fileName, charset, worker);
+	protected InstituteFileImportDk(String basePath, String fileName, Charset charset, ProgressReporter progressReporter) {
+		super(basePath, fileName, charset, progressReporter);
 	}
 
 	protected InstituteFileImportDk(String basePath, Charset charset) {

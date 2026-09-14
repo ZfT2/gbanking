@@ -149,6 +149,8 @@ final class DbTransactionManager {
 
 	private static <T> T executeOperation(Connection connection, boolean oldAutoCommit, TransactionState state,
 			Supplier<T> operation) {
+		RuntimeException failure = null;
+		boolean completed = false;
 		try {
 			CancellationSupport.throwIfCancellationRequested();
 			T result = operation.get();
@@ -156,10 +158,15 @@ final class DbTransactionManager {
 			if (state.rollbackOnly()) {
 				throw rollbackOnlyException(state);
 			}
+			completed = true;
 			return result;
-		} catch (RuntimeException | Error failure) {
-			recoverAfterOperationFailure(connection, oldAutoCommit, state, failure);
-			throw failure;
+		} catch (RuntimeException exception) {
+			failure = exception;
+			throw exception;
+		} finally {
+			if (!completed) {
+				recoverAfterOperationFailure(connection, oldAutoCommit, state, failure);
+			}
 		}
 	}
 
@@ -170,7 +177,7 @@ final class DbTransactionManager {
 			GBankingException failure = new GBankingException(
 					"Database commit outcome is unknown; the operation must not be retried automatically",
 					exception);
-			rollback(connection, state, failure, false);
+			rollback(connection, failure);
 			quarantineSession(state, failure);
 			throw failure;
 		}
@@ -178,14 +185,24 @@ final class DbTransactionManager {
 
 	private static void recoverAfterOperationFailure(Connection connection, boolean oldAutoCommit,
 			TransactionState state, Throwable failure) {
-		if (!rollback(connection, state, failure, true)) {
-			quarantineSession(state, failure);
-			return;
+		boolean rollbackSuccessful = rollback(connection, failure);
+		try {
+			state.runRollbackActions(failure);
+		} finally {
+			if (rollbackSuccessful) {
+				restoreAfterFailure(connection, oldAutoCommit, state, failure);
+			} else {
+				quarantineSession(state, failure);
+			}
 		}
+	}
+
+	private static void restoreAfterFailure(Connection connection, boolean oldAutoCommit,
+			TransactionState state, Throwable failure) {
 		try {
 			connection.setAutoCommit(oldAutoCommit);
 		} catch (SQLException | RuntimeException restoreFailure) {
-			failure.addSuppressed(restoreFailure);
+			addSuppressed(failure, restoreFailure);
 			log.error("Error restoring auto commit after failed database transaction", restoreFailure);
 			quarantineSession(state, failure);
 		}
@@ -237,20 +254,21 @@ final class DbTransactionManager {
 				: new GBankingException("Database transaction was marked for rollback");
 	}
 
-	private static boolean rollback(Connection connection, TransactionState state, Throwable originalFailure,
-			boolean runRollbackActions) {
-		boolean successful = true;
+	private static boolean rollback(Connection connection, Throwable originalFailure) {
 		try {
 			connection.rollback();
+			return true;
 		} catch (SQLException | RuntimeException rollbackFailure) {
-			originalFailure.addSuppressed(rollbackFailure);
+			addSuppressed(originalFailure, rollbackFailure);
 			log.error("Error rolling back database transaction", rollbackFailure);
-			successful = false;
+			return false;
 		}
-		if (runRollbackActions) {
-			state.runRollbackActions(originalFailure);
+	}
+
+	private static void addSuppressed(Throwable originalFailure, Throwable additionalFailure) {
+		if (originalFailure != null) {
+			originalFailure.addSuppressed(additionalFailure);
 		}
-		return successful;
 	}
 
 	private static void quarantineSession(TransactionState state, Throwable originalFailure) {
@@ -262,7 +280,7 @@ final class DbTransactionManager {
 		try {
 			session.close();
 		} catch (SQLException | RuntimeException closeFailure) {
-			originalFailure.addSuppressed(closeFailure);
+			addSuppressed(originalFailure, closeFailure);
 			log.error("Error closing unusable database session", closeFailure);
 		}
 	}
@@ -307,8 +325,8 @@ final class DbTransactionManager {
 			for (int index = rollbackActions.size() - 1; index >= 0; index--) {
 				try {
 					rollbackActions.get(index).run();
-				} catch (RuntimeException | Error rollbackActionFailure) {
-					originalFailure.addSuppressed(rollbackActionFailure);
+				} catch (RuntimeException rollbackActionFailure) {
+					addSuppressed(originalFailure, rollbackActionFailure);
 					log.error("Error restoring entity state after database rollback", rollbackActionFailure);
 				}
 			}

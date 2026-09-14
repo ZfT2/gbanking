@@ -53,24 +53,24 @@ import org.kapott.hbci.structures.Value;
 import org.mockito.MockedConstruction;
 
 import de.zft2.gbanking.BaseMessagesDb;
+import de.zft2.gbanking.db.DBController;
+import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.BankAccountRetrievalStatus;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingForeignCurrencyDetails;
+import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.AccountRetrievalStatus;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
-import de.zft2.gbanking.db.dao.Recipient;
-import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
 import de.zft2.gbanking.messages.Messages;
-import de.zft2.gbanking.service.bankaccess.BankAccessService;
 import de.zft2.gbanking.service.Service;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.ServiceStubbingUtil;
+import de.zft2.gbanking.service.bankaccess.BankAccessService;
 import de.zft2.gbanking.testdata.TestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -81,13 +81,13 @@ class AccountTransactionServiceAdditionalTest {
 	private static final List<Class<? extends Service>> SERVICES_TO_STUB = List.of(BankAccessService.class);
 
 	@BeforeEach
-	void setUp() throws Exception {
+	void setUp() {
 		clearDatabase();
 		ServiceStubbingUtil.initStubbedServicesInContext(SERVICES_TO_STUB);
 	}
 
 	@AfterEach
-	void tearDown() throws Exception {
+	void tearDown() {
 		ServiceStubbingUtil.unloadStubbedServicesInContext(SERVICES_TO_STUB);
 	}
 
@@ -202,17 +202,6 @@ class AccountTransactionServiceAdditionalTest {
 		konto.number = "12345678";
 
 		assertFalse((Boolean) invokePrivate(service, "hbciKontosMatches", new Class<?>[] { BankAccount.class, Konto.class }, bankAccount, konto));
-	}
-
-	@Test
-	void clearSecret_shouldOverwriteSecretCharsAndAcceptNull() throws Exception {
-		AccountTransactionService service = new AccountTransactionService();
-		char[] secret = "12345".toCharArray();
-
-		invokePrivate(service, "clearSecret", new Class<?>[] { char[].class }, secret);
-		invokePrivate(service, "clearSecret", new Class<?>[] { char[].class }, new Object[] { null });
-
-		assertArrayEquals(new char[] { '\0', '\0', '\0', '\0', '\0' }, secret);
 	}
 
 	@Test

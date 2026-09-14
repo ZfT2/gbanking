@@ -2,12 +2,14 @@ package de.zft2.gbanking.gui.util;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableCell;
 
 public final class TableColumnFactory {
 
@@ -49,6 +51,20 @@ public final class TableColumnFactory {
 		TableColumn<S, LocalDate> column = new TableColumn<>(title);
 		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(valueProvider.apply(data.getValue())));
 		column.setCellFactory(FxTableUtils.createLocalDateCellFactory());
+		FxTableUtils.setFixedWidth(column, width);
+		return column;
+	}
+
+	public static <S> TableColumn<S, LocalDateTime> createDateTimeColumn(String title, Function<S, LocalDateTime> valueProvider, double width) {
+		TableColumn<S, LocalDateTime> column = new TableColumn<>(title);
+		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(valueProvider.apply(data.getValue())));
+		column.setCellFactory(ignored -> new TableCell<>() {
+			@Override
+			protected void updateItem(LocalDateTime item, boolean empty) {
+				super.updateItem(item, empty);
+				setText(empty || item == null ? null : DateFormatUtils.formatDateTime(item));
+			}
+		});
 		FxTableUtils.setFixedWidth(column, width);
 		return column;
 	}

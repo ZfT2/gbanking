@@ -8,29 +8,31 @@ import java.util.List;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccessFints;
 import de.zft2.gbanking.db.dao.Bpd;
-import de.zft2.gbanking.db.dao.enu.HbciEncodingFilterType;
-import de.zft2.gbanking.db.dao.enu.BankAccessType;
-import de.zft2.gbanking.db.dao.enu.TanProcedure;
 import de.zft2.gbanking.db.dao.ParameterDataBankAccess;
 import de.zft2.gbanking.db.dao.Upd;
+import de.zft2.gbanking.db.dao.enu.BankAccessType;
+import de.zft2.gbanking.db.dao.enu.HbciEncodingFilterType;
+import de.zft2.gbanking.db.dao.enu.TanProcedure;
 import de.zft2.gbanking.enablebanking.EnablebankingAccountTransactionService;
 import de.zft2.gbanking.gui.BackgroundActionCoordinator;
+import de.zft2.gbanking.gui.KeyboardShortcutDispatcher;
 import de.zft2.gbanking.gui.dialog.BankAccessParameterDataDialog;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.enu.ButtonContext;
-import de.zft2.gbanking.gui.KeyboardShortcutDispatcher;
 import de.zft2.gbanking.gui.panel.AbstractReadonlyDetailPanel;
 import de.zft2.gbanking.gui.panel.action.PinAskDialog;
 import de.zft2.gbanking.gui.panel.overview.BankAccessOverviewPanel;
 import de.zft2.gbanking.gui.util.DetailFormEditMode;
 import de.zft2.gbanking.gui.util.FormFields;
+import de.zft2.gbanking.gui.util.FormGridHelper;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
+import de.zft2.gbanking.gui.util.FxNodeSupport;
 import de.zft2.gbanking.hbci.ChipTanUsbSupport;
 import de.zft2.gbanking.hbci.TanProcedureSupport;
 import de.zft2.gbanking.hbci.TanProcedureSupport.SupportedTanProcedure;
 import de.zft2.gbanking.paypal.PaypalSupport;
-import de.zft2.gbanking.service.bankaccess.BankAccessService;
 import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.service.bankaccess.BankAccessService;
 import de.zft2.gbanking.util.TypeConverter;
 import javafx.collections.FXCollections;
 import javafx.concurrent.Task;
@@ -43,7 +45,6 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Control;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -96,14 +97,7 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 	}
 
 	private void configureGrid() {
-		formGrid.getColumnConstraints().setAll(createGrowColumn(), createGrowColumn(), createGrowColumn());
-	}
-
-	private ColumnConstraints createGrowColumn() {
-		ColumnConstraints constraints = new ColumnConstraints();
-		constraints.setHgrow(Priority.ALWAYS);
-		constraints.setFillWidth(true);
-		return constraints;
+		FormGridHelper.setEqualGrowColumns(formGrid, 3);
 	}
 
 	private void createInnerBankAccessDetailPanel() {
@@ -312,13 +306,20 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 
 	private void fillForm(BankAccess access) {
 		updateTitle(access.getBankName());
-		boolean paypal = PaypalSupport.isPaypal(access);
 		boolean fints = access.getAccessType() == BankAccessType.HBCI;
 		BankAccessFints fintsData = access.getFints();
 
-		blzText.setText(paypal ? PaypalSupport.DISPLAY_NAME : fints ? fintsData.getBlz() : "Enablebanking");
+		blzText.setText(switch (access.getAccessType()) {
+		case HBCI -> fintsData.getBlz();
+		case PAYPAL -> PaypalSupport.DISPLAY_NAME;
+		case ENABLEBANKING -> "Enablebanking";
+		});
 		bankNameText.setText(access.getBankName());
-		userNameText.setText(fints ? fintsData.getUserId() : paypal ? access.getPaypal().getUserId() : "");
+		userNameText.setText(switch (access.getAccessType()) {
+		case HBCI -> fintsData.getUserId();
+		case PAYPAL -> access.getPaypal().getUserId();
+		case ENABLEBANKING -> "";
+		});
 		customerIdText.setText(fints ? fintsData.getCustomerId() : "");
 
 		urlText.setText(fints ? fintsData.getHbciURL() : "");
@@ -339,14 +340,9 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 	private void configureProviderActions(BankAccess access) {
 		boolean fints = access.getAccessType() == BankAccessType.HBCI;
 		buttonBankAccessEdit.setDisable(!fints);
-		setVisibleAndManaged(buttonBankAccessRefreshParameterData, fints);
-		setVisibleAndManaged(buttonBankAccessShowBpd, fints);
-		setVisibleAndManaged(buttonBankAccessShowUpd, fints);
-	}
-
-	private void setVisibleAndManaged(Control control, boolean visible) {
-		control.setVisible(visible);
-		control.setManaged(visible);
+		FxNodeSupport.setVisibleManaged(buttonBankAccessRefreshParameterData, fints);
+		FxNodeSupport.setVisibleManaged(buttonBankAccessShowBpd, fints);
+		FxNodeSupport.setVisibleManaged(buttonBankAccessShowUpd, fints);
 	}
 
 	private void applyFormTo(BankAccess access) {

@@ -24,7 +24,7 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.exception.ExportException;
-import de.zft2.gbanking.gui.BaseWorker;
+import de.zft2.gbanking.concurrent.ProgressReporter;
 
 public class FileExportFP3Bean extends FileExportBean {
 
@@ -32,8 +32,8 @@ public class FileExportFP3Bean extends FileExportBean {
 	private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 	private static final Comparator<Booking> BOOKING_ORDER = Comparator.comparing(FileExportFP3Bean::sortDate).thenComparingInt(Booking::getId);
 
-	public FileExportFP3Bean(BaseWorker worker) {
-		super(worker);
+	public FileExportFP3Bean(ProgressReporter progressReporter) {
+		super(progressReporter);
 	}
 
 	@Override

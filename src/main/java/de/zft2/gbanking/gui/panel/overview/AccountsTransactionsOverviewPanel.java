@@ -1,13 +1,18 @@
 package de.zft2.gbanking.gui.panel.overview;
 
+import java.util.List;
+
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.dao.BankAccount;
+import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.gui.panel.account.AccountDetailPanel;
 import de.zft2.gbanking.gui.panel.account.AccountListPanel;
+import de.zft2.gbanking.gui.panel.account.AccountSelectionTarget;
 import de.zft2.gbanking.gui.panel.account.AccountStatementPanel;
 import de.zft2.gbanking.gui.panel.layout.DetailListPane;
 import de.zft2.gbanking.gui.panel.layout.MasterContentPane;
@@ -17,7 +22,7 @@ import javafx.scene.Node;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 
-public class AccountsTransactionsOverviewPanel extends TransactionsOverviewBasePanel {
+public class AccountsTransactionsOverviewPanel extends TransactionsOverviewBasePanel implements AccountSelectionTarget {
 
 	private static final Logger log = LogManager.getLogger(AccountsTransactionsOverviewPanel.class);
 	private static final double ACCOUNT_DIVIDER = 0.22;
@@ -27,8 +32,11 @@ public class AccountsTransactionsOverviewPanel extends TransactionsOverviewBaseP
 	private AccountStatementPanel accountStatementPanel;
 	private DetailListPane transactionContentPane;
 
-	@Override
-	public void createOverallPanel(boolean show) {
+	public AccountsTransactionsOverviewPanel() {
+		initializePanel();
+	}
+
+	private void initializePanel() {
 		setPageContext(PageContext.ACCOUNTS_TRANSACTIONS);
 		log.info("Creating AccountsTransactionsOverviewPanel");
 
@@ -43,7 +51,7 @@ public class AccountsTransactionsOverviewPanel extends TransactionsOverviewBaseP
 
 		TabPane rightTabPane = createRightTabPane();
 		MasterContentPane mainPane = new MasterContentPane(accountListPanel, rightTabPane, "accountsTransactions.main", ACCOUNT_DIVIDER);
-		setOverviewContent("UI_PANEL_ACCOUNTS_TRANSACTIONS", mainPane, show);
+		setOverviewContent("UI_PANEL_ACCOUNTS_TRANSACTIONS", mainPane);
 	}
 
 	public AccountListPanel getAccountListPanel() {
@@ -60,6 +68,25 @@ public class AccountsTransactionsOverviewPanel extends TransactionsOverviewBaseP
 
 	public BankAccount getSelectedAccount() {
 		return accountListPanel != null ? accountListPanel.getSelectedAccount() : null;
+	}
+
+	@Override
+	public boolean canChangeAccountSelection() {
+		return transactionDetailPanel.confirmDiscardUnsavedSplitBookings();
+	}
+
+	@Override
+	public void handleAccountSelection(BankAccount selectedAccount) {
+		log.log(Level.INFO, () -> getText("LOG_ACCOUNT_SELECTED", selectedAccount.getId()));
+		transactionDetailPanel.clearDisplayedBooking();
+
+		List<Booking> bookings = dbController.getAllByParentFull(Booking.class, selectedAccount.getId());
+		transactionListPanel.updatePanelBorder(getText("UI_PANEL_TRANSACTIONS") + " - " + selectedAccount.getAccountName());
+		transactionListPanel.updateModelBooking(bookings);
+		enableAccountDetailPanel();
+		accountDetailPanel.updatePanelFieldValues(selectedAccount);
+		transactionDetailPanel.setCurrentAccount(selectedAccount);
+		accountStatementPanel.updateAccount(selectedAccount);
 	}
 
 	public void enableAccountDetailPanel() {

@@ -15,6 +15,7 @@ import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.panel.BasePanel;
 import de.zft2.gbanking.gui.panel.overview.BankAccessOverviewPanel;
 import de.zft2.gbanking.gui.util.FxTableUtils;
+import de.zft2.gbanking.gui.util.FxNodeSupport;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
 import de.zft2.gbanking.paypal.PaypalSupport;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
@@ -40,7 +41,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-public class BankAccessDialogHolder extends BasePanel {
+final class BankAccessDialogHolder extends BasePanel {
 
 	private static final String UI_WARNING_BANK_ACCESS_DELETE = "UI_WARNING_BANK_ACCESS_DELETE";
 
@@ -54,13 +55,13 @@ public class BankAccessDialogHolder extends BasePanel {
 	private final BankAccessOverviewPanel overviewPanel;
 	private BankAccess currentBankAccess;
 
-	public BankAccessDialogHolder(ButtonContext buttonContext, BankAccessOverviewPanel overviewPanel) {
+	BankAccessDialogHolder(ButtonContext buttonContext, BankAccessOverviewPanel overviewPanel) {
 		this.buttonContext = buttonContext;
 		this.overviewPanel = overviewPanel;
 		this.currentBankAccess = overviewPanel.getCurrentBankAccess();
 	}
 
-	public void showDialog() {
+	void showDialog() {
 		switch (buttonContext) {
 		case BUTTON_NEW, BUTTON_EDIT -> showWizardDialog();
 		case BUTTON_DELETE -> showDeleteConfirmationDialog();
@@ -68,18 +69,18 @@ public class BankAccessDialogHolder extends BasePanel {
 		}
 	}
 
-	public boolean showManualEditConfirmationDialog() {
+	boolean showManualEditConfirmationDialog() {
 		return DialogWindowSupport.showConfirmation(getOwnerWindow(), AlertType.WARNING, getText("UI_BUTTON_BANK_ACCESS_EDIT"),
 				getText("UI_WARNING_BANK_ACCESS_EDIT_MANUAL"), new Label(getText("UI_QUESTION_BANK_ACCESS_EDIT_MANUAL")), ButtonType.OK,
 				ButtonType.CANCEL);
 	}
 
-	public void showRequiredFieldsWarningDialog() {
+	void showRequiredFieldsWarningDialog() {
 		showWarningMessageDialog("UI_WARNING_BANK_ACCESS_REQUIRED_FIELDS_TITLE", "UI_WARNING_BANK_ACCESS_REQUIRED_FIELDS_HEADER",
 				"UI_WARNING_BANK_ACCESS_REQUIRED_FIELDS_TEXT");
 	}
 
-	public void showInvalidPortWarningDialog() {
+	void showInvalidPortWarningDialog() {
 		showWarningMessageDialog("UI_WARNING_BANK_ACCESS_INVALID_PORT_TITLE", "UI_WARNING_BANK_ACCESS_INVALID_PORT_HEADER",
 				"UI_WARNING_BANK_ACCESS_INVALID_PORT_TEXT");
 	}
@@ -237,15 +238,10 @@ public class BankAccessDialogHolder extends BasePanel {
 		boolean paypal = PaypalSupport.isPaypalChoice(bankValue);
 		userLabel.setText(getText(paypal ? "UI_LABEL_PAYPAL_EMAIL" : "UI_LABEL_USER"));
 		pinLabel.setText(getText(paypal ? "UI_LABEL_PAYPAL_API_PASSWORD" : "UI_LABEL_PIN"));
-		setVisibleAndManaged(apiUsernameLabel, paypal);
-		setVisibleAndManaged(apiUsernameText, paypal);
-		setVisibleAndManaged(apiSignatureLabel, paypal);
-		setVisibleAndManaged(apiSignatureText, paypal);
-	}
-
-	private void setVisibleAndManaged(Node node, boolean visible) {
-		node.setVisible(visible);
-		node.setManaged(visible);
+		FxNodeSupport.setVisibleManaged(apiUsernameLabel, paypal);
+		FxNodeSupport.setVisibleManaged(apiUsernameText, paypal);
+		FxNodeSupport.setVisibleManaged(apiSignatureLabel, paypal);
+		FxNodeSupport.setVisibleManaged(apiSignatureText, paypal);
 	}
 
 	private boolean hasRequiredCredentials(boolean paypal, String bank, String user, String password, String apiUsername, String apiSignature) {
@@ -327,14 +323,20 @@ public class BankAccessDialogHolder extends BasePanel {
 	}
 
 	private GridPane createBankAccessInfoGrid() {
-		String identifier = currentBankAccess == null ? null : switch (currentBankAccess.getAccessType()) {
-		case HBCI -> currentBankAccess.getFints().getBlz();
-		case PAYPAL -> PaypalSupport.DISPLAY_NAME;
-		case ENABLEBANKING -> currentBankAccess.getEnablebanking().getAspspName();
-		};
-		String userId = currentBankAccess == null ? null
-				: currentBankAccess.getAccessType() == BankAccessType.PAYPAL ? currentBankAccess.getPaypal().getUserId()
-						: currentBankAccess.getFints().getUserId();
+		String identifier = null;
+		String userId = null;
+		if (currentBankAccess != null) {
+			identifier = switch (currentBankAccess.getAccessType()) {
+			case HBCI -> currentBankAccess.getFints().getBlz();
+			case PAYPAL -> PaypalSupport.DISPLAY_NAME;
+			case ENABLEBANKING -> currentBankAccess.getEnablebanking().getAspspName();
+			};
+			userId = switch (currentBankAccess.getAccessType()) {
+			case HBCI -> currentBankAccess.getFints().getUserId();
+			case PAYPAL -> currentBankAccess.getPaypal().getUserId();
+			case ENABLEBANKING -> null;
+			};
+		}
 		Label blzValue = new Label(nullToEmpty(identifier));
 		Label userValue = new Label(nullToEmpty(userId));
 

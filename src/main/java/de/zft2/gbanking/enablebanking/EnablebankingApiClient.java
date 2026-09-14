@@ -32,6 +32,8 @@ public class EnablebankingApiClient {
 	static final URI DEFAULT_API_URI = URI.create("https://api.enablebanking.com/");
 	private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(60);
 	private static final long MAXIMUM_CONSENT_SECONDS = Duration.ofDays(179).toSeconds();
+	private static final String ACCOUNTS_PATH = "accounts/";
+	private static final String VALID_UNTIL = "valid_until";
 	private static final String USER_AGENT = "GBanking Enablebanking client";
 
 	private final HttpClient httpClient;
@@ -67,7 +69,7 @@ public class EnablebankingApiClient {
 		Map<String, Object> access = new LinkedHashMap<>();
 		access.put("balances", true);
 		access.put("transactions", true);
-		access.put("valid_until", validUntil.toString());
+		access.put(VALID_UNTIL, validUntil.toString());
 
 		Map<String, Object> institution = new LinkedHashMap<>();
 		institution.put("name", aspsp.name());
@@ -109,17 +111,17 @@ public class EnablebankingApiClient {
 	}
 
 	public List<Map<String, Object>> getBalances(String accountUid) {
-		Map<String, Object> response = send("accounts/" + encodePath(accountUid) + "/balances", "GET", null);
+		Map<String, Object> response = send(ACCOUNTS_PATH + encodePath(accountUid) + "/balances", "GET", null);
 		return objectList(response.get("balances"));
 	}
 
 	public EnablebankingRemoteAccount getAccountDetails(String accountUid) {
-		return mapAccount(send("accounts/" + encodePath(accountUid) + "/details", "GET", null));
+		return mapAccount(send(ACCOUNTS_PATH + encodePath(accountUid) + "/details", "GET", null));
 	}
 
 	public EnablebankingTransactionPage getTransactions(String accountUid, LocalDate dateFrom,
 			String strategy, String continuationKey) {
-		StringBuilder path = new StringBuilder("accounts/").append(encodePath(accountUid)).append("/transactions");
+		StringBuilder path = new StringBuilder(ACCOUNTS_PATH).append(encodePath(accountUid)).append("/transactions");
 		List<String> query = new ArrayList<>();
 		if (dateFrom != null) {
 			query.add("date_from=" + encodeQuery(dateFrom.toString()));
@@ -191,8 +193,8 @@ public class EnablebankingApiClient {
 			accountData = objectList(value.get("accounts"));
 		}
 		List<EnablebankingRemoteAccount> accounts = accountData.stream().map(account -> mapAccount(account)).toList();
-		String validUntil = firstText(object(value.get("access")), "valid_until");
-		validUntil = firstText(validUntil, string(value.get("valid_until")));
+		String validUntil = firstText(object(value.get("access")), VALID_UNTIL);
+		validUntil = firstText(validUntil, string(value.get(VALID_UNTIL)));
 		return new EnablebankingSession(firstText(value, "session_id", "id"),
 				firstText(string(value.get("status")), defaultStatus),
 				validUntil != null ? OffsetDateTime.parse(validUntil) : null, accounts);

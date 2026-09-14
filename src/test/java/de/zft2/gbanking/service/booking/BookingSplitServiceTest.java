@@ -159,9 +159,10 @@ class BookingSplitServiceTest {
 		foreign.setForeignCurrency(Currency.USD);
 		foreign.setExchangeRateToBaseCurrency(new BigDecimal("0.8"));
 		parentBooking.setForeignCurrencyDetails(foreign);
+		List<Booking> splitBookings = List.of(createSplitBooking(new BigDecimal("-80.00"), targetAccount.getId()));
+		List<Integer> removedBookingIds = List.of();
 
-		assertThrows(GBankingException.class, () -> service.saveSplitBookings(parentBooking,
-				List.of(createSplitBooking(new BigDecimal("-80.00"), targetAccount.getId())), List.of()));
+		assertThrows(GBankingException.class, () -> service.saveSplitBookings(parentBooking, splitBookings, removedBookingIds));
 	}
 
 	@Test
@@ -171,9 +172,10 @@ class BookingSplitServiceTest {
 		targetAccount.setBaseCurrency(Currency.USD);
 		dbController.insertOrUpdate(targetAccount);
 		Booking parentBooking = insertParentBooking(sourceAccount, new BigDecimal("-80.00"));
+		List<Booking> splitBookings = List.of(createSplitBooking(new BigDecimal("-80.00"), targetAccount.getId()));
+		List<Integer> removedBookingIds = List.of();
 
-		assertThrows(GBankingException.class, () -> service.saveSplitBookings(parentBooking,
-				List.of(createSplitBooking(new BigDecimal("-80.00"), targetAccount.getId())), List.of()));
+		assertThrows(GBankingException.class, () -> service.saveSplitBookings(parentBooking, splitBookings, removedBookingIds));
 	}
 
 	private BankAccount insertAccount(String name, boolean offline) {

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.Month;
 import java.time.ZoneId;
 import java.util.List;
 
@@ -28,7 +29,7 @@ class AccountUpdatedAtColumnTest {
 	@Test
 	void shouldRenderRetrievalTimeLegacyDateAndClearReusedCells() {
 		JavaFxTestSupport.runFx(() -> {
-			LocalDate today = LocalDate.of(2026, 9, 10);
+			LocalDate today = LocalDate.of(2026, Month.SEPTEMBER, 10);
 			Clock clock = Clock.fixed(today.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
 			AccountUpdatedAtColumn column = new AccountUpdatedAtColumn("Stand", clock);
 			BankAccount account = new BankAccount();
@@ -78,7 +79,7 @@ class AccountUpdatedAtColumnTest {
 			table.getColumns().setAll(List.of(selected, name, updated));
 			for (int i = 0; i < 30; i++) {
 				BankAccount account = new BankAccount();
-				account.setUpdatedAt(LocalDate.of(2026, 8, 28));
+				account.setUpdatedAt(LocalDate.of(2026, Month.AUGUST, 28));
 				table.getItems().add(account);
 			}
 			StackPane root = new StackPane(table);

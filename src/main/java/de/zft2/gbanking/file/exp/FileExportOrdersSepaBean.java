@@ -3,6 +3,7 @@ package de.zft2.gbanking.file.exp;
 import static de.zft2.gbanking.util.TextValues.firstNonBlank;
 import static de.zft2.gbanking.util.TextValues.trimToNull;
 
+import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -20,8 +21,10 @@ import java.util.Set;
 
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
@@ -36,7 +39,7 @@ import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.exception.ExportException;
-import de.zft2.gbanking.gui.BaseWorker;
+import de.zft2.gbanking.concurrent.ProgressReporter;
 
 public class FileExportOrdersSepaBean extends FileExportBean {
 
@@ -46,8 +49,8 @@ public class FileExportOrdersSepaBean extends FileExportBean {
 			OrderType.REALTIME_TRANSFER);
 	private static final DateTimeFormatter ID_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS");
 
-	public FileExportOrdersSepaBean(BaseWorker worker) {
-		super(worker);
+	public FileExportOrdersSepaBean(ProgressReporter progressReporter) {
+		super(progressReporter);
 	}
 
 	@Override
@@ -60,8 +63,10 @@ public class FileExportOrdersSepaBean extends FileExportBean {
 			writeDocument(createDocument(exportData.groups()), prepareExportPath(fileName));
 			String finalMessage = exportData.skippedCount() > 0 ? "UI_MONEYTRANSFER_SEPA_EXPORT_SKIPPED" : "UI_PROGRESS_FINISH";
 			updateWorkerState(99, false, finalMessage, exportData.skippedCount());
-			log.info("Finished SEPA PAIN export. file={}, records={}, skippedUnsupported={}", fileNameOnly(fileName), exportData.exportedCount(),
-					exportData.skippedCount());
+			if (log.isInfoEnabled()) {
+				log.info("Finished SEPA PAIN export. file={}, records={}, skippedUnsupported={}", fileNameOnly(fileName),
+						exportData.exportedCount(), exportData.skippedCount());
+			}
 			return true;
 		} catch (ExportException exception) {
 			throw exception;
@@ -93,14 +98,14 @@ public class FileExportOrdersSepaBean extends FileExportBean {
 		return new ExportData(List.copyOf(groups.values()), exportedCount, skippedCount);
 	}
 
-	private Document createDocument(List<PaymentGroup> groups) throws Exception {
+	private Document createDocument(List<PaymentGroup> groups) throws ParserConfigurationException {
 		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 		factory.setNamespaceAware(true);
 		Document document = factory.newDocumentBuilder().newDocument();
 		Element root = document.createElementNS(NAMESPACE, "Document");
 		document.appendChild(root);
 		Element initiation = append(root, "CstmrCdtTrfInitn");
-		String runId = ID_TIME_FORMAT.format(OffsetDateTime.now());
+		String runId = ID_TIME_FORMAT.format(OffsetDateTime.now(ZoneId.systemDefault()));
 		appendGroupHeader(initiation, groups, runId);
 		for (int i = 0; i < groups.size(); i++) {
 			appendPaymentInformation(initiation, groups.get(i), runId, i + 1);
@@ -112,7 +117,7 @@ public class FileExportOrdersSepaBean extends FileExportBean {
 		List<MoneyTransfer> transfers = groups.stream().flatMap(group -> group.transfers().stream()).toList();
 		Element header = append(initiation, "GrpHdr");
 		append(header, "MsgId", valueWithin("GBanking-" + runId, "MsgId", 35));
-		append(header, "CreDtTm", OffsetDateTime.now().toString());
+		append(header, "CreDtTm", OffsetDateTime.now(ZoneId.systemDefault()).toString());
 		append(header, "NbOfTxs", Integer.toString(transfers.size()));
 		append(header, "CtrlSum", sum(transfers).toPlainString());
 		append(append(header, "InitgPty"), "Nm", "GBanking");
@@ -176,7 +181,7 @@ public class FileExportOrdersSepaBean extends FileExportBean {
 		}
 	}
 
-	private void writeDocument(Document document, Path exportPath) throws Exception {
+	private void writeDocument(Document document, Path exportPath) throws IOException, TransformerException {
 		TransformerFactory factory = TransformerFactory.newInstance();
 		factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
 		factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");

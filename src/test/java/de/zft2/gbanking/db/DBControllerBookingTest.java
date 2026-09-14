@@ -480,9 +480,10 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		Booking assignedBooking = db.insertOrUpdate(TestDataFactory.createSampleBooking(account.getId()));
 		Booking unassignedBooking = db.insertOrUpdate(TestDataFactory.createSampleBooking2(account.getId()));
 		db.updateBookingsWithRecipients(Map.of(currentRecipient, Set.of(assignedBooking.getId())));
+		Map<Recipient, Set<Integer>> updates = Map.of(newRecipient,
+				Set.of(assignedBooking.getId(), unassignedBooking.getId()));
 
-		assertThrows(GBankingException.class, () -> db.updateBookingsWithRecipients(
-				Map.of(newRecipient, Set.of(assignedBooking.getId(), unassignedBooking.getId()))));
+		assertThrows(GBankingException.class, () -> db.updateBookingsWithRecipients(updates));
 
 		assertEquals(currentRecipient.getId(), db.getById(Booking.class, assignedBooking.getId()).getRecipientId());
 		assertEquals(0, db.getById(Booking.class, unassignedBooking.getId()).getRecipientId());
@@ -496,9 +497,9 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		Category newCategory = db.insertOrUpdate(TestDataFactory.createSampleCategory("New"));
 		Booking booking = db.insertOrUpdate(TestDataFactory.createSampleBooking(account.getId()));
 		db.updateBookingsWithCategories(Map.of(currentCategory, Set.of(booking.getId())));
+		Map<Category, Set<Integer>> updates = Map.of(newCategory, Set.of(booking.getId(), Integer.MAX_VALUE));
 
-		assertThrows(GBankingException.class, () -> db.updateBookingsWithCategories(
-				Map.of(newCategory, Set.of(booking.getId(), Integer.MAX_VALUE))));
+		assertThrows(GBankingException.class, () -> db.updateBookingsWithCategories(updates));
 
 		assertEquals(currentCategory.getId(), db.getById(Booking.class, booking.getId()).getCategoryId());
 	}
@@ -635,8 +636,9 @@ class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
 		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
 		Booking booking = TestDataFactory.createSampleBooking(account.getId());
 		booking.setId(Integer.MAX_VALUE);
+		Set<Booking> bookings = Set.of(booking);
 
-		assertThrows(GBankingException.class, () -> db.insertAll(Set.of(booking)));
+		assertThrows(GBankingException.class, () -> db.insertAll(bookings));
 
 		assertTrue(db.getAllByParent(Booking.class, account.getId()).isEmpty());
 	}

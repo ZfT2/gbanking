@@ -12,14 +12,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import javax.xml.XMLConstants;
-import javax.xml.parsers.DocumentBuilderFactory;
-
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
+
+import de.zft2.gbanking.util.SecureXml;
 
 public class PaypalSoapClient {
 
@@ -151,7 +150,7 @@ public class PaypalSoapClient {
 
 	private void addBalance(Map<String, PaypalBalance> balances, Element element) {
 		String currency = currency(element);
-		if (!currency.isBlank()) {
+		if (currency != null && !currency.isBlank()) {
 			balances.put(currency, new PaypalBalance(currency, new BigDecimal(text(element))));
 		}
 	}
@@ -167,17 +166,7 @@ public class PaypalSoapClient {
 
 	private static Document parse(String xml) {
 		try {
-			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-			factory.setNamespaceAware(true);
-			factory.setXIncludeAware(false);
-			factory.setExpandEntityReferences(false);
-			factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-			factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-			factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-			factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-			factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-			factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-			return factory.newDocumentBuilder().parse(new InputSource(new StringReader(xml)));
+			return SecureXml.newDocumentBuilderFactory(true).newDocumentBuilder().parse(new InputSource(new StringReader(xml)));
 		} catch (Exception exception) {
 			throw new PaypalApiException("Invalid PayPal SOAP response", exception);
 		}

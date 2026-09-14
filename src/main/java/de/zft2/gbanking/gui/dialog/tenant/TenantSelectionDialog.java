@@ -30,13 +30,13 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
-public class TenantSelectionDialog implements BaseMessages {
+final class TenantSelectionDialog implements BaseMessages {
 
 	private static final Logger log = LogManager.getLogger(TenantSelectionDialog.class);
 
-	public record TenantLoginResult(TenantSession session, String lastSelectedTenantId, String languageCode, boolean demoInitializationRequired) {
+	record TenantLoginResult(TenantSession session, String lastSelectedTenantId, String languageCode, boolean demoInitializationRequired) {
 
-		public TenantProfile tenant() {
+		TenantProfile tenant() {
 			return session.profile();
 		}
 	}
@@ -71,13 +71,13 @@ public class TenantSelectionDialog implements BaseMessages {
 	private final DemoTenantManager demoTenantManager;
 	private String selectedLanguageCode = Messages.toLanguageCode(Messages.getLocale());
 
-	public TenantSelectionDialog(Window parentWindow, TenantStore tenantStore) {
+	TenantSelectionDialog(Window parentWindow, TenantStore tenantStore) {
 		this.parentWindow = parentWindow;
 		this.tenantStore = tenantStore;
 		demoTenantManager = new DemoTenantManager(tenantStore);
 	}
 
-	public Optional<TenantLoginResult> showAndWait(String lastSelectedTenantId, String initialLanguageCode) {
+	Optional<TenantLoginResult> showAndWait(String lastSelectedTenantId, String initialLanguageCode) {
 		applyLanguage(initialLanguageCode);
 		DialogState state = createDialogState();
 		initializeDialogState(state, lastSelectedTenantId);
@@ -86,7 +86,7 @@ public class TenantSelectionDialog implements BaseMessages {
 		return Optional.ofNullable(state.result[0]);
 	}
 
-	public String getSelectedLanguageCode() {
+	String getSelectedLanguageCode() {
 		return selectedLanguageCode;
 	}
 

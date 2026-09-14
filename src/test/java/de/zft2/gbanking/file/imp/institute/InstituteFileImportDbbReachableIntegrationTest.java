@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 
 import org.junit.jupiter.api.AfterAll;
@@ -68,7 +69,7 @@ class InstituteFileImportDbbReachableIntegrationTest extends BaseInstituteFileIm
 		Institute initialReachable = findReachableByBic(afterInitialImport, DBB_BIC);
 		assertEquals(1, initialReachable.getServiceSct());
 		assertEquals(1, initialReachable.getServiceScc());
-		assertEquals(LocalDate.of(2026, 8, 17), initialReachable.getValidFrom());
+		assertEquals(LocalDate.of(2026, Month.AUGUST, 17), initialReachable.getValidFrom());
 		assertEquals(InstituteValidityDateType.SOURCE_DATE, initialReachable.getValidFromType());
 
 		writeImportFile(row(DBB_BIC, "SPARKASSE AACHEN", 1, 1, 0, 1, 0));

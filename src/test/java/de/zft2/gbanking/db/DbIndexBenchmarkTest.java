@@ -28,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -53,7 +54,6 @@ class DbIndexBenchmarkTest {
 	private static final int INSTITUTE_WARMUP_REPETITIONS = 3;
 	private static final Logger log = LogManager.getLogger(DbIndexBenchmarkTest.class);
 	private static final Map<String, String> BENCHMARK_SQL = loadBenchmarkSql();
-	private static volatile int resultSink;
 
 	@TempDir
 	Path temporaryDirectory;
@@ -284,7 +284,6 @@ class DbIndexBenchmarkTest {
 				}
 			}
 		}
-		resultSink = checksum;
 	}
 
 	private static List<BenchmarkScenario> createScenarios() {
@@ -494,7 +493,8 @@ class DbIndexBenchmarkTest {
 
 	private static Path findProjectRoot() throws URISyntaxException {
 		Path classesDirectory = Path.of(DbIndexBenchmarkTest.class.getProtectionDomain().getCodeSource().getLocation().toURI());
-		return classesDirectory.getParent().getParent();
+		Path targetDirectory = Objects.requireNonNull(classesDirectory.getParent());
+		return Objects.requireNonNull(targetDirectory.getParent());
 	}
 
 	private static String readIndexDdl(Connection connection, String indexName) throws SQLException {

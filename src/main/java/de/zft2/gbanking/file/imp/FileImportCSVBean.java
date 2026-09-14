@@ -22,6 +22,7 @@ import org.apache.logging.log4j.Logger;
 
 import de.zft2.core.dto.Counterpart;
 import de.zft2.core.dto.DefaultCounterpart;
+import de.zft2.gbanking.concurrent.ProgressReporter;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Recipient;
@@ -41,7 +42,6 @@ import de.zft2.gbanking.file.imp.csv.CsvImportDefinition;
 import de.zft2.gbanking.file.imp.csv.CsvImportTarget;
 import de.zft2.gbanking.file.imp.dto.ImportBankAccount;
 import de.zft2.gbanking.file.imp.dto.ImportBooking;
-import de.zft2.gbanking.gui.BaseWorker;
 import de.zft2.gbanking.mapper.ImportDaoMapper;
 import de.zft2.gbanking.util.TypeConverter;
 
@@ -55,30 +55,30 @@ public class FileImportCSVBean extends AbstractBookingImportBean {
 	private final String definitionName;
 	private final List<RejectedRow> rejectedRows = new ArrayList<>();
 
-	public FileImportCSVBean(BaseWorker worker) {
-		this(worker, null, null);
+	public FileImportCSVBean(ProgressReporter progressReporter) {
+		this(progressReporter, null, null);
 	}
 
-	public FileImportCSVBean(BaseWorker worker, BankAccount contextAccount) {
-		this(worker, contextAccount, null);
+	public FileImportCSVBean(ProgressReporter progressReporter, BankAccount contextAccount) {
+		this(progressReporter, contextAccount, null);
 	}
 
-	public FileImportCSVBean(BaseWorker worker, BankAccount contextAccount, String definitionName) {
-		this(worker, contextAccount, definitionName, new CsvImportAnalyzer(), null);
+	public FileImportCSVBean(ProgressReporter progressReporter, BankAccount contextAccount, String definitionName) {
+		this(progressReporter, contextAccount, definitionName, new CsvImportAnalyzer(), null);
 	}
 
-	FileImportCSVBean(BaseWorker worker, BankAccount contextAccount, String definitionName, CsvImportAnalyzer analyzer) {
-		this(worker, contextAccount, definitionName, analyzer, null);
+	FileImportCSVBean(ProgressReporter progressReporter, BankAccount contextAccount, String definitionName, CsvImportAnalyzer analyzer) {
+		this(progressReporter, contextAccount, definitionName, analyzer, null);
 	}
 
-	FileImportCSVBean(BaseWorker worker, BankAccount contextAccount, String definitionName,
+	FileImportCSVBean(ProgressReporter progressReporter, BankAccount contextAccount, String definitionName,
 			ImportedBankNameCorrectionHandler bankNameCorrectionHandler) {
-		this(worker, contextAccount, definitionName, new CsvImportAnalyzer(), bankNameCorrectionHandler);
+		this(progressReporter, contextAccount, definitionName, new CsvImportAnalyzer(), bankNameCorrectionHandler);
 	}
 
-	private FileImportCSVBean(BaseWorker worker, BankAccount contextAccount, String definitionName, CsvImportAnalyzer analyzer,
+	private FileImportCSVBean(ProgressReporter progressReporter, BankAccount contextAccount, String definitionName, CsvImportAnalyzer analyzer,
 			ImportedBankNameCorrectionHandler bankNameCorrectionHandler) {
-		super(worker, contextAccount, bankNameCorrectionHandler);
+		super(progressReporter, contextAccount, bankNameCorrectionHandler);
 		this.definitionName = definitionName;
 		this.analyzer = analyzer;
 	}
@@ -307,7 +307,10 @@ public class FileImportCSVBean extends AbstractBookingImportBean {
 			throw new CsvRowException(getText("ERROR_CSV_IMPORT_AMOUNT_AMBIGUOUS", row.lineNumber()));
 		}
 		BigDecimal value = parseDecimal(creditValue != null ? creditValue : debitValue, definition);
-		return value == null ? null : creditValue != null ? value.abs() : value.abs().negate();
+		if (value == null) {
+			return null;
+		}
+		return creditValue != null ? value.abs() : value.abs().negate();
 	}
 
 	private BigDecimal parseDecimal(String value, CsvImportDefinition definition) {
@@ -397,7 +400,7 @@ public class FileImportCSVBean extends AbstractBookingImportBean {
 				}
 			}
 		}
-		return amount.signum() >= 0 ? BookingType.DEPOSIT : BookingType.REMOVAL;
+		return BookingType.fromAmount(amount);
 	}
 
 	private String resolveCategory(CsvImportData.Row row, CsvImportDefinition definition) {

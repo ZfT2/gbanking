@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Month;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -67,7 +68,7 @@ class EnablebankingAccountTransactionServiceTest {
 
 	@Test
 	void shouldOfferReauthorizationFromExactlyNinetyDays() {
-		LocalDateTime now = LocalDateTime.of(2026, 9, 8, 14, 0);
+		LocalDateTime now = LocalDateTime.of(2026, Month.SEPTEMBER, 8, 14, 0);
 		BankAccountRetrievalStatus due = retrievalStatus(now.minusDays(90));
 		BankAccountRetrievalStatus notDue = retrievalStatus(now.minusDays(90).plusSeconds(1));
 

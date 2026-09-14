@@ -12,15 +12,18 @@ public class AllTransactionsOverviewPanel extends TransactionsOverviewBasePanel 
 
 	private static final Logger log = LogManager.getLogger(AllTransactionsOverviewPanel.class);
 
-	@Override
-	public void createOverallPanel(boolean show) {
+	public AllTransactionsOverviewPanel() {
+		initializePanel();
+	}
+
+	private void initializePanel() {
 		setPageContext(PageContext.ALL_TRANSACTIONS);
 		log.info("Initializing AllTransactionsOverviewPanel");
 
 		transactionDetailPanel = new TransactionDetailPanel(this);
 		transactionListPanel = new TransactionListPanel(this);
 
-		setOverviewContent("UI_PANEL_ALL_TRANSACTIONS", new DetailListPane(transactionDetailPanel, transactionListPanel), show);
+		setOverviewContent("UI_PANEL_ALL_TRANSACTIONS", new DetailListPane(transactionDetailPanel, transactionListPanel));
 	}
 
 	@Override

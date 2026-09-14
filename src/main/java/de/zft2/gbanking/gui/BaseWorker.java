@@ -3,10 +3,11 @@ package de.zft2.gbanking.gui;
 import java.util.concurrent.CancellationException;
 
 import de.zft2.gbanking.concurrent.CancellationSupport;
+import de.zft2.gbanking.concurrent.ProgressReporter;
 import de.zft2.gbanking.db.DBController;
 import javafx.concurrent.Task;
 
-public abstract class BaseWorker extends Task<Void> {
+public abstract class BaseWorker extends Task<Void> implements ProgressReporter {
 
 	protected final DBController dbController;
 	protected String processingState;
@@ -25,6 +26,11 @@ public abstract class BaseWorker extends Task<Void> {
 		checkCancelled();
 		this.processingState = processingState;
 		updateMessage(processingState);
+	}
+
+	@Override
+	public void reportState(String state) {
+		setProcessingState(state);
 	}
 
 	public int getWorkerProgress() {
@@ -47,6 +53,12 @@ public abstract class BaseWorker extends Task<Void> {
 		updateProgress(progress, 100.0);
 	}
 
+	@Override
+	public void reportProgress(double progress) {
+		setWorkerProgress(progress);
+	}
+
+	@Override
 	public void checkCancelled() {
 		CancellationSupport.throwIfCancellationRequested();
 		if (isCancelled()) {

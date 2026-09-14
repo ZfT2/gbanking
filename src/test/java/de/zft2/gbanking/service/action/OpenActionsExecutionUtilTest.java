@@ -49,12 +49,12 @@ class OpenActionsExecutionUtilTest {
 			AccountTransactionService.class, AccountStatementService.class, BookingCategoryService.class);
 
 	@BeforeEach
-	void setUp() throws Exception {
+	void setUp() {
 		ServiceStubbingUtil.initStubbedServicesInContext(SERVICES_TO_STUB);
 	}
 
 	@AfterEach
-	void tearDown() throws Exception {
+	void tearDown() {
 		ServiceStubbingUtil.unloadStubbedServicesInContext(SERVICES_TO_STUB);
 	}
 

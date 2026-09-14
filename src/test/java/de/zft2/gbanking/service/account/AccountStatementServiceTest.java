@@ -9,13 +9,10 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Month;
-import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Properties;
-import java.util.Set;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,58 +40,6 @@ class AccountStatementServiceTest {
 	@AfterEach
 	void closeDatabaseConnection() {
 		DBController.resetConnection();
-	}
-
-	@Test
-	void createRedownloadRequestsShouldStartWithStoredAcknowledgedStatementsAndDeduplicateFallbackMonths() {
-		AccountStatementService service = new AccountStatementService(tempDir);
-		List<BankAccountStatement> storedStatements = List.of(createStatement(2026, 5, true), createStatement(2026, 4, false), createStatement(2025, 12, true),
-				createStatement(0, 6, true));
-
-		List<AccountStatementService.StatementRequest> requests = service.createRedownloadRequests(storedStatements, YearMonth.of(2026, Month.JUNE));
-
-		assertEquals(new AccountStatementService.StatementRequest(2026, 5, true), requests.get(0));
-		assertEquals(new AccountStatementService.StatementRequest(2025, 12, true), requests.get(1));
-		assertEquals(new AccountStatementService.StatementRequest(null, 6, true), requests.get(2));
-		assertEquals(new AccountStatementService.StatementRequest(2026, 6, false), requests.get(3));
-		assertEquals(new AccountStatementService.StatementRequest(2026, 4, false), requests.get(4));
-		assertEquals(1, countRequests(requests, 2026, 5));
-		assertEquals(1, countRequests(requests, 2025, 12));
-	}
-
-	@Test
-	void readStatementOverviewEntriesShouldParseLowlevelResultData() {
-		AccountStatementService service = new AccountStatementService(tempDir);
-		Properties resultData = new Properties();
-		resultData.setProperty("content.number", "5");
-		resultData.setProperty("content.year", "2026");
-		resultData.setProperty("content.retrievable", "J");
-		resultData.setProperty("content.acknowledgement", "1");
-		resultData.setProperty("content.date", "20260530");
-		resultData.setProperty("content.time", "101500");
-		resultData.setProperty("content.creationtype", "PDF");
-		resultData.setProperty("content.documentid", "DOC-5");
-
-		List<AccountStatementService.StatementOverviewEntry> entries = service.readStatementOverviewEntries(resultData);
-
-		assertEquals(1, entries.size());
-		assertEquals(new AccountStatementService.StatementOverviewEntry(2026, 5, true, "1", LocalDate.of(2026, Month.MAY, 30), "101500", "PDF", "DOC-5"),
-				entries.get(0));
-	}
-
-	@Test
-	void createOverviewDownloadRequestsShouldSkipKnownAndNonRetrievableEntries() {
-		AccountStatementService service = new AccountStatementService(tempDir);
-		List<AccountStatementService.StatementOverviewEntry> overviewEntries = List.of(
-				new AccountStatementService.StatementOverviewEntry(2026, 5, true, "1", null, null, null, null),
-				new AccountStatementService.StatementOverviewEntry(2026, 4, false, "1", null, null, null, null),
-				new AccountStatementService.StatementOverviewEntry(2026, 3, true, "1", null, null, null, null),
-				new AccountStatementService.StatementOverviewEntry(null, 2, true, "1", null, null, null, null));
-
-		List<AccountStatementService.StatementRequest> requests = service.createOverviewDownloadRequests(overviewEntries, Set.of("2026/5"));
-
-		assertEquals(List.of(new AccountStatementService.StatementRequest(2026, 3, true), new AccountStatementService.StatementRequest(null, 2, true)),
-				requests);
 	}
 
 	@Test
@@ -145,18 +90,6 @@ class AccountStatementServiceTest {
 		assertTrue(savedStatements.isEmpty());
 		assertEquals(1, dbController.getAllByParentFull(BankAccountStatement.class, account.getId()).size());
 		assertEquals(1, regularFileCount(tempDir));
-	}
-
-	private long countRequests(List<AccountStatementService.StatementRequest> requests, int year, int number) {
-		return requests.stream().filter(request -> request.year() != null && request.year() == year && request.number() == number).count();
-	}
-
-	private BankAccountStatement createStatement(int year, int number, boolean acknowledged) {
-		BankAccountStatement statement = new BankAccountStatement();
-		statement.setYear(year);
-		statement.setNumber(number);
-		statement.setAcknowledged(acknowledged);
-		return statement;
 	}
 
 	private BankAccountStatement createStoredStatement(BankAccount account, boolean acknowledged) {

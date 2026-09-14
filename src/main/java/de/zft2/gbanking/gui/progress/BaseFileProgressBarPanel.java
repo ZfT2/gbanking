@@ -9,6 +9,7 @@ import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.gui.panel.account.AccountListPanel;
 import de.zft2.gbanking.gui.util.OperationDurationLabel;
+import de.zft2.gbanking.gui.util.FxNodeSupport;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.concurrent.Task;
@@ -26,7 +27,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
-public abstract class BaseFileProgressBarPanel implements BaseMessages {
+abstract class BaseFileProgressBarPanel implements BaseMessages {
 
 	protected ProgressBar progressBar;
 	protected Label progressLabel;
@@ -70,8 +71,7 @@ public abstract class BaseFileProgressBarPanel implements BaseMessages {
 		VBox.setVgrow(taskOutput, Priority.ALWAYS);
 
 		closeButton = new Button(getText("UI_BUTTON_CLOSE"));
-		closeButton.setVisible(false);
-		closeButton.setManaged(false);
+		FxNodeSupport.setVisibleManaged(closeButton, false);
 		closeButton.setOnAction(event -> closeDialog());
 		durationLabel = new OperationDurationLabel();
 
@@ -190,8 +190,7 @@ public abstract class BaseFileProgressBarPanel implements BaseMessages {
 		progressBar.setProgress(1d);
 		progressLabel.textProperty().unbind();
 		progressLabel.setText("100 %");
-		closeButton.setVisible(true);
-		closeButton.setManaged(true);
+		FxNodeSupport.setVisibleManaged(closeButton, true);
 		closeButton.requestFocus();
 		dialogStage.sizeToScene();
 	}

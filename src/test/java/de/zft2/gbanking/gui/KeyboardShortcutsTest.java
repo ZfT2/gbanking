@@ -99,11 +99,6 @@ class KeyboardShortcutsTest {
 		private int refreshCount;
 
 		@Override
-		public void createOverallPanel(boolean show) {
-			// This test double needs no UI; only inherited shortcut handling is exercised.
-		}
-
-		@Override
 		public void refreshOnShow() {
 			refreshCount++;
 		}

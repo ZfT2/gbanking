@@ -83,8 +83,9 @@ class DbConnectionIntegrityTest {
 
 		assertThrows(DatabaseIntegrityException.class,
 				() -> DBController.validateDatabaseIntegrity(databaseFile, false));
+		String databaseDirectory = tempDirectory.toString();
 		assertThrows(DatabaseIntegrityException.class,
-				() -> DBController.getInstance(tempDirectory.toString()));
+				() -> DBController.getInstance(databaseDirectory));
 		assertFalse(DBController.hasOpenConnection());
 	}
 
@@ -94,6 +95,7 @@ class DbConnectionIntegrityTest {
 		Path databaseFile = tempDirectory.resolve("gbanking.db");
 		DBController.resetConnection();
 		DBController.validateDatabaseIntegrity(databaseFile, false);
+		String databaseDirectory = tempDirectory.toString();
 
 		try (var invalidConnection = DriverManager.getConnection("jdbc:sqlite:" + databaseFile);
 				Statement statement = invalidConnection.createStatement()) {
@@ -105,7 +107,7 @@ class DbConnectionIntegrityTest {
 					""");
 
 			assertThrows(DatabaseIntegrityException.class,
-					() -> DBController.getInstance(tempDirectory.toString()));
+					() -> DBController.getInstance(databaseDirectory));
 		}
 		assertFalse(DBController.hasOpenConnection());
 	}
@@ -133,9 +135,10 @@ class DbConnectionIntegrityTest {
 		}
 		assertEquals(originalSize, Files.size(databaseFile));
 		Files.setLastModifiedTime(databaseFile, originalModifiedAt);
+		String databaseDirectory = tempDirectory.toString();
 
 		assertThrows(DatabaseIntegrityException.class,
-				() -> DBController.getInstance(tempDirectory.toString()));
+				() -> DBController.getInstance(databaseDirectory));
 		assertFalse(DBController.hasOpenConnection());
 	}
 
@@ -151,9 +154,10 @@ class DbConnectionIntegrityTest {
 					VALUES (2147483647, 1, datetime())
 					""");
 		}
+		String databaseDirectory = tempDirectory.toString();
 
 		assertThrows(DatabaseIntegrityException.class,
-				() -> DBController.getInstance(tempDirectory.toString()));
+				() -> DBController.getInstance(databaseDirectory));
 		assertFalse(DBController.hasOpenConnection());
 	}
 }

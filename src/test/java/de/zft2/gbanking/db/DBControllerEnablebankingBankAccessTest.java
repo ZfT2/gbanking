@@ -28,7 +28,7 @@ import de.zft2.gbanking.testdata.TestDataFactory;
 class DBControllerEnablebankingBankAccessTest extends DBControllerIntegrationBaseTest {
 
 	@Test
-	void shouldPersistEnablebankingConfigurationAccessAndProviderAccountId() throws Exception {
+	void shouldPersistEnablebankingConfigurationAccessAndProviderAccountId() {
 		Psd2ClientConfiguration configuration = new Psd2ClientConfiguration();
 		configuration.setApplicationId("application-id");
 		configuration.setPrivateKeyPkcs8(new byte[] { 1, 2, 3 });

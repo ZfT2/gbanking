@@ -19,7 +19,7 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.stage.Stage;
 
-public class GBankingMenuBar extends MenuBar implements BaseGui {
+final class GBankingMenuBar extends MenuBar implements BaseGui {
 
 	private static final String UI_MENU_FILE_CSV = "UI_MENU_FILE_CSV";
 

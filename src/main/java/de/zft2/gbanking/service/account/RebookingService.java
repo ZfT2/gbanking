@@ -22,7 +22,6 @@ import org.apache.logging.log4j.Logger;
 import de.zft2.core.exception.ConfigurationException;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
-import de.zft2.gbanking.db.dao.BookingAdditionalDetails;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.Recipient;
@@ -288,7 +287,7 @@ final class RebookingService extends AbstractDbService {
 			return false;
 		}
 
-		sourceBooking.setBookingType(resolveRebookingType(sourceBooking.getAmount()));
+		sourceBooking.setBookingType(BookingType.rebookingFromAmount(sourceBooking.getAmount()));
 		sourceBooking.setCrossAccountId(candidate.targetAccount().getId());
 		sourceBooking.setCrossBookingId(savedCounterBooking.getId());
 		dbController.insertOrUpdate(sourceBooking);
@@ -309,7 +308,7 @@ final class RebookingService extends AbstractDbService {
 		counterBooking.setPurpose(sourceBooking.getPurpose());
 		counterBooking.setAmount(counterAmount);
 		counterBooking.setSource(Source.MANUELL_NEW);
-		counterBooking.setBookingType(resolveRebookingType(counterAmount));
+		counterBooking.setBookingType(BookingType.rebookingFromAmount(counterAmount));
 		counterBooking.setCrossAccountId(sourceBooking.getAccountId());
 		counterBooking.setCrossBookingId(sourceBooking.getId());
 		counterBooking.setUpdatedAt(LocalDate.now(ZoneId.systemDefault()));
@@ -369,12 +368,22 @@ final class RebookingService extends AbstractDbService {
 			return null;
 		}
 
+		SearchAnchors anchors = collectSearchAnchors(newBookings);
+		if (!anchors.complete()) {
+			return null;
+		}
+		return new RebookingSearchScope(anchors.bookingIds(), anchors.accountIds(), anchors.firstBookingDate(),
+				anchors.lastBookingDate(), anchors.firstBookingDate().minusDays(SEARCH_WINDOW_DAYS),
+				anchors.lastBookingDate().plusDays(SEARCH_WINDOW_DAYS), true);
+	}
+
+	private static SearchAnchors collectSearchAnchors(List<Booking> bookings) {
 		Set<Integer> newBookingIds = new HashSet<>();
 		Set<Integer> sourceAccountIds = new HashSet<>();
 		LocalDate firstBookingDate = null;
 		LocalDate lastBookingDate = null;
 
-		for (Booking booking : newBookings) {
+		for (Booking booking : bookings) {
 			if (booking.getId() > 0) {
 				newBookingIds.add(booking.getId());
 			}
@@ -383,22 +392,16 @@ final class RebookingService extends AbstractDbService {
 			}
 
 			LocalDate bookingDate = booking.getDate();
-			if (bookingDate == null) {
-				continue;
-			}
-			if (firstBookingDate == null || bookingDate.isBefore(firstBookingDate)) {
-				firstBookingDate = bookingDate;
-			}
-			if (lastBookingDate == null || bookingDate.isAfter(lastBookingDate)) {
-				lastBookingDate = bookingDate;
+			if (bookingDate != null) {
+				if (firstBookingDate == null || bookingDate.isBefore(firstBookingDate)) {
+					firstBookingDate = bookingDate;
+				}
+				if (lastBookingDate == null || bookingDate.isAfter(lastBookingDate)) {
+					lastBookingDate = bookingDate;
+				}
 			}
 		}
-		if (newBookingIds.isEmpty() || sourceAccountIds.isEmpty()
-				|| firstBookingDate == null || lastBookingDate == null) {
-			return null;
-		}
-		return new RebookingSearchScope(newBookingIds, sourceAccountIds, firstBookingDate, lastBookingDate,
-				firstBookingDate.minusDays(SEARCH_WINDOW_DAYS), lastBookingDate.plusDays(SEARCH_WINDOW_DAYS), true);
+		return new SearchAnchors(newBookingIds, sourceAccountIds, firstBookingDate, lastBookingDate);
 	}
 
 	private static boolean isBookingInAnchorRange(Booking booking, RebookingSearchScope searchScope) {
@@ -460,7 +463,7 @@ final class RebookingService extends AbstractDbService {
 				|| sourceAccount.getId() == targetAccount.getId()) {
 			return false;
 		}
-		if (!isRebookingType(booking.getBookingType()) || booking.getCrossBooking() != null
+		if (!BookingType.isRebooking(booking.getBookingType()) || booking.getCrossBooking() != null
 				|| isPrenotification(booking) || booking.getParentBookingId() != null
 				|| booking.getForeignCurrencyDetails() != null
 				|| sourceAccount.getBaseCurrency() != targetAccount.getBaseCurrency()) {
@@ -562,7 +565,7 @@ final class RebookingService extends AbstractDbService {
 				&& crossBooking.getForeignCurrencyDetails() == null
 				&& !RebookingRules.isForbiddenSameAccountRebooking(booking.getAccountId(),
 						crossBooking.getAccountId(),
-						hasCancellationSignal(booking) || hasCancellationSignal(crossBooking));
+						RebookingRules.hasCancellationSignal(booking) || RebookingRules.hasCancellationSignal(crossBooking));
 	}
 
 	private static List<RebookingAccountSummary> buildRebookingAccountSummaries(
@@ -635,7 +638,7 @@ final class RebookingService extends AbstractDbService {
 		}
 		if (RebookingRules.isForbiddenSameAccountRebooking(booking.getAccountId(),
 				crossBooking.getAccountId(),
-				hasCancellationSignal(booking) || hasCancellationSignal(crossBooking))) {
+				RebookingRules.hasCancellationSignal(booking) || RebookingRules.hasCancellationSignal(crossBooking))) {
 			return false;
 		}
 		if (isAlreadyLinked(booking, crossBooking, detectionContext.originalCrossBookingIds())) {
@@ -685,30 +688,11 @@ final class RebookingService extends AbstractDbService {
 		Objects.requireNonNull(baseBooking, "baseBooking");
 		Objects.requireNonNull(counterpartBooking, "counterpartBooking");
 
-		if (!isCancelBooking(baseBooking)) {
-			baseBooking.setBookingType(resolveRebookingType(baseBooking.getAmount()));
+		if (baseBooking.getBookingType() != BookingType.CANCEL) {
+			baseBooking.setBookingType(BookingType.rebookingFromAmount(baseBooking.getAmount()));
 		}
 		baseBooking.setCrossAccountId(counterpartBooking.getAccountId());
 		baseBooking.setCrossBookingId(counterpartBooking.getId());
-	}
-
-	private static BookingType resolveRebookingType(BigDecimal amount) {
-		return amount != null && amount.signum() < 0
-				? BookingType.REBOOKING_OUT
-				: BookingType.REBOOKING_IN;
-	}
-
-	private static boolean isRebookingType(BookingType bookingType) {
-		return bookingType == BookingType.REBOOKING_IN || bookingType == BookingType.REBOOKING_OUT;
-	}
-
-	private static boolean hasCancellationSignal(Booking booking) {
-		BookingAdditionalDetails details = booking != null ? booking.getAdditionalDetails() : null;
-		return isCancelBooking(booking) || (details != null && Boolean.TRUE.equals(details.getStorno()));
-	}
-
-	private static boolean isCancelBooking(Booking booking) {
-		return booking != null && booking.getBookingType() == BookingType.CANCEL;
 	}
 
 	private static boolean isPrenotification(Booking booking) {
@@ -767,6 +751,15 @@ final class RebookingService extends AbstractDbService {
 	}
 
 	private record TransferPropertiesFileSnapshot(Path path, boolean existed, byte[] content) {
+	}
+
+	private record SearchAnchors(Set<Integer> bookingIds, Set<Integer> accountIds,
+			LocalDate firstBookingDate, LocalDate lastBookingDate) {
+
+		boolean complete() {
+			return !bookingIds.isEmpty() && !accountIds.isEmpty()
+					&& firstBookingDate != null && lastBookingDate != null;
+		}
 	}
 
 	private record RebookingSearchScope(Set<Integer> anchorBookingIds, Set<Integer> anchorAccountIds,

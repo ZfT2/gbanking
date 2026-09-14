@@ -2,11 +2,9 @@ package de.zft2.gbanking.logging;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -16,6 +14,8 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+
+import de.zft2.gbanking.util.FileMoves;
 
 import de.zft2.gbanking.db.BuildInfo;
 import de.zft2.gbanking.util.AppPaths;
@@ -53,7 +53,7 @@ public final class DiagnosticPackageCreator {
 		List<Path> logFiles = findLogFiles();
 		try {
 			writePackage(temporaryFile, logFiles);
-			moveIntoPlace(temporaryFile, target);
+			FileMoves.replaceAtomicallyIfSupported(temporaryFile, target);
 			return target;
 		} catch (IOException exception) {
 			deleteTemporaryFile(temporaryFile, exception);
@@ -121,14 +121,6 @@ public final class DiagnosticPackageCreator {
 
 	private static String fileName(Path file) {
 		return Objects.requireNonNull(file.getFileName(), "file name").toString();
-	}
-
-	private static void moveIntoPlace(Path source, Path target) throws IOException {
-		try {
-			Files.move(source, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-		} catch (AtomicMoveNotSupportedException exception) {
-			Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
-		}
 	}
 
 	private static void deleteTemporaryFile(Path temporaryFile, IOException originalFailure) {

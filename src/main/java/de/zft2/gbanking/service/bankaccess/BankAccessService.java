@@ -26,7 +26,6 @@ import de.zft2.gbanking.db.StatementsConfig;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccessFints;
 import de.zft2.gbanking.db.dao.BankAccount;
-import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.db.dao.enu.AccountState;
 import de.zft2.gbanking.db.dao.enu.HbciEncodingFilterType;
 import de.zft2.gbanking.db.dao.enu.Source;
@@ -43,6 +42,7 @@ import de.zft2.gbanking.paypal.PaypalSupport;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.HbciSessionRunner;
 import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.service.settings.SettingsStore;
 
 public class BankAccessService extends AbstractDbService {
 
@@ -74,10 +74,9 @@ public class BankAccessService extends AbstractDbService {
 	public HBCIPassport initBankConnection(BankAccess bankAccess, GBankingHBCICallback hbciCallback) {
 		LoggingSettings.applyHbciLogLevel();
 		Properties props = HbciProperties.createBaseProperties();
-		Setting settingProductKey = dbController.getAll(Setting.class).stream().filter(setting -> "productKey".equals(setting.getAttribute())).findAny()
-				.orElse(null);
-		if (settingProductKey != null && settingProductKey.getValue() != null) {
-			props.setProperty(HbciProperties.PRODUCT_KEY_PARAM, settingProductKey.getValue());
+		String productKey = new SettingsStore(dbController).getString("productKey", null);
+		if (productKey != null) {
+			props.setProperty(HbciProperties.PRODUCT_KEY_PARAM, productKey);
 		} else {
 			log.warn("Product key not found.");
 		}

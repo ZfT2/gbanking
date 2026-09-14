@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Month;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
@@ -130,7 +131,7 @@ class FileImportXMLBeanTest {
 
 		Booking onlineBooking = new Booking();
 		onlineBooking.setAccountId(onlineAccount.getId());
-		onlineBooking.setDateBooking(java.time.LocalDate.of(2025, 1, 1));
+		onlineBooking.setDateBooking(java.time.LocalDate.of(2025, Month.JANUARY, 1));
 		onlineBooking.setPurpose("Testbuchung");
 		onlineBooking.setAmount(new BigDecimal("123.45"));
 		onlineBooking.setBookingType(BookingType.DEPOSIT);
@@ -187,13 +188,14 @@ class FileImportXMLBeanTest {
 	}
 
 	@Test
-	void importFileToDatabase_shouldRollbackIfBankNameValidationIsInterrupted() {
+	void importFileToDatabase_shouldRollbackIfBankNameValidationIsInterrupted() throws Exception {
 		insertValidationData();
 		FileImportBean importBean = new FileImportBean(null, null, false, findings -> {
 			throw new IllegalStateException("Simulated validation interruption");
 		});
+		String fileName = testResource("dummy_import.xml").toString();
 
-		assertThrows(RuntimeException.class, () -> importBean.importFileToDatatbase(testResource("dummy_import.xml").toString()));
+		assertThrows(RuntimeException.class, () -> importBean.importFileToDatatbase(fileName));
 
 		assertOnlyValidationDataRemains();
 	}

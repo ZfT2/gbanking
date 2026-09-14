@@ -4,7 +4,6 @@ import static de.zft2.gbanking.util.TextValues.firstNonBlank;
 import static de.zft2.gbanking.util.TextValues.trimToNull;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -41,6 +40,7 @@ import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.BankingCapabilityService;
 import de.zft2.gbanking.service.HbciSessionRunner;
 import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.util.TypeConverter;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
 
 public class MoneyTransferInventoryService extends AbstractDbService {
@@ -178,7 +178,7 @@ public class MoneyTransferInventoryService extends AbstractDbService {
 			return null;
 		}
 		MoneyTransfer transfer = createBaseTransfer(bankAccount, OrderType.STANDING_ORDER, entry.other, entry.value, entry.usage,
-				toLocalDate(entry.firstdate));
+				TypeConverter.toLocalDate(entry.firstdate));
 		if (transfer == null) {
 			return null;
 		}
@@ -212,7 +212,7 @@ public class MoneyTransferInventoryService extends AbstractDbService {
 			return null;
 		}
 		MoneyTransfer transfer = createBaseTransfer(bankAccount, OrderType.SCHEDULED_TRANSFER, entry.other, entry.value, entry.usage,
-				toLocalDate(entry.date));
+				TypeConverter.toLocalDate(entry.date));
 		if (transfer != null) {
 			transfer.setBankOrderId(trimToNull(entry.orderid));
 		}
@@ -444,10 +444,6 @@ public class MoneyTransferInventoryService extends AbstractDbService {
 		case 12 -> StandingorderMode.ANNUALLY;
 		default -> null;
 		};
-	}
-
-	private LocalDate toLocalDate(java.util.Date date) {
-		return date == null ? null : Instant.ofEpochMilli(date.getTime()).atZone(ZoneId.systemDefault()).toLocalDate();
 	}
 
 	private String joinUsage(String[] usage) {

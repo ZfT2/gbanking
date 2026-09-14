@@ -19,6 +19,7 @@ import de.zft2.gbanking.gui.model.PendingStatementReceipts;
 import de.zft2.gbanking.gui.model.SelectableOpenAction;
 import de.zft2.gbanking.gui.panel.account.AccountListPanel;
 import de.zft2.gbanking.gui.panel.account.AccountListScope;
+import de.zft2.gbanking.gui.panel.account.AccountSelectionTarget;
 import de.zft2.gbanking.gui.panel.layout.MasterContentPane;
 import de.zft2.gbanking.gui.util.FxTableUtils;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
@@ -41,7 +42,7 @@ import javafx.scene.control.TitledPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 
-public class OpenActionsOverviewPanel extends OverviewBasePanel {
+public class OpenActionsOverviewPanel extends OverviewBasePanel implements AccountSelectionTarget {
 
 	private static final Logger log = LogManager.getLogger(OpenActionsOverviewPanel.class);
 
@@ -74,10 +75,10 @@ public class OpenActionsOverviewPanel extends OverviewBasePanel {
 		this.bankingCapabilityService = bankingCapabilityService;
 		this.moneyTransferService = moneyTransferService;
 		this.accountStatementService = accountStatementService;
+		initializePanel();
 	}
 
-	@Override
-	public void createOverallPanel(boolean show) {
+	private void initializePanel() {
 		setPageContext(PageContext.OPEN_ACTIONS);
 		log.info("Creating OpenActionsOverviewPanel");
 
@@ -89,7 +90,7 @@ public class OpenActionsOverviewPanel extends OverviewBasePanel {
 		actionScrollPane.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
 		MasterContentPane mainPane = new MasterContentPane(accountListPanel, actionScrollPane, "openActions.main", ACCOUNT_DIVIDER);
-		setOverviewContent("UI_PANEL_OPEN_ACTIONS", mainPane, show);
+		setOverviewContent("UI_PANEL_OPEN_ACTIONS", mainPane);
 	}
 
 	private GridPane createActionPanels() {

@@ -1,6 +1,5 @@
 package de.zft2.gbanking.util;
 
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -17,7 +16,7 @@ import org.sqlite.SQLiteConfig;
 
 public class TypeConverter {
 
-	private static Logger log = LogManager.getLogger(TypeConverter.class);
+	private static final Logger log = LogManager.getLogger(TypeConverter.class);
 
 	private TypeConverter() {
 	}
@@ -52,11 +51,7 @@ public class TypeConverter {
 		return toDateStringLong(LocalDate.now(ZoneId.systemDefault()));
 	}
 
-	public static java.sql.Date toSqlDateShort(LocalDate date) {
-		return date != null ? java.sql.Date.valueOf(date) : null;
-	}
-
-	public static java.sql.Date toSqlDateLong(LocalDate date) {
+	public static java.sql.Date toSqlDate(LocalDate date) {
 		return date != null ? java.sql.Date.valueOf(date) : null;
 	}
 
@@ -93,8 +88,22 @@ public class TypeConverter {
 		return toLocalDateFromDateStr(date);
 	}
 
-	public static LocalDate toLocalDateFromDate(java.util.Date date) {
-		return date == null ? null : Instant.ofEpochMilli(date.getTime()).atZone(ZoneId.systemDefault()).toLocalDate();
+	public static LocalDate toLocalDate(java.util.Date date) {
+		if (date == null) {
+			return null;
+		}
+		if (date instanceof java.sql.Date sqlDate) {
+			return sqlDate.toLocalDate();
+		}
+		return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+	}
+
+	public static String toDateTimeString(LocalDateTime dateTime) {
+		return dateTime != null ? dateTime.toString() : null;
+	}
+
+	public static LocalDateTime toLocalDateTime(String value) {
+		return value != null && !value.isBlank() ? LocalDateTime.parse(value) : null;
 	}
 
 	private static LocalDate toLocalDate(DateTimeFormatter formatter, String date) {

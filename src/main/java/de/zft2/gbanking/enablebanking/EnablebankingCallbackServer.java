@@ -31,7 +31,6 @@ import de.zft2.gbanking.enablebanking.EnablebankingCallbackMaterialService.Callb
 
 public final class EnablebankingCallbackServer implements AutoCloseable {
 
-	private static final char[] KEYSTORE_PASSWORD = "gbanking-callback".toCharArray();
 	private static final String SUCCESS_PAGE = "<!doctype html><html><head><meta charset=\"utf-8\"><title>GBanking</title></head>"
 			+ "<body><h1>Autorisierung abgeschlossen</h1><p>Dieses Fenster kann geschlossen werden.</p></body></html>";
 
@@ -121,12 +120,13 @@ public final class EnablebankingCallbackServer implements AutoCloseable {
 	}
 
 	private SSLContext createSslContext(CallbackMaterial material) throws GeneralSecurityException, IOException {
+		char[] keyStoreProtection = new char[0];
 		KeyStore keyStore = KeyStore.getInstance("PKCS12");
-		keyStore.load(null, KEYSTORE_PASSWORD);
-		keyStore.setKeyEntry("callback", material.privateKey(), KEYSTORE_PASSWORD,
+		keyStore.load(null, keyStoreProtection);
+		keyStore.setKeyEntry("callback", material.privateKey(), keyStoreProtection,
 				new java.security.cert.Certificate[] { material.certificate() });
 		KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-		keyManagerFactory.init(keyStore, KEYSTORE_PASSWORD);
+		keyManagerFactory.init(keyStore, keyStoreProtection);
 		SSLContext sslContext = SSLContext.getInstance("TLS");
 		sslContext.init(keyManagerFactory.getKeyManagers(), null, null);
 		return sslContext;

@@ -3,14 +3,13 @@ package de.zft2.gbanking.service.importproperties;
 import java.io.IOException;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 
+import de.zft2.gbanking.util.FileMoves;
 import de.zft2.gbanking.util.PropertiesFileSupport;
 
 public final class ImportPropertiesFileSupport {
@@ -54,10 +53,6 @@ public final class ImportPropertiesFileSupport {
 		}
 		Path temporaryPath = path.resolveSibling(path.getFileName() + ".tmp");
 		Files.writeString(temporaryPath, PropertiesFileSupport.updateContent(path, values, null), StandardCharsets.UTF_8);
-		try {
-			Files.move(temporaryPath, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-		} catch (AtomicMoveNotSupportedException exception) {
-			Files.move(temporaryPath, path, StandardCopyOption.REPLACE_EXISTING);
-		}
+		FileMoves.replaceAtomicallyIfSupported(temporaryPath, path);
 	}
 }

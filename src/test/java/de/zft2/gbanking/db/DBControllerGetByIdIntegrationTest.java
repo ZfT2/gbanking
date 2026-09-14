@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 
 import org.junit.jupiter.api.Test;
 
@@ -81,7 +82,7 @@ class DBControllerGetByIdIntegrationTest extends DBControllerIntegrationBaseTest
 		institute.setImportNumber(7);
 		institute.setDataCenter("Test Data Center");
 		institute.setHbciVersion(3.0);
-		institute.setLastChanged(LocalDate.of(2026, 7, 29));
+		institute.setLastChanged(LocalDate.of(2026, Month.JULY, 29));
 		institute.setDatasetNumber("DBB-42");
 		institute.setPostcode("60311");
 		institute.setCountry("DE");

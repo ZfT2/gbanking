@@ -1,5 +1,7 @@
 package de.zft2.gbanking.file.imp.csv;
 
+import static de.zft2.gbanking.util.TextValues.removeLeadingBom;
+
 import java.io.IOException;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
@@ -21,7 +23,7 @@ import de.zft2.gbanking.exception.GBankingException;
 public class CsvImportDataReader {
 
 	public CsvImportData read(Path importFile, CsvImportDefinition definition) throws IOException {
-		String content = stripBom(Files.readString(importFile, StandardCharsets.UTF_8));
+		String content = removeLeadingBom(Files.readString(importFile, StandardCharsets.UTF_8));
 		CSVFormat format = CSVFormat.DEFAULT.builder().setDelimiter(definition.getSeparator()).setTrim(true).get();
 		try (CSVParser parser = format.parse(new StringReader(content))) {
 			return mapRecords(parser.getRecords(), definition);
@@ -51,19 +53,19 @@ public class CsvImportDataReader {
 
 	private List<CsvImportData.Row> mapRows(List<CSVRecord> records, List<String> headers, CsvImportDefinition definition) {
 		List<CsvImportData.Row> rows = new ArrayList<>(records.size());
-		for (CSVRecord record : records) {
-			if (record.size() > headers.size()) {
-				throw new GBankingException("CSV row " + record.getRecordNumber() + " contains more columns than definition '"
+		for (CSVRecord csvRecord : records) {
+			if (csvRecord.size() > headers.size()) {
+				throw new GBankingException("CSV row " + csvRecord.getRecordNumber() + " contains more columns than definition '"
 						+ definition.getName() + "'.");
 			}
 			Map<String, String> values = new LinkedHashMap<>();
 			for (int index = 0; index < headers.size(); index++) {
 				String header = headers.get(index);
-				if (!header.isBlank() && index < record.size()) {
-					values.put(header, record.get(index));
+				if (!header.isBlank() && index < csvRecord.size()) {
+					values.put(header, csvRecord.get(index));
 				}
 			}
-			rows.add(new CsvImportData.Row(record.getRecordNumber(), values));
+			rows.add(new CsvImportData.Row(csvRecord.getRecordNumber(), values));
 		}
 		return List.copyOf(rows);
 	}
@@ -83,15 +85,12 @@ public class CsvImportDataReader {
 		return Set.copyOf(result);
 	}
 
-	private List<String> values(CSVRecord record) {
-		List<String> values = new ArrayList<>(record.size());
-		for (String value : record) {
+	private List<String> values(CSVRecord csvRecord) {
+		List<String> values = new ArrayList<>(csvRecord.size());
+		for (String value : csvRecord) {
 			values.add(value.trim());
 		}
 		return List.copyOf(values);
 	}
 
-	private String stripBom(String value) {
-		return value != null && !value.isEmpty() && value.charAt(0) == '\uFEFF' ? value.substring(1) : value;
-	}
 }

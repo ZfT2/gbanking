@@ -20,17 +20,17 @@ public abstract class OverviewBasePanel extends BasePanel {
 		return pageContext;
 	}
 
-	public void setPageContext(PageContext pageContext) {
+	protected final void setPageContext(PageContext pageContext) {
 		this.pageContext = pageContext;
 	}
 
-	protected Label createOverviewTitle(String key) {
+	private Label createOverviewTitle(String key) {
 		Label title = new Label(getText(key));
 		title.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
 		return title;
 	}
 
-	protected void setOverviewContent(String titleKey, Node content, boolean show) {
+	protected final void setOverviewContent(String titleKey, Node content) {
 		Label title = createOverviewTitle(titleKey);
 
 		if (content instanceof Region region) {
@@ -43,10 +43,7 @@ public abstract class OverviewBasePanel extends BasePanel {
 		setFillWidth(true);
 		setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 		getChildren().setAll(title, content);
-		setDisable(!show);
 	}
-
-	public abstract void createOverallPanel(boolean show);
 
 	public void refreshOnShow() {
 		// default: nothing

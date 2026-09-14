@@ -443,10 +443,10 @@ public class DBController extends DbExecutor {
 		return total;
 	}
 	
-	public boolean insertOrUpdatePD(BankAccess bankAccess) {
-		return withDbTransaction(() -> {
+	public void insertOrUpdatePD(BankAccess bankAccess) {
+		withDbTransaction(() -> {
 			StatementsLogic<BankAccess> logic = StatementsConfig.getLogicForDaoType(BankAccess.class);
-			return logic.updateSpecific(bankAccess);
+			logic.updateSpecific(bankAccess);
 		});
 	}
 	

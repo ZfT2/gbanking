@@ -45,7 +45,8 @@ public final class PropertiesFileSupport {
 
 		List<String> outputLines = new ArrayList<>();
 		Set<String> writtenKeys = new HashSet<>();
-		for (int index = 0; index < inputLines.size();) {
+		int index = 0;
+		while (index < inputLines.size()) {
 			String line = inputLines.get(index);
 			if (line.isBlank() || isComment(line)) {
 				outputLines.add(line);

@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 
 import org.junit.jupiter.api.AfterAll;
@@ -105,20 +106,20 @@ class InstituteFileImportAdditionalIntegrationTest extends BaseInstituteFileImpo
 		Institute newName = findByName(institutes, "Neue Bank");
 
 		assertEquals(3, institutes.size());
-		assertEquals(LocalDate.of(2000, 7, 1), reappearing.getValidFrom());
+		assertEquals(LocalDate.of(2000, Month.JULY, 1), reappearing.getValidFrom());
 		assertEquals(InstituteValidityDateType.FILE_MONTH, reappearing.getValidFromType());
 		assertNull(reappearing.getValidTo());
 		assertEquals("blz0007.txt", reappearing.getFirstSeenFile());
 		assertEquals("blz0206.txt", reappearing.getLastSeenFile());
 		assertEquals(InstituteStatus.ACTIVE, reappearing.getStateType());
 
-		assertEquals(LocalDate.of(2002, 3, 4), oldName.getValidFrom());
-		assertEquals(LocalDate.of(2002, 6, 2), oldName.getValidTo());
+		assertEquals(LocalDate.of(2002, Month.MARCH, 4), oldName.getValidFrom());
+		assertEquals(LocalDate.of(2002, Month.JUNE, 2), oldName.getValidTo());
 		assertEquals(InstituteValidityDateType.SOURCE_DATE, oldName.getValidFromType());
 		assertEquals(InstituteValidityDateType.FIRST_MISSING, oldName.getValidToType());
 		assertEquals(InstituteStatus.ARCHIVED, oldName.getStateType());
 
-		assertEquals(LocalDate.of(2002, 6, 3), newName.getValidFrom());
+		assertEquals(LocalDate.of(2002, Month.JUNE, 3), newName.getValidFrom());
 		assertNull(newName.getValidTo());
 		assertEquals("blz0206.txt", newName.getFirstSeenFile());
 		assertEquals("blz0206.txt", newName.getLastSeenFile());

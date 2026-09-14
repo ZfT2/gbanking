@@ -22,8 +22,8 @@ public class MoneyTransfer extends Dao {
 	private Integer executionDay;
 	private MoneyTransferStatus moneytransferStatus;
 	private StandingorderMode standingorderMode;
-	private transient String bankOrderId;
-	private transient SepaOrderStatus sepaOrderStatus;
+	private String bankOrderId;
+	private SepaOrderStatus sepaOrderStatus;
 	private Integer historyorderId;
 	private MoneyTransferForeign foreignTransfer;
 	

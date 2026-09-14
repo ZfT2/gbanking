@@ -21,6 +21,8 @@ import de.zft2.gbanking.db.dao.enu.AccountIdentifierType;
 import de.zft2.gbanking.db.dao.enu.DataType;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.service.AbstractDbService;
+import de.zft2.gbanking.service.settings.SettingDefinition;
+import de.zft2.gbanking.service.settings.SettingsStore;
 import de.zft2.gbanking.util.AppPaths;
 
 public class ImportPropertiesSynchronizationService extends AbstractDbService {
@@ -36,6 +38,7 @@ public class ImportPropertiesSynchronizationService extends AbstractDbService {
 			new PatternFile("bookings.properties", PATTERN_PREFIX + "bookings."));
 
 	private final Path propertiesDirectory = AppPaths.getImportPropertiesDirectory();
+	private final SettingsStore settingsStore = new SettingsStore(dbController);
 
 	public void initializeAndSynchronize() {
 		synchronized (SYNCHRONIZATION_LOCK) {
@@ -111,7 +114,7 @@ public class ImportPropertiesSynchronizationService extends AbstractDbService {
 			return;
 		}
 
-		for (Setting setting : dbController.getAll(Setting.class)) {
+		for (Setting setting : settingsStore.getAll()) {
 			resolvePendingAccountIdentifier(accounts, setting);
 		}
 	}
@@ -162,7 +165,7 @@ public class ImportPropertiesSynchronizationService extends AbstractDbService {
 			valuesByFile.put(type.getFileName(), new TreeMap<>());
 		}
 
-		for (Setting setting : dbController.getAll(Setting.class)) {
+		for (Setting setting : settingsStore.getAll()) {
 			addPatternSetting(valuesByFile, setting);
 			addPendingSetting(valuesByFile, setting);
 		}
@@ -221,7 +224,7 @@ public class ImportPropertiesSynchronizationService extends AbstractDbService {
 
 	private Map<String, Setting> settingsByAttribute() {
 		Map<String, Setting> settings = new LinkedHashMap<>();
-		for (Setting setting : dbController.getAll(Setting.class)) {
+		for (Setting setting : settingsStore.getAll()) {
 			settings.put(setting.getAttribute(), setting);
 		}
 		return settings;
@@ -229,19 +232,12 @@ public class ImportPropertiesSynchronizationService extends AbstractDbService {
 
 	private void saveSetting(Map<String, Setting> settings, String attribute, String value, DataType dataType, boolean editable, boolean visible,
 			String comment) {
-		Setting setting = settings.computeIfAbsent(attribute, ImportPropertiesSynchronizationService::createSetting);
-		setting.setValue(value);
-		setting.setDataType(dataType);
-		setting.setEditable(editable);
-		setting.setVisible(visible);
-		setting.setComment(comment);
-		dbController.insertOrUpdate(setting);
-	}
-
-	private static Setting createSetting(String attribute) {
-		Setting setting = new Setting();
-		setting.setAttribute(attribute);
-		return setting;
+		Setting setting = settings.get(attribute);
+		if (setting == null) {
+			setting = new Setting();
+		}
+		SettingDefinition definition = new SettingDefinition(attribute, value, dataType, editable, visible, comment);
+		settings.put(attribute, settingsStore.save(setting, definition, value));
 	}
 
 	private boolean isInitialized(Setting setting) {

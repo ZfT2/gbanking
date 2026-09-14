@@ -33,6 +33,8 @@ import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.cache.InstituteLookupCache;
+import de.zft2.gbanking.concurrent.ProgressReporter;
+import de.zft2.gbanking.concurrent.ProgressReporters;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.ImportHistory;
 import de.zft2.gbanking.db.dao.Institute;
@@ -42,7 +44,6 @@ import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.repository.InstituteValidityRepository;
 import de.zft2.gbanking.db.repository.InstituteValidityRepository.Observation;
 import de.zft2.gbanking.exception.GBankingException;
-import de.zft2.gbanking.gui.BaseWorker;
 import de.zft2.gbanking.util.AppPaths;
 
 public abstract class InstituteFileImport implements BaseMessages {
@@ -55,18 +56,18 @@ public abstract class InstituteFileImport implements BaseMessages {
 
 	protected final DBController dbController = DBController.getInstance(".");
 	private final InstituteValidityRepository validityRepository = new InstituteValidityRepository();
-	protected BaseWorker worker;
+	private final ProgressReporter progressReporter;
 
 	protected Path baseDirectory = AppPaths.getApplicationBaseDirectory();
 	protected Charset charset;
 
 	protected String currentFileName;
 
-	protected InstituteFileImport(String basePath, String fileName, Charset charset, BaseWorker worker) {
+	protected InstituteFileImport(String basePath, String fileName, Charset charset, ProgressReporter progressReporter) {
 		this.baseDirectory = resolveBaseDirectory(basePath);
 		this.currentFileName = fileName;
 		this.charset = charset;
-		this.worker = worker;
+		this.progressReporter = ProgressReporters.orNone(progressReporter);
 	}
 
 	/**
@@ -80,38 +81,39 @@ public abstract class InstituteFileImport implements BaseMessages {
 	 * getInstance for production usage with worker support.
 	 */
 	static InstituteFileImport getInstance(Class<? extends InstituteFileImport> type, String basePath, String fileName, Charset charset,
-			BaseWorker worker) {
+			ProgressReporter progressReporter) {
 		if (type != null) {
 			InstituteFileImport importType = null;
 			if (type == InstituteFileImportDk.class) {
-				importType = new InstituteFileImportDk(basePath, fileName, InstituteFileImportDk.getCharset(charset), worker);
+				importType = new InstituteFileImportDk(basePath, fileName, InstituteFileImportDk.getCharset(charset), progressReporter);
 			} else if (type == InstituteFileImportDbb.class) {
-				importType = new InstituteFileImportDbb(basePath, fileName, InstituteFileImportDbb.getCharset(charset), worker);
+				importType = new InstituteFileImportDbb(basePath, fileName, InstituteFileImportDbb.getCharset(charset), progressReporter);
 			} else if (type == InstituteFileImportEpc.class) {
-				importType = new InstituteFileImportEpc(basePath, fileName, InstituteFileImportEpc.getCharset(charset), worker);
+				importType = new InstituteFileImportEpc(basePath, fileName, InstituteFileImportEpc.getCharset(charset), progressReporter);
 			} else if (type == InstituteFileImportDbbReachable.class) {
-				importType = new InstituteFileImportDbbReachable(basePath, fileName, InstituteFileImportDbbReachable.getCharset(charset), worker);
+				importType = new InstituteFileImportDbbReachable(basePath, fileName, InstituteFileImportDbbReachable.getCharset(charset), progressReporter);
 			} else if (type == InstituteFileImportAdditional.class) {
-				importType = new InstituteFileImportAdditional(basePath, fileName, InstituteFileImportAdditional.getCharset(charset), worker);
+				importType = new InstituteFileImportAdditional(basePath, fileName, InstituteFileImportAdditional.getCharset(charset), progressReporter);
 			}
 			return importType;
 		} else {
-			return chooseByDefaultFilename(fileName, basePath, charset, worker);
+			return chooseByDefaultFilename(fileName, basePath, charset, progressReporter);
 		}
 	}
 
-	private static InstituteFileImport chooseByDefaultFilename(String fileName, String basePath, Charset charset, BaseWorker worker) {
+	private static InstituteFileImport chooseByDefaultFilename(String fileName, String basePath, Charset charset,
+			ProgressReporter progressReporter) {
 		switch (fileName) {
 		case InstituteFileImportDk.DEFAULT_FILENAME:
-			return new InstituteFileImportDk(basePath, fileName, InstituteFileImportDk.getCharset(charset), worker);
+			return new InstituteFileImportDk(basePath, fileName, InstituteFileImportDk.getCharset(charset), progressReporter);
 		case InstituteFileImportDbb.DEFAULT_FILENAME:
-			return new InstituteFileImportDbb(basePath, fileName, InstituteFileImportDbb.getCharset(charset), worker);
+			return new InstituteFileImportDbb(basePath, fileName, InstituteFileImportDbb.getCharset(charset), progressReporter);
 		case InstituteFileImportEpc.DEFAULT_FILENAME:
-			return new InstituteFileImportEpc(basePath, fileName, InstituteFileImportEpc.getCharset(charset), worker);
+			return new InstituteFileImportEpc(basePath, fileName, InstituteFileImportEpc.getCharset(charset), progressReporter);
 		case InstituteFileImportDbbReachable.DEFAULT_FILENAME:
-			return new InstituteFileImportDbbReachable(basePath, fileName, InstituteFileImportDbbReachable.getCharset(charset), worker);
+			return new InstituteFileImportDbbReachable(basePath, fileName, InstituteFileImportDbbReachable.getCharset(charset), progressReporter);
 		case InstituteFileImportAdditional.DEFAULT_FILENAME:
-			return new InstituteFileImportAdditional(basePath, fileName, InstituteFileImportAdditional.getCharset(charset), worker);
+			return new InstituteFileImportAdditional(basePath, fileName, InstituteFileImportAdditional.getCharset(charset), progressReporter);
 		default:
 			throw new GBankingException("Unknown default file: " + fileName);
 		}
@@ -481,18 +483,11 @@ public abstract class InstituteFileImport implements BaseMessages {
 	}
 
 	protected void updateWorkerState(int progress, String messageKey, Object... args) {
-		if (worker == null) {
-			return;
-		}
-		worker.setProcessingState(getText(messageKey, args));
-		worker.setWorkerProgress(progress);
+		progressReporter.reportState(getText(messageKey, args));
+		progressReporter.reportProgress(progress);
 	}
 
 	protected void updateWorkerRange(long current, long total, int start, int end, String messageKey, Object... args) {
-		if (worker == null) {
-			return;
-		}
-
 		int progress;
 		if (total <= 0) {
 			progress = start;
@@ -501,8 +496,8 @@ public abstract class InstituteFileImport implements BaseMessages {
 			progress = start + (int) Math.round((end - start) * fraction);
 		}
 
-		worker.setProcessingState(getText(messageKey, args));
-		worker.setWorkerProgress(Math.min(progress, end));
+		progressReporter.reportState(getText(messageKey, args));
+		progressReporter.reportProgress(Math.min(progress, end));
 	}
 
 	private void moveToArchive(Path file) throws IOException {

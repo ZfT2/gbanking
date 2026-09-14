@@ -12,7 +12,7 @@ import org.apache.commons.csv.CSVRecord;
 
 import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.enu.InstituteStatus;
-import de.zft2.gbanking.gui.BaseWorker;
+import de.zft2.gbanking.concurrent.ProgressReporter;
 
 /**
  * https://www.europeanpaymentscouncil.eu/what-we-do/be-involved/register-participants/registers-participants-sepa-payment-schemes
@@ -21,8 +21,8 @@ public class InstituteFileImportEpc extends InstituteFileImport {
 
 	public static final String DEFAULT_FILENAME = "epc_sct.csv";
 
-	protected InstituteFileImportEpc(String basePath, String fileName, Charset charset, BaseWorker worker) {
-		super(basePath, fileName, charset, worker);
+	protected InstituteFileImportEpc(String basePath, String fileName, Charset charset, ProgressReporter progressReporter) {
+		super(basePath, fileName, charset, progressReporter);
 	}
 
 	protected InstituteFileImportEpc(String basePath, Charset charset) {

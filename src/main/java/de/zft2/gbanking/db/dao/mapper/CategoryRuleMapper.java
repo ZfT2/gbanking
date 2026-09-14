@@ -22,8 +22,8 @@ public class CategoryRuleMapper extends AbstractDaoMapper<CategoryRule, Void> {
 
 		ps.setString(index++, categoryRule.getName());
 		ps.setInt(index++, categoryRule.getCategory().getId());
-		ps.setDate(index++, TypeConverter.toSqlDateLong(categoryRule.getFilterDateFrom()));
-		ps.setDate(index++, TypeConverter.toSqlDateLong(categoryRule.getFilterDateTo()));
+		ps.setDate(index++, TypeConverter.toSqlDate(categoryRule.getFilterDateFrom()));
+		ps.setDate(index++, TypeConverter.toSqlDate(categoryRule.getFilterDateTo()));
 		ps.setBigDecimal(index++, categoryRule.getFilterAmountFrom());
 		ps.setBigDecimal(index++, categoryRule.getFilterAmountTo());
 		ps.setString(index++, categoryRule.getFilterRecipientName());

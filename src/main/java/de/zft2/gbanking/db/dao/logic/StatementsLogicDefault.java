@@ -35,7 +35,7 @@ public class StatementsLogicDefault<T extends Dao> extends DbExecutor implements
 	}
 
 	@Override
-	public boolean updateSpecific(T dao) {
+	public void updateSpecific(T dao) {
 		throw new GBankingException("updateSpecific(T dao): not implemented for type " + dao.getClass().getName());
 	}
 

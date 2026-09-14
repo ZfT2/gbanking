@@ -99,9 +99,12 @@ class FileExportOrdersSepaBeanTest {
 		BankAccount account = insertAccount();
 		insertTransfer(account, OrderType.FOREIGN_TRANSFER, LocalDate.now(), "E2E-FOREIGN", null, "Foreign");
 		Path exportFile = tempDir.resolve("unsupported-orders.xml");
+		FileExportOrdersSepaBean exporter = new FileExportOrdersSepaBean(null);
+		List<BankAccount> accounts = List.of(account);
+		String fileName = exportFile.toString();
 
 		assertThrows(ExportException.class,
-				() -> new FileExportOrdersSepaBean(null).exportFileFromDatatbase(List.of(account), exportFile.toString()));
+				() -> exporter.exportFileFromDatatbase(accounts, fileName));
 	}
 
 	private BankAccount insertAccount() {

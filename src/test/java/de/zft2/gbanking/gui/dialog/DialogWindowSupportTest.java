@@ -132,11 +132,10 @@ class DialogWindowSupportTest {
 
 	private static void fireDialogButton(ButtonType buttonType) {
 		for (Window window : Window.getWindows()) {
-			if (window.isShowing() && window.getScene() != null && window.getScene().getRoot() instanceof DialogPane dialogPane) {
-				if (dialogPane.lookupButton(buttonType) instanceof Button button) {
-					button.fire();
-					return;
-				}
+			if (window.isShowing() && window.getScene() != null && window.getScene().getRoot() instanceof DialogPane dialogPane
+					&& dialogPane.lookupButton(buttonType) instanceof Button button) {
+				button.fire();
+				return;
 			}
 		}
 		throw new IllegalStateException("No open JavaFX dialog found");

@@ -17,7 +17,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 
-public class MoneyTransferInputForeignPanel extends MoneyTransferInputBasePanel {
+final class MoneyTransferInputForeignPanel extends MoneyTransferInputBasePanel {
 
 	private final ComboBox<Currency> currencyCombo = FormStyleUtils.applyWidth(
 			new ComboBox<>(FXCollections.observableArrayList(Currency.values())), FieldWidth.XS);
@@ -35,7 +35,7 @@ public class MoneyTransferInputForeignPanel extends MoneyTransferInputBasePanel 
 	private final TextField tfEndToEndReference = FormStyleUtils.applyWidth(new TextField(), FieldWidth.M);
 	private final TextArea tfRegulatoryReporting = FormStyleUtils.prepareLargeTextArea(new TextArea(), 2);
 
-	public MoneyTransferInputForeignPanel(MoneyTransferDetailListTabPanel parent) {
+	MoneyTransferInputForeignPanel(MoneyTransferDetailListTabPanel parent) {
 		super(parent);
 		currencyCombo.setValue(Currency.EUR);
 		chargeBearerCombo.setValue(ForeignChargeBearer.SHARED);

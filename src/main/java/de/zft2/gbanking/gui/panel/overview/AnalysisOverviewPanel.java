@@ -30,14 +30,16 @@ import de.zft2.gbanking.analysis.TurnoverAnalyzer.PeriodType;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.DataType;
-import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.gui.component.GBankingTableView;
 import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.util.DateFormatUtils;
 import de.zft2.gbanking.gui.util.FxTableUtils;
+import de.zft2.gbanking.gui.util.FxNodeSupport;
 import de.zft2.gbanking.service.booking.BookingService;
 import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.service.settings.SettingDefinition;
+import de.zft2.gbanking.service.settings.SettingsStore;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -121,8 +123,14 @@ public class AnalysisOverviewPanel extends OverviewBasePanel {
 	private LineChart<Number, Number> balanceChart;
 	private PieChart categoryChart;
 
-	public AnalysisOverviewPanel() {
+	private AnalysisOverviewPanel() {
 		this(PageContext.ANALYSIS, "UI_PANEL_ANALYSIS", "analysis.configuration", "UI_ANALYSIS_SETTING_COMMENT");
+	}
+
+	public static AnalysisOverviewPanel create() {
+		AnalysisOverviewPanel panel = new AnalysisOverviewPanel();
+		panel.initializePanel();
+		return panel;
 	}
 
 	protected AnalysisOverviewPanel(PageContext pageContext, String panelTitleKey, String settingAttribute, String settingCommentKey) {
@@ -138,8 +146,7 @@ public class AnalysisOverviewPanel extends OverviewBasePanel {
 		this.bookingService = bookingService;
 	}
 
-	@Override
-	public void createOverallPanel(boolean show) {
+	protected final void initializePanel() {
 		setPageContext(pageContext);
 		log.info("Creating {}", getClass().getSimpleName());
 
@@ -159,7 +166,7 @@ public class AnalysisOverviewPanel extends OverviewBasePanel {
 		content.setCenter(createMainContent());
 		BorderPane.setMargin(content.getCenter(), new Insets(8, 0, 0, 0));
 
-		setOverviewContent(panelTitleKey, content, show);
+		setOverviewContent(panelTitleKey, content);
 		refreshOnShow();
 	}
 
@@ -468,20 +475,15 @@ public class AnalysisOverviewPanel extends OverviewBasePanel {
 
 			boolean sinceVisible = periodType == PeriodType.SINCE;
 			boolean rangeVisible = periodType == PeriodType.CUSTOM_RANGE;
-			setVisibleManaged(sinceLabel, sinceVisible);
-			setVisibleManaged(sinceDatePicker, sinceVisible);
-			setVisibleManaged(fromLabel, rangeVisible);
-			setVisibleManaged(fromDatePicker, rangeVisible);
-			setVisibleManaged(toLabel, rangeVisible);
-			setVisibleManaged(toDatePicker, rangeVisible);
+			FxNodeSupport.setVisibleManaged(sinceLabel, sinceVisible);
+			FxNodeSupport.setVisibleManaged(sinceDatePicker, sinceVisible);
+			FxNodeSupport.setVisibleManaged(fromLabel, rangeVisible);
+			FxNodeSupport.setVisibleManaged(fromDatePicker, rangeVisible);
+			FxNodeSupport.setVisibleManaged(toLabel, rangeVisible);
+			FxNodeSupport.setVisibleManaged(toDatePicker, rangeVisible);
 		} finally {
 			updatingControls = false;
 		}
-	}
-
-	private void setVisibleManaged(Node node, boolean visible) {
-		node.setVisible(visible);
-		node.setManaged(visible);
 	}
 
 	protected final void updateAnalysis(boolean saveConfiguration) {
@@ -711,13 +713,13 @@ public class AnalysisOverviewPanel extends OverviewBasePanel {
 
 	private AnalysisConfiguration loadConfiguration() {
 		loadAdditionalConfiguration(Map.of());
-		Setting setting = findConfigurationSetting();
-		if (setting == null || setting.getValue() == null || setting.getValue().isBlank()) {
+		String settingValue = new SettingsStore(dbController).getString(settingAttribute, null);
+		if (settingValue == null || settingValue.isBlank()) {
 			return AnalysisConfiguration.defaultConfiguration();
 		}
 
 		try {
-			Map<String, String> values = parseConfiguration(setting.getValue());
+			Map<String, String> values = parseConfiguration(settingValue);
 			loadAdditionalConfiguration(values);
 			AccountSelectionMode mode = parseEnum(AccountSelectionMode.class, values.get("accountMode"), AccountSelectionMode.ALL);
 			PeriodType periodType = parseEnum(PeriodType.class, values.get("period"), PeriodType.CURRENT_MONTH);
@@ -733,24 +735,9 @@ public class AnalysisOverviewPanel extends OverviewBasePanel {
 	}
 
 	private void saveConfiguration() {
-		Setting setting = findConfigurationSetting();
-		if (setting == null) {
-			setting = new Setting();
-			setting.setAttribute(settingAttribute);
-			setting.setDataType(DataType.STRING);
-			setting.setEditable(false);
-			setting.setVisible(false);
-			setting.setComment(getText(settingCommentKey));
-		}
-		setting.setValue(serializeConfiguration(configuration));
-		dbController.insertOrUpdate(setting);
-	}
-
-	private Setting findConfigurationSetting() {
-		return dbController.getAll(Setting.class).stream()
-				.filter(setting -> settingAttribute.equals(setting.getAttribute()))
-				.findFirst()
-				.orElse(null);
+		SettingDefinition definition = new SettingDefinition(settingAttribute, "", DataType.STRING, false, false,
+				getText(settingCommentKey));
+		new SettingsStore(dbController).save(definition, serializeConfiguration(configuration));
 	}
 
 	private String serializeConfiguration(AnalysisConfiguration config) {

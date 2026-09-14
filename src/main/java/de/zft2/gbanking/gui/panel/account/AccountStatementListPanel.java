@@ -2,33 +2,26 @@ package de.zft2.gbanking.gui.panel.account;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 
 import de.zft2.gbanking.gui.panel.AbstractFilterableTablePanel;
-import de.zft2.gbanking.gui.util.DateFormatUtils;
-import de.zft2.gbanking.gui.util.FxTableUtils;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
 import de.zft2.gbanking.service.account.AccountStatement;
-import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
-import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.input.MouseButton;
 
-public class AccountStatementListPanel extends AbstractFilterableTablePanel<AccountStatement> {
-
-	private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+final class AccountStatementListPanel extends AbstractFilterableTablePanel<AccountStatement> {
 
 	private final Consumer<AccountStatement> selectionHandler;
 	private final Consumer<AccountStatement> openHandler;
 	private TableColumn<AccountStatement, LocalDate> statementDateCol;
 	private TableColumn<AccountStatement, LocalDateTime> retrievedAtCol;
 
-	public AccountStatementListPanel(Consumer<AccountStatement> selectionHandler, Consumer<AccountStatement> openHandler) {
+	AccountStatementListPanel(Consumer<AccountStatement> selectionHandler, Consumer<AccountStatement> openHandler) {
 		super(FXCollections.observableArrayList());
 		this.selectionHandler = selectionHandler;
 		this.openHandler = openHandler;
@@ -55,28 +48,13 @@ public class AccountStatementListPanel extends AbstractFilterableTablePanel<Acco
 				statement -> statement.format(), 90);
 		TableColumn<AccountStatement, String> fileCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_ACCOUNT_STATEMENT_FILE"),
 				statement -> statement.fileName(), 220, 320);
-		retrievedAtCol = createDateTimeColumn(getText("UI_TABLE_ACCOUNT_STATEMENT_RETRIEVED_AT"), statement -> statement.retrievedAt(), 145);
+		retrievedAtCol = TableColumnFactory.createDateTimeColumn(getText("UI_TABLE_ACCOUNT_STATEMENT_RETRIEVED_AT"), statement -> statement.retrievedAt(), 145);
 		TableColumn<AccountStatement, String> sizeCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_ACCOUNT_STATEMENT_SIZE"),
 				statement -> formatFileSize(statement.size()), 90);
 		TableColumn<AccountStatement, String> acknowledgedCol = TableColumnFactory.createFixedTextColumn(
 				getText("UI_TABLE_ACCOUNT_STATEMENT_ACKNOWLEDGED"), statement -> formatBoolean(statement.acknowledged()), 80);
 
 		return List.of(statementDateCol, periodCol, numberCol, formatCol, fileCol, retrievedAtCol, sizeCol, acknowledgedCol);
-	}
-
-	private TableColumn<AccountStatement, LocalDateTime> createDateTimeColumn(String title,
-			java.util.function.Function<AccountStatement, LocalDateTime> valueProvider, double width) {
-		TableColumn<AccountStatement, LocalDateTime> column = new TableColumn<>(title);
-		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(valueProvider.apply(data.getValue())));
-		column.setCellFactory(col -> new TableCell<>() {
-			@Override
-			protected void updateItem(LocalDateTime item, boolean empty) {
-				super.updateItem(item, empty);
-				setText(empty || item == null ? null : DATE_TIME_FORMAT.format(item));
-			}
-		});
-		FxTableUtils.setFixedWidth(column, width);
-		return column;
 	}
 
 	private void configureDefaultSorting() {
@@ -86,12 +64,12 @@ public class AccountStatementListPanel extends AbstractFilterableTablePanel<Acco
 		tableView.sort();
 	}
 
-	public void updateModelStatements(List<AccountStatement> statements) {
+	void updateModelStatements(List<AccountStatement> statements) {
 		replaceItems(statements != null ? statements : List.of());
 		tableView.getSelectionModel().clearSelection();
 	}
 
-	public AccountStatement getSelectedStatement() {
+	AccountStatement getSelectedStatement() {
 		return getSelectedItem();
 	}
 
@@ -114,20 +92,7 @@ public class AccountStatementListPanel extends AbstractFilterableTablePanel<Acco
 	}
 
 	private String formatPeriod(AccountStatement statement) {
-		return formatPeriod(statement.startDate(), statement.endDate());
-	}
-
-	private String formatPeriod(LocalDate start, LocalDate end) {
-		if (start == null && end == null) {
-			return "";
-		}
-		if (start == null) {
-			return DateFormatUtils.formatLong(end);
-		}
-		if (end == null) {
-			return DateFormatUtils.formatLong(start);
-		}
-		return DateFormatUtils.formatLong(start) + " - " + DateFormatUtils.formatLong(end);
+		return AccountStatementFormatUtils.formatPeriod(statement.startDate(), statement.endDate());
 	}
 
 	private String formatStatementNumber(AccountStatement statement) {
@@ -135,13 +100,7 @@ public class AccountStatementListPanel extends AbstractFilterableTablePanel<Acco
 	}
 
 	private String formatFileSize(long size) {
-		if (size <= 0) {
-			return "";
-		}
-		if (size < 1024) {
-			return size + " B";
-		}
-		return (size / 1024) + " KB";
+		return AccountStatementFormatUtils.formatFileSize(size);
 	}
 
 	private String formatBoolean(boolean value) {

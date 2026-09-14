@@ -3,6 +3,7 @@ package de.zft2.gbanking.service.moneytransfer;
 import static de.zft2.gbanking.util.TextValues.trimToNull;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Properties;
 
@@ -160,12 +161,12 @@ class InstantPaymentStatusService extends AbstractDbService {
 
 	private StatusResponse executeStatusRequest(HBCIHandler handler, GBankingHBCICallback callback, MoneyTransfer moneyTransfer,
 			Konto senderAccount, String bankOrderId) {
-		LocalDateTime start = LocalDateTime.now();
+		LocalDateTime start = LocalDateTime.now(ZoneId.systemDefault());
 		try {
 			HBCIJob<HBCIJobResult> job = createStatusJob(handler, senderAccount, bankOrderId);
 			callback.registerJobDescription(job, getText("UI_DIALOG_HBCI_JOB_REALTIME_TRANSFER_STATUS"));
 			HBCIExecStatus executionStatus = handler.execute();
-			LocalDateTime finish = LocalDateTime.now();
+			LocalDateTime finish = LocalDateTime.now(ZoneId.systemDefault());
 			HBCIJobResult result = job.getJobResult();
 			StatusResponse response = toStatusResponse(result, bankOrderId, isSuccessful(executionStatus, result));
 			persistProtocol(moneyTransfer, start, finish, executionStatus, result, response);
@@ -242,7 +243,8 @@ class InstantPaymentStatusService extends AbstractDbService {
 	}
 
 	private void persistFailureProtocol(MoneyTransfer moneyTransfer, LocalDateTime start, RuntimeException exception) {
-		MoneyTransferProtocol protocol = createProtocol(moneyTransfer, MoneyTransferStatus.ERROR, start, LocalDateTime.now(),
+		MoneyTransferProtocol protocol = createProtocol(moneyTransfer, MoneyTransferStatus.ERROR, start,
+				LocalDateTime.now(ZoneId.systemDefault()),
 				new StatusResponse(moneyTransfer.getBankOrderId(), null, null, false, false));
 		protocol.setProtocolText(exception.getClass().getName() + ": " + exception.getMessage());
 		dbController.insertOrUpdate(protocol);

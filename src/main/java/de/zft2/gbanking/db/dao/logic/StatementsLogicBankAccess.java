@@ -135,10 +135,10 @@ public class StatementsLogicBankAccess extends StatementsLogicDefault<BankAccess
 	}
 
 	@Override
-	public boolean updateSpecific(BankAccess bankAccess) {
+	public void updateSpecific(BankAccess bankAccess) {
 		BankAccessFints fints = bankAccess.getFints();
 		if (fints.getBpd() == null && fints.getUpd() == null) {
-			return true;
+			return;
 		}
 		Map<ParameterDataType, Map<String, String>> storedValues = getPdMapsByBankAccess(bankAccess);
 
@@ -154,7 +154,6 @@ public class StatementsLogicBankAccess extends StatementsLogicDefault<BankAccess
 				updateParameterData(type, bankAccess, storedTypeValues, requestedValues);
 			}
 		}
-		return true;
 	}
 
 	private Map<ParameterDataType, Map<String, String>> getPdMapsByBankAccess(BankAccess bankAccess) {

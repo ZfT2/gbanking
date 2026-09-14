@@ -57,6 +57,9 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 	private static final List<Integer> INITIAL_LOOKBACK_DAYS = List.of(1440, 1080, 720, 360, 180, 90);
 	private static final Set<String> PENDING_STATUSES = Set.of("PDNG", "HOLD");
 	private static final Set<String> BOOKED_STATUSES = Set.of("BOOK");
+	private static final String AMOUNT = "amount";
+	private static final String CURRENCY = "currency";
+	private static final String CURRENCY_CODE = "currency_code";
 	private static final Logger log = LogManager.getLogger(EnablebankingAccountTransactionService.class);
 
 	private final AccountTransactionService accountTransactionService;
@@ -415,19 +418,18 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 				continue;
 			}
 			Booking booking = mapBooking(account, transaction, status);
-			if (from != null && booking.getDateBooking() != null && booking.getDateBooking().isBefore(from)) {
-				continue;
+			if (from == null || booking.getDateBooking() == null || !booking.getDateBooking().isBefore(from)) {
+				String fingerprint = stableReference(transaction, booking);
+				booking.setAdditionalDetails(additionalDetails(transaction, status, fingerprint));
+				(BOOKED_STATUSES.contains(status) ? booked : pending).putIfAbsent(fingerprint, booking);
 			}
-			String fingerprint = stableReference(transaction, booking);
-			booking.setAdditionalDetails(additionalDetails(transaction, status, fingerprint));
-			(BOOKED_STATUSES.contains(status) ? booked : pending).putIfAbsent(fingerprint, booking);
 		}
 		return new MappedTransactions(List.copyOf(booked.values()), List.copyOf(pending.values()));
 	}
 
 	private Booking mapBooking(BankAccount account, Map<String, Object> transaction, String status) {
 		Map<String, Object> transactionAmount = object(transaction.get("transaction_amount"));
-		BigDecimal amount = decimal(transactionAmount.get("amount"));
+		BigDecimal amount = decimal(transactionAmount.get(AMOUNT));
 		if (amount == null) {
 			throw new EnablebankingException("Ein Enablebanking-Umsatz enthält keinen Betrag.");
 		}
@@ -444,11 +446,11 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 		booking.setPurpose(purpose(transaction));
 		Map<String, Object> exchangeRate = object(transaction.get("exchange_rate"));
 		Map<String, Object> instructedAmount = object(exchangeRate.get("instructed_amount"));
-		BigDecimal foreignAmount = decimal(instructedAmount.get("amount"));
-		BookingCurrencyMapper.mapAmounts(booking, amount, firstText(transactionAmount, "currency", "currency_code"),
-				account.getBaseCurrency(), foreignAmount, firstText(instructedAmount, "currency", "currency_code"),
+		BigDecimal foreignAmount = decimal(instructedAmount.get(AMOUNT));
+		BookingCurrencyMapper.mapAmounts(booking, amount, firstText(transactionAmount, CURRENCY, CURRENCY_CODE),
+				account.getBaseCurrency(), foreignAmount, firstText(instructedAmount, CURRENCY, CURRENCY_CODE),
 				decimal(exchangeRate.get("exchange_rate")));
-		booking.setBookingType(amount.signum() < 0 ? BookingType.REMOVAL : BookingType.DEPOSIT);
+		booking.setBookingType(BookingType.fromAmount(amount));
 		booking.setSource(PENDING_STATUSES.contains(status) ? Source.ONLINE_PRENO_NEW : Source.ONLINE_NEW);
 		booking.setRecipient(recipient(transaction, amount.signum() < 0));
 		booking.setBalance(nestedAmount(transaction.get("balance_after_transaction")));
@@ -509,7 +511,7 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 		if (amount == null) {
 			return Optional.empty();
 		}
-		Currency balanceCurrency = Currency.forCodeOrDefault(firstText(amount, "currency", "currency_code"), baseCurrency);
+		Currency balanceCurrency = Currency.forCodeOrDefault(firstText(amount, CURRENCY, CURRENCY_CODE), baseCurrency);
 		if (balanceCurrency != baseCurrency) {
 			throw new EnablebankingException("Der Kontosaldo wurde nicht in der Kontowährung " + baseCurrency + " geliefert.");
 		}
@@ -522,7 +524,7 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 				Optional.ofNullable(booking.getDateBooking()).map(LocalDate::toString).orElse(""),
 				Optional.ofNullable(booking.getDateValue()).map(LocalDate::toString).orElse(""),
 				booking.getAmount().toPlainString(),
-				Optional.ofNullable(firstText(object(transaction.get("transaction_amount")), "currency", "currency_code")).orElse(""),
+				Optional.ofNullable(firstText(object(transaction.get("transaction_amount")), CURRENCY, CURRENCY_CODE)).orElse(""),
 				Optional.ofNullable(booking.getPurpose()).orElse(""));
 		try {
 			byte[] hash = MessageDigest.getInstance("SHA-256").digest(source.getBytes(StandardCharsets.UTF_8));
@@ -554,11 +556,11 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 
 	private static BigDecimal nestedAmount(Object value) {
 		Map<String, Object> amount = object(value);
-		if (amount.containsKey("amount")) {
-			return decimal(amount.get("amount"));
+		if (amount.containsKey(AMOUNT)) {
+			return decimal(amount.get(AMOUNT));
 		}
 		Map<String, Object> balanceAmount = object(amount.get("balance_amount"));
-		return decimal(balanceAmount.get("amount"));
+		return decimal(balanceAmount.get(AMOUNT));
 	}
 
 	record MappedTransactions(List<Booking> booked, List<Booking> pending) {

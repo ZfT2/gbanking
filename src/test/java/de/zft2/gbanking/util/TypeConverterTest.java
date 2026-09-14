@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.Month;
 import java.util.List;
 
@@ -57,5 +58,18 @@ class TypeConverterTest {
 		assertFalse(TypeConverter.toBoolean("Nein"));
 		assertFalse(TypeConverter.toBoolean("0"));
 		assertNull(TypeConverter.toBoolean("maybe"));
+	}
+
+	@Test
+	void shouldConvertSqlDatesAndDateTimesWithoutTimeZoneRoundTrip() {
+		LocalDate date = LocalDate.of(2026, Month.APRIL, 10);
+		LocalDateTime dateTime = LocalDateTime.of(2026, Month.APRIL, 10, 14, 35);
+
+		assertEquals(date, TypeConverter.toLocalDate(java.sql.Date.valueOf(date)));
+		assertEquals(java.sql.Date.valueOf(date), TypeConverter.toSqlDate(date));
+		assertEquals(dateTime, TypeConverter.toLocalDateTime(TypeConverter.toDateTimeString(dateTime)));
+		assertNull(TypeConverter.toLocalDate((java.util.Date) null));
+		assertNull(TypeConverter.toDateTimeString(null));
+		assertNull(TypeConverter.toLocalDateTime(" "));
 	}
 }

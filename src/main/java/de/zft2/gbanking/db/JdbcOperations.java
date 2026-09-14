@@ -136,11 +136,11 @@ public final class JdbcOperations implements AutoCloseable {
 			try {
 				cachedStatement.statement().close();
 			} catch (SQLException | RuntimeException exception) {
-				failure = addFailure(failure, exception);
+				failure = JdbcFailures.add(failure, exception);
 			}
 		}
 		statementCache.clear();
-		throwFailure(failure);
+		JdbcFailures.throwIfPresent(failure);
 	}
 
 	private StatementLease borrow(String sql, GeneratedKeysMode generatedKeysMode) throws SQLException {
@@ -183,36 +183,6 @@ public final class JdbcOperations implements AutoCloseable {
 				entry.getValue().statement().close();
 				return;
 			}
-		}
-	}
-
-	private void release(StatementLease lease) throws SQLException {
-		CachedStatement cachedStatement = lease.cachedStatement();
-		if (lease.invalid()) {
-			if (cachedStatement != null) {
-				statementCache.remove(lease.key());
-			}
-			lease.statement().close();
-			return;
-		}
-
-		Exception failure = reset(lease.statement());
-		if (failure != null) {
-			if (cachedStatement != null) {
-				statementCache.remove(lease.key());
-			}
-			try {
-				lease.statement().close();
-			} catch (SQLException | RuntimeException closeFailure) {
-				failure.addSuppressed(closeFailure);
-			}
-			throwFailure(failure);
-			return;
-		}
-		if (cachedStatement == null) {
-			lease.statement().close();
-		} else {
-			cachedStatement.setInUse(false);
 		}
 	}
 
@@ -281,26 +251,6 @@ public final class JdbcOperations implements AutoCloseable {
 				: Arrays.copyOf(allUpdateCounts, Math.max(requiredLength, Math.max(MAXIMUM_BATCH_SIZE, allUpdateCounts.length * 2)));
 		System.arraycopy(batchUpdateCounts, 0, updateCounts, count, batchUpdateCounts.length);
 		return new BatchResult(updateCounts, requiredLength);
-	}
-
-	private static Exception addFailure(Exception failure, Exception additionalFailure) {
-		if (failure == null) {
-			return additionalFailure;
-		}
-		failure.addSuppressed(additionalFailure);
-		return failure;
-	}
-
-	private static void throwFailure(Exception failure) throws SQLException {
-		if (failure instanceof SQLException sqlFailure) {
-			throw sqlFailure;
-		}
-		if (failure instanceof RuntimeException runtimeFailure) {
-			throw runtimeFailure;
-		}
-		if (failure != null) {
-			throw new IllegalStateException("Unexpected JDBC cleanup failure", failure);
-		}
 	}
 
 	@FunctionalInterface
@@ -376,20 +326,8 @@ public final class JdbcOperations implements AutoCloseable {
 			this.cachedStatement = cachedStatement;
 		}
 
-		StatementKey key() {
-			return key;
-		}
-
 		PreparedStatement statement() {
 			return statement;
-		}
-
-		CachedStatement cachedStatement() {
-			return cachedStatement;
-		}
-
-		boolean invalid() {
-			return invalid;
 		}
 
 		void invalidate() {
@@ -398,7 +336,32 @@ public final class JdbcOperations implements AutoCloseable {
 
 		@Override
 		public void close() throws SQLException {
-			release(this);
+			if (invalid) {
+				if (cachedStatement != null) {
+					statementCache.remove(key);
+				}
+				statement.close();
+				return;
+			}
+
+			Exception failure = reset(statement);
+			if (failure != null) {
+				if (cachedStatement != null) {
+					statementCache.remove(key);
+				}
+				try {
+					statement.close();
+				} catch (SQLException | RuntimeException closeFailure) {
+					failure.addSuppressed(closeFailure);
+				}
+				JdbcFailures.throwIfPresent(failure);
+				return;
+			}
+			if (cachedStatement == null) {
+				statement.close();
+			} else {
+				cachedStatement.setInUse(false);
+			}
 		}
 	}
 }

@@ -20,7 +20,7 @@ import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.enu.InstituteValidityDateType;
-import de.zft2.gbanking.gui.BaseWorker;
+import de.zft2.gbanking.concurrent.ProgressReporter;
 
 public class InstituteFileImportDbbReachable extends InstituteFileImport {
 
@@ -30,8 +30,8 @@ public class InstituteFileImportDbbReachable extends InstituteFileImport {
 
 	public static final String DEFAULT_FILENAME = "verzeichnis-erreichbare-zahlungsdienstleister-data.csv";
 
-	protected InstituteFileImportDbbReachable(String basePath, String fileName, Charset charset, BaseWorker worker) {
-		super(basePath, fileName, charset, worker);
+	protected InstituteFileImportDbbReachable(String basePath, String fileName, Charset charset, ProgressReporter progressReporter) {
+		super(basePath, fileName, charset, progressReporter);
 	}
 
 	protected InstituteFileImportDbbReachable(String basePath, Charset charset) {

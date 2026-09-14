@@ -21,4 +21,32 @@ public final class TextValues {
 		}
 		return null;
 	}
+
+	public static boolean hasText(String value) {
+		return value != null && !value.isBlank();
+	}
+
+	public static String removeLeadingBom(String value) {
+		return value != null && !value.isEmpty() && value.charAt(0) == '\uFEFF' ? value.substring(1) : value;
+	}
+
+	public static boolean isMoreReadable(String candidate, String currentValue) {
+		return readabilityScore(candidate) > readabilityScore(currentValue);
+	}
+
+	public static int readabilityScore(String value) {
+		boolean upperCaseLetter = false;
+		boolean lowerCaseLetter = false;
+		if (value != null) {
+			for (int index = 0; index < value.length(); index++) {
+				char character = value.charAt(index);
+				upperCaseLetter |= Character.isUpperCase(character);
+				lowerCaseLetter |= Character.isLowerCase(character);
+			}
+		}
+		if (upperCaseLetter && lowerCaseLetter) {
+			return 2;
+		}
+		return lowerCaseLetter ? 1 : 0;
+	}
 }

@@ -13,13 +13,13 @@ import javafx.collections.FXCollections;
 import javafx.scene.Node;
 import javafx.scene.control.ComboBox;
 
-public class MoneyTransferInputStandingOrderPanel extends MoneyTransferInputBasePanel {
+final class MoneyTransferInputStandingOrderPanel extends MoneyTransferInputBasePanel {
 
 	private static final String UI_LABEL_LAST_DAY_OF_MONTH = "UI_LABEL_LAST_DAY_OF_MONTH";
 	private final ComboBox<String> dayCombo = new ComboBox<>(FXCollections.observableArrayList(IntStream.range(1, 31).mapToObj(String::valueOf).toList()));
 	private final ComboBox<StandingorderMode> cycleCombo = new ComboBox<>(FXCollections.observableArrayList(StandingorderMode.values()));
 
-	public MoneyTransferInputStandingOrderPanel(MoneyTransferDetailListTabPanel parent) {
+	MoneyTransferInputStandingOrderPanel(MoneyTransferDetailListTabPanel parent) {
 		super(parent);
 		dayCombo.getItems().add(getText(UI_LABEL_LAST_DAY_OF_MONTH));
 		initializeSpecificFields();

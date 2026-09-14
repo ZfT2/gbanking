@@ -9,14 +9,14 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
 
 import de.zft2.gbanking.db.dao.Institute;
-import de.zft2.gbanking.gui.BaseWorker;
+import de.zft2.gbanking.concurrent.ProgressReporter;
 
 public class InstituteFileImportDbb extends InstituteFileImport {
 
 	public static final String DEFAULT_FILENAME = "blz-aktuell-csv-data.csv";
 
-	protected InstituteFileImportDbb(String basePath, String fileName, Charset charset, BaseWorker worker) {
-		super(basePath, fileName, charset, worker);
+	protected InstituteFileImportDbb(String basePath, String fileName, Charset charset, ProgressReporter progressReporter) {
+		super(basePath, fileName, charset, progressReporter);
 	}
 
 	protected InstituteFileImportDbb(String basePath, Charset charset) {

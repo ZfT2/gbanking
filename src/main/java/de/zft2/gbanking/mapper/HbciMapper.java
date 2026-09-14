@@ -94,8 +94,8 @@ public class HbciMapper {
 		Booking booking = new Booking();
 		
 		booking.setAccountId(accountId);
-		booking.setDateBooking(TypeConverter.toLocalDateFromDate(umsLine.bdate));
-		booking.setDateValue(TypeConverter.toLocalDateFromDate(umsLine.valuta));
+		booking.setDateBooking(TypeConverter.toLocalDate(umsLine.bdate));
+		booking.setDateValue(TypeConverter.toLocalDate(umsLine.valuta));
 		StringBuilder sb = new StringBuilder();
 		if (umsLine.usage != null && !umsLine.usage.isEmpty()) {
 			for (String purposeline : umsLine.usage) {
@@ -111,7 +111,7 @@ public class HbciMapper {
 				toBigDecimal(umsLine.orig_value), currency(umsLine.orig_value), null);
 		booking.setFee(BookingCurrencyMapper.createFee(toBigDecimal(umsLine.charge_value),
 				currency(umsLine.charge_value), baseCurrency));
-		booking.setBookingType(resolveBookingType(booking));
+		booking.setBookingType(BookingType.fromAmount(booking.getAmount()));
 		booking.setSource(source);
 
 		booking.setSepaDetails(mapSepaDetails(umsLine));
@@ -155,13 +155,6 @@ public class HbciMapper {
 		return value != null ? value.getCurr() : null;
 	}
 
-	private static BookingType resolveBookingType(Booking booking) {
-		if (booking.getAmount() == null) {
-			return null;
-		}
-		return booking.getAmount().signum() < 0 ? BookingType.REMOVAL : BookingType.DEPOSIT;
-	}
-	
 	public static Recipient mapUmsLineKontoToRecipient(Konto other) {
 
 		if (other == null || (other.name == null && other.iban == null && other.number == null))

@@ -1,5 +1,6 @@
 package de.zft2.gbanking.db.dao.logic;
 
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -81,36 +82,26 @@ public class StatementsLogicInstitute extends StatementsLogicDefault<Institute> 
 			throws SQLException {
 		persistInstituteDetail(institute, statementType, mapper::hasDkData,
 				DaoSqlStatements.SQL_UPDATE_INSTIUTE_DK, DaoSqlStatements.SQL_INSERT_INSTITUTE_DK,
-				DaoSqlStatements.SQL_DELETE_INSTIUTE_DK,
-				(entity, statement) -> mapper.setParamsDK(entity, StatementType.UPDATE, statement),
-				(entity, statement) -> mapper.setParamsDK(entity, StatementType.INSERT, statement));
+				DaoSqlStatements.SQL_DELETE_INSTIUTE_DK, mapper::setParamsDK);
 		persistInstituteDetail(institute, statementType, mapper::hasDbbData,
 				DaoSqlStatements.SQL_UPDATE_INSTIUTE_DBB, DaoSqlStatements.SQL_INSERT_INSTITUTE_DBB,
-				DaoSqlStatements.SQL_DELETE_INSTIUTE_DBB,
-				(entity, statement) -> mapper.setParamsDBB(entity, StatementType.UPDATE, statement),
-				(entity, statement) -> mapper.setParamsDBB(entity, StatementType.INSERT, statement));
+				DaoSqlStatements.SQL_DELETE_INSTIUTE_DBB, mapper::setParamsDBB);
 		persistInstituteDetail(institute, statementType, mapper::hasEpcData,
 				DaoSqlStatements.SQL_UPDATE_INSTIUTE_EPC, DaoSqlStatements.SQL_INSERT_INSTITUTE_EPC,
-				DaoSqlStatements.SQL_DELETE_INSTIUTE_EPC,
-				(entity, statement) -> mapper.setParamsEPC(entity, StatementType.UPDATE, statement),
-				(entity, statement) -> mapper.setParamsEPC(entity, StatementType.INSERT, statement));
+				DaoSqlStatements.SQL_DELETE_INSTIUTE_EPC, mapper::setParamsEPC);
 		persistInstituteDetail(institute, statementType, mapper::hasDbbReachableData,
 				DaoSqlStatements.SQL_UPDATE_INSTIUTE_DBB_REACHABLE,
 				DaoSqlStatements.SQL_INSERT_INSTITUTE_DBB_REACHABLE,
-				DaoSqlStatements.SQL_DELETE_INSTIUTE_DBB_REACHABLE,
-				(entity, statement) -> mapper.setParamsDbbReachable(entity, StatementType.UPDATE, statement),
-				(entity, statement) -> mapper.setParamsDbbReachable(entity, StatementType.INSERT, statement));
+				DaoSqlStatements.SQL_DELETE_INSTIUTE_DBB_REACHABLE, mapper::setParamsDbbReachable);
 		persistInstituteDetail(institute, statementType, mapper::hasAdditionalData,
 				DaoSqlStatements.SQL_UPDATE_INSTIUTE_ADDITIONAL,
 				DaoSqlStatements.SQL_INSERT_INSTITUTE_ADDITIONAL,
-				DaoSqlStatements.SQL_DELETE_INSTIUTE_ADDITIONAL,
-				(entity, statement) -> mapper.setParamsAdditional(entity, StatementType.UPDATE, statement),
-				(entity, statement) -> mapper.setParamsAdditional(entity, StatementType.INSERT, statement));
+				DaoSqlStatements.SQL_DELETE_INSTIUTE_ADDITIONAL, mapper::setParamsAdditional);
 	}
 
 	private void persistInstituteDetail(Institute institute, StatementType statementType,
 			Predicate<Institute> hasDetails, String updateSql, String insertSql, String deleteSql,
-			SqlBatchBinder<Institute> updateBinder, SqlBatchBinder<Institute> insertBinder) throws SQLException {
+			InstituteDetailBinder binder) throws SQLException {
 		if (!hasDetails.test(institute)) {
 			if (statementType == StatementType.UPDATE) {
 				deleteInstituteDetails(deleteSql, institute);
@@ -118,17 +109,20 @@ public class StatementsLogicInstitute extends StatementsLogicDefault<Institute> 
 			return;
 		}
 		if (statementType == StatementType.INSERT) {
-			executeCachedUpdateExactlyOnce(insertSql, statement -> insertBinder.bind(institute, statement));
+			executeCachedUpdateExactlyOnce(insertSql,
+					statement -> binder.bind(institute, StatementType.INSERT, statement));
 		} else {
-			updateThenInsertInstituteDetail(institute, updateSql, insertSql, updateBinder, insertBinder);
+			updateThenInsertInstituteDetail(institute, updateSql, insertSql, binder);
 		}
 	}
 
 	private void updateThenInsertInstituteDetail(Institute institute, String updateSql, String insertSql,
-			SqlBatchBinder<Institute> updateBinder, SqlBatchBinder<Institute> insertBinder) throws SQLException {
-		int updateCount = executeCachedUpdate(updateSql, statement -> updateBinder.bind(institute, statement));
+			InstituteDetailBinder binder) throws SQLException {
+		int updateCount = executeCachedUpdate(updateSql,
+				statement -> binder.bind(institute, StatementType.UPDATE, statement));
 		if (updateCount == 0) {
-			executeCachedUpdateExactlyOnce(insertSql, statement -> insertBinder.bind(institute, statement));
+			executeCachedUpdateExactlyOnce(insertSql,
+					statement -> binder.bind(institute, StatementType.INSERT, statement));
 		} else if (updateCount != 1) {
 			throw new SQLException("Database detail update did not affect at most one row");
 		}
@@ -232,6 +226,12 @@ public class StatementsLogicInstitute extends StatementsLogicDefault<Institute> 
 			}
 		}
 		return matches;
+	}
+
+	@FunctionalInterface
+	private interface InstituteDetailBinder {
+
+		void bind(Institute institute, StatementType statementType, PreparedStatement statement) throws SQLException;
 	}
 
 }
