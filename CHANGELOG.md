@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-14
+
+### Changed
+- Sonarqube findings and SpotBugs warnings
+
+### Maintenance
+- release: prepare next development version 0.7.1-SNAPSHOT
+
 ## [0.7.0] - 2026-09-11
 
 ### Added
@@ -396,18 +404,6 @@ All notable changes to this project will be documented in this file.
 ### Maintenance
 - disabled some rebooking related tests as they might be wrong
 - release: prepare next development version 0.8.1-SNAPSHOT
-
-## [0.8.0] - 2026-06-03
-
-### Added
-- add turnover analysis first version
-
-### Fixed
-- GitHub build Node.js warnings
-
-### Maintenance
-- add JUnit Tests
-- release: prepare next development version 0.7.2-SNAPSHOT
 
 ## [0.7.1] - 2026-06-03
 
