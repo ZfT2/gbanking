@@ -5,9 +5,13 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import org.apache.logging.log4j.LogManager;
@@ -29,15 +33,26 @@ import de.zft2.gbanking.service.account.AccountStatementSettings;
 import de.zft2.gbanking.service.importproperties.ImportPropertiesSynchronizationService;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.StockPortfolioSettings;
+import de.zft2.gbanking.service.stock.quote.GenericQuoteFeed;
+import de.zft2.gbanking.service.stock.quote.GenericQuoteFeedFormat;
+import de.zft2.gbanking.service.stock.quote.QuoteProviderSettings;
+import de.zft2.gbanking.service.stock.quote.StockQuoteRetrievalService;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.PasswordField;
 import javafx.scene.control.RadioButton;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
@@ -64,6 +79,23 @@ public class SettingsDialog implements BaseMessages {
 	private final Runnable environmentOptionsSaver;
 	private final Map<Setting, Supplier<String>> valueSupplierMap = new LinkedHashMap<>();
 	private final Map<String, Supplier<String>> environmentSupplierMap = new LinkedHashMap<>();
+	private final ComboBox<GenericFeedEditor> genericFeedSelector = new ComboBox<>();
+	private final TextField genericFeedNameField = new TextField();
+	private final TextField genericFeedUrlField = new TextField();
+	private final ComboBox<GenericQuoteFeedFormat> genericFeedFormatField = new ComboBox<>(
+			FXCollections.observableArrayList(GenericQuoteFeedFormat.values()));
+	private final PasswordField genericFeedSecretField = new PasswordField();
+	private final TextField genericFeedHeaderNameField = new TextField();
+	private final PasswordField genericFeedHeaderValueField = new PasswordField();
+	private final TextField genericFeedItemsPathField = new TextField();
+	private final TextField genericFeedDatePathField = new TextField();
+	private final TextField genericFeedPricePathField = new TextField();
+	private final TextField genericFeedDateFormatField = new TextField();
+	private final TextField genericFeedCsvDelimiterField = new TextField();
+	private final List<Node> genericFeedFields = new ArrayList<>();
+	private final Set<String> persistedGenericFeedIds = new HashSet<>();
+	private GenericFeedEditor selectedGenericFeed;
+	private boolean loadingGenericFeed;
 
 	public SettingsDialog(Window parentWindow) {
 		this(parentWindow, new LinkedHashMap<>(), () -> {
@@ -82,6 +114,7 @@ public class SettingsDialog implements BaseMessages {
 		ChipTanUsbSupport.ensureSettingsExist();
 		LoggingSettings.ensureSettingsExist();
 		StockPortfolioSettings.ensureSettingsExist();
+		QuoteProviderSettings.ensureSettingsExist();
 		log.info("Creating settings dialog.");
 
 		Stage dialog = DialogWindowSupport.createModalStage(parentWindow, "UI_PANEL_SETTINGS");
@@ -93,7 +126,8 @@ public class SettingsDialog implements BaseMessages {
 
 		Label headline = new Label(getText("UI_PANEL_SETTINGS"));
 
-		TabPane tabPane = new TabPane(createProgramSettingsTab(settings), createPatternSettingsTab(settings), createEnvironmentSettingsTab());
+		TabPane tabPane = new TabPane(createProgramSettingsTab(settings), createPatternSettingsTab(settings),
+				createQuoteProviderSettingsTab(), createEnvironmentSettingsTab());
 		GuiLayoutState.configureTabPane(tabPane, "settings.main");
 
 		Button saveButton = new Button(getText("UI_BUTTON_SETTINGS_SAVE"));
@@ -153,6 +187,223 @@ public class SettingsDialog implements BaseMessages {
 		return createTab("UI_TAB_ENVIRONMENT_SETTINGS", grid);
 	}
 
+	private Tab createQuoteProviderSettingsTab() {
+		GridPane grid = createSettingsGrid();
+		int row = 1;
+		Label help = new Label(getText("UI_QUOTE_PROVIDER_SETTINGS_HELP"));
+		help.setWrapText(true);
+		grid.add(help, 0, row++, 3, 1);
+
+		row = addQuoteProviderHeader(grid, row, "Alpha Vantage");
+		row = addQuoteProviderSetting(grid, row, "UI_QUOTE_PROVIDER_API_KEY",
+				QuoteProviderSettings.ALPHA_VANTAGE_API_KEY, true);
+
+		row = addQuoteProviderHeader(grid, row, "EODHD");
+		row = addQuoteProviderSetting(grid, row, "UI_QUOTE_PROVIDER_API_TOKEN",
+				QuoteProviderSettings.EODHD_API_TOKEN, true);
+
+		row = addQuoteProviderHeader(grid, row, "Alpaca");
+		row = addQuoteProviderSetting(grid, row, "UI_QUOTE_PROVIDER_KEY_ID",
+				QuoteProviderSettings.ALPACA_KEY_ID, true);
+		row = addQuoteProviderSetting(grid, row, "UI_QUOTE_PROVIDER_SECRET_KEY",
+				QuoteProviderSettings.ALPACA_SECRET_KEY, true);
+
+		row = addQuoteProviderHeader(grid, row, getText("UI_QUOTE_PROVIDER_GENERIC"));
+		row = addGenericFeedSelector(grid, row);
+		row = addGenericFeedField(grid, row, "UI_QUOTE_PROVIDER_FEED_NAME", genericFeedNameField);
+		row = addGenericFeedField(grid, row, "UI_QUOTE_PROVIDER_URL_TEMPLATE", genericFeedUrlField);
+		row = addGenericFeedField(grid, row, "UI_QUOTE_PROVIDER_FORMAT", genericFeedFormatField);
+		row = addGenericFeedField(grid, row, "UI_QUOTE_PROVIDER_SECRET", genericFeedSecretField);
+		row = addGenericFeedField(grid, row, "UI_QUOTE_PROVIDER_HEADER_NAME", genericFeedHeaderNameField);
+		row = addGenericFeedField(grid, row, "UI_QUOTE_PROVIDER_HEADER_VALUE", genericFeedHeaderValueField);
+		row = addGenericFeedField(grid, row, "UI_QUOTE_PROVIDER_ITEMS_PATH", genericFeedItemsPathField);
+		row = addGenericFeedField(grid, row, "UI_QUOTE_PROVIDER_DATE_PATH", genericFeedDatePathField);
+		row = addGenericFeedField(grid, row, "UI_QUOTE_PROVIDER_PRICE_PATH", genericFeedPricePathField);
+		row = addGenericFeedField(grid, row, "UI_QUOTE_PROVIDER_DATE_FORMAT", genericFeedDateFormatField);
+		row = addGenericFeedField(grid, row, "UI_QUOTE_PROVIDER_CSV_DELIMITER", genericFeedCsvDelimiterField);
+		Button deleteButton = new Button(getText("UI_QUOTE_PROVIDER_DELETE_FEED"));
+		deleteButton.setOnAction(event -> deleteSelectedGenericFeed());
+		grid.add(deleteButton, 2, row);
+		initializeGenericFeedEditors();
+		return createTab("UI_TAB_QUOTE_PROVIDERS", grid);
+	}
+
+	private int addQuoteProviderHeader(GridPane grid, int row, String text) {
+		Label label = new Label(text);
+		label.setStyle(FX_FONT_WEIGHT_BOLD);
+		GridPane.setMargin(label, new Insets(10, 0, 0, 0));
+		grid.add(label, 0, row, 3, 1);
+		return row + 1;
+	}
+
+	private int addQuoteProviderSetting(GridPane grid, int row, String labelKey, String attribute, boolean secret) {
+		Setting setting = requireSetting(attribute);
+		TextField field = secret ? new PasswordField() : new TextField();
+		field.setText(setting.getValue() != null ? setting.getValue() : "");
+		field.setMaxWidth(Double.MAX_VALUE);
+		valueSupplierMap.put(setting, field::getText);
+		addQuoteProviderRow(grid, row, labelKey, attribute, field);
+		return row + 1;
+	}
+
+	private int addGenericFeedSelector(GridPane grid, int row) {
+		genericFeedSelector.setMaxWidth(Double.MAX_VALUE);
+		Button addButton = new Button(getText("UI_QUOTE_PROVIDER_ADD_FEED"));
+		addButton.setOnAction(event -> addGenericFeed());
+		HBox editor = new HBox(8, genericFeedSelector, addButton);
+		HBox.setHgrow(genericFeedSelector, Priority.ALWAYS);
+		addQuoteProviderRow(grid, row, "UI_QUOTE_PROVIDER_FEED", "", editor);
+		return row + 1;
+	}
+
+	private int addGenericFeedField(GridPane grid, int row, String labelKey, Node editor) {
+		if (editor instanceof javafx.scene.control.Control control) {
+			control.setMaxWidth(Double.MAX_VALUE);
+		}
+		genericFeedFields.add(editor);
+		addQuoteProviderRow(grid, row, labelKey, "", editor);
+		return row + 1;
+	}
+
+	private void initializeGenericFeedEditors() {
+		genericFeedSelector.setCellFactory(listView -> new GenericFeedCell());
+		genericFeedSelector.setButtonCell(new GenericFeedCell());
+		genericFeedCsvDelimiterField.setTextFormatter(
+				new TextFormatter<>(change -> change.getControlNewText().length() <= 1 ? change : null));
+		List<GenericQuoteFeed> feeds = QuoteProviderSettings.getConfiguration().genericFeeds();
+		feeds.stream().map(GenericFeedEditor::new).forEach(genericFeedSelector.getItems()::add);
+		feeds.stream().map(GenericQuoteFeed::id).forEach(persistedGenericFeedIds::add);
+		genericFeedSelector.valueProperty().addListener((observable, previous, selected) -> {
+			storeGenericFeed(previous);
+			selectedGenericFeed = selected;
+			loadGenericFeed(selected);
+		});
+		genericFeedNameField.textProperty().addListener((observable, previous, current) -> {
+			if (!loadingGenericFeed && selectedGenericFeed != null) {
+				selectedGenericFeed.setName(current);
+			}
+		});
+		valueSupplierMap.put(requireSetting(QuoteProviderSettings.GENERIC_FEEDS), this::serializeGenericFeeds);
+		genericFeedSelector.setValue(genericFeedSelector.getItems().stream().findFirst().orElse(null));
+		loadGenericFeed(genericFeedSelector.getValue());
+	}
+
+	private void addGenericFeed() {
+		storeGenericFeed(selectedGenericFeed);
+		GenericFeedEditor editor = new GenericFeedEditor(GenericQuoteFeed.create(uniqueGenericFeedName()));
+		genericFeedSelector.getItems().add(editor);
+		genericFeedSelector.setValue(editor);
+	}
+
+	private String uniqueGenericFeedName() {
+		String baseName = getText("UI_QUOTE_PROVIDER_NEW_FEED");
+		Set<String> names = genericFeedSelector.getItems().stream()
+				.map(editor -> editor.getName().toLowerCase(Locale.ROOT))
+				.collect(java.util.stream.Collectors.toSet());
+		for (int number = 1; ; number++) {
+			String candidate = number == 1 ? baseName : baseName + " " + number;
+			if (!names.contains(candidate.toLowerCase(Locale.ROOT))) {
+				return candidate;
+			}
+		}
+	}
+
+	private void deleteSelectedGenericFeed() {
+		GenericFeedEditor editor = genericFeedSelector.getValue();
+		if (editor == null) {
+			return;
+		}
+		storeGenericFeed(editor);
+		if (persistedGenericFeedIds.contains(editor.id) && !deletePersistedGenericFeed(editor)) {
+			return;
+		}
+		genericFeedSelector.getItems().remove(editor);
+		genericFeedSelector.setValue(genericFeedSelector.getItems().stream().findFirst().orElse(null));
+	}
+
+	private boolean deletePersistedGenericFeed(GenericFeedEditor editor) {
+		ButtonType keepPrices = new ButtonType(getText("UI_QUOTE_PROVIDER_DELETE_KEEP_PRICES"),
+				ButtonBar.ButtonData.OK_DONE);
+		ButtonType deletePrices = new ButtonType(getText("UI_QUOTE_PROVIDER_DELETE_WITH_PRICES"),
+				ButtonBar.ButtonData.OTHER);
+		Optional<ButtonType> choice = DialogWindowSupport.showChoice(parentWindow, Alert.AlertType.CONFIRMATION,
+				getText("UI_QUOTE_PROVIDER_DELETE_TITLE"),
+				getText("UI_QUOTE_PROVIDER_DELETE_HEADER", editor.getName()),
+				getText("UI_QUOTE_PROVIDER_DELETE_TEXT"), keepPrices, deletePrices, ButtonType.CANCEL);
+		if (choice.isEmpty() || choice.get() == ButtonType.CANCEL) {
+			return false;
+		}
+		try {
+			int deletedPrices = ServiceRegistry.getService(StockQuoteRetrievalService.class)
+					.deleteGenericFeed(editor.id, choice.get() == deletePrices).deletedPrices();
+			persistedGenericFeedIds.remove(editor.id);
+			if (deletedPrices > 0) {
+				showInfo(getText("UI_QUOTE_PROVIDER_DELETE_RESULT", deletedPrices));
+			}
+			return true;
+		} catch (RuntimeException exception) {
+			showWarning(exception.getMessage());
+			return false;
+		}
+	}
+
+	private String serializeGenericFeeds() {
+		storeGenericFeed(selectedGenericFeed);
+		return QuoteProviderSettings.serializeGenericFeeds(
+				genericFeedSelector.getItems().stream().map(GenericFeedEditor::toFeed).toList());
+	}
+
+	private void storeGenericFeed(GenericFeedEditor editor) {
+		if (editor == null || loadingGenericFeed) {
+			return;
+		}
+		editor.setName(genericFeedNameField.getText());
+		editor.urlTemplate = genericFeedUrlField.getText();
+		editor.format = genericFeedFormatField.getValue();
+		editor.secret = genericFeedSecretField.getText();
+		editor.headerName = genericFeedHeaderNameField.getText();
+		editor.headerValue = genericFeedHeaderValueField.getText();
+		editor.itemsPath = genericFeedItemsPathField.getText();
+		editor.datePath = genericFeedDatePathField.getText();
+		editor.pricePath = genericFeedPricePathField.getText();
+		editor.dateFormat = genericFeedDateFormatField.getText();
+		editor.csvDelimiter = genericFeedCsvDelimiterField.getText();
+	}
+
+	private void loadGenericFeed(GenericFeedEditor editor) {
+		loadingGenericFeed = true;
+		boolean disabled = editor == null;
+		genericFeedFields.forEach(field -> field.setDisable(disabled));
+		genericFeedNameField.setText(disabled ? "" : editor.getName());
+		genericFeedUrlField.setText(disabled ? "" : editor.urlTemplate);
+		genericFeedFormatField.setValue(disabled ? GenericQuoteFeedFormat.JSON : editor.format);
+		genericFeedSecretField.setText(disabled ? "" : editor.secret);
+		genericFeedHeaderNameField.setText(disabled ? "" : editor.headerName);
+		genericFeedHeaderValueField.setText(disabled ? "" : editor.headerValue);
+		genericFeedItemsPathField.setText(disabled ? "" : editor.itemsPath);
+		genericFeedDatePathField.setText(disabled ? "" : editor.datePath);
+		genericFeedPricePathField.setText(disabled ? "" : editor.pricePath);
+		genericFeedDateFormatField.setText(disabled ? "" : editor.dateFormat);
+		genericFeedCsvDelimiterField.setText(disabled ? "" : editor.csvDelimiter);
+		loadingGenericFeed = false;
+	}
+
+	private void addQuoteProviderRow(GridPane grid, int row, String labelKey, String attribute, Node editor) {
+		Label label = new Label(getText(labelKey));
+		label.setWrapText(true);
+		Label attributeLabel = new Label(attribute);
+		attributeLabel.setWrapText(true);
+		grid.add(label, 0, row);
+		grid.add(attributeLabel, 1, row);
+		grid.add(editor, 2, row);
+	}
+
+	private Setting requireSetting(String attribute) {
+		return dbController.getAll(Setting.class).stream()
+				.filter(setting -> attribute.equals(setting.getAttribute())).findFirst()
+				.orElseThrow(() -> new IllegalStateException("Missing setting " + attribute));
+	}
+
 	private GridPane createSettingsGrid() {
 		GridPane grid = new GridPane();
 		grid.setHgap(12);
@@ -207,6 +458,7 @@ public class SettingsDialog implements BaseMessages {
 		FileImportSettings.ensureSettingsExist();
 		LoggingSettings.ensureSettingsExist();
 		StockPortfolioSettings.ensureSettingsExist();
+		QuoteProviderSettings.ensureSettingsExist();
 
 		List<Setting> allSettings = dbController.getAll(Setting.class);
 		if (allSettings == null) {
@@ -409,6 +661,9 @@ public class SettingsDialog implements BaseMessages {
 	}
 
 	private boolean saveProgramSettings() {
+		if (!validateGenericFeeds()) {
+			return false;
+		}
 		for (Map.Entry<Setting, Supplier<String>> entry : valueSupplierMap.entrySet()) {
 			Setting setting = entry.getKey();
 			String newValue = entry.getValue().get();
@@ -430,6 +685,23 @@ public class SettingsDialog implements BaseMessages {
 
 		log.info("Saved {} program settings.", valueSupplierMap.size());
 		LoggingSettings.applyLogLevels();
+		return true;
+	}
+
+	private boolean validateGenericFeeds() {
+		storeGenericFeed(selectedGenericFeed);
+		Set<String> names = new HashSet<>();
+		for (GenericFeedEditor editor : genericFeedSelector.getItems()) {
+			String name = editor.getName().trim();
+			if (name.isEmpty()) {
+				showWarning(getText("ALERT_QUOTE_PROVIDER_FEED_NAME_REQUIRED"));
+				return false;
+			}
+			if (!names.add(name.toLowerCase(Locale.ROOT))) {
+				showWarning(getText("ALERT_QUOTE_PROVIDER_FEED_NAME_DUPLICATE", name));
+				return false;
+			}
+		}
 		return true;
 	}
 
@@ -519,6 +791,74 @@ public class SettingsDialog implements BaseMessages {
 
 	private String normalizeDecimal(String value) {
 		return value.replace(',', '.');
+	}
+
+	private static final class GenericFeedEditor {
+
+		private final String id;
+		private final StringProperty name = new SimpleStringProperty();
+		private String urlTemplate;
+		private GenericQuoteFeedFormat format;
+		private String secret;
+		private String headerName;
+		private String headerValue;
+		private String itemsPath;
+		private String datePath;
+		private String pricePath;
+		private String dateFormat;
+		private String csvDelimiter;
+
+		private GenericFeedEditor(GenericQuoteFeed feed) {
+			id = feed.id();
+			name.set(feed.name());
+			urlTemplate = feed.urlTemplate();
+			format = feed.format();
+			secret = feed.secret();
+			headerName = feed.headerName();
+			headerValue = feed.headerValue();
+			itemsPath = feed.itemsPath();
+			datePath = feed.datePath();
+			pricePath = feed.pricePath();
+			dateFormat = feed.dateFormat();
+			csvDelimiter = Character.toString(feed.csvDelimiter());
+		}
+
+		private GenericQuoteFeed toFeed() {
+			char delimiter = csvDelimiter != null && csvDelimiter.length() == 1 ? csvDelimiter.charAt(0) : ',';
+			return new GenericQuoteFeed(id, getName(), urlTemplate, format, secret, headerName, headerValue,
+					itemsPath, datePath, pricePath, dateFormat, delimiter);
+		}
+
+		private String getName() {
+			return name.get();
+		}
+
+		private void setName(String value) {
+			name.set(value != null ? value : "");
+		}
+
+		private StringProperty nameProperty() {
+			return name;
+		}
+
+		@Override
+		public String toString() {
+			return getName();
+		}
+	}
+
+	private static final class GenericFeedCell extends ListCell<GenericFeedEditor> {
+
+		@Override
+		protected void updateItem(GenericFeedEditor editor, boolean empty) {
+			super.updateItem(editor, empty);
+			textProperty().unbind();
+			if (empty || editor == null) {
+				setText(null);
+			} else {
+				textProperty().bind(editor.nameProperty());
+			}
+		}
 	}
 
 	private void showWarning(String text) {

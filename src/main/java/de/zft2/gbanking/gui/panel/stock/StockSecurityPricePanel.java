@@ -69,7 +69,7 @@ public class StockSecurityPricePanel extends BasePanel {
 		if (security == null) {
 			return;
 		}
-		new SecurityPriceDialog(getOwnerWindow(), security.name(), security.quoteCurrency(),
+		new SecurityPriceDialog(getOwnerWindow(), security.securityId(), security.name(), security.quoteCurrency(),
 				() -> service.getPrices(security.securityId()),
 				(priceId, date, price, currency, confirmed) -> service.savePrice(
 						security.securityId(), priceId, date, price, currency, confirmed),

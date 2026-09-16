@@ -29,6 +29,7 @@ import javafx.stage.Window;
 
 public final class SecurityPriceDialog implements BaseMessages {
 
+	private final int securityId;
 	private final String securityName;
 	private final Currency defaultCurrency;
 	private final Supplier<List<PriceSummary>> priceLoader;
@@ -43,9 +44,10 @@ public final class SecurityPriceDialog implements BaseMessages {
 	private final Button deleteButton = new Button(getText("UI_BUTTON_DELETE"));
 	private PriceSummary selectedPrice;
 
-	public SecurityPriceDialog(Window owner, String securityName, Currency defaultCurrency,
+	public SecurityPriceDialog(Window owner, int securityId, String securityName, Currency defaultCurrency,
 			Supplier<List<PriceSummary>> priceLoader, PriceSaveHandler saveHandler,
 			PriceDeleteHandler deleteHandler, Runnable changedHandler) {
+		this.securityId = securityId;
 		this.securityName = securityName;
 		this.defaultCurrency = defaultCurrency != null ? defaultCurrency : Currency.EUR;
 		this.priceLoader = priceLoader;
@@ -75,17 +77,26 @@ public final class SecurityPriceDialog implements BaseMessages {
 
 		Button newButton = new Button(getText("UI_BUTTON_NEW"));
 		Button saveButton = new Button(getText("UI_BUTTON_SAVE"));
+		Button retrieveButton = new Button(getText("UI_STOCK_QUOTE_RETRIEVE"));
 		Button closeButton = new Button(getText("UI_BUTTON_CLOSE"));
 		deleteButton.setDisable(true);
 		newButton.setOnAction(event -> clearSelection());
 		saveButton.setOnAction(event -> save());
+		retrieveButton.setOnAction(event -> retrieve());
 		deleteButton.setOnAction(event -> delete());
 		closeButton.setOnAction(event -> dialog.close());
 
 		VBox root = DialogWindowSupport.createDialogRoot(header, table, form,
-				DialogWindowSupport.createButtonBar(newButton, saveButton, deleteButton, closeButton));
+				DialogWindowSupport.createButtonBar(newButton, saveButton, deleteButton, retrieveButton, closeButton));
 		VBox.setVgrow(table, Priority.ALWAYS);
 		dialog.setScene(DialogWindowSupport.createScene(root, 720, 480));
+	}
+
+	private void retrieve() {
+		new SecurityQuoteRetrievalDialog(dialog, securityId, securityName, () -> {
+			reload();
+			changedHandler.run();
+		}).show();
 	}
 
 	private void configureTable() {

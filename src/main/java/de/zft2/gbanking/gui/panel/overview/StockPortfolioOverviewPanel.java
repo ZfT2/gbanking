@@ -724,7 +724,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	}
 
 	private void openPrices(int securityId, String securityName, Currency currency) {
-		new SecurityPriceDialog(getOwnerWindow(), securityName, currency, () -> service.getPrices(securityId),
+		new SecurityPriceDialog(getOwnerWindow(), securityId, securityName, currency, () -> service.getPrices(securityId),
 				(correctedId, date, price, priceCurrency, confirmed) -> service.savePrice(
 						securityId, correctedId, date, price, priceCurrency, confirmed),
 				(priceId, confirmed) -> service.deletePrice(securityId, priceId, confirmed),

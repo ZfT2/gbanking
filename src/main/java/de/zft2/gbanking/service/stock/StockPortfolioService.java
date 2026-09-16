@@ -923,12 +923,13 @@ public class StockPortfolioService extends AbstractDbService {
 				? dbController.getById(StockDataSource.class, priceSource.getSourceId()) : null;
 		if (source != null && isProtectedPriceSource(source.getSourceType())) {
 			throw new GBankingException(
-					"Importierte oder per FinTS gelieferte Kurse dürfen nur nach Bestätigung geändert oder gelöscht werden");
+					"Extern gelieferte Kurse dürfen nur nach Bestätigung geändert oder gelöscht werden");
 		}
 	}
 
 	private static boolean isProtectedPriceSource(StockDataSourceType sourceType) {
-		return sourceType == StockDataSourceType.FINTS || sourceType == StockDataSourceType.FILE;
+		return sourceType == StockDataSourceType.FINTS || sourceType == StockDataSourceType.FILE
+				|| sourceType == StockDataSourceType.MARKET_DATA;
 	}
 
 	private StockDataSource getOrCreateManualSource() {
