@@ -10,6 +10,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 import de.zft2.gbanking.db.repository.SqlTemplateRepository;
 
@@ -47,6 +48,7 @@ public class DBControllerTestUtil {
 			// Temporarily disable foreign key check
 			stmt.execute("PRAGMA foreign_keys = OFF");
 			dropIntegrityTriggers(stmt);
+			dropStockIntegrityTriggers(connection);
 
 			for (String tableName : tablesToClear) {
 				stmt.executeUpdate("DELETE FROM " + tableName);
@@ -54,6 +56,7 @@ public class DBControllerTestUtil {
 
 			restorePatternSettings(stmt);
 			restoreIntegrityTriggers(stmt);
+			restoreStockIntegrityTriggers(stmt);
 			// Re-enable foreign key check
 			stmt.execute("PRAGMA foreign_keys = ON");
 
@@ -138,6 +141,29 @@ public class DBControllerTestUtil {
 		};
 		for (String triggerKey : triggerKeys) {
 			stmt.executeUpdate(SqlTemplateRepository.getDdl(triggerKey));
+		}
+	}
+
+	private static void dropStockIntegrityTriggers(Connection connection) throws SQLException {
+		List<String> triggerNames = new ArrayList<>();
+		try (Statement query = connection.createStatement();
+				ResultSet triggers = query.executeQuery("SELECT name FROM sqlite_master WHERE type = 'trigger' AND name LIKE '%stock%'")) {
+			while (triggers.next()) {
+				triggerNames.add(triggers.getString("name"));
+			}
+		}
+		try (Statement drop = connection.createStatement()) {
+			for (String triggerName : triggerNames) {
+				drop.executeUpdate("DROP TRIGGER IF EXISTS " + quoteIdentifier(triggerName));
+			}
+		}
+	}
+
+	private static void restoreStockIntegrityTriggers(Statement stmt) throws SQLException {
+		for (String sql : SqlTemplateRepository.getBaselineStatements()) {
+			if (sql.startsWith("CREATE TRIGGER") && sql.toLowerCase(Locale.ROOT).contains("stock")) {
+				stmt.executeUpdate(sql);
+			}
 		}
 	}
 

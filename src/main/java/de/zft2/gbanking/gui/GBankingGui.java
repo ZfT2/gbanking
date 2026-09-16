@@ -33,6 +33,7 @@ import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
+import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.gui.BackgroundActionCoordinator.QuiesceMode;
 import de.zft2.gbanking.gui.BackgroundActionCoordinator.QuiesceResult;
@@ -48,6 +49,7 @@ import de.zft2.gbanking.gui.panel.overview.AllTransactionsOverviewPanel;
 import de.zft2.gbanking.gui.panel.overview.MoneyTransferOverviewPanel;
 import de.zft2.gbanking.gui.panel.overview.OpenActionsOverviewPanel;
 import de.zft2.gbanking.gui.panel.overview.OverviewBasePanel;
+import de.zft2.gbanking.gui.panel.overview.StockPortfolioOverviewPanel;
 import de.zft2.gbanking.gui.panel.setting.SettingsDialog;
 import de.zft2.gbanking.gui.util.FileChooserDirectorySupport;
 import de.zft2.gbanking.gui.util.FxThreadSupport;
@@ -67,6 +69,9 @@ import de.zft2.gbanking.service.action.OpenActionsExecutionUtil.ExecutionSummary
 import de.zft2.gbanking.service.action.OpenActionsSelection;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
 import de.zft2.gbanking.service.moneytransfer.MoneyTransferService;
+import de.zft2.gbanking.service.stock.StockPortfolioFinTsRetrievalResult;
+import de.zft2.gbanking.service.stock.StockPortfolioFinTsService;
+import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -107,6 +112,7 @@ public class GBankingGui extends Application implements BaseGui {
 	private AccountTransactionService accountTransactionService;
 	private BankingCapabilityService bankingCapabilityService;
 	private MoneyTransferService moneyTransferService;
+	private StockPortfolioFinTsService stockPortfolioFinTsService;
 
 	private BorderPane root;
 	private Label statusLabel;
@@ -154,6 +160,8 @@ public class GBankingGui extends Application implements BaseGui {
 			FileChooserDirectorySupport.initialize(key -> getOptionsMap().get(key),
 					(key, value) -> getOptionsMap().put(key, value), () -> storeOptionsQuietly());
 			GuiContext.setOnlyOnlineAccountsVisible(Boolean.parseBoolean(getOptionsMap().get(RestoreHandler.ONLY_ONLINE_ACCOUNTS)));
+			GuiContext.setOnlySecuritiesWithHoldingsVisible(
+					Boolean.parseBoolean(getOptionsMap().get(RestoreHandler.ONLY_SECURITIES_WITH_HOLDINGS)));
 			log.debug("GUI options restored. language={}, dataDirectory={}", () -> getOptionsMap().get(LANGUAGE),
 					() -> getOptionsMap().get(EnvironmentOptions.DATA_DIRECTORY));
 		} catch (IOException ioe) {
@@ -222,6 +230,7 @@ public class GBankingGui extends Application implements BaseGui {
 		accountTransactionService = ServiceRegistry.getService(AccountTransactionService.class);
 		bankingCapabilityService = ServiceRegistry.getService(BankingCapabilityService.class);
 		moneyTransferService = ServiceRegistry.getService(MoneyTransferService.class);
+		stockPortfolioFinTsService = ServiceRegistry.getService(StockPortfolioFinTsService.class);
 		log.info("Main window initialization completed.");
 		applicationUpdateCoordinator.cleanupSuccessfulUpdateBackups();
 	}
@@ -269,6 +278,21 @@ public class GBankingGui extends Application implements BaseGui {
 	}
 
 	List<BankAccount> getSelectedAccountsForAccountUpdate() {
+		Map<Integer, BankAccount> accounts = new LinkedHashMap<>();
+		getSelectedTransactionAccounts().forEach(account -> accounts.put(account.getId(), account));
+		StockPortfolioOverviewPanel portfolioPanel = (StockPortfolioOverviewPanel) OverviewPanelFactory
+				.findPanel(PageContext.STOCK_PORTFOLIOS.name());
+		if (portfolioPanel != null) {
+			portfolioPanel.getCheckedAccounts().forEach(account -> accounts.put(account.getId(), account));
+		}
+		return List.copyOf(accounts.values());
+	}
+
+	List<BankAccount> getSelectedAccountsForRebooking() {
+		return getSelectedTransactionAccounts();
+	}
+
+	private List<BankAccount> getSelectedTransactionAccounts() {
 		AccountsTransactionsOverviewPanel overviewPanel = (AccountsTransactionsOverviewPanel) OverviewPanelFactory
 				.retrievePanel(PageContext.ACCOUNTS_TRANSACTIONS.name());
 		if (overviewPanel == null || overviewPanel.getAccountListPanel() == null) {
@@ -295,7 +319,8 @@ public class GBankingGui extends Application implements BaseGui {
 	void updateAccounts(PinAskDialog pinWindow) {
 		log.info("Starting account update from bank.");
 
-		List<BankAccount> checkedAccounts = getSelectedAccountsForAccountUpdate();
+		List<BankAccount> checkedAccounts = stockPortfolioFinTsService.resolveAccountsForUpdate(
+				getSelectedAccountsForAccountUpdate());
 		AccountsTransactionsOverviewPanel overviewPanel = getAccountsTransactionsOverviewPanel();
 		if (!validateAccountUpdateSelection(checkedAccounts)) {
 			return;
@@ -325,7 +350,18 @@ public class GBankingGui extends Application implements BaseGui {
 		}
 
 		log.info("Selected {} accounts for account update.", checkedAccounts.size());
-		return validateConfiguredBankAccess(checkedAccounts) && validateSupportedAccountTransactions(checkedAccounts);
+		return validateConfiguredBankAccess(checkedAccounts) && validateSupportedAccountUpdates(checkedAccounts);
+	}
+
+	private boolean validateSupportedAccountUpdates(List<BankAccount> checkedAccounts) {
+		List<BankAccount> unsupportedAccounts = checkedAccounts.stream()
+				.filter(account -> !bankingCapabilityService.supportsAccountUpdate(account)).toList();
+		if (unsupportedAccounts.isEmpty()) {
+			return true;
+		}
+
+		showWarning(primaryStage, getText("ALERT_ACCOUNT_UPDATE_UNSUPPORTED", formatAccountNames(unsupportedAccounts)));
+		return false;
 	}
 
 	private boolean validateConfiguredBankAccess(List<BankAccount> checkedAccounts) {
@@ -365,13 +401,49 @@ public class GBankingGui extends Application implements BaseGui {
 		try {
 			for (BankAccount bankAccount : checkedAccounts) {
 				CancellationSupport.throwIfCancellationRequested();
-				updateSelectedAccount(bankAccount, pinMap, skippedBanks, blockedBankKeys);
+				if (bankAccount.getAccountType() == AccountType.DEPOT) {
+					updateSelectedPortfolio(bankAccount, pinMap, skippedBanks, blockedBankKeys);
+				} else {
+					updateSelectedAccount(bankAccount, pinMap, skippedBanks, blockedBankKeys);
+				}
 			}
 			CancellationSupport.throwIfCancellationRequested();
-			bean.postRetriveActions(checkedAccounts);
+			List<BankAccount> transactionAccounts = checkedAccounts.stream()
+					.filter(account -> account.getAccountType() != AccountType.DEPOT).toList();
+			if (!transactionAccounts.isEmpty()) {
+				bean.postRetriveActions(transactionAccounts);
+			}
 			return skippedBanks;
 		} finally {
 			clearPins(pinMap);
+		}
+	}
+
+	private void updateSelectedPortfolio(BankAccount portfolioAccount, Map<Integer, char[]> pinMap,
+			List<String> skippedBanks, Set<Integer> blockedBankKeys) {
+		Integer bankKey = portfolioAccount.getBankAccessId();
+		if (blockedBankKeys.contains(bankKey)) {
+			log.info("Skipping portfolio update for account id {} because bank {} reported invalid PIN credentials.",
+					portfolioAccount.getId(), bankKey);
+			return;
+		}
+		PortfolioSummary portfolio = stockPortfolioFinTsService.findPortfolioForAccount(portfolioAccount.getId());
+		if (portfolio == null) {
+			log.warn("Skipping portfolio update because no portfolio exists for account id {}.", portfolioAccount.getId());
+			return;
+		}
+
+		log.info("Updating portfolio from bank. portfolioId={}", portfolio.portfolioId());
+		StockPortfolioFinTsRetrievalResult result = stockPortfolioFinTsService.retrievePortfolio(
+				portfolio, copyPin(pinMap.get(bankKey)));
+		if (result.wrongPin()) {
+			blockedBankKeys.add(bankKey);
+			skippedBanks.add(formatBankLabel(portfolioAccount));
+		} else if (!result.successful()) {
+			log.warn("FinTS portfolio update failed for portfolio id {}: {}",
+					portfolio.portfolioId(), result.errorMessage());
+		} else {
+			portfolioAccount.setSessionRetrievalAt(LocalDateTime.now(ZoneId.systemDefault()));
 		}
 	}
 
@@ -401,6 +473,8 @@ public class GBankingGui extends Application implements BaseGui {
 		if (overviewPanel != null) {
 			overviewPanel.refreshOnShow();
 		}
+		refreshExistingOverview(PageContext.STOCK_PORTFOLIOS);
+		refreshExistingOverview(PageContext.ALL_STOCK_PORTFOLIOS);
 		List<String> skippedBanks = updateTask.getValue();
 		if (skippedBanks != null && !skippedBanks.isEmpty()) {
 			showWarning(primaryStage, getText("ALERT_ACCOUNT_UPDATE_WRONG_PIN_SKIPPED", String.join(", ", skippedBanks)));
@@ -688,6 +762,17 @@ public class GBankingGui extends Application implements BaseGui {
 		refreshAccountListOverviews();
 	}
 
+	boolean isOnlySecuritiesWithHoldingsVisible() {
+		return GuiContext.isOnlySecuritiesWithHoldingsVisible();
+	}
+
+	void setOnlySecuritiesWithHoldingsVisible(boolean visible) {
+		GuiContext.setOnlySecuritiesWithHoldingsVisible(visible);
+		getOptionsMap().put(RestoreHandler.ONLY_SECURITIES_WITH_HOLDINGS, Boolean.toString(visible));
+		storeOptionsQuietly();
+		refreshExistingOverview(PageContext.ALL_SECURITIES);
+	}
+
 	private void refreshAccountListOverviews() {
 		refreshExistingOverview(PageContext.ACCOUNTS_TRANSACTIONS);
 		refreshExistingOverview(PageContext.ACCOUNTS_MONEYTRANSFERS);
@@ -784,8 +869,16 @@ public class GBankingGui extends Application implements BaseGui {
 		fileTransferCoordinator.processMoneyTransferImport(importType);
 	}
 
+	void processStockImport(ExportType importType) {
+		fileTransferCoordinator.processStockImport(importType);
+	}
+
 	void processExport(ExportType exportType) {
 		fileTransferCoordinator.processExport(exportType);
+	}
+
+	void processStockExport(ExportType exportType) {
+		fileTransferCoordinator.processStockExport(exportType);
 	}
 
 	private String fileName(Path path) {

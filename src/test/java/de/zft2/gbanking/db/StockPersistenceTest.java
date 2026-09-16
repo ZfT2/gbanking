@@ -1,6 +1,7 @@
 package de.zft2.gbanking.db;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -22,6 +23,7 @@ import de.zft2.gbanking.db.dao.enu.StockSecurityLegRole;
 import de.zft2.gbanking.db.dao.enu.StockSecurityType;
 import de.zft2.gbanking.db.dao.enu.StockTransactionStatus;
 import de.zft2.gbanking.db.dao.enu.StockTransactionType;
+import de.zft2.gbanking.db.dao.enu.StockTransactionEditField;
 import de.zft2.gbanking.db.dao.stock.StockDataSource;
 import de.zft2.gbanking.db.dao.stock.StockPortfolio;
 import de.zft2.gbanking.db.dao.stock.StockPortfolioPosition;
@@ -66,6 +68,7 @@ class StockPersistenceTest extends DBControllerIntegrationBaseTest {
 		transaction.setSourceId(source.getId());
 		transaction.setTransactionType(StockTransactionType.BUY);
 		transaction.setTransactionStatus(StockTransactionStatus.PENDING);
+		transaction.setEditableFieldMask(StockTransactionEditField.ALL_FIELDS_MASK);
 		transaction.setTradeAt(LocalDateTime.of(2026, 9, 12, 10, 0));
 		db.insertOrUpdate(transaction);
 
@@ -103,6 +106,7 @@ class StockPersistenceTest extends DBControllerIntegrationBaseTest {
 		assertNotNull(storedSecurity.getModifiedAt());
 		assertEquals(StockPriceType.CLOSE,
 				db.getAllByParent(StockSecurityPrice.class, priceSource.getId()).get(0).getPriceType());
+		assertFalse(db.getAllByParent(StockSecurityPrice.class, priceSource.getId()).get(0).isDeleted());
 		assertEquals(StockCashLegRole.ACCRUED_INTEREST,
 				db.getAllByParent(StockTransactionCashLeg.class, transaction.getId()).get(0).getLegRole());
 		assertEquals("Stueckzinsen enthalten",

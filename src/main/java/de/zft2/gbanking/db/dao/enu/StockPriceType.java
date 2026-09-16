@@ -1,8 +1,9 @@
 package de.zft2.gbanking.db.dao.enu;
 
 import de.zft2.gbanking.db.enu.IdType;
+import de.zft2.gbanking.enu.LocalizedEnumValue;
 
-public enum StockPriceType implements IdType {
+public enum StockPriceType implements IdType, LocalizedEnumValue {
 
 	MARKET(1), CLOSE(2), NAV(3), BID(4), ASK(5), INDICATIVE(6);
 
@@ -19,5 +20,10 @@ public enum StockPriceType implements IdType {
 	@Override
 	public int getDbStateId() {
 		return dbStateId;
+	}
+
+	@Override
+	public String toString() {
+		return getDisplayName();
 	}
 }

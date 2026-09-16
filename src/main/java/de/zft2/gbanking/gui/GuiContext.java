@@ -11,6 +11,7 @@ public final class GuiContext {
 	private static BiConsumer<Booking, OrderType> moneyTransferTemplateHandler;
 	private static Integer selectedAccountId;
 	private static boolean onlyOnlineAccountsVisible;
+	private static boolean onlySecuritiesWithHoldingsVisible;
 
 	private GuiContext() {
 	}
@@ -47,6 +48,14 @@ public final class GuiContext {
 
 	public static synchronized void setOnlyOnlineAccountsVisible(boolean onlyOnlineAccountsVisible) {
 		GuiContext.onlyOnlineAccountsVisible = onlyOnlineAccountsVisible;
+	}
+
+	public static synchronized boolean isOnlySecuritiesWithHoldingsVisible() {
+		return onlySecuritiesWithHoldingsVisible;
+	}
+
+	public static synchronized void setOnlySecuritiesWithHoldingsVisible(boolean visible) {
+		onlySecuritiesWithHoldingsVisible = visible;
 	}
 
 	public static synchronized void resetTenantState() {

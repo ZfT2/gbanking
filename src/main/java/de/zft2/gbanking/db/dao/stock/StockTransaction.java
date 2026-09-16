@@ -22,6 +22,7 @@ public class StockTransaction extends StockDao {
 	private Integer reversalOfTransactionId;
 	private Integer reconciliationStatementId;
 	private String fingerprint;
+	private int editableFieldMask;
 
 	public int getPortfolioId() { return portfolioId; }
 	public void setPortfolioId(int portfolioId) { this.portfolioId = portfolioId; }
@@ -51,4 +52,6 @@ public class StockTransaction extends StockDao {
 	public void setReconciliationStatementId(Integer value) { this.reconciliationStatementId = value; }
 	public String getFingerprint() { return fingerprint; }
 	public void setFingerprint(String fingerprint) { this.fingerprint = fingerprint; }
+	public int getEditableFieldMask() { return editableFieldMask; }
+	public void setEditableFieldMask(int editableFieldMask) { this.editableFieldMask = editableFieldMask; }
 }

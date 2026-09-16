@@ -5,6 +5,9 @@ import de.zft2.gbanking.enu.LocalizedEnumValue;
 public enum PageContext implements LocalizedEnumValue {
 
 	ACCOUNTS_TRANSACTIONS,
+	STOCK_PORTFOLIOS,
+	ALL_STOCK_PORTFOLIOS,
+	ALL_SECURITIES,
 	ALL_ACCOUNTS,
 	ALL_TRANSACTIONS,
 	ANALYSIS,

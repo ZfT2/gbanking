@@ -31,6 +31,7 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Category;
 import de.zft2.gbanking.db.dao.CategoryRule;
+import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.ForeignChargeBearer;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
@@ -666,6 +667,17 @@ class GBankingServiceTest {
 		BankAccount account = TestDataFactory.createForBankAccess(bankAccess.getId());
 
 		assertTrue(bankingCapabilityService.supportsAccountStatements(account));
+	}
+
+	@Test
+	void testSupportsStockPortfolio_WithWpDepotListCode_ReturnsTrue() {
+		BankAccess bankAccess = insertBankAccessWithBpd("WPDepotList");
+		BankAccount account = TestDataFactory.createForBankAccess(bankAccess.getId());
+		account.setAccountType(AccountType.DEPOT);
+		account.setAllowedBusinessCases(List.of(TestDataFactory.createBusinessCase("WPDepotList")));
+
+		assertTrue(bankingCapabilityService.supportsStockPortfolio(account));
+		assertTrue(bankingCapabilityService.supportsAccountUpdate(account));
 	}
 
 	@Test

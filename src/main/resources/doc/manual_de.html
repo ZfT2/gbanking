@@ -113,7 +113,8 @@
 					<p>Die Hauptbereiche öffnen Sie über <strong>Bearbeiten</strong>. Tabellen besitzen ein Suchfeld; die Suche berücksichtigt die wichtigsten sichtbaren Inhalte. Kontrollkästchen in der ersten Spalte markieren mehrere Konten, Umsätze, Kontakte oder Aufträge für gemeinsame Aktionen. Das Kontrollkästchen im Tabellenkopf wählt alle sichtbaren Zeilen aus oder ab.</p>
 					<ul>
 						<li><strong>Konten/Umsätze:</strong> Kontobezogene Arbeitsansicht mit Umsätzen und Kontoauszügen.</li>
-						<li><strong>Alle Konten / Alle Umsätze:</strong> Konten- beziehungsweise mandantenweite Gesamtsicht.</li>
+						<li><strong>Depots/Transaktionen:</strong> Bestände, Wertpapiertransaktionen und zugehörige Verrechnungskonten.</li>
+						<li><strong>Bearbeiten &gt; Verwaltung:</strong> Öffnet die vollständige Pflege- beziehungsweise mandantenweite Gesamtsicht für alle Konten, Depots, Wertpapiere und Umsätze. Unter <strong>Alle Wertpapiere</strong> pflegen Sie Stammdaten und Kurse.</li>
 						<li><strong>Aufträge, Kategorien, Adressbuch, Bankzugänge, Bankverzeichnis:</strong> Pflege der jeweiligen Daten.</li>
 						<li><strong>Ansicht &gt; Aktualisieren:</strong> Liest die aktuelle Ansicht neu ein. <strong>Nur Online-Konten anzeigen</strong> blendet Offline-Konten in Kontolisten aus.</li>
 					</ul>
@@ -286,11 +287,14 @@
 								<tr><td>Umsätze</td><td>CSV, FP3 (Moneyplex), MT940, XML (Moneyplex)</td><td>CSV, FP3, MT940, XML</td></tr>
 								<tr><td>Zahlungsaufträge</td><td>GBanking-CSV</td><td>GBanking-CSV</td></tr>
 								<tr><td>Kreditkartenumsätze</td><td>Spezieller CSV-Import in ein ausgewähltes Kreditkartenkonto</td><td>Über normalen Umsatzexport</td></tr>
+								<tr><td>Depots und Wertpapiere</td><td>Portfolio-Performance-Gesamtdatei (XML) sowie CSV für Depotumsätze, Kontoumsätze, Wertpapierstammdaten und Kurse</td><td>Portfolio-Performance-CSV für Depotumsätze, Kontoumsätze, Wertpapierstammdaten und Kurse</td></tr>
 							</tbody>
 						</table>
 					</div>
 					<p>Ein Import über <strong>Datei</strong> ordnet Umsätze anhand der Kontodaten zu. Starten Sie ihn über das Kontextmenü eines Kontos oder Umsatzes, ist das Zielkonto bereits vorgegeben. Neue, noch unbekannte Importkonten und Kontakte können aus den Dateidaten angelegt werden; erkannte Dubletten werden nicht nochmals gespeichert.</p>
 					<p>Beim Export wählen Sie die Konten über ihre Kontrollkästchen. Formate, die nur ein Konto abbilden können, verlangen genau ein Zielkonto. CSV-Dateien enthalten zusätzlich Kontobezeichnung, IBAN und Kontonummer. Die vollständige Feldliste und Beispiele finden Sie in der <a href="csv-booking-format.html">CSV-Formatbeschreibung</a>.</p>
+					<p>Vor dem Import einer Portfolio-Performance-Gesamtdatei zeigt GBanking alle enthaltenen Depots und Konten an. Sie können jeden Eintrag über ein Auswahlfeld einem kompatiblen vorhandenen Depot beziehungsweise Konto zuordnen oder neu anlegen lassen. Ist kein Depot ausgewählt, lassen sich so alle enthaltenen Depots mit ihren Verrechnungskonten in einem Vorgang anlegen und importieren.</p>
+					<p>Enthält die Datei weitere, nicht mit einem Depot verknüpfte Konten, fragt GBanking zuvor, ob diese zusätzlichen Offline-Konten einschließlich ihrer Umsätze in die Vorschau und den Import aufgenommen werden sollen.</p>
 					<div class="warning"><strong>Vertrauliche Dateien:</strong> Importquellen und Exporte liegen außerhalb der Mandantenverschlüsselung. Speichern und übertragen Sie diese Dateien entsprechend geschützt.</div>
 					<p class="back-to-top"><a href="#top">Nach oben</a></p>
 				</section>

@@ -28,6 +28,7 @@ import de.zft2.gbanking.service.account.AccountStatementService;
 import de.zft2.gbanking.service.account.AccountStatementSettings;
 import de.zft2.gbanking.service.importproperties.ImportPropertiesSynchronizationService;
 import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.service.stock.StockPortfolioSettings;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -80,6 +81,7 @@ public class SettingsDialog implements BaseMessages {
 		AccountStatementSettings.ensureSettingsExist();
 		ChipTanUsbSupport.ensureSettingsExist();
 		LoggingSettings.ensureSettingsExist();
+		StockPortfolioSettings.ensureSettingsExist();
 		log.info("Creating settings dialog.");
 
 		Stage dialog = DialogWindowSupport.createModalStage(parentWindow, "UI_PANEL_SETTINGS");
@@ -204,6 +206,7 @@ public class SettingsDialog implements BaseMessages {
 		ChipTanUsbSupport.ensureSettingsExist();
 		FileImportSettings.ensureSettingsExist();
 		LoggingSettings.ensureSettingsExist();
+		StockPortfolioSettings.ensureSettingsExist();
 
 		List<Setting> allSettings = dbController.getAll(Setting.class);
 		if (allSettings == null) {

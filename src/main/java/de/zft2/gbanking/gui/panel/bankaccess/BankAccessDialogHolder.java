@@ -10,6 +10,7 @@ import de.zft2.gbanking.db.dao.enu.BankAccessType;
 import de.zft2.gbanking.db.dao.enu.TanProcedure;
 import de.zft2.gbanking.gui.BackgroundActionCoordinator;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
+import de.zft2.gbanking.gui.dialog.stock.StockPortfolioAssignmentCoordinator;
 import de.zft2.gbanking.gui.enu.ButtonContext;
 import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.panel.BasePanel;
@@ -279,12 +280,22 @@ final class BankAccessDialogHolder extends BasePanel {
 
 		okButton.setOnAction(e -> {
 			List<BankAccount> selectedAccounts = accountItems.stream().filter(BankAccount::isSelected).toList();
+			StockPortfolioAssignmentCoordinator assignmentCoordinator =
+					new StockPortfolioAssignmentCoordinator(selectedAccounts);
+			if (!assignmentCoordinator.chooseAssignments(dialog)) {
+				return;
+			}
 			bankAccess.setAccounts(new ArrayList<>(selectedAccounts));
 
 			BankAccessService bankAccessService = ServiceRegistry.getService(BankAccessService.class);
 			if (bankAccessService.saveBankAccessAccountsToDB(bankAccess)) {
-				overviewPanel.getBankAccessListPanel().refreshModelBankAccess();
-				dialog.close();
+				try {
+					assignmentCoordinator.persistAssignments();
+					overviewPanel.getBankAccessListPanel().refreshModelBankAccess();
+					dialog.close();
+				} catch (RuntimeException exception) {
+					DialogWindowSupport.showAlert(dialog, AlertType.WARNING, exception.getMessage());
+				}
 			} else {
 				accountsLabel.setText(getText("ERROR_BANK_ACCESS_SAVE"));
 			}

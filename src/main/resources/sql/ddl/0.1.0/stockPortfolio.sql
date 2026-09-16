@@ -439,6 +439,7 @@ CREATE TABLE stockSecurityPrice (
   priceType INTEGER NOT NULL,
   volumeE9 INTEGER,
   externalReference TEXT,
+  deleted INTEGER NOT NULL DEFAULT 0,
   supersedesPrice_id INTEGER UNIQUE,
   createdAt TEXT NOT NULL,
   FOREIGN KEY(priceSource_id) REFERENCES stockSecurityPriceSource(id) ON DELETE RESTRICT,
@@ -451,6 +452,7 @@ CREATE TABLE stockSecurityPrice (
       OR (quotationType <> 2 AND priceBasis IS NULL)),
   CHECK (priceType BETWEEN 1 AND 6),
   CHECK (volumeE9 IS NULL OR volumeE9 >= 0),
+  CHECK (deleted IN (0, 1)),
   CHECK (supersedesPrice_id IS NULL OR supersedesPrice_id <> id));
 
 [SQL_SETUP_CREATE_INDEX_STOCK_SECURITY_PRICE_LOOKUP]
@@ -464,12 +466,13 @@ WHEN NEW.supersedesPrice_id IS NOT NULL
     AND NOT EXISTS (
       SELECT 1
       FROM stockSecurityPrice previous
+      JOIN stockSecurityPriceSource previousSource ON previousSource.id = previous.priceSource_id
+      JOIN stockSecurityPriceSource newSource ON newSource.id = NEW.priceSource_id
       WHERE previous.id = NEW.supersedesPrice_id
-        AND previous.priceSource_id = NEW.priceSource_id
-        AND previous.quotedAt = NEW.quotedAt
+        AND previousSource.security_id = newSource.security_id
         AND previous.priceType = NEW.priceType)
 BEGIN
-  SELECT RAISE(FAIL, 'corrected price must match source, timestamp and price type');
+  SELECT RAISE(FAIL, 'corrected price must match security and price type');
 END;
 
 [SQL_SETUP_CREATE_TRIGGER_STOCK_SECURITY_PRICE_BLOCK_UPDATE]
@@ -591,6 +594,8 @@ CREATE TABLE stockPortfolioStatementPosition (
   quantityType INTEGER NOT NULL,
   reportedPriceE8 INTEGER,
   priceCurrency INTEGER,
+  reportedAcquisitionPriceE8 INTEGER,
+  acquisitionPriceCurrency INTEGER,
   quotationType INTEGER,
   priceBasis INTEGER,
   reportedValueMinor INTEGER,
@@ -603,6 +608,9 @@ CREATE TABLE stockPortfolioStatementPosition (
   CHECK (quantityType BETWEEN 1 AND 2),
   CHECK ((reportedPriceE8 IS NULL AND priceCurrency IS NULL AND quotationType IS NULL AND priceBasis IS NULL)
       OR (reportedPriceE8 IS NOT NULL AND priceCurrency IS NOT NULL AND quotationType IS NOT NULL)),
+  CHECK ((reportedAcquisitionPriceE8 IS NULL AND acquisitionPriceCurrency IS NULL)
+      OR (reportedAcquisitionPriceE8 IS NOT NULL AND reportedAcquisitionPriceE8 > 0
+          AND acquisitionPriceCurrency IS NOT NULL)),
   CHECK (quotationType IS NULL OR quotationType BETWEEN 1 AND 3),
   CHECK (priceBasis IS NULL OR priceBasis BETWEEN 1 AND 2),
   CHECK ((quotationType = 2 AND priceBasis IS NOT NULL)
@@ -611,6 +619,7 @@ CREATE TABLE stockPortfolioStatementPosition (
   CHECK ((reportedValueMinor IS NULL AND accruedInterestMinor IS NULL AND valueCurrency IS NULL)
       OR valueCurrency IS NOT NULL),
   CHECK (priceCurrency IS NULL OR priceCurrency BETWEEN 1 AND 40),
+  CHECK (acquisitionPriceCurrency IS NULL OR acquisitionPriceCurrency BETWEEN 1 AND 40),
   CHECK (valueCurrency IS NULL OR valueCurrency BETWEEN 1 AND 40));
 
 [SQL_SETUP_CREATE_STOCK_PORTFOLIO_STATEMENT_SUB_BALANCE]
@@ -722,6 +731,7 @@ CREATE TABLE stockTransaction (
   reversalOfTransaction_id INTEGER UNIQUE,
   reconciliationStatement_id INTEGER,
   fingerprint TEXT,
+  editableFieldMask INTEGER NOT NULL DEFAULT 0,
   createdAt TEXT NOT NULL,
   updatedAt TEXT NOT NULL,
   FOREIGN KEY(portfolio_id) REFERENCES stockPortfolio(id) ON DELETE CASCADE,
@@ -737,6 +747,7 @@ CREATE TABLE stockTransaction (
   CHECK (settlementDueAt IS NULL OR tradeAt <= settlementDueAt),
   CHECK (settledAt IS NULL OR tradeAt <= settledAt),
   CHECK (settlementDateInferred IN (0, 1)),
+  CHECK (editableFieldMask BETWEEN 0 AND 4095),
   CHECK (settlementDateInferred = 0 OR settledAt IS NOT NULL),
   CHECK (reversalOfTransaction_id IS NULL OR reversalOfTransaction_id <> id),
   CHECK (importRecord_id IS NULL OR fingerprint IS NOT NULL));
@@ -749,6 +760,15 @@ ON stockTransaction (portfolio_id, settledAt, tradeAt, id);
 CREATE INDEX idx_stocktransaction_fingerprint
 ON stockTransaction (portfolio_id, source_id, fingerprint)
 WHERE fingerprint IS NOT NULL;
+
+[SQL_SETUP_CREATE_VIEW_STOCK_FINAL_TRANSACTION]
+CREATE VIEW stockFinalTransaction AS
+SELECT transactionEntry.id, transactionEntry.editableFieldMask
+FROM stockTransaction transactionEntry
+LEFT JOIN stockImportRecord importRecord ON importRecord.id = transactionEntry.importRecord_id
+LEFT JOIN stockImportBatch importBatch ON importBatch.id = importRecord.importBatch_id
+WHERE (transactionEntry.importRecord_id IS NULL AND transactionEntry.transactionStatus <> 1)
+   OR importBatch.importStatus = 3;
 
 [SQL_SETUP_CREATE_STOCK_TRANSACTION_EXTERNAL_REFERENCE]
 CREATE TABLE stockTransactionExternalReference (
@@ -841,14 +861,38 @@ CREATE TABLE stockTransactionMetadata (
   updatedAt TEXT NOT NULL,
   FOREIGN KEY(transaction_id) REFERENCES stockTransaction(id) ON DELETE CASCADE);
 
+[SQL_SETUP_CREATE_TRIGGER_STOCK_TRANSACTION_METADATA_VALIDATE_INSERT]
+CREATE TRIGGER validate_final_stocktransactionmetadata_insert
+BEFORE INSERT ON stockTransactionMetadata
+WHEN EXISTS (SELECT 1 FROM stockFinalTransaction finalEntry WHERE finalEntry.id = NEW.transaction_id)
+  AND ((SELECT editableFieldMask FROM stockTransaction WHERE id = NEW.transaction_id) & 2048) = 0
+BEGIN
+  SELECT RAISE(FAIL, 'stockTransactionMetadata is not editable');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_TRANSACTION_METADATA_VALIDATE_UPDATE]
+CREATE TRIGGER validate_final_stocktransactionmetadata_update
+BEFORE UPDATE ON stockTransactionMetadata
+WHEN EXISTS (SELECT 1 FROM stockFinalTransaction finalEntry WHERE finalEntry.id = OLD.transaction_id)
+  AND ((SELECT editableFieldMask FROM stockTransaction WHERE id = OLD.transaction_id) & 2048) = 0
+BEGIN
+  SELECT RAISE(FAIL, 'stockTransactionMetadata is not editable');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_TRANSACTION_METADATA_VALIDATE_DELETE]
+CREATE TRIGGER validate_final_stocktransactionmetadata_delete
+BEFORE DELETE ON stockTransactionMetadata
+WHEN EXISTS (SELECT 1 FROM stockFinalTransaction finalEntry WHERE finalEntry.id = OLD.transaction_id)
+  AND ((SELECT editableFieldMask FROM stockTransaction WHERE id = OLD.transaction_id) & 2048) = 0
+BEGIN
+  SELECT RAISE(FAIL, 'stockTransactionMetadata is not editable');
+END;
+
 [SQL_SETUP_CREATE_VIEW_STOCK_IMMUTABLE_TRANSACTION]
 CREATE VIEW stockImmutableTransaction AS
-SELECT transactionEntry.id
-FROM stockTransaction transactionEntry
-LEFT JOIN stockImportRecord importRecord ON importRecord.id = transactionEntry.importRecord_id
-LEFT JOIN stockImportBatch importBatch ON importBatch.id = importRecord.importBatch_id
-WHERE (transactionEntry.importRecord_id IS NULL AND transactionEntry.transactionStatus <> 1)
-   OR importBatch.importStatus = 3;
+SELECT finalEntry.id
+FROM stockFinalTransaction finalEntry
+WHERE finalEntry.editableFieldMask = 0;
 
 [SQL_SETUP_CREATE_TRIGGER_STOCK_TRANSACTION_VALIDATE_INSERT]
 CREATE TRIGGER validate_stocktransaction_insert
@@ -893,7 +937,7 @@ WHEN (((SELECT sourceType FROM stockDataSource WHERE id = NEW.source_id) <> 1
         JOIN stockImportBatch importBatch ON importBatch.id = importRecord.importBatch_id
         WHERE importRecord.id = NEW.importRecord_id
           AND importBatch.source_id = NEW.source_id
-          AND importBatch.importStatus = 2))
+          AND importBatch.importStatus IN (2, 3)))
       OR (OLD.transactionStatus = 1
         AND NEW.transactionStatus = 2
         AND NOT EXISTS (
@@ -923,22 +967,90 @@ END;
 CREATE TRIGGER block_immutable_stocktransaction_update
 BEFORE UPDATE ON stockTransaction
 WHEN EXISTS (SELECT 1 FROM stockImmutableTransaction immutable WHERE immutable.id = OLD.id)
+  AND NOT (
+    OLD.transactionStatus = 2
+    AND NEW.transactionStatus = 3
+    AND NEW.settledAt IS NULL
+    AND NEW.portfolio_id IS OLD.portfolio_id
+    AND NEW.source_id IS OLD.source_id
+    AND NEW.importRecord_id IS OLD.importRecord_id
+    AND NEW.transactionType IS OLD.transactionType
+    AND NEW.tradeAt IS OLD.tradeAt
+    AND NEW.settlementDueAt IS OLD.settlementDueAt
+    AND NEW.cashValueAt IS OLD.cashValueAt
+    AND NEW.providerBookedAt IS OLD.providerBookedAt
+    AND NEW.settlementDateInferred IS OLD.settlementDateInferred
+    AND NEW.reversalOfTransaction_id IS OLD.reversalOfTransaction_id
+    AND NEW.reconciliationStatement_id IS OLD.reconciliationStatement_id
+    AND NEW.fingerprint IS OLD.fingerprint
+    AND NEW.editableFieldMask IS OLD.editableFieldMask)
 BEGIN
   SELECT RAISE(FAIL, 'settled or imported stockTransaction is immutable');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_TRANSACTION_BLOCK_EDIT_MASK_UPDATE]
+CREATE TRIGGER block_final_stocktransaction_editmask_update
+BEFORE UPDATE OF editableFieldMask ON stockTransaction
+WHEN EXISTS (SELECT 1 FROM stockFinalTransaction finalEntry WHERE finalEntry.id = OLD.id)
+  AND NEW.editableFieldMask IS NOT OLD.editableFieldMask
+BEGIN
+  SELECT RAISE(FAIL, 'editableFieldMask of final stockTransaction is immutable');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_TRANSACTION_VALIDATE_MASKED_UPDATE]
+CREATE TRIGGER validate_final_stocktransaction_masked_update
+BEFORE UPDATE ON stockTransaction
+WHEN EXISTS (SELECT 1 FROM stockFinalTransaction finalEntry WHERE finalEntry.id = OLD.id)
+  AND NOT (
+    OLD.transactionStatus = 2
+    AND NEW.transactionStatus = 3
+    AND NEW.settledAt IS NULL
+    AND NEW.portfolio_id IS OLD.portfolio_id
+    AND NEW.source_id IS OLD.source_id
+    AND NEW.importRecord_id IS OLD.importRecord_id
+    AND NEW.transactionType IS OLD.transactionType
+    AND NEW.tradeAt IS OLD.tradeAt
+    AND NEW.settlementDueAt IS OLD.settlementDueAt
+    AND NEW.cashValueAt IS OLD.cashValueAt
+    AND NEW.providerBookedAt IS OLD.providerBookedAt
+    AND NEW.settlementDateInferred IS OLD.settlementDateInferred
+    AND NEW.reversalOfTransaction_id IS OLD.reversalOfTransaction_id
+    AND NEW.reconciliationStatement_id IS OLD.reconciliationStatement_id
+    AND NEW.fingerprint IS OLD.fingerprint
+    AND NEW.editableFieldMask IS OLD.editableFieldMask)
+  AND (
+    NEW.portfolio_id IS NOT OLD.portfolio_id
+    OR NEW.source_id IS NOT OLD.source_id
+    OR NEW.importRecord_id IS NOT OLD.importRecord_id
+    OR NEW.transactionStatus IS NOT OLD.transactionStatus
+    OR NEW.providerBookedAt IS NOT OLD.providerBookedAt
+    OR NEW.reversalOfTransaction_id IS NOT OLD.reversalOfTransaction_id
+    OR NEW.reconciliationStatement_id IS NOT OLD.reconciliationStatement_id
+    OR NEW.fingerprint IS NOT OLD.fingerprint
+    OR NEW.createdAt IS NOT OLD.createdAt
+    OR (NEW.transactionType IS NOT OLD.transactionType AND (OLD.editableFieldMask & 1) = 0)
+    OR (NEW.tradeAt IS NOT OLD.tradeAt AND (OLD.editableFieldMask & 2) = 0)
+    OR ((NEW.settlementDueAt IS NOT OLD.settlementDueAt
+        OR NEW.settledAt IS NOT OLD.settledAt
+        OR NEW.cashValueAt IS NOT OLD.cashValueAt
+        OR NEW.settlementDateInferred IS NOT OLD.settlementDateInferred)
+      AND (OLD.editableFieldMask & 4) = 0))
+BEGIN
+  SELECT RAISE(FAIL, 'stockTransaction field is not editable');
 END;
 
 [SQL_SETUP_CREATE_TRIGGER_STOCK_TRANSACTION_BLOCK_DELETE]
 CREATE TRIGGER block_immutable_stocktransaction_delete
 BEFORE DELETE ON stockTransaction
-WHEN EXISTS (SELECT 1 FROM stockImmutableTransaction immutable WHERE immutable.id = OLD.id)
+WHEN EXISTS (SELECT 1 FROM stockFinalTransaction finalEntry WHERE finalEntry.id = OLD.id)
 BEGIN
-  SELECT RAISE(FAIL, 'settled or imported stockTransaction is immutable');
+  SELECT RAISE(FAIL, 'final stockTransaction must be cancelled instead of deleted');
 END;
 
 [SQL_SETUP_CREATE_TRIGGER_STOCK_TRANSACTION_EXTERNAL_REFERENCE_BLOCK_UPDATE]
 CREATE TRIGGER block_immutable_stocktransactionreference_update
 BEFORE UPDATE ON stockTransactionExternalReference
-WHEN EXISTS (SELECT 1 FROM stockImmutableTransaction immutable WHERE immutable.id = OLD.transaction_id)
+WHEN EXISTS (SELECT 1 FROM stockFinalTransaction finalEntry WHERE finalEntry.id = OLD.transaction_id)
 BEGIN
   SELECT RAISE(FAIL, 'reference of settled or imported transaction is immutable');
 END;
@@ -946,7 +1058,7 @@ END;
 [SQL_SETUP_CREATE_TRIGGER_STOCK_TRANSACTION_EXTERNAL_REFERENCE_BLOCK_DELETE]
 CREATE TRIGGER block_immutable_stocktransactionreference_delete
 BEFORE DELETE ON stockTransactionExternalReference
-WHEN EXISTS (SELECT 1 FROM stockImmutableTransaction immutable WHERE immutable.id = OLD.transaction_id)
+WHEN EXISTS (SELECT 1 FROM stockFinalTransaction finalEntry WHERE finalEntry.id = OLD.transaction_id)
 BEGIN
   SELECT RAISE(FAIL, 'reference of settled or imported transaction is immutable');
 END;
@@ -954,7 +1066,7 @@ END;
 [SQL_SETUP_CREATE_TRIGGER_STOCK_TRANSACTION_EXTERNAL_REFERENCE_BLOCK_INSERT]
 CREATE TRIGGER block_immutable_stocktransactionreference_insert
 BEFORE INSERT ON stockTransactionExternalReference
-WHEN EXISTS (SELECT 1 FROM stockImmutableTransaction immutable WHERE immutable.id = NEW.transaction_id)
+WHEN EXISTS (SELECT 1 FROM stockFinalTransaction finalEntry WHERE finalEntry.id = NEW.transaction_id)
 BEGIN
   SELECT RAISE(FAIL, 'reference of settled or imported transaction is immutable');
 END;
@@ -966,6 +1078,47 @@ WHEN NEW.quantityType = 2
     AND (SELECT nominalCurrency FROM stockSecurity WHERE id = NEW.security_id) IS NULL
 BEGIN
   SELECT RAISE(FAIL, 'nominal security leg requires a nominal currency');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_SECURITY_LEG_VALIDATE_MASKED_UPDATE]
+CREATE TRIGGER validate_final_stocktransactionsecurityleg_masked_update
+BEFORE UPDATE ON stockTransactionSecurityLeg
+WHEN EXISTS (SELECT 1 FROM stockFinalTransaction finalEntry WHERE finalEntry.id = OLD.transaction_id)
+  AND (
+    NEW.transaction_id IS NOT OLD.transaction_id
+    OR NEW.legNumber IS NOT OLD.legNumber
+    OR NEW.legRole IS NOT OLD.legRole
+    OR NEW.createdAt IS NOT OLD.createdAt
+    OR (NEW.security_id IS NOT OLD.security_id
+      AND ((SELECT editableFieldMask FROM stockTransaction WHERE id = OLD.transaction_id) & 8) = 0)
+    OR ((NEW.quantityE9 IS NOT OLD.quantityE9 OR NEW.quantityType IS NOT OLD.quantityType)
+      AND ((SELECT editableFieldMask FROM stockTransaction WHERE id = OLD.transaction_id) & 16) = 0)
+    OR ((NEW.priceE8 IS NOT OLD.priceE8
+        OR NEW.quotationType IS NOT OLD.quotationType
+        OR NEW.priceBasis IS NOT OLD.priceBasis)
+      AND ((SELECT editableFieldMask FROM stockTransaction WHERE id = OLD.transaction_id) & 32) = 0)
+    OR (NEW.priceCurrency IS NOT OLD.priceCurrency
+      AND ((SELECT editableFieldMask FROM stockTransaction WHERE id = OLD.transaction_id) & 64) = 0)
+    OR (NEW.accruedInterestDays IS NOT OLD.accruedInterestDays
+      AND ((SELECT editableFieldMask FROM stockTransaction WHERE id = OLD.transaction_id) & 1024) = 0))
+BEGIN
+  SELECT RAISE(FAIL, 'stockTransactionSecurityLeg field is not editable');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_SECURITY_LEG_BLOCK_FINAL_INSERT]
+CREATE TRIGGER block_final_stocktransactionsecurityleg_insert
+BEFORE INSERT ON stockTransactionSecurityLeg
+WHEN EXISTS (SELECT 1 FROM stockFinalTransaction finalEntry WHERE finalEntry.id = NEW.transaction_id)
+BEGIN
+  SELECT RAISE(FAIL, 'security leg cannot be added to final stockTransaction');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_SECURITY_LEG_BLOCK_FINAL_DELETE]
+CREATE TRIGGER block_final_stocktransactionsecurityleg_delete
+BEFORE DELETE ON stockTransactionSecurityLeg
+WHEN EXISTS (SELECT 1 FROM stockFinalTransaction finalEntry WHERE finalEntry.id = OLD.transaction_id)
+BEGIN
+  SELECT RAISE(FAIL, 'security leg cannot be removed from final stockTransaction');
 END;
 
 [SQL_SETUP_CREATE_TRIGGER_STOCK_SECURITY_LEG_BLOCK_UPDATE]
@@ -1016,6 +1169,65 @@ WHEN NEW.booking_id IS NOT NULL
         AND linkedBooking.account_id = NEW.account_id)
 BEGIN
   SELECT RAISE(FAIL, 'cash leg and booking must use the same bankAccount');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_CASH_LEG_VALIDATE_MASKED_UPDATE]
+CREATE TRIGGER validate_final_stocktransactioncashleg_masked_update
+BEFORE UPDATE ON stockTransactionCashLeg
+WHEN EXISTS (SELECT 1 FROM stockFinalTransaction finalEntry WHERE finalEntry.id = OLD.transaction_id)
+  AND (
+    NEW.transaction_id IS NOT OLD.transaction_id
+    OR NEW.legNumber IS NOT OLD.legNumber
+    OR NEW.legRole IS NOT OLD.legRole
+    OR NEW.createdAt IS NOT OLD.createdAt
+    OR ((NEW.account_id IS NOT OLD.account_id OR NEW.booking_id IS NOT OLD.booking_id)
+      AND (SELECT editableFieldMask FROM stockTransaction WHERE id = OLD.transaction_id) <> 4095)
+    OR (NEW.currency IS NOT OLD.currency
+      AND ((SELECT editableFieldMask FROM stockTransaction WHERE id = OLD.transaction_id) & 64) = 0)
+    OR (NEW.exchangeRate_id IS NOT OLD.exchangeRate_id
+      AND ((SELECT editableFieldMask FROM stockTransaction WHERE id = OLD.transaction_id) & 128) = 0)
+    OR (NEW.valueAt IS NOT OLD.valueAt
+      AND ((SELECT editableFieldMask FROM stockTransaction WHERE id = OLD.transaction_id) & 4) = 0)
+    OR (NEW.amountMinor IS NOT OLD.amountMinor
+      AND CASE OLD.legRole
+        WHEN 2 THEN ((SELECT editableFieldMask FROM stockTransaction WHERE id = OLD.transaction_id) & 256) = 0
+        WHEN 3 THEN ((SELECT editableFieldMask FROM stockTransaction WHERE id = OLD.transaction_id) & 512) = 0
+        WHEN 4 THEN ((SELECT editableFieldMask FROM stockTransaction WHERE id = OLD.transaction_id) & 1024) = 0
+        WHEN 8 THEN ((SELECT editableFieldMask FROM stockTransaction WHERE id = OLD.transaction_id) & 128) = 0
+        ELSE ((SELECT editableFieldMask FROM stockTransaction WHERE id = OLD.transaction_id) & 32) = 0
+      END))
+BEGIN
+  SELECT RAISE(FAIL, 'stockTransactionCashLeg field is not editable');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_CASH_LEG_VALIDATE_MASKED_INSERT]
+CREATE TRIGGER validate_final_stocktransactioncashleg_masked_insert
+BEFORE INSERT ON stockTransactionCashLeg
+WHEN EXISTS (SELECT 1 FROM stockFinalTransaction finalEntry WHERE finalEntry.id = NEW.transaction_id)
+  AND CASE NEW.legRole
+    WHEN 2 THEN ((SELECT editableFieldMask FROM stockTransaction WHERE id = NEW.transaction_id) & 256) = 0
+    WHEN 3 THEN ((SELECT editableFieldMask FROM stockTransaction WHERE id = NEW.transaction_id) & 512) = 0
+    WHEN 4 THEN ((SELECT editableFieldMask FROM stockTransaction WHERE id = NEW.transaction_id) & 1024) = 0
+    WHEN 8 THEN ((SELECT editableFieldMask FROM stockTransaction WHERE id = NEW.transaction_id) & 128) = 0
+    ELSE ((SELECT editableFieldMask FROM stockTransaction WHERE id = NEW.transaction_id) & 32) = 0
+  END
+BEGIN
+  SELECT RAISE(FAIL, 'stockTransactionCashLeg is not editable');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_CASH_LEG_VALIDATE_MASKED_DELETE]
+CREATE TRIGGER validate_final_stocktransactioncashleg_masked_delete
+BEFORE DELETE ON stockTransactionCashLeg
+WHEN EXISTS (SELECT 1 FROM stockFinalTransaction finalEntry WHERE finalEntry.id = OLD.transaction_id)
+  AND CASE OLD.legRole
+    WHEN 2 THEN ((SELECT editableFieldMask FROM stockTransaction WHERE id = OLD.transaction_id) & 256) = 0
+    WHEN 3 THEN ((SELECT editableFieldMask FROM stockTransaction WHERE id = OLD.transaction_id) & 512) = 0
+    WHEN 4 THEN ((SELECT editableFieldMask FROM stockTransaction WHERE id = OLD.transaction_id) & 1024) = 0
+    WHEN 8 THEN ((SELECT editableFieldMask FROM stockTransaction WHERE id = OLD.transaction_id) & 128) = 0
+    ELSE ((SELECT editableFieldMask FROM stockTransaction WHERE id = OLD.transaction_id) & 32) = 0
+  END
+BEGIN
+  SELECT RAISE(FAIL, 'stockTransactionCashLeg is not editable');
 END;
 
 [SQL_SETUP_CREATE_TRIGGER_STOCK_CASH_LEG_BLOCK_UPDATE]

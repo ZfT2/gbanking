@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import de.zft2.gbanking.db.DaoRepository.Query;
 import de.zft2.gbanking.db.DaoSqlStatements;
 import de.zft2.gbanking.db.DbSession;
 import de.zft2.gbanking.db.JdbcOperations;

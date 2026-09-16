@@ -10,11 +10,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.DBController;
+import de.zft2.gbanking.db.dao.BankAccount;
+import de.zft2.gbanking.db.dao.enu.AccountType;
+import de.zft2.gbanking.gui.GuiContext;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.gui.enu.PageContext;
-import de.zft2.gbanking.gui.GuiContext;
 import de.zft2.gbanking.gui.model.AccountTableModel;
 import de.zft2.gbanking.gui.panel.AbstractFilterableTablePanel;
 import de.zft2.gbanking.gui.util.BookingFileActionSupport;
@@ -253,9 +254,14 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 	}
 
 	private static List<BankAccount> loadAccounts(AccountListScope accountListScope) {
-		return accountListScope == AccountListScope.ONLINE_ONLY || GuiContext.isOnlyOnlineAccountsVisible()
+		List<BankAccount> accounts = accountListScope == AccountListScope.ONLINE_ONLY || GuiContext.isOnlyOnlineAccountsVisible()
 				? DBController.getInstance(".").getAll(BankAccount.class, SQL_SELECT_ALL_ONLINE_BANKACCOUNTS)
 				: DBController.getInstance(".").getAll(BankAccount.class);
+		return accounts.stream().filter(AccountListPanel::isGeneralAccount).toList();
+	}
+
+	static boolean isGeneralAccount(BankAccount account) {
+		return account != null && account.getAccountType() != AccountType.DEPOT;
 	}
 
 	private void updatePanelTitle() {

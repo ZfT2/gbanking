@@ -58,6 +58,15 @@ class GuiContextTest {
 	}
 
 	@Test
+	void securitiesWithHoldingsVisibilityShouldBeStoredInContext() {
+		assertFalse(GuiContext.isOnlySecuritiesWithHoldingsVisible());
+
+		GuiContext.setOnlySecuritiesWithHoldingsVisible(true);
+
+		assertTrue(GuiContext.isOnlySecuritiesWithHoldingsVisible());
+	}
+
+	@Test
 	void moneyTransferTemplateShouldBeForwardedToRegisteredHandler() {
 		AtomicReference<Booking> forwardedBooking = new AtomicReference<>();
 		AtomicReference<OrderType> forwardedOrderType = new AtomicReference<>();
@@ -76,6 +85,7 @@ class GuiContextTest {
 	private static void resetContext() {
 		GuiContext.resetTenantState();
 		GuiContext.setOnlyOnlineAccountsVisible(false);
+		GuiContext.setOnlySecuritiesWithHoldingsVisible(false);
 		GuiContext.setMoneyTransferTemplateHandler(null);
 	}
 }

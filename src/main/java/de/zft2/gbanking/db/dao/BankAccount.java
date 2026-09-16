@@ -43,6 +43,7 @@ public class BankAccount extends Dao implements Serializable, Account<Booking> {
 	private LocalDate createdAt;
 	private transient LocalDateTime sessionRetrievalAt;
 	private transient String parentAccount;
+	private transient String providerReferenceAccountKey;
 
 	private List<BusinessCase> allowedBusinessCases;
 	private List<Booking> bookings;
@@ -80,6 +81,14 @@ public class BankAccount extends Dao implements Serializable, Account<Booking> {
 	@Override
 	public void setParentAccount(String parentAccount) {
 		this.parentAccount = parentAccount;
+	}
+
+	public String getProviderReferenceAccountKey() {
+		return providerReferenceAccountKey;
+	}
+
+	public void setProviderReferenceAccountKey(String providerReferenceAccountKey) {
+		this.providerReferenceAccountKey = providerReferenceAccountKey;
 	}
 
 	public Integer getBankAccessId() {

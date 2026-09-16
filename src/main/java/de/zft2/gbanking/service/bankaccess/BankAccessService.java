@@ -5,13 +5,18 @@ import static de.zft2.gbanking.util.TextValues.firstNonBlank;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.kapott.hbci.GV.HBCIJob;
+import org.kapott.hbci.GV_Result.GVRAccInfo;
+import org.kapott.hbci.GV_Result.GVRAccInfo.AccInfo;
 import org.kapott.hbci.GV_Result.HBCIJobResult;
 import org.kapott.hbci.manager.BankInfo;
 import org.kapott.hbci.manager.HBCIHandler;
@@ -27,6 +32,7 @@ import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccessFints;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.enu.AccountState;
+import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.HbciEncodingFilterType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
@@ -47,6 +53,8 @@ import de.zft2.gbanking.service.settings.SettingsStore;
 public class BankAccessService extends AbstractDbService {
 
 	private static Logger log = LogManager.getLogger(BankAccessService.class);
+	private static final String ACCOUNT_INFO_JOB = "AccInfo";
+	private static final String ACCOUNT_INFO_BUSINESS_CASE = "HKKIF";
 
 	private static GBankingLoggingHandler logHandler = GBankingLoggingHandler.getInstance();
 	private final PaypalAccountService paypalAccountService = ServiceRegistry.getService(PaypalAccountService.class);
@@ -166,10 +174,13 @@ public class BankAccessService extends AbstractDbService {
 		logHandler.logRetrivedBankAccessInfo(passport, false);
 		List<BankAccount> bankAccountList = mapPassportAccounts(passport);
 		applyPassportData(bankAccess, passport, bankAccountList);
+		List<PortfolioReferenceRequest> portfolioReferences = queuePortfolioReferenceRequests(
+				session.handler(), passport.getAccounts(), bankAccountList);
 
 		BankAccess bankAccessDb = dbController.getBankAccessByBlz(bankAccess.getFints().getBlz());
 		if (bankAccessDb != null) {
 			bankAccess.setId(bankAccessDb.getId());
+			attachExistingAccountIds(bankAccessDb.getId(), bankAccountList);
 		}
 
 		HBCIExecStatus status = session.handler().execute();
@@ -181,6 +192,8 @@ public class BankAccessService extends AbstractDbService {
 
 		boolean success = status.isOK();
 		if (success) {
+			applyPortfolioReferences(portfolioReferences);
+			classifyReferencedSettlementAccounts(bankAccountList, portfolioReferences);
 			syncBankAccessIdByBlz(bankAccess);
 		}
 		log.info("Finished bank access setup for bank code {}, accounts={}, success={}",
@@ -223,6 +236,18 @@ public class BankAccessService extends AbstractDbService {
 		session.passport().saveChanges();
 
 		List<BankAccount> bankAccountList = mapPassportAccounts(session.passport());
+		attachExistingAccountIds(refreshAccess.getId(), bankAccountList);
+		List<PortfolioReferenceRequest> portfolioReferences = queuePortfolioReferenceRequests(
+				session.handler(), session.passport().getAccounts(), bankAccountList);
+		if (!portfolioReferences.isEmpty()) {
+			HBCIExecStatus accountInfoStatus = session.handler().execute();
+			if (accountInfoStatus != null && accountInfoStatus.isOK()) {
+				applyPortfolioReferences(portfolioReferences);
+				classifyReferencedSettlementAccounts(bankAccountList, portfolioReferences);
+			} else {
+				log.warn("Could not retrieve FinTS reference accounts for newly reported portfolios.");
+			}
+		}
 		applyPassportData(refreshAccess, session.passport(), bankAccountList);
 		syncBankAccessIdByBlz(refreshAccess);
 
@@ -260,6 +285,105 @@ public class BankAccessService extends AbstractDbService {
 			bankAccountList.add(HbciMapper.mapKontoToBankAccount(passport.getInstName(), konto));
 		}
 		return bankAccountList;
+	}
+
+	private void attachExistingAccountIds(int bankAccessId, List<BankAccount> mappedAccounts) {
+		List<BankAccount> existingAccounts = dbController.getAllByParent(BankAccount.class, bankAccessId);
+		Set<Integer> assignedIds = new HashSet<>();
+		for (BankAccount mappedAccount : mappedAccounts) {
+			List<BankAccount> matches = existingAccounts.stream()
+					.filter(existingAccount -> !assignedIds.contains(existingAccount.getId()))
+					.filter(existingAccount -> representsSameProviderAccount(mappedAccount, existingAccount))
+					.toList();
+			if (matches.size() == 1) {
+				int existingId = matches.get(0).getId();
+				mappedAccount.setId(existingId);
+				assignedIds.add(existingId);
+			}
+		}
+	}
+
+	private static boolean representsSameProviderAccount(BankAccount first, BankAccount second) {
+		return sameIdentifier(first.getProviderAccountId(), second.getProviderAccountId())
+				|| sameIdentifier(first.getIban(), second.getIban())
+				|| sameReferenceKey(first, second);
+	}
+
+	private static boolean sameReferenceKey(BankAccount first, BankAccount second) {
+		String firstKey = HbciMapper.accountReferenceKey(first);
+		String secondKey = HbciMapper.accountReferenceKey(second);
+		return firstKey != null && firstKey.equals(secondKey);
+	}
+
+	private static boolean sameIdentifier(String first, String second) {
+		return first != null && second != null && !first.isBlank() && first.trim().equalsIgnoreCase(second.trim());
+	}
+
+	private List<PortfolioReferenceRequest> queuePortfolioReferenceRequests(HBCIHandler handler,
+			Konto[] providerAccounts, List<BankAccount> mappedAccounts) {
+		List<PortfolioReferenceRequest> requests = new ArrayList<>();
+		if (providerAccounts == null) {
+			return requests;
+		}
+		int accountCount = Math.min(providerAccounts.length, mappedAccounts.size());
+		for (int index = 0; index < accountCount; index++) {
+			Konto providerAccount = providerAccounts[index];
+			BankAccount mappedAccount = mappedAccounts.get(index);
+			if (mappedAccount.getAccountType() != AccountType.DEPOT
+					|| !supportsBusinessCase(providerAccount, ACCOUNT_INFO_BUSINESS_CASE)) {
+				continue;
+			}
+			try {
+				HBCIJob<GVRAccInfo> job = newHbciJob(handler, ACCOUNT_INFO_JOB);
+				job.setParam("my", providerAccount);
+				job.addToQueue();
+				requests.add(new PortfolioReferenceRequest(mappedAccount, job));
+			} catch (RuntimeException exception) {
+				log.warn("Could not queue FinTS account information for a portfolio.", exception);
+			}
+		}
+		return requests;
+	}
+
+	private static boolean supportsBusinessCase(Konto account, String businessCase) {
+		if (account != null && account.allowedGVs != null) {
+			for (Object supportedCase : account.allowedGVs) {
+				if (businessCase.equalsIgnoreCase(String.valueOf(supportedCase))) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	private static void applyPortfolioReferences(List<PortfolioReferenceRequest> requests) {
+		for (PortfolioReferenceRequest request : requests) {
+			GVRAccInfo result = request.job().getJobResult();
+			if (result == null || !result.isOK()) {
+				continue;
+			}
+			for (AccInfo accountInfo : result.getEntries()) {
+				String referenceKey = HbciMapper.accountReferenceKey(accountInfo.refAccount);
+				if (referenceKey != null) {
+					request.portfolioAccount().setProviderReferenceAccountKey(referenceKey);
+					break;
+				}
+			}
+		}
+	}
+
+	private static void classifyReferencedSettlementAccounts(List<BankAccount> mappedAccounts,
+			List<PortfolioReferenceRequest> requests) {
+		Set<String> referenceKeys = requests.stream()
+				.map(request -> request.portfolioAccount().getProviderReferenceAccountKey())
+				.filter(key -> key != null)
+				.collect(Collectors.toSet());
+		for (BankAccount mappedAccount : mappedAccounts) {
+			if (mappedAccount.getAccountType() == AccountType.UNKNOWN_ACCOUNT
+					&& referenceKeys.contains(HbciMapper.accountReferenceKey(mappedAccount))) {
+				mappedAccount.setAccountType(AccountType.DEPOT_ACCOUNT);
+			}
+		}
 	}
 
 	private void applyPassportData(BankAccess bankAccess, HBCIPassport passport, List<BankAccount> bankAccountList) {
@@ -358,6 +482,9 @@ public class BankAccessService extends AbstractDbService {
 
 		log.info("Saved accounts for bank access id {}, success={}", bankAccess.getId(), result);
 		return result;
+	}
+
+	private record PortfolioReferenceRequest(BankAccount portfolioAccount, HBCIJob<GVRAccInfo> job) {
 	}
 
 	public List<BankAccount> getLinkablePaypalAccounts() {

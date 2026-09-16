@@ -27,6 +27,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.kapott.hbci.GV.HBCIJob;
+import org.kapott.hbci.GV_Result.GVRAccInfo;
+import org.kapott.hbci.GV_Result.GVRAccInfo.AccInfo;
 import org.kapott.hbci.manager.HBCIHandler;
 import org.kapott.hbci.passport.HBCIPassport;
 import org.kapott.hbci.status.HBCIExecStatus;
@@ -39,12 +42,15 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Bpd;
 import de.zft2.gbanking.db.dao.BusinessCase;
 import de.zft2.gbanking.db.dao.enu.AccountState;
+import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.HbciEncodingFilterType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.Upd;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
+import de.zft2.gbanking.mapper.HbciMapper;
+import de.zft2.gbanking.paypal.PaypalAccountService;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.ServiceStubbingUtil;
 import de.zft2.gbanking.testdata.TestDataFactory;
@@ -65,11 +71,13 @@ class BankAccessServiceIntegrationTest {
 	@BeforeEach
 	void clearDatabase() {
 		DBControllerTestUtil.clearAllTables(DBController.getConnection());
+		ServiceRegistry.setService(PaypalAccountService.class, mock(PaypalAccountService.class));
 	}
 
 	@AfterEach
 	void resetServices() {
 		ServiceRegistry.removeService(BankAccessService.class);
+		ServiceRegistry.removeService(PaypalAccountService.class);
 	}
 
 	@AfterAll
@@ -222,6 +230,85 @@ class BankAccessServiceIntegrationTest {
 			verify(callbacks.constructed().get(0)).finishStatusDialog();
 			verify(passport).close();
 		}
+	}
+
+	@Test
+	void refreshBankAccessParameterData_shouldReclassifyExistingPortfolioWithoutIban() {
+		BankAccessService bankAccessService = ServiceStubbingUtil.spyService(BankAccessService.class);
+		BankAccess bankAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("51061070"));
+		BankAccount existingAccount = TestDataFactory.createSampleAccount(bankAccess.getId());
+		existingAccount.setIban(null);
+		existingAccount.setBlz("51061070");
+		existingAccount.setNumber("30001");
+		existingAccount.setSubnumber("01");
+		existingAccount.setAccountType(AccountType.UNKNOWN_ACCOUNT);
+		existingAccount = dbController.insertOrUpdate(existingAccount);
+
+		HBCIPassport passport = mock(HBCIPassport.class);
+		HBCIHandler handle = mock(HBCIHandler.class);
+		Konto portfolioAccount = createKonto(null, "51061070", "00030001");
+		portfolioAccount.subnumber = "01";
+		portfolioAccount.type = "Wertpapierdepot";
+		portfolioAccount.acctype = "30";
+		portfolioAccount.allowedGVs = List.of("HKWPD");
+		when(passport.getAccounts()).thenReturn(new Konto[] { portfolioAccount });
+		when(passport.getBLZ()).thenReturn("51061070");
+		doReturn(passport).when(bankAccessService).initBankConnection(any(BankAccess.class), any(GBankingHBCICallback.class));
+		doReturn(handle).when(bankAccessService).createHBCIHandler(eq(BaseMessagesDb.getVersion().getId()), same(passport));
+
+		try (MockedConstruction<GBankingHBCICallback> ignored = mockConstruction(GBankingHBCICallback.class)) {
+			assertTrue(bankAccessService.refreshBankAccessParameterData(bankAccess, "56789".toCharArray()));
+		}
+
+		List<BankAccount> storedAccounts = dbController.getAllByParent(BankAccount.class, bankAccess.getId());
+		assertEquals(1, storedAccounts.size());
+		assertEquals(existingAccount.getId(), storedAccounts.get(0).getId());
+		assertEquals(AccountType.DEPOT, storedAccounts.get(0).getAccountType());
+	}
+
+	@Test
+	void addNewBankAccess_shouldAttachReportedReferenceAccountToPortfolio() {
+		BankAccessService bankAccessService = ServiceStubbingUtil.spyService(BankAccessService.class);
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("60070080");
+		bankAccess.setPin("12345".toCharArray());
+		HBCIPassport passport = mock(HBCIPassport.class);
+		HBCIHandler handle = mock(HBCIHandler.class);
+		HBCIExecStatus status = mock(HBCIExecStatus.class);
+		@SuppressWarnings("unchecked")
+		HBCIJob<GVRAccInfo> accountInfoJob = mock(HBCIJob.class);
+		GVRAccInfo accountInfoResult = mock(GVRAccInfo.class);
+		Konto portfolioAccount = createKonto(null, "60070080", "30001");
+		portfolioAccount.type = "Wertpapierdepot";
+		portfolioAccount.acctype = "30";
+		portfolioAccount.allowedGVs = List.of("HKWPD", "HKKIF");
+		Konto settlementAccount = createKonto("DE4460070080000040001", "60070080", "40001");
+		settlementAccount.type = "Sonstiges Konto";
+		settlementAccount.acctype = "90";
+		AccInfo accountInfo = new AccInfo();
+		accountInfo.refAccount = settlementAccount;
+
+		when(passport.getAccounts()).thenReturn(new Konto[] { portfolioAccount, settlementAccount });
+		when(passport.getBLZ()).thenReturn("60070080");
+		when(passport.getInstName()).thenReturn("Portfolio Bank");
+		when(status.isOK()).thenReturn(true);
+		when(handle.execute()).thenReturn(status);
+		when(accountInfoJob.getJobResult()).thenReturn(accountInfoResult);
+		when(accountInfoResult.isOK()).thenReturn(true);
+		when(accountInfoResult.getEntries()).thenReturn(new AccInfo[] { accountInfo });
+		doReturn(passport).when(bankAccessService).initBankConnection(any(BankAccess.class), any(GBankingHBCICallback.class));
+		doReturn(handle).when(bankAccessService).createHBCIHandler(eq(BaseMessagesDb.getVersion().getId()), same(passport));
+		doReturn(accountInfoJob).when(bankAccessService).newHbciJob(same(handle), eq("AccInfo"));
+
+		try (MockedConstruction<GBankingHBCICallback> ignored = mockConstruction(GBankingHBCICallback.class)) {
+			assertTrue(bankAccessService.addNewBankAccess(bankAccess));
+		}
+
+		BankAccount mappedPortfolio = bankAccess.getAccounts().get(0);
+		assertEquals(AccountType.DEPOT, mappedPortfolio.getAccountType());
+		assertEquals(AccountType.DEPOT_ACCOUNT, bankAccess.getAccounts().get(1).getAccountType());
+		assertEquals(HbciMapper.accountReferenceKey(settlementAccount), mappedPortfolio.getProviderReferenceAccountKey());
+		verify(accountInfoJob).setParam("my", portfolioAccount);
+		verify(accountInfoJob).addToQueue();
 	}
 
 	private static Konto createKonto(String iban, String blz, String number) {

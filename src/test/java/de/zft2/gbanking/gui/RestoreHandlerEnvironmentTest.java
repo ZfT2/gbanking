@@ -37,6 +37,7 @@ class RestoreHandlerEnvironmentTest {
 		options.put("lastTenantId", "tenant-id");
 		options.put("language", "en");
 		options.put(RestoreHandler.ONLY_ONLINE_ACCOUNTS, "true");
+		options.put(RestoreHandler.ONLY_SECURITIES_WITH_HOLDINGS, "true");
 		options.put(GuiLayoutState.OPTION_PREFIX + "window.width", "1200");
 
 		RestoreHandler.storeOptions(options, guiFile, environmentFile);
@@ -44,6 +45,7 @@ class RestoreHandlerEnvironmentTest {
 		Properties guiProperties = load(guiFile);
 		Properties environmentProperties = load(environmentFile);
 		assertEquals("true", guiProperties.getProperty(RestoreHandler.ONLY_ONLINE_ACCOUNTS));
+		assertEquals("true", guiProperties.getProperty(RestoreHandler.ONLY_SECURITIES_WITH_HOLDINGS));
 		assertEquals("1200", guiProperties.getProperty(GuiLayoutState.OPTION_PREFIX + "window.width"));
 		assertFalse(guiProperties.containsKey(EnvironmentOptions.DATA_DIRECTORY));
 		assertEquals("X:/shared-data", environmentProperties.getProperty(EnvironmentOptions.DATA_DIRECTORY));

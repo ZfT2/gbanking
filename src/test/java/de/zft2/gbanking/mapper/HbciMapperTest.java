@@ -4,8 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Date;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -57,6 +57,36 @@ class HbciMapperTest {
 		konto.curr = "ZZZ";
 
 		assertThrows(GBankingException.class, () -> HbciMapper.mapKontoToBankAccount("Sparkasse", konto));
+	}
+
+	@ParameterizedTest
+	@CsvSource({
+			"1, Girokonto, CURRENT_ACCOUNT",
+			"10, Sparkonto, SAVINGS_ACCOUNT",
+			"20, Festgeldkonto, FIXED_DEPOSIT",
+			"30, Wertpapierdepot, DEPOT",
+			"39, Wertpapierdepot, DEPOT",
+			"40, Darlehenskonto, CREDIT_ACCOUNT",
+			"50, Kreditkarte, CREDIT_CARD",
+			"60, Fondsdepot, DEPOT",
+			"70, Bausparkonto, SAVEINGS_HOME",
+			"90, Verrechnungskonto, DEPOT_ACCOUNT"
+	})
+	void getAccountType_shouldUseFinTsCodeRangesAndDescriptionFallback(String code, String description,
+			String expectedType) {
+		Konto konto = createKonto(code);
+		konto.type = description;
+
+		assertEquals(expectedType, HbciMapper.getAccountType(konto).name());
+	}
+
+	@Test
+	void getAccountType_shouldRecognizePortfolioCapabilityEvenForUnknownCode() {
+		Konto konto = createKonto("90");
+		konto.type = "Sonstiges Konto";
+		konto.allowedGVs = List.of("HKWPD");
+
+		assertEquals("DEPOT", HbciMapper.getAccountType(konto).name());
 	}
 
 	private static Konto createKonto(String hbciAccountType) {

@@ -9,6 +9,8 @@ import org.apache.logging.log4j.Logger;
 import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.gui.panel.overview.AccountsTransactionsOverviewPanel;
 import de.zft2.gbanking.gui.panel.overview.AllAccountsOverviewPanel;
+import de.zft2.gbanking.gui.panel.overview.AllStockPortfoliosOverviewPanel;
+import de.zft2.gbanking.gui.panel.overview.AllSecuritiesOverviewPanel;
 import de.zft2.gbanking.gui.panel.overview.AllTransactionsOverviewPanel;
 import de.zft2.gbanking.gui.panel.overview.AnalysisOverviewPanel;
 import de.zft2.gbanking.gui.panel.overview.BankAccessOverviewPanel;
@@ -19,6 +21,7 @@ import de.zft2.gbanking.gui.panel.overview.MoneyTransferOverviewPanel;
 import de.zft2.gbanking.gui.panel.overview.OpenActionsOverviewPanel;
 import de.zft2.gbanking.gui.panel.overview.OverviewBasePanel;
 import de.zft2.gbanking.gui.panel.overview.RecipientOverviewPanel;
+import de.zft2.gbanking.gui.panel.overview.StockPortfolioOverviewPanel;
 
 final class OverviewPanelFactory {
 
@@ -43,6 +46,9 @@ final class OverviewPanelFactory {
 		log.info("Creating overview panel {}", pageContext);
 		return switch (pageContext) {
 		case ACCOUNTS_TRANSACTIONS -> new AccountsTransactionsOverviewPanel();
+		case STOCK_PORTFOLIOS -> new StockPortfolioOverviewPanel();
+		case ALL_STOCK_PORTFOLIOS -> new AllStockPortfoliosOverviewPanel();
+		case ALL_SECURITIES -> new AllSecuritiesOverviewPanel();
 		case ACCOUNTS_MONEYTRANSFERS -> new MoneyTransferOverviewPanel();
 		case OPEN_ACTIONS -> new OpenActionsOverviewPanel();
 		case BANKACCESS -> new BankAccessOverviewPanel();

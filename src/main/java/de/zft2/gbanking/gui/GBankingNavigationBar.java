@@ -15,6 +15,7 @@ final class GBankingNavigationBar extends BorderPane implements BaseGui {
 
 	private static final double BUTTON_SIZE = 36;
 	private static final String HOUSE_ICON = "M2 8.5 L9 2.5 L16 8.5 M4 7 V16 H14 V7 M7 16 V11 H11 V16";
+	private static final String STOCK_ICON = "M2 15 H16 M4 12 L7 9 L10 11 L15 5 M12 5 H15 V8";
 	private static final String ORDER_ICON = "M3 2 H13 L16 5 V16 H3 Z M13 2 V5 H16 M6 8 H13 M6 11 H13 M6 14 H11";
 	private static final String ANALYSIS_ICON = "M3 16 V3 M3 16 H16 M6 14 V10 H8 V14 M10 14 V7 H12 V14 M14 14 V4 H16 V14";
 	private static final String HELP_ICON = "M6 6.5 C6.4 4.8 7.7 4 9.2 4 C11 4 12.2 5.1 12.2 6.7 C12.2 8.1 11.4 8.8 10.2 9.6 C9.4 10.2 9 10.8 9 12 M9 15 V15.1";
@@ -27,6 +28,8 @@ final class GBankingNavigationBar extends BorderPane implements BaseGui {
 		HBox buttons = new HBox(4,
 				createButton("UI_NAVIGATION_ACCOUNTS_TRANSACTIONS", HOUSE_ICON,
 						() -> navigator.accept(PageContext.ACCOUNTS_TRANSACTIONS)),
+				createButton("UI_NAVIGATION_STOCK_PORTFOLIOS", STOCK_ICON,
+						() -> navigator.accept(PageContext.STOCK_PORTFOLIOS)),
 				createButton("UI_NAVIGATION_ORDERS", ORDER_ICON,
 						() -> navigator.accept(PageContext.ACCOUNTS_MONEYTRANSFERS)),
 				createButton("UI_NAVIGATION_ANALYSIS", ANALYSIS_ICON, () -> navigator.accept(PageContext.ANALYSIS)),

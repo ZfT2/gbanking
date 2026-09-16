@@ -16,6 +16,7 @@ import de.zft2.gbanking.db.dao.BusinessCase;
 import de.zft2.gbanking.db.dao.ParameterDataBankAccess;
 import de.zft2.gbanking.db.dao.Upd;
 import de.zft2.gbanking.db.dao.enu.AccountState;
+import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.BankAccessType;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.paypal.PaypalSupport;
@@ -38,6 +39,7 @@ public class BankingCapabilityService extends AbstractDbService {
 		STANDING_ORDER_INVENTORY(Set.of("DAUERSEPALIST", "HKCDB"), Set.of("DAUERSEPALISTPAR")),
 		ACCOUNT_TRANSACTIONS(Set.of("KUMSALLCAMT", "KUMSZEITCAMT", "KUMSZEIT", "HKKAZ", "HKCAZ"), Set.of("KUMSZEITCAMTPAR", "KUMSZEITPAR")),
 		ACCOUNT_STATEMENTS(Set.of("KONTOAUSZUG", "KONTOAUSZUGPDF", "HKEKA", "HKEKP"), Set.of("KONTOAUSZUGPAR", "KONTOAUSZUGPDFPAR")),
+		STOCK_PORTFOLIO(Set.of("WPDEPOTLIST", "HKWPD"), Set.of("WPDEPOTLISTPAR")),
 		ACCOUNT_BALANCE(Set.of("SALDOREQ", "HKSAL"), Set.of("SALDOPAR"));
 
 		private final Set<String> codes;
@@ -101,6 +103,15 @@ public class BankingCapabilityService extends AbstractDbService {
 
 	public boolean supportsAccountStatements(BankAccount bankAccount) {
 		return isAvailable(bankAccount, Capability.ACCOUNT_STATEMENTS);
+	}
+
+	public boolean supportsStockPortfolio(BankAccount bankAccount) {
+		return isAvailable(bankAccount, Capability.STOCK_PORTFOLIO);
+	}
+
+	public boolean supportsAccountUpdate(BankAccount bankAccount) {
+		return bankAccount != null && (bankAccount.getAccountType() == AccountType.DEPOT
+				? supportsStockPortfolio(bankAccount) : supportsAccountTransactions(bankAccount));
 	}
 
 	public boolean supportsBankMessages(BankAccess bankAccess) {

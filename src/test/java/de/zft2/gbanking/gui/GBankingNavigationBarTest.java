@@ -28,7 +28,7 @@ class GBankingNavigationBarTest {
 			HBox buttonBox = (HBox) bar.getRight();
 			List<Button> buttons = buttonBox.getChildren().stream().map(Button.class::cast).toList();
 
-			assertEquals(4, buttons.size());
+			assertEquals(5, buttons.size());
 			buttons.forEach(button -> {
 				assertEquals(button.getPrefWidth(), button.getPrefHeight());
 				assertFalse(button.getAccessibleText().isBlank());
@@ -38,7 +38,8 @@ class GBankingNavigationBarTest {
 			});
 		});
 
-		assertEquals(List.of(PageContext.ACCOUNTS_TRANSACTIONS, PageContext.ACCOUNTS_MONEYTRANSFERS, PageContext.ANALYSIS),
+		assertEquals(List.of(PageContext.ACCOUNTS_TRANSACTIONS, PageContext.STOCK_PORTFOLIOS,
+				PageContext.ACCOUNTS_MONEYTRANSFERS, PageContext.ANALYSIS),
 				activatedPages);
 		assertTrue(helpShown.get());
 	}

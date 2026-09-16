@@ -22,6 +22,7 @@ class RestoreHandler {
 	private static final String LAST_TENANT_ID = "lastTenantId";
 	private static final String LANGUAGE = "language";
 	static final String ONLY_ONLINE_ACCOUNTS = "onlyOnlineAccounts";
+	static final String ONLY_SECURITIES_WITH_HOLDINGS = "onlySecuritiesWithHoldings";
 
 	private RestoreHandler() {
 	}
@@ -36,6 +37,7 @@ class RestoreHandler {
 	static void storeOptions(Map<String, String> optionsMap, Path guiFile, Path environmentFile) throws IOException {
 		Properties guiProperties = new Properties();
 		putIfPresent(guiProperties, ONLY_ONLINE_ACCOUNTS, optionsMap.get(ONLY_ONLINE_ACCOUNTS));
+		putIfPresent(guiProperties, ONLY_SECURITIES_WITH_HOLDINGS, optionsMap.get(ONLY_SECURITIES_WITH_HOLDINGS));
 		storeLayoutOptions(guiProperties, optionsMap);
 		storeProperties(guiFile, guiProperties, "GUI Properties of the user app");
 
@@ -57,6 +59,8 @@ class RestoreHandler {
 	static void restoreOptions(Map<String, String> optionsMap, Path guiFile, Path environmentFile) throws IOException {
 		Properties guiProperties = loadProperties(guiFile);
 		putIfPresent(optionsMap, ONLY_ONLINE_ACCOUNTS, guiProperties.getProperty(ONLY_ONLINE_ACCOUNTS));
+		putIfPresent(optionsMap, ONLY_SECURITIES_WITH_HOLDINGS,
+				guiProperties.getProperty(ONLY_SECURITIES_WITH_HOLDINGS));
 		restoreLayoutOptions(guiProperties, optionsMap);
 
 		Properties environmentProperties = loadProperties(environmentFile);

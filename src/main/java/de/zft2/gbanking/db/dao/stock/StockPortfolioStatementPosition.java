@@ -14,6 +14,8 @@ public class StockPortfolioStatementPosition extends StockDao {
 	private StockQuantityType quantityType;
 	private Long reportedPriceE8;
 	private Currency priceCurrency;
+	private Long reportedAcquisitionPriceE8;
+	private Currency acquisitionPriceCurrency;
 	private StockQuotationType quotationType;
 	private StockPriceBasis priceBasis;
 	private Long reportedValueMinor;
@@ -32,6 +34,10 @@ public class StockPortfolioStatementPosition extends StockDao {
 	public void setReportedPriceE8(Long reportedPriceE8) { this.reportedPriceE8 = reportedPriceE8; }
 	public Currency getPriceCurrency() { return priceCurrency; }
 	public void setPriceCurrency(Currency priceCurrency) { this.priceCurrency = priceCurrency; }
+	public Long getReportedAcquisitionPriceE8() { return reportedAcquisitionPriceE8; }
+	public void setReportedAcquisitionPriceE8(Long value) { this.reportedAcquisitionPriceE8 = value; }
+	public Currency getAcquisitionPriceCurrency() { return acquisitionPriceCurrency; }
+	public void setAcquisitionPriceCurrency(Currency value) { this.acquisitionPriceCurrency = value; }
 	public StockQuotationType getQuotationType() { return quotationType; }
 	public void setQuotationType(StockQuotationType quotationType) { this.quotationType = quotationType; }
 	public StockPriceBasis getPriceBasis() { return priceBasis; }

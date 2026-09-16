@@ -1,8 +1,9 @@
 package de.zft2.gbanking.db.dao.enu;
 
 import de.zft2.gbanking.db.enu.IdType;
+import de.zft2.gbanking.enu.LocalizedEnumValue;
 
-public enum StockTransactionType implements IdType {
+public enum StockTransactionType implements IdType, LocalizedEnumValue {
 
 	BUY(1),
 	SELL(2),
@@ -33,8 +34,17 @@ public enum StockTransactionType implements IdType {
 		return IdType.forId(StockTransactionType.class, value);
 	}
 
+	public static StockTransactionType forString(String value) {
+		return LocalizedEnumValue.forString(StockTransactionType.class, value);
+	}
+
 	@Override
 	public int getDbStateId() {
 		return dbStateId;
+	}
+
+	@Override
+	public final String toString() {
+		return getDisplayName();
 	}
 }

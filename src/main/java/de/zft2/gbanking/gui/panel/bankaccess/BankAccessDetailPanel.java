@@ -18,6 +18,7 @@ import de.zft2.gbanking.gui.BackgroundActionCoordinator;
 import de.zft2.gbanking.gui.KeyboardShortcutDispatcher;
 import de.zft2.gbanking.gui.dialog.BankAccessParameterDataDialog;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
+import de.zft2.gbanking.gui.dialog.stock.StockPortfolioAssignmentCoordinator;
 import de.zft2.gbanking.gui.enu.ButtonContext;
 import de.zft2.gbanking.gui.panel.AbstractReadonlyDetailPanel;
 import de.zft2.gbanking.gui.panel.action.PinAskDialog;
@@ -276,8 +277,18 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 			return;
 		}
 
-		refreshDisplayedBankAccess();
-		DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.INFORMATION, getText("UI_INFO_BANK_ACCESS_REFRESH_SUCCESS"));
+		try {
+			StockPortfolioAssignmentCoordinator assignmentCoordinator =
+					new StockPortfolioAssignmentCoordinator(currentBankAccess.getAccounts());
+			if (!assignmentCoordinator.chooseAssignments(getOwnerWindow())) {
+				return;
+			}
+			assignmentCoordinator.persistAssignments();
+			refreshDisplayedBankAccess();
+			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.INFORMATION, getText("UI_INFO_BANK_ACCESS_REFRESH_SUCCESS"));
+		} catch (RuntimeException exception) {
+			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, exception.getMessage());
+		}
 	}
 
 	private void refreshDisplayedBankAccess() {

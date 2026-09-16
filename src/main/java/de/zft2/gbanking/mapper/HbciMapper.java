@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -189,49 +190,107 @@ public class HbciMapper {
 			return AccountType.UNKNOWN_ACCOUNT;
 		}
 
-		// Step 1: prio acctype-Field
-		String typeCandidate = (konto.acctype != null) ? konto.acctype.trim() : "";
-
-		// Step 2: Fallback on raw type-field, if acctype is empty
-		if (typeCandidate.isEmpty() && konto.type != null) {
-			typeCandidate = konto.type.trim();
-		}
-
-		// Step 3: Normalize (Codes resolution & handle free texts)
-		switch (typeCandidate.toLowerCase()) {
-		// Resolve numeric DK-Codes
-		case "0001", "girokonto", "online-konto", "kontokorrent":
-			return AccountType.CURRENT_ACCOUNT;
-
-		case "0002", "sparkonto", "sparbuch":
-			return AccountType.SAVINGS_ACCOUNT;
-
-		case "0003", "0004", "festgeld":
-			return AccountType.FIXED_DEPOSIT;
-
-		case "termgeld", "tagesgeld":
-			return AccountType.OVERNIGHT_MONEY;
-
-		case "0005", "depot", "wertpapierdepot":
+		if (supportsPortfolioStatements(konto)) {
 			return AccountType.DEPOT;
-
-		case "0006", "darlehen", "kredit", "darlehenskonto":
-			return AccountType.CREDIT_ACCOUNT;
-
-		case "0007", "kreditkarte", "credit card":
-			return AccountType.CREDIT_CARD;
-
-		case "0008", "bauspar", "bausparkonto":
-			return AccountType.SAVEINGS_HOME;
-
-		default:
-			// Fallback for bank-specific own names (e.g. "Top-Giro", "KlassikKonto")
-			if (typeCandidate.toLowerCase().contains("giro")) {
-				return AccountType.CURRENT_ACCOUNT;
-			} else if (typeCandidate.toLowerCase().contains("spar")) {
-				return AccountType.SAVINGS_ACCOUNT;
-			}
-			return AccountType.UNKNOWN_ACCOUNT;
 		}
+
+		AccountType numericType = accountTypeForFinTsCode(konto.acctype);
+		return numericType != null ? numericType : accountTypeForDescription(konto.type);
+	}
+
+	private static AccountType accountTypeForFinTsCode(String value) {
+		if (value == null || value.isBlank()) {
+			return null;
+		}
+		try {
+			int accountType = Integer.parseInt(value.trim());
+			return switch (accountType / 10) {
+			case 0 -> accountType > 0 ? AccountType.CURRENT_ACCOUNT : null;
+			case 1 -> AccountType.SAVINGS_ACCOUNT;
+			case 2 -> AccountType.FIXED_DEPOSIT;
+			case 3, 6 -> AccountType.DEPOT;
+			case 4 -> AccountType.CREDIT_ACCOUNT;
+			case 5 -> AccountType.CREDIT_CARD;
+			case 7 -> AccountType.SAVEINGS_HOME;
+			default -> null;
+			};
+		} catch (NumberFormatException exception) {
+			return accountTypeForDescription(value);
+		}
+	}
+
+	private static AccountType accountTypeForDescription(String value) {
+		String description = value != null ? value.trim().toLowerCase(Locale.ROOT) : "";
+		if (description.contains("verrechnung") || description.contains("geldkonto")
+				|| description.contains("cash account") || description.contains("cashkonto")) {
+			return AccountType.DEPOT_ACCOUNT;
+		}
+		if (description.contains("depot") || description.contains("wertpapier")) {
+			return AccountType.DEPOT;
+		}
+		if (description.contains("giro") || description.contains("kontokorrent")
+				|| description.contains("online-konto")) {
+			return AccountType.CURRENT_ACCOUNT;
+		}
+		if (description.contains("tagesgeld") || description.contains("termgeld")) {
+			return AccountType.OVERNIGHT_MONEY;
+		}
+		if (description.contains("spar")) {
+			return AccountType.SAVINGS_ACCOUNT;
+		}
+		if (description.contains("festgeld")) {
+			return AccountType.FIXED_DEPOSIT;
+		}
+		if (description.contains("kreditkarte") || description.contains("credit card")) {
+			return AccountType.CREDIT_CARD;
+		}
+		if (description.contains("darlehen") || description.contains("kredit")) {
+			return AccountType.CREDIT_ACCOUNT;
+		}
+		if (description.contains("bauspar")) {
+			return AccountType.SAVEINGS_HOME;
+		}
+		return AccountType.UNKNOWN_ACCOUNT;
+	}
+
+	private static boolean supportsPortfolioStatements(Konto konto) {
+		if (konto.allowedGVs != null) {
+			for (Object businessCase : konto.allowedGVs) {
+				String value = String.valueOf(businessCase);
+				if ("HKWPD".equalsIgnoreCase(value) || "WPDEPOTLIST".equalsIgnoreCase(value)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	public static String accountReferenceKey(Konto account) {
+		return account != null ? accountReferenceKey(account.blz, account.number, account.subnumber) : null;
+	}
+
+	public static String accountReferenceKey(BankAccount account) {
+		return account != null ? accountReferenceKey(account.getBlz(), account.getNumber(), account.getSubnumber()) : null;
+	}
+
+	private static String accountReferenceKey(String bankCode, String number, String subnumber) {
+		String normalizedNumber = normalizeAccountNumber(number);
+		if (normalizedNumber == null) {
+			return null;
+		}
+		return normalizeText(bankCode) + '/' + normalizedNumber + '/' + normalizeAccountNumber(subnumber);
+	}
+
+	private static String normalizeAccountNumber(String value) {
+		String normalized = normalizeText(value);
+		if (normalized == null) {
+			return null;
+		}
+		String withoutLeadingZeroes = normalized.replaceFirst("^0+(?!$)", "");
+		return withoutLeadingZeroes.isEmpty() ? "0" : withoutLeadingZeroes;
+	}
+
+	private static String normalizeText(String value) {
+		return value != null && !value.isBlank() ? value.trim().toUpperCase(Locale.ROOT) : null;
 	}
 }

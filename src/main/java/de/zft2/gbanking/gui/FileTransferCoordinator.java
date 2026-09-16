@@ -11,17 +11,29 @@ import org.apache.logging.log4j.Logger;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.gui.dialog.CsvImportDialogSupport;
+import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.dialog.MoneyTransferImportStatusDialog;
+import de.zft2.gbanking.gui.dialog.stock.PortfolioPerformanceImportMappingDialog;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.gui.enu.FileType;
 import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.gui.model.AccountTableModel;
 import de.zft2.gbanking.gui.panel.overview.AccountsTransactionsOverviewPanel;
 import de.zft2.gbanking.gui.panel.overview.MoneyTransferOverviewPanel;
+import de.zft2.gbanking.gui.panel.overview.OverviewBasePanel;
+import de.zft2.gbanking.gui.panel.overview.StockPortfolioOverviewPanel;
 import de.zft2.gbanking.gui.progress.FileExportProgressBarPanel;
 import de.zft2.gbanking.gui.progress.FileImportProgressBarPanel;
 import de.zft2.gbanking.gui.progress.MoneyTransferImportProgressBarPanel;
+import de.zft2.gbanking.gui.progress.PortfolioPerformanceFileProgressBarPanel;
 import de.zft2.gbanking.gui.util.FileChooserDirectorySupport;
+import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
+import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService;
+import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService.XmlImportPreview;
+import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService.XmlImportAssignments;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
@@ -83,6 +95,69 @@ final class FileTransferCoordinator implements BaseGui {
 		} catch (Exception exception) {
 			log.error("Money transfer import failed. type={}, file={}", importType, fileName(importFile), exception);
 			showWarning(owner, exception.getMessage());
+		}
+	}
+
+	void processStockImport(ExportType importType) {
+		StockPortfolioOverviewPanel overviewPanel = stockOverview();
+		PortfolioSummary portfolio = overviewPanel != null ? overviewPanel.getSelectedPortfolio() : null;
+		if (portfolio == null && importType != ExportType.STOCK_PP_XML) {
+			showWarning(owner, getText("ALERT_STOCK_PP_PORTFOLIO_REQUIRED"));
+			return;
+		}
+		Path importFile = chooseImportFile(importType.getFileType());
+		if (importFile == null) {
+			return;
+		}
+		try {
+			XmlImportAssignments assignments = prepareXmlAssignments(importFile, importType, portfolio);
+			if (importType == ExportType.STOCK_PP_XML && assignments == null) {
+				return;
+			}
+			startStockFileOperation(importFile, importType, portfolio, true, assignments, overviewPanel);
+		} catch (IOException | RuntimeException exception) {
+			log.error("Portfolio Performance import preparation failed. type={}, file={}",
+					importType, fileName(importFile), exception);
+			showWarning(owner, exception.getMessage());
+		}
+	}
+
+	private XmlImportAssignments prepareXmlAssignments(Path file, ExportType importType,
+			PortfolioSummary selectedPortfolio) throws IOException {
+		if (importType != ExportType.STOCK_PP_XML) {
+			return null;
+		}
+		PortfolioPerformanceImportService service = ServiceRegistry.getService(PortfolioPerformanceImportService.class);
+		XmlImportPreview preview = service.previewXml(file);
+		boolean importAdditionalAccounts = shouldImportAdditionalAccounts(preview);
+		return new PortfolioPerformanceImportMappingDialog(service)
+				.show(owner, preview, selectedPortfolio, importAdditionalAccounts).orElse(null);
+	}
+
+	private boolean shouldImportAdditionalAccounts(XmlImportPreview preview) {
+		if (preview.additionalAccounts().isEmpty()) {
+			return false;
+		}
+		String accountNames = preview.additionalAccounts().stream()
+				.map(account -> "• " + getText("UI_STOCK_PP_ADDITIONAL_ACCOUNT_ENTRY", account.name(),
+						account.currency(), account.transactionCount()))
+				.collect(java.util.stream.Collectors.joining(System.lineSeparator()));
+		return DialogWindowSupport.showConfirmation(owner, Alert.AlertType.CONFIRMATION,
+				getText("UI_STOCK_PP_ADDITIONAL_ACCOUNTS_TITLE"),
+				getText("UI_STOCK_PP_ADDITIONAL_ACCOUNTS_HEADER", preview.additionalAccounts().size()),
+				getText("UI_STOCK_PP_ADDITIONAL_ACCOUNTS_TEXT", accountNames), ButtonType.YES, ButtonType.NO);
+	}
+
+	void processStockExport(ExportType exportType) {
+		StockPortfolioOverviewPanel overviewPanel = stockOverview();
+		PortfolioSummary portfolio = overviewPanel != null ? overviewPanel.getSelectedPortfolio() : null;
+		if (portfolio == null) {
+			showWarning(owner, getText("ALERT_STOCK_PP_PORTFOLIO_REQUIRED"));
+			return;
+		}
+		Path exportFile = chooseExportFile(exportType.getFileType());
+		if (exportFile != null) {
+			startStockFileOperation(exportFile, exportType, portfolio, false, null, overviewPanel);
 		}
 	}
 
@@ -178,8 +253,35 @@ final class FileTransferCoordinator implements BaseGui {
 		progressWindow.show();
 	}
 
+	private void startStockFileOperation(Path file, ExportType type, PortfolioSummary portfolio,
+			boolean importOperation, XmlImportAssignments assignments, StockPortfolioOverviewPanel overviewPanel) {
+		PortfolioPerformanceFileProgressBarPanel progressPanel = new PortfolioPerformanceFileProgressBarPanel(owner,
+				portfolio, importOperation, assignments,
+				importOperation ? () -> refreshStockImportViews(overviewPanel) : null);
+		Stage progressWindow = progressPanel.createNewFileImportProgressBarWindow();
+		progressPanel.startTask(file.toString(), type, null);
+		progressWindow.show();
+	}
+
+	private static void refreshStockImportViews(StockPortfolioOverviewPanel overviewPanel) {
+		if (overviewPanel != null) {
+			overviewPanel.refreshOnShow();
+		}
+		for (PageContext context : List.of(PageContext.ALL_STOCK_PORTFOLIOS, PageContext.ALL_SECURITIES,
+				PageContext.ACCOUNTS_TRANSACTIONS, PageContext.ALL_ACCOUNTS)) {
+			OverviewBasePanel panel = OverviewPanelFactory.findPanel(context.name());
+			if (panel != null && panel != overviewPanel) {
+				panel.refreshOnShow();
+			}
+		}
+	}
+
 	private AccountsTransactionsOverviewPanel accountsOverview() {
 		return (AccountsTransactionsOverviewPanel) OverviewPanelFactory.retrievePanel(PageContext.ACCOUNTS_TRANSACTIONS.name());
+	}
+
+	private StockPortfolioOverviewPanel stockOverview() {
+		return (StockPortfolioOverviewPanel) OverviewPanelFactory.retrievePanel(PageContext.STOCK_PORTFOLIOS.name());
 	}
 
 	private String fileName(Path path) {

@@ -1,8 +1,9 @@
 package de.zft2.gbanking.db.dao.enu;
 
 import de.zft2.gbanking.db.enu.IdType;
+import de.zft2.gbanking.enu.LocalizedEnumValue;
 
-public enum StockQuantityType implements IdType {
+public enum StockQuantityType implements IdType, LocalizedEnumValue {
 
 	UNITS(1), NOMINAL(2);
 
@@ -19,5 +20,10 @@ public enum StockQuantityType implements IdType {
 	@Override
 	public int getDbStateId() {
 		return dbStateId;
+	}
+
+	@Override
+	public String toString() {
+		return getDisplayName();
 	}
 }

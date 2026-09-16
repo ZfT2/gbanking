@@ -94,15 +94,10 @@ class StockPortfolioSchemaTest {
 
 			assertThrows(SQLException.class,
 					() -> statement.executeUpdate("UPDATE stockTransactionSecurityLeg SET quantityE9 = 1 WHERE id = 1"));
-			statement.executeUpdate("""
+			assertThrows(SQLException.class, () -> statement.executeUpdate("""
 					INSERT INTO stockTransactionMetadata (transaction_id, note, tags, updatedAt)
 					VALUES (1, 'Beleg geprueft', 'steuer', '2026-09-14')
-					""");
-			statement.executeUpdate("""
-					UPDATE stockTransactionMetadata
-					SET note = 'Beleg und Steuer geprueft', updatedAt = '2026-09-15'
-					WHERE transaction_id = 1
-					""");
+					"""));
 		}
 	}
 
@@ -140,6 +135,38 @@ class StockPortfolioSchemaTest {
 					VALUES (1, 1, %d, %d, '2026-03-31', '2026-03-31', '2026-03-31', '2026-03-31')
 					""".formatted(StockTransactionType.RECONCILIATION_ADJUSTMENT.getDbStateId(),
 							StockTransactionStatus.SETTLED.getDbStateId())));
+		}
+	}
+
+	@Test
+	void editMaskShouldAllowOnlyExplicitlyMissingFields() throws Exception {
+		try (Connection connection = openDatabase(); Statement statement = connection.createStatement()) {
+			insertBankAccount(statement, 1, 16, "Depot");
+			insertBankAccount(statement, 2, 1, "Girokonto");
+			insertPortfolio(connection, 1, 1, 1, 2);
+			insertSecurity(statement);
+			insertPendingTransaction(statement, 1, StockTransactionType.BUY, "2026-01-02");
+			statement.executeUpdate("UPDATE stockTransaction SET editableFieldMask = 256 WHERE id = 1");
+			insertSecurityLeg(statement, 1, 1, 2_000_000_000L, 7_500_000_000L);
+			settleTransaction(statement, 1, "2026-01-04");
+
+			insertCashLeg(statement, 1, 1, StockCashLegRole.FEE, -100L);
+			assertThrows(SQLException.class,
+					() -> insertCashLeg(statement, 1, 2, StockCashLegRole.TAX, -100L));
+			assertThrows(SQLException.class,
+					() -> statement.executeUpdate("UPDATE stockTransactionSecurityLeg SET quantityE9 = 1 WHERE id = 1"));
+			assertThrows(SQLException.class,
+					() -> statement.executeUpdate("UPDATE stockTransaction SET editableFieldMask = 4095 WHERE id = 1"));
+			assertThrows(SQLException.class, () -> statement.executeUpdate("""
+					UPDATE stockTransaction
+					SET transactionStatus = 3, settledAt = NULL, transactionType = 2
+					WHERE id = 1
+					"""));
+			assertEquals(1, statement.executeUpdate("""
+					UPDATE stockTransaction
+					SET transactionStatus = 3, settledAt = NULL
+					WHERE id = 1
+					"""));
 		}
 	}
 

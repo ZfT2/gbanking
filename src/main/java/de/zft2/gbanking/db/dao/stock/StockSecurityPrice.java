@@ -21,6 +21,7 @@ public class StockSecurityPrice extends StockDao {
 	private StockPriceType priceType;
 	private Long volumeE9;
 	private String externalReference;
+	private boolean deleted;
 	private Integer supersedesPriceId;
 
 	public int getPriceSourceId() { return priceSourceId; }
@@ -43,6 +44,8 @@ public class StockSecurityPrice extends StockDao {
 	public void setVolumeE9(Long volumeE9) { this.volumeE9 = volumeE9; }
 	public String getExternalReference() { return externalReference; }
 	public void setExternalReference(String externalReference) { this.externalReference = externalReference; }
+	public boolean isDeleted() { return deleted; }
+	public void setDeleted(boolean deleted) { this.deleted = deleted; }
 	public Integer getSupersedesPriceId() { return supersedesPriceId; }
 	public void setSupersedesPriceId(Integer supersedesPriceId) { this.supersedesPriceId = supersedesPriceId; }
 }
