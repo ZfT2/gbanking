@@ -32,6 +32,7 @@ public class CategoryRuleMapper extends AbstractDaoMapper<CategoryRule, Void> {
 		ps.setString(index++, categoryRule.getFilterPurpose());
 		ps.setBoolean(index++, categoryRule.isFilterRecipientIsRegex());
 		ps.setBoolean(index++, categoryRule.isFilterPurposeIsRegex());
+		ps.setBoolean(index++, categoryRule.isOverwriteExistingCategories());
 		ps.setInt(index++, categoryRule.getJoinType().getDbStateId());
 		ps.setTimestamp(index++, TypeConverter.toSqlTimestampNow());
 		if (categoryRule.getId() > 0) {
@@ -58,6 +59,7 @@ public class CategoryRuleMapper extends AbstractDaoMapper<CategoryRule, Void> {
 		categoryRule.setFilterPurpose(rs.getString("filterPurpose"));
 		categoryRule.setFilterRecipientIsRegex(rs.getBoolean("filterRecipientIsRegex"));
 		categoryRule.setFilterPurposeIsRegex(rs.getBoolean("filterPurposeIsRegex"));
+		categoryRule.setOverwriteExistingCategories(rs.getBoolean("overwriteExistingCategories"));
 		categoryRule.setJoinType(JoinType.forInt(rs.getInt("joinType")));
 	}
 }

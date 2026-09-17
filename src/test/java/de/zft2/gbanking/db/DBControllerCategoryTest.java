@@ -147,6 +147,11 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 		assertTrue(cr.getName().length() <= 40);
 		assertEquals(cg.getId(), cr.getCategory().getId());
 		assertEquals("Fahrkarte", cr.getFilterPurpose());
+		assertTrue(cr.isOverwriteExistingCategories());
+
+		cr.setOverwriteExistingCategories(false);
+		db.insertOrUpdate(cr);
+		assertFalse(db.getById(CategoryRule.class, cr.getId()).isOverwriteExistingCategories());
 		
 		LocalDate dateUpdatedAtWithoutTime = getCalendarWithoutTime(cr.getUpdatedAt());
 		assertEquals(dateUpdatedAtWithoutTime, getCalendarWithoutTime(LocalDate.now(ZoneId.systemDefault())));

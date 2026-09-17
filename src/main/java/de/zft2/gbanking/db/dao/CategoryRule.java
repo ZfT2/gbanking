@@ -58,11 +58,13 @@ public class CategoryRule extends Dao implements Serializable /* MnRelation */ {
 	private JoinType joinType;
 	private boolean filterRecipientIsRegex;
 	private boolean filterPurposeIsRegex;
+	private boolean overwriteExistingCategories;
 	private List<BankAccount> bankAccountList;
 
 	public CategoryRule() {
 		filterPurposeIsRegex = false;
 		filterRecipientIsRegex = false;
+		overwriteExistingCategories = true;
 		joinType = JoinType.OR;
 	}
 
@@ -168,6 +170,14 @@ public class CategoryRule extends Dao implements Serializable /* MnRelation */ {
 
 	public void setFilterPurposeIsRegex(boolean filterPurposeIsRegex) {
 		this.filterPurposeIsRegex = filterPurposeIsRegex;
+	}
+
+	public boolean isOverwriteExistingCategories() {
+		return overwriteExistingCategories;
+	}
+
+	public void setOverwriteExistingCategories(boolean overwriteExistingCategories) {
+		this.overwriteExistingCategories = overwriteExistingCategories;
 	}
 
 	public List<BankAccount> getBankAccountList() {

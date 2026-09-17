@@ -44,6 +44,7 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.control.TitledPane;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -63,6 +64,7 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 	private static final double CONDITION_FIELD_WIDTH = 240.0;
 	private static final double PURPOSE_FIELD_WIDTH = 460.0;
 	private static final double UPDATED_AT_FIELD_WIDTH = 125.0;
+	private static final double RECIPIENT_FILTER_PANEL_WIDTH = 580.0;
 	private static final double GROUP_GAP = 14.0;
 	private static final double RIGHT_COLUMN_WIDTH = PURPOSE_REGEX_FIELD_WIDTH + GROUP_GAP + CONDITION_FIELD_WIDTH;
 	private static final int MAX_RULE_NAME_LENGTH = 40;
@@ -83,6 +85,7 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 	private final TextField filterPurpose = new TextField();
 	private final CheckBox filterRecipientRegexCheckbox = new CheckBox();
 	private final CheckBox filterPurposeRegexCheckbox = new CheckBox();
+	private final CheckBox overwriteExistingCategoriesCheckbox = new CheckBox();
 	private final TextField updatedAtText = new TextField();
 	private final Button buttonSubmit = new Button();
 	private final DecimalFormat amountFormat = FxTableUtils.createGermanDecimalFormat();
@@ -115,6 +118,10 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 		joinTypeCombo.setItems(FXCollections.observableArrayList(JoinType.values()));
 		joinTypeCombo.setValue(JoinType.OR);
 		accountScopeCombo.setValue(AccountRuleScope.CURRENT_ACCOUNT);
+		overwriteExistingCategoriesCheckbox.setText(getText("UI_CATEGORY_RULE_OVERWRITE_EXISTING"));
+		overwriteExistingCategoriesCheckbox.setTooltip(new Tooltip(getText("UI_TOOLTIP_CATEGORY_RULE_OVERWRITE_EXISTING")));
+		overwriteExistingCategoriesCheckbox.setWrapText(true);
+		overwriteExistingCategoriesCheckbox.setSelected(true);
 		updatedAtText.setEditable(false);
 		updatedAtText.setDisable(true);
 		updatedAtText.setAlignment(Pos.CENTER_RIGHT);
@@ -177,6 +184,7 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 		categoryRule.setFilterPurpose(TextValues.trimToNull(filterPurpose.getText()));
 		categoryRule.setFilterRecipientIsRegex(filterRecipientRegexCheckbox.isSelected());
 		categoryRule.setFilterPurposeIsRegex(filterPurposeRegexCheckbox.isSelected());
+		categoryRule.setOverwriteExistingCategories(overwriteExistingCategoriesCheckbox.isSelected());
 		categoryRule.setBankAccountList(ruleAccounts);
 		dbController.insertOrUpdate(categoryRule);
 
@@ -212,6 +220,7 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 		filterPurpose.clear();
 		filterRecipientRegexCheckbox.setSelected(false);
 		filterPurposeRegexCheckbox.setSelected(false);
+		overwriteExistingCategoriesCheckbox.setSelected(true);
 		updatedAtText.clear();
 		updatePanelFieldValues(selectedAccount);
 	}
@@ -240,6 +249,7 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 		filterPurpose.setText(categoryRule.getFilterPurpose() != null ? categoryRule.getFilterPurpose() : "");
 		filterRecipientRegexCheckbox.setSelected(categoryRule.isFilterRecipientIsRegex());
 		filterPurposeRegexCheckbox.setSelected(categoryRule.isFilterPurposeIsRegex());
+		overwriteExistingCategoriesCheckbox.setSelected(categoryRule.isOverwriteExistingCategories());
 		updatedAtText.setText(DateFormatUtils.formatLong(categoryRule.getUpdatedAt()));
 	}
 
@@ -421,12 +431,15 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 		TitledPane dateAmountPane = createDateAmountFilterPane();
 		TitledPane recipientPane = createRecipientFilterPane();
 
-		HBox filterGroups = new HBox(GROUP_GAP, dateAmountPane, recipientPane);
+		HBox filterGroups = new HBox(GROUP_GAP, dateAmountPane, recipientPane, overwriteExistingCategoriesCheckbox);
+		filterGroups.setAlignment(Pos.CENTER_LEFT);
 		filterGroups.setFillHeight(true);
 		filterGroups.setMinWidth(0);
 		dateAmountPane.setMinWidth(0);
-		recipientPane.setMinWidth(0);
-		HBox.setHgrow(recipientPane, Priority.ALWAYS);
+		recipientPane.setMinWidth(RECIPIENT_FILTER_PANEL_WIDTH);
+		recipientPane.setPrefWidth(RECIPIENT_FILTER_PANEL_WIDTH);
+		recipientPane.setMaxWidth(RECIPIENT_FILTER_PANEL_WIDTH);
+		overwriteExistingCategoriesCheckbox.setMinWidth(0);
 		return filterGroups;
 	}
 

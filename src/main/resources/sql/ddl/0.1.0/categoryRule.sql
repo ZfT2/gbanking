@@ -22,12 +22,14 @@ CREATE TABLE categoryRule (
   filterPurpose TEXT,
   filterRecipientIsRegex REAL NOT NULL,
   filterPurposeIsRegex REAL NOT NULL,
+  overwriteExistingCategories REAL NOT NULL DEFAULT 1,
   joinType INTEGER NOT NULL,
   updatedAt TEXT NOT NULL,
   FOREIGN KEY(category_id) REFERENCES category(id) ON DELETE CASCADE,
   CHECK (joinType BETWEEN 1 AND 2),
   CHECK (filterRecipientIsRegex IN (0, 1)),
   CHECK (filterPurposeIsRegex IN (0, 1)),
+  CHECK (overwriteExistingCategories IN (0, 1)),
   CHECK (filterDateFrom IS NULL OR filterDateTo IS NULL OR filterDateFrom <= filterDateTo),
   CHECK (filterAmountFrom IS NULL OR filterAmountTo IS NULL OR filterAmountFrom <= filterAmountTo));
 

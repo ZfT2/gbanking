@@ -360,6 +360,17 @@ class GBankingServiceTest {
 		assertEquals(targetCategory.getId(), uncategorizedBooking.getCategory().getId());
 		assertEquals(categoryRule.getId(), categorizedBooking.getCategoryRuleId());
 		assertEquals(categoryRule.getName(), categorizedBooking.getCategoryRuleName());
+
+		bookingCategoryService.assignCategoryToBookings(existingCategory, List.of(categorizedBooking));
+		categoryRule.setOverwriteExistingCategories(false);
+		dbController.insertOrUpdate(categoryRule);
+
+		updatedBookings = bookingCategoryService.applyCategoryRulesToBookings(List.of(categorizedBooking), true);
+
+		assertEquals(0, updatedBookings);
+		categorizedBooking = dbController.getByIdFull(Booking.class, categorizedBooking.getId());
+		assertEquals(existingCategory.getId(), categorizedBooking.getCategory().getId());
+		assertNull(categorizedBooking.getCategoryRuleId());
 	}
 
 	@Test

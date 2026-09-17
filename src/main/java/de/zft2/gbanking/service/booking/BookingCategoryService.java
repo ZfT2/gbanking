@@ -137,9 +137,10 @@ public class BookingCategoryService extends AbstractDbService {
 		Predicate<Booking> matchesRule = combineCategoryRuleFilters(categoryRule, filters);
 
 		Set<Integer> allowedAccountIds = getAllowedAccountIds(categoryRule);
+		boolean overwriteCategories = overwriteExistingCategories && categoryRule.isOverwriteExistingCategories();
 		List<Booking> bookingListToCategorize = candidateBookings.stream().filter(Objects::nonNull)
 				.filter(booking -> allowedAccountIds.isEmpty() || allowedAccountIds.contains(booking.getAccountId())).filter(matchesRule)
-				.filter(booking -> shouldApplyCategory(booking, categoryRule.getCategory(), overwriteExistingCategories)).toList();
+				.filter(booking -> shouldApplyCategory(booking, categoryRule.getCategory(), overwriteCategories)).toList();
 
 		if (bookingListToCategorize.isEmpty()) {
 			log.debug("Category rule id {} matched no bookings to update.", categoryRule.getId());
