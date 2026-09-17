@@ -1,6 +1,8 @@
 package de.zft2.gbanking.file.imp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -27,10 +29,12 @@ import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
+import de.zft2.gbanking.db.dao.enu.MoneyTransferProtocolResultStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.SepaCancellationCode;
 import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.db.dao.enu.VopResult;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.file.exp.FileExportBean.ExportConstants;
 import de.zft2.gbanking.file.exp.FileExportOrdersCSVBean;
@@ -90,8 +94,8 @@ class MoneyTransferCsvImportBeanTest {
 		BankAccount account = insertAccount(SENDER_IBAN, "5407324931");
 		String header = HEADER + ";" + structuredProtocolHeader();
 		Path csvFile = writeCsvWithHeader(header, SENDER_IBAN
-				+ ";Max Empfaenger;DE11100100101234567890;MARKDEF1100;123,45;Rechnung 4711;GDDS;gesendet;2026-01-02T03:04:05;"
-				+ "2026-01-02T03:05:06;instant-4711;COMPLETED;RECALL;OK");
+				+ ";Max Empfaenger;DE11100100101234567890;MARKDEF1100;123,45;Rechnung 4711;GDDS;gesendet;SUCCESS;true;true;true;"
+				+ "CLOSE_MATCH;true;2026-01-02T03:04:05;2026-01-02T03:05:06;instant-4711;COMPLETED;RECALL;Bankhinweis");
 
 		MoneyTransferCsvImportBean.ImportResult result = new MoneyTransferCsvImportBean().importFile(csvFile);
 
@@ -108,7 +112,13 @@ class MoneyTransferCsvImportBeanTest {
 		assertEquals("instant-4711", protocol.getBankOrderId());
 		assertEquals(SepaOrderStatus.COMPLETED, protocol.getSepaOrderStatus());
 		assertEquals(SepaCancellationCode.RECALL, protocol.getSepaCancellationCode());
-		assertEquals("OK", protocol.getProtocolText());
+		assertEquals(MoneyTransferProtocolResultStatus.SUCCESS, protocol.getResultStatus());
+		assertTrue(protocol.isPinOk());
+		assertTrue(protocol.isScaRequired());
+		assertTrue(protocol.isVopRequired());
+		assertEquals(VopResult.CLOSE_MATCH, protocol.getVopResult());
+		assertTrue(protocol.isRecipientNameCorrected());
+		assertEquals("Bankhinweis", protocol.getProtocolText());
 	}
 
 	@Test
@@ -119,7 +129,8 @@ class MoneyTransferCsvImportBeanTest {
 				"Rechnung 4711", "GDDS", "E2E-4711", "123,45", "2026-02-03", MoneyTransferStatus.SENT.toString(), "Max Empfaenger",
 				"DE11100100101234567890", "MARKDEF1100", "1234567890", "10010010", "Notiz", Source.MONEYTRANSFER.toString());
 		Path csvFile = writeCsvWithHeader(header,
-				baseRow + ";gesendet;2026-02-03T10:15:00;2026-02-03T10:16:00;Erstes Protokoll",
+				baseRow + ";gesendet;2026-02-03T10:15:00;2026-02-03T10:16:00;0020: SEPA-Einzelüberweisung erfolgreich+"
+						+ "3076: Starke Kundenauthentifizierung nicht notwendig",
 				baseRow + ";Fehler;2026-02-03T11:15:00;;Zweites Protokoll");
 
 		MoneyTransferCsvImportBean.ImportResult result = new MoneyTransferCsvImportBean().importFile(csvFile);
@@ -135,7 +146,12 @@ class MoneyTransferCsvImportBeanTest {
 		assertEquals("E2E-4711", transfer.getEndToEndId());
 		List<MoneyTransferProtocol> protocols = dbController.getAllByParent(MoneyTransferProtocol.class, transfer.getId());
 		assertEquals(2, protocols.size());
-		assertTrue(protocols.stream().anyMatch(protocol -> "Erstes Protokoll".equals(protocol.getProtocolText())));
+		MoneyTransferProtocol successfulProtocol = protocols.stream()
+				.filter(protocol -> protocol.getMoneytransferStatus() == MoneyTransferStatus.SENT).findFirst().orElseThrow();
+		assertEquals(MoneyTransferProtocolResultStatus.SUCCESS, successfulProtocol.getResultStatus());
+		assertTrue(successfulProtocol.isPinOk());
+		assertFalse(successfulProtocol.isScaRequired());
+		assertNull(successfulProtocol.getProtocolText());
 		assertTrue(protocols.stream().anyMatch(protocol -> "Zweites Protokoll".equals(protocol.getProtocolText())));
 	}
 
@@ -170,11 +186,15 @@ class MoneyTransferCsvImportBeanTest {
 		String csv = Files.readString(exportFile, StandardCharsets.UTF_8);
 		assertTrue(result);
 		assertTrue(csv.contains(ExportConstants.PROTOCOL_STATUS.toString()));
+		assertTrue(csv.contains(ExportConstants.PROTOCOL_RESULT_STATUS.toString()));
+		assertTrue(csv.contains(ExportConstants.PROTOCOL_SCA_REQUIRED.toString()));
 		assertTrue(csv.contains(ExportConstants.PROTOCOL_TIME_START.toString()));
 		assertTrue(csv.contains("instant-export-1"));
 		assertTrue(csv.contains(SepaOrderStatus.COMPLETED.name()));
 		assertTrue(csv.contains(SepaCancellationCode.RECALL.name()));
 		assertTrue(csv.contains("Export-Protokoll"));
+		assertTrue(csv.contains(MoneyTransferProtocolResultStatus.SUCCESS.name()));
+		assertTrue(csv.contains(VopResult.MATCH.name()));
 		assertTrue(csv.contains("SEPA-Überweisung"));
 		assertTrue(csv.contains("gesendet"));
 	}
@@ -299,6 +319,11 @@ class MoneyTransferCsvImportBeanTest {
 		protocol.setBankOrderId("instant-export-1");
 		protocol.setSepaOrderStatus(SepaOrderStatus.COMPLETED);
 		protocol.setSepaCancellationCode(SepaCancellationCode.RECALL);
+		protocol.setResultStatus(MoneyTransferProtocolResultStatus.SUCCESS);
+		protocol.setPinOk(true);
+		protocol.setScaRequired(true);
+		protocol.setVopRequired(true);
+		protocol.setVopResult(VopResult.MATCH);
 		protocol.setProtocolText(protocolText);
 		dbController.insertOrUpdate(protocol);
 	}
@@ -325,7 +350,11 @@ class MoneyTransferCsvImportBeanTest {
 	}
 
 	private String structuredProtocolHeader() {
-		return String.join(";", ExportConstants.PROTOCOL_STATUS.toString(), ExportConstants.PROTOCOL_TIME_START.toString(),
+		return String.join(";", ExportConstants.PROTOCOL_STATUS.toString(), ExportConstants.PROTOCOL_RESULT_STATUS.toString(),
+				ExportConstants.PROTOCOL_PIN_OK.toString(), ExportConstants.PROTOCOL_SCA_REQUIRED.toString(),
+				ExportConstants.PROTOCOL_VOP_REQUIRED.toString(),
+				ExportConstants.PROTOCOL_VOP_RESULT.toString(), ExportConstants.PROTOCOL_RECIPIENT_NAME_CORRECTED.toString(),
+				ExportConstants.PROTOCOL_TIME_START.toString(),
 				ExportConstants.PROTOCOL_TIME_FINISH.toString(), ExportConstants.PROTOCOL_BANK_ORDER_ID.toString(),
 				ExportConstants.PROTOCOL_SEPA_ORDER_STATUS.toString(), ExportConstants.PROTOCOL_SEPA_CANCELLATION_CODE.toString(),
 				ExportConstants.PROTOCOL_TEXT.toString());

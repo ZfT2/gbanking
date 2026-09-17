@@ -85,13 +85,25 @@ CREATE TABLE moneytransferProtocol (
   bankOrderId TEXT,
   sepaOrderStatus INTEGER,
   sepaCancellationCode INTEGER,
+  resultStatus INTEGER NOT NULL DEFAULT 13,
+  pinOk INTEGER NOT NULL DEFAULT 0,
+  scaRequired INTEGER NOT NULL DEFAULT 0,
+  vopRequired INTEGER NOT NULL DEFAULT 0,
+  vopResult INTEGER,
+  recipientNameCorrected INTEGER NOT NULL DEFAULT 0,
   protocolText TEXT,
   updatedAt TEXT NOT NULL,
   FOREIGN KEY(moneytransfer_id) REFERENCES moneytransfer(id) ON DELETE CASCADE,
   CHECK (moneytransferStatus BETWEEN 1 AND 10),
   CHECK (bankOrderId IS NULL OR length(trim(bankOrderId)) > 0),
   CHECK (sepaOrderStatus IS NULL OR sepaOrderStatus BETWEEN 1 AND 9),
-  CHECK (sepaCancellationCode IS NULL OR sepaCancellationCode BETWEEN 1 AND 4));
+  CHECK (sepaCancellationCode IS NULL OR sepaCancellationCode BETWEEN 1 AND 4),
+  CHECK (resultStatus BETWEEN 1 AND 14),
+  CHECK (pinOk IN (0, 1)),
+  CHECK (scaRequired IN (0, 1)),
+  CHECK (vopRequired IN (0, 1)),
+  CHECK (vopResult IS NULL OR vopResult BETWEEN 1 AND 4),
+  CHECK (recipientNameCorrected IN (0, 1)));
 ;
 
 [SQL_SETUP_CREATE_INDEX_MONEYTRANSFER_PROTOCOL_TRANSFER]

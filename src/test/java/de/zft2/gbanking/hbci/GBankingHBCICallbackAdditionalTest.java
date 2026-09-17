@@ -235,6 +235,8 @@ class GBankingHBCICallbackAdditionalTest {
 			verify(dialog).requestRecipientCheckDecision(requestCaptor.capture(), Mockito.anyString(), Mockito.anyString());
 			assertEquals("true", retData.toString());
 			assertEquals("Muster GmbH", callback.getConfirmedRecipientName());
+			assertTrue(callback.isVopRequired());
+			assertEquals(VoPStatus.CLOSE_MATCH, callback.getVopStatus());
 			RecipientCheckRequest request = requestCaptor.getValue();
 			assertEquals("Muster GmBH", request.initialRecipientName());
 			assertEquals("Muster GmBH", request.recipientName());
@@ -267,6 +269,8 @@ class GBankingHBCICallbackAdditionalTest {
 			RecipientCheckRequest request = requestCaptor.getValue();
 			assertEquals("true", retData.toString());
 			assertEquals("Korrigierte GmbH", callback.getConfirmedRecipientName());
+			assertTrue(callback.isVopRequired());
+			assertEquals(VoPStatus.NO_MATCH, callback.getVopStatus());
 			assertEquals("Muster GmBH", request.initialRecipientName());
 			assertTrue(request.freeRecipientNameInput());
 			assertEquals(0, request.recipientNameOptions().size());
@@ -283,6 +287,8 @@ class GBankingHBCICallbackAdditionalTest {
 			StringBuffer retData = new StringBuffer("false");
 
 			callback.callback(createPassportWithVoPResult(VoPStatus.MATCH), GBankingHBCICallback.HAVE_VOP_RESULT, "VOP", 0, retData);
+			assertTrue(callback.isVopRequired());
+			assertEquals(VoPStatus.MATCH, callback.getVopStatus());
 
 			HbciCallbackMessageDialog dialog = dialogConstruction.constructed().get(0);
 			assertEquals("true", retData.toString());

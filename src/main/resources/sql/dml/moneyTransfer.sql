@@ -50,16 +50,19 @@ SET account_id = ?, moneytransferType = ?, recipient_id = ?, purpose = ?, purpos
 WHERE id = ?;
 
 [SQL_INSERT_MONEYTRANSFER_PROTOCOL]
-INSERT INTO moneytransferProtocol (moneytransfer_id, moneytransferStatus, timeStart, timeFinish, bankOrderId, sepaOrderStatus, sepaCancellationCode, protocolText, updatedAt)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO moneytransferProtocol (moneytransfer_id, moneytransferStatus, timeStart, timeFinish, bankOrderId, sepaOrderStatus, sepaCancellationCode,
+    resultStatus, pinOk, scaRequired, vopRequired, vopResult, recipientNameCorrected, protocolText, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 [SQL_SELECT_ALL_MONEYTRANSFER_PROTOCOLS]
-SELECT id, moneytransfer_id, moneytransferStatus, timeStart, timeFinish, bankOrderId, sepaOrderStatus, sepaCancellationCode, protocolText, updatedAt
+SELECT id, moneytransfer_id, moneytransferStatus, timeStart, timeFinish, bankOrderId, sepaOrderStatus, sepaCancellationCode,
+    resultStatus, pinOk, scaRequired, vopRequired, vopResult, recipientNameCorrected, protocolText, updatedAt
 FROM moneytransferProtocol
 ORDER BY timeStart DESC, id DESC;
 
 [SQL_SELECT_ALL_MONEYTRANSFER_PROTOCOLS_BY_MONEYTRANSFER]
-SELECT id, moneytransfer_id, moneytransferStatus, timeStart, timeFinish, bankOrderId, sepaOrderStatus, sepaCancellationCode, protocolText, updatedAt
+SELECT id, moneytransfer_id, moneytransferStatus, timeStart, timeFinish, bankOrderId, sepaOrderStatus, sepaCancellationCode,
+    resultStatus, pinOk, scaRequired, vopRequired, vopResult, recipientNameCorrected, protocolText, updatedAt
 FROM moneytransferProtocol
 WHERE moneytransfer_id = ?
 ORDER BY timeStart DESC, id DESC;

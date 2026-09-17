@@ -69,6 +69,8 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 	private String pendingRecipientCheckMessage;
 	private String pendingRecipientCheckDetails;
 	private String confirmedRecipientName;
+	private boolean vopRequired;
+	private VoPStatus vopStatus;
 	private MoneyTransfer currentMoneyTransfer;
 
 	public GBankingHBCICallback(BankAccess bankAccess) {
@@ -219,8 +221,19 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 		return confirmedRecipientName;
 	}
 
+	public boolean isVopRequired() {
+		return vopRequired;
+	}
+
+	public VoPStatus getVopStatus() {
+		return vopStatus;
+	}
+
 	public void setCurrentMoneyTransfer(MoneyTransfer currentMoneyTransfer) {
 		this.currentMoneyTransfer = currentMoneyTransfer;
+		confirmedRecipientName = null;
+		vopRequired = false;
+		vopStatus = null;
 	}
 
 	private void appendFeedback(List<String> messageLines, String details) {
@@ -440,6 +453,7 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 		if (normalized.contains("confirmation of payee") || normalized.contains("zahlungsempf") || normalized.contains("empfängerprüfung")
 				|| normalized.contains("empfaengerpruefung") || normalized.contains("namensprüfung") || normalized.contains("namenspruefung")
 				|| normalized.contains("iban-name")) {
+			vopRequired = true;
 			pendingRecipientCheckMessage = message;
 			pendingRecipientCheckDetails = details;
 		}
@@ -464,6 +478,7 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 
 	private void handleVoPResult(HBCIPassport passport, String message, StringBuilder retData) {
 		confirmedRecipientName = null;
+		vopRequired = true;
 		VoPResult voPResult = extractVoPResult(passport);
 		String details = formatVoPDetails(message, voPResult);
 		if (voPResult == null) {
@@ -474,6 +489,7 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 		}
 
 		VoPStatus status = resolvePrimaryVoPStatus(voPResult);
+		vopStatus = status;
 		if (status == VoPStatus.MATCH) {
 			pendingRecipientCheckMessage = null;
 			pendingRecipientCheckDetails = null;

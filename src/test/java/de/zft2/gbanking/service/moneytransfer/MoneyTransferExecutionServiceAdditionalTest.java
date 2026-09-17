@@ -645,10 +645,11 @@ class MoneyTransferExecutionServiceAdditionalTest {
 				changedTransfer, BankOrderOperation.EDIT, mock(GBankingHBCICallback.class), mock(HBCIExecStatus.class), result, true);
 		LocalDateTime start = LocalDateTime.now();
 		Object communicationState = createCommunicationState(start, start.plusSeconds(1));
+		MoneyTransferProtocolEvaluator.Evaluation evaluation = MoneyTransferProtocolEvaluator.evaluate(true, "accepted", false, null, false);
 		invokePrivate(service, "persistExecutionResult",
 				new Class<?>[] { MoneyTransfer.class, BankOrderOperation.class, boolean.class, communicationState.getClass(),
-						MoneyTransferStatus.class, String.class, bankResponse.getClass() },
-				changedTransfer, BankOrderOperation.EDIT, true, communicationState, MoneyTransferStatus.INVENTORY, "accepted", bankResponse);
+						MoneyTransferStatus.class, MoneyTransferProtocolEvaluator.Evaluation.class, bankResponse.getClass() },
+				changedTransfer, BankOrderOperation.EDIT, true, communicationState, MoneyTransferStatus.INVENTORY, evaluation, bankResponse);
 
 		List<MoneyTransfer> transfers = dbController.getAllByParent(MoneyTransfer.class, account.getId());
 		assertEquals(MoneyTransferStatus.SUPERSEDED,
@@ -768,7 +769,9 @@ class MoneyTransferExecutionServiceAdditionalTest {
 			assertEquals(MoneyTransferStatus.SENT, protocols.get(0).getMoneytransferStatus());
 			assertNotNull(protocols.get(0).getTimeStart());
 			assertNotNull(protocols.get(0).getTimeFinish());
-			assertTrue(protocols.get(0).getProtocolText().contains("HBCI execution status"));
+			assertEquals(de.zft2.gbanking.db.dao.enu.MoneyTransferProtocolResultStatus.SUCCESS, protocols.get(0).getResultStatus());
+			assertTrue(protocols.get(0).isPinOk());
+			assertNull(protocols.get(0).getProtocolText());
 		}
 		ServiceRegistry.removeService(BankingCapabilityService.class);
 	}

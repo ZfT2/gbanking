@@ -34,6 +34,7 @@ class DaoEnumMappingTest {
 		assertSame(MoneyTransferStatus.SUPERSEDED, MoneyTransferStatus.forInt(8));
 		assertSame(MoneyTransferStatus.NOT_IN_BANK_INVENTORY, MoneyTransferStatus.forInt(9));
 		assertSame(MoneyTransferStatus.DELETE_PENDING, MoneyTransferStatus.forInt(10));
+		assertSame(MoneyTransferProtocolResultStatus.ERROR_LIMIT_INSUFFICIENT, MoneyTransferProtocolResultStatus.forInt(3));
 		assertSame(OrderType.STANDING_ORDER, OrderType.forInt(4));
 		assertSame(OrderType.FOREIGN_TRANSFER, OrderType.forInt(5));
 		assertSame(OrderType.URGENT_TRANSFER, OrderType.forInt(6));
@@ -42,6 +43,7 @@ class DaoEnumMappingTest {
 		assertSame(Source.MANUELL_NEW, Source.forInt(14));
 		assertSame(StandingorderMode.QUARTERLY, StandingorderMode.forInt(3));
 		assertSame(TanProcedure.CHIP_TAN, TanProcedure.forInt(8));
+		assertSame(VopResult.OPT_OUT, VopResult.forInt(4));
 	}
 
 	@Test
@@ -65,11 +67,13 @@ class DaoEnumMappingTest {
 		assertUniqueDbStateIds(InstituteStatus.class);
 		assertUniqueDbStateIds(InstituteValidityDateType.class);
 		assertUniqueDbStateIds(MoneyTransferStatus.class);
+		assertUniqueDbStateIds(MoneyTransferProtocolResultStatus.class);
 		assertUniqueDbStateIds(OrderType.class);
 		assertUniqueDbStateIds(ParameterDataType.class);
 		assertUniqueDbStateIds(Source.class);
 		assertUniqueDbStateIds(StandingorderMode.class);
 		assertUniqueDbStateIds(TanProcedure.class);
+		assertUniqueDbStateIds(VopResult.class);
 	}
 
 	@Test

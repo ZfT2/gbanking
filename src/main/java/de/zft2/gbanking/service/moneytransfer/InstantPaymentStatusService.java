@@ -25,6 +25,7 @@ import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.SepaCancellationCode;
 import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
+import de.zft2.gbanking.logging.HbciLogMessageSanitizer;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
@@ -236,9 +237,12 @@ class InstantPaymentStatusService extends AbstractDbService {
 
 	private void persistProtocol(MoneyTransfer moneyTransfer, LocalDateTime start, LocalDateTime finish, HBCIExecStatus executionStatus,
 			HBCIJobResult result, StatusResponse response) {
-		MoneyTransferStatus status = isSuccessful(executionStatus, result) ? moneyTransfer.getMoneytransferStatus() : MoneyTransferStatus.ERROR;
+		boolean successful = isSuccessful(executionStatus, result);
+		MoneyTransferStatus status = successful ? moneyTransfer.getMoneytransferStatus() : MoneyTransferStatus.ERROR;
 		MoneyTransferProtocol protocol = createProtocol(moneyTransfer, status, start, finish, response);
-		protocol.setProtocolText(createProtocolText(executionStatus, result, response));
+		String technicalProtocol = createProtocolText(executionStatus, result, response);
+		logTechnicalProtocol(moneyTransfer, technicalProtocol);
+		MoneyTransferProtocolEvaluator.evaluate(successful, technicalProtocol, false, null, false).applyTo(protocol);
 		dbController.insertOrUpdate(protocol);
 	}
 
@@ -246,8 +250,17 @@ class InstantPaymentStatusService extends AbstractDbService {
 		MoneyTransferProtocol protocol = createProtocol(moneyTransfer, MoneyTransferStatus.ERROR, start,
 				LocalDateTime.now(ZoneId.systemDefault()),
 				new StatusResponse(moneyTransfer.getBankOrderId(), null, null, false, false));
-		protocol.setProtocolText(exception.getClass().getName() + ": " + exception.getMessage());
+		String technicalProtocol = exception.getClass().getName() + ": " + exception.getMessage();
+		logTechnicalProtocol(moneyTransfer, technicalProtocol);
+		MoneyTransferProtocolEvaluator.evaluate(false, technicalProtocol, false, null, false).applyTo(protocol);
 		dbController.insertOrUpdate(protocol);
+	}
+
+	private void logTechnicalProtocol(MoneyTransfer moneyTransfer, String technicalProtocol) {
+		if (log.isDebugEnabled()) {
+			log.debug("Technical instant payment status protocol. transferId={}{}{}", moneyTransfer.getId(), System.lineSeparator(),
+					HbciLogMessageSanitizer.sanitize(technicalProtocol));
+		}
 	}
 
 	private MoneyTransferProtocol createProtocol(MoneyTransfer moneyTransfer, MoneyTransferStatus status, LocalDateTime start,

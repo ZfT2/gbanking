@@ -443,19 +443,20 @@ INSERT INTO moneytransferForeign (
 [SQL_DEMO_INSERT_MONEY_TRANSFER_PROTOCOLS]
 INSERT INTO moneytransferProtocol (
 	 id, moneytransfer_id, moneytransferStatus, timeStart, timeFinish, bankOrderId,
-	 sepaOrderStatus, sepaCancellationCode, protocolText, updatedAt
+	 sepaOrderStatus, sepaCancellationCode, resultStatus, pinOk, scaRequired, vopRequired, vopResult,
+	 recipientNameCorrected, protocolText, updatedAt
 ) VALUES
-	 (942001, 940001, 1, '2026-06-25T10:00:00', '2026-06-25T10:00:01', NULL, NULL, NULL,
+	 (942001, 940001, 1, '2026-06-25T10:00:00', '2026-06-25T10:00:01', NULL, NULL, NULL, 13, 0, 0, 0, NULL, 0,
 	  'Demo-Auftrag wurde lokal gespeichert.', '2026-06-25 10:00:01.000'),
-	 (942002, 940002, 2, '2026-06-20T10:00:00', '2026-06-20T10:00:02', 'DEMO-INSTANT-001', 7, NULL,
+	 (942002, 940002, 2, '2026-06-20T10:00:00', '2026-06-20T10:00:02', 'DEMO-INSTANT-001', 7, NULL, 1, 1, 1, 1, 1, 0,
 	  'Demo-Bankmeldung: Auftrag angenommen.', '2026-06-20 10:00:02.000'),
-	 (942003, 940003, 4, '2026-06-21T10:00:00', '2026-06-21T10:00:03', NULL, NULL, NULL,
+	 (942003, 940003, 4, '2026-06-21T10:00:00', '2026-06-21T10:00:03', NULL, NULL, NULL, 10, 1, 0, 0, NULL, 0,
 	  'Demo-Bankmeldung: Auftrag konnte nicht ausgefuehrt werden.', '2026-06-21 10:00:03.000'),
-	 (942004, 940005, 5, '2026-06-23T10:00:00', '2026-06-23T10:00:04', 'DEMO-STANDING-001', NULL, NULL,
+	 (942004, 940005, 5, '2026-06-23T10:00:00', '2026-06-23T10:00:04', 'DEMO-STANDING-001', NULL, NULL, 1, 1, 0, 0, NULL, 0,
 	  'Demo-Bestand: Dauerauftrag wurde abgeglichen.', '2026-06-23 10:00:04.000'),
-	 (942005, 940006, 8, '2026-02-01T10:00:00', '2026-02-01T10:00:00', 'DEMO-STANDING-001', NULL, NULL,
+	 (942005, 940006, 8, '2026-02-01T10:00:00', '2026-02-01T10:00:00', 'DEMO-STANDING-001', NULL, NULL, 1, 1, 0, 0, NULL, 0,
 	  'Demo-Bestand: Historischer Dauerauftrag.', '2026-02-01 10:00:00.000'),
-	 (942006, 940004, 5, '2026-06-22T10:00:00', '2026-06-22T10:00:00', 'DEMO-SCHEDULED-001', NULL, NULL,
+	 (942006, 940004, 5, '2026-06-22T10:00:00', '2026-06-22T10:00:00', 'DEMO-SCHEDULED-001', NULL, NULL, 1, 1, 0, 0, NULL, 0,
 	  'Demo-Bestand: Terminauftrag wurde abgeglichen.', '2026-06-22 10:00:00.000');
 
 [SQL_DEMO_INSERT_PARAMETER_DATA]

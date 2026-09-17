@@ -27,9 +27,12 @@ import org.apache.logging.log4j.Logger;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.concurrent.ProgressReporter;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
+import de.zft2.gbanking.db.dao.enu.MoneyTransferProtocolResultStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.SepaCancellationCode;
 import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
+import de.zft2.gbanking.db.dao.enu.VopResult;
+import de.zft2.gbanking.enu.LocalizedEnumValue;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.file.exp.FileExportBean.ExportConstants;
 
@@ -129,21 +132,27 @@ public class MoneyTransferCsvImportBean extends MoneyTransferImportBean {
 
 	private ProtocolHeaders resolveProtocolHeaders(Map<String, String> headersByNormalizedName) {
 		String status = header(headersByNormalizedName, ExportConstants.PROTOCOL_STATUS);
+		String resultStatus = header(headersByNormalizedName, ExportConstants.PROTOCOL_RESULT_STATUS);
+		String pinOk = header(headersByNormalizedName, ExportConstants.PROTOCOL_PIN_OK);
+		String scaRequired = header(headersByNormalizedName, ExportConstants.PROTOCOL_SCA_REQUIRED);
+		String vopRequired = header(headersByNormalizedName, ExportConstants.PROTOCOL_VOP_REQUIRED);
+		String vopResult = header(headersByNormalizedName, ExportConstants.PROTOCOL_VOP_RESULT);
+		String recipientNameCorrected = header(headersByNormalizedName, ExportConstants.PROTOCOL_RECIPIENT_NAME_CORRECTED);
 		String timeStart = header(headersByNormalizedName, ExportConstants.PROTOCOL_TIME_START);
 		String timeFinish = header(headersByNormalizedName, ExportConstants.PROTOCOL_TIME_FINISH);
 		String bankOrderId = header(headersByNormalizedName, ExportConstants.PROTOCOL_BANK_ORDER_ID);
 		String sepaOrderStatus = header(headersByNormalizedName, ExportConstants.PROTOCOL_SEPA_ORDER_STATUS);
 		String sepaCancellationCode = header(headersByNormalizedName, ExportConstants.PROTOCOL_SEPA_CANCELLATION_CODE);
 		String protocolText = header(headersByNormalizedName, ExportConstants.PROTOCOL_TEXT);
-		boolean anyProtocolHeader = status != null || timeStart != null || timeFinish != null || bankOrderId != null || sepaOrderStatus != null
-				|| sepaCancellationCode != null || protocolText != null;
-		if (!anyProtocolHeader) {
+		if (!hasAnyValue(status, resultStatus, pinOk, scaRequired, vopRequired, vopResult, recipientNameCorrected, timeStart, timeFinish, bankOrderId,
+				sepaOrderStatus, sepaCancellationCode, protocolText)) {
 			return null;
 		}
 		if (status == null || timeStart == null || timeFinish == null || protocolText == null) {
 			throw new GBankingException(getText("ERROR_MONEYTRANSFER_IMPORT_INVALID_HEADER"));
 		}
-		return new ProtocolHeaders(status, timeStart, timeFinish, bankOrderId, sepaOrderStatus, sepaCancellationCode, protocolText);
+		return new ProtocolHeaders(status, resultStatus, pinOk, scaRequired, vopRequired, vopResult, recipientNameCorrected, timeStart,
+				timeFinish, bankOrderId, sepaOrderStatus, sepaCancellationCode, protocolText);
 	}
 
 	private boolean headerExists(Map<String, String> headersByNormalizedName, ExportConstants header) {
@@ -214,23 +223,67 @@ public class MoneyTransferCsvImportBean extends MoneyTransferImportBean {
 			return List.of();
 		}
 		String status = readField(csvRecord, protocolHeaders.status());
+		String resultStatus = readField(csvRecord, protocolHeaders.resultStatus());
+		String pinOk = readField(csvRecord, protocolHeaders.pinOk());
+		String scaRequired = readField(csvRecord, protocolHeaders.scaRequired());
+		String vopRequired = readField(csvRecord, protocolHeaders.vopRequired());
+		String vopResult = readField(csvRecord, protocolHeaders.vopResult());
+		String recipientNameCorrected = readField(csvRecord, protocolHeaders.recipientNameCorrected());
 		String timeStart = readField(csvRecord, protocolHeaders.timeStart());
 		String timeFinish = readField(csvRecord, protocolHeaders.timeFinish());
 		String bankOrderId = readField(csvRecord, protocolHeaders.bankOrderId());
 		String sepaOrderStatus = readField(csvRecord, protocolHeaders.sepaOrderStatus());
 		String sepaCancellationCode = readField(csvRecord, protocolHeaders.sepaCancellationCode());
 		String protocolText = readField(csvRecord, protocolHeaders.protocolText());
-		if (status == null && timeStart == null && timeFinish == null && bankOrderId == null && sepaOrderStatus == null
-				&& sepaCancellationCode == null && protocolText == null) {
+		if (!hasAnyValue(status, resultStatus, pinOk, scaRequired, vopRequired, vopResult, recipientNameCorrected, timeStart, timeFinish, bankOrderId,
+				sepaOrderStatus, sepaCancellationCode, protocolText)) {
 			return List.of();
 		}
 		return List.of(new ParsedProtocol(parseProtocolStatus(requireField(csvRecord, protocolHeaders.status(),
 				ExportConstants.PROTOCOL_STATUS.toString()), csvRecord),
+				parseLocalizedEnum(resultStatus, MoneyTransferProtocolResultStatus.class, ExportConstants.PROTOCOL_RESULT_STATUS, csvRecord),
+				parseBoolean(pinOk, ExportConstants.PROTOCOL_PIN_OK, csvRecord),
+				parseBoolean(scaRequired, ExportConstants.PROTOCOL_SCA_REQUIRED, csvRecord),
+				parseBoolean(vopRequired, ExportConstants.PROTOCOL_VOP_REQUIRED, csvRecord),
+				parseLocalizedEnum(vopResult, VopResult.class, ExportConstants.PROTOCOL_VOP_RESULT, csvRecord),
+				parseBoolean(recipientNameCorrected, ExportConstants.PROTOCOL_RECIPIENT_NAME_CORRECTED, csvRecord),
 				parseLocalDateTime(requireField(csvRecord, protocolHeaders.timeStart(), ExportConstants.PROTOCOL_TIME_START.toString()), csvRecord,
 						ExportConstants.PROTOCOL_TIME_START.toString()),
 				parseOptionalLocalDateTime(timeFinish, csvRecord, ExportConstants.PROTOCOL_TIME_FINISH.toString()), bankOrderId,
 				parseEnum(sepaOrderStatus, SepaOrderStatus.class, ExportConstants.PROTOCOL_SEPA_ORDER_STATUS, csvRecord),
 				parseEnum(sepaCancellationCode, SepaCancellationCode.class, ExportConstants.PROTOCOL_SEPA_CANCELLATION_CODE, csvRecord), protocolText));
+	}
+
+	private <T extends Enum<T> & LocalizedEnumValue> T parseLocalizedEnum(String value, Class<T> enumType,
+			ExportConstants field, CSVRecord csvRecord) {
+		if (value == null) {
+			return null;
+		}
+		T result = LocalizedEnumValue.forString(enumType, value);
+		if (result == null) {
+			throw invalidFieldValue(csvRecord, field.toString(), value, null);
+		}
+		return result;
+	}
+
+	private Boolean parseBoolean(String value, ExportConstants field, CSVRecord csvRecord) {
+		if (value == null) {
+			return null;
+		}
+		return switch (value.trim().toLowerCase(Locale.ROOT)) {
+		case "true", "1", "ja", "yes" -> Boolean.TRUE;
+		case "false", "0", "nein", "no" -> Boolean.FALSE;
+		default -> throw invalidFieldValue(csvRecord, field.toString(), value, null);
+		};
+	}
+
+	private boolean hasAnyValue(String... values) {
+		for (String value : values) {
+			if (value != null) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private <T extends Enum<T>> T parseEnum(String value, Class<T> enumType, ExportConstants field, CSVRecord csvRecord) {
@@ -275,7 +328,8 @@ public class MoneyTransferCsvImportBean extends MoneyTransferImportBean {
 			String purposeCode, String endToEndId, String senderAccountNumber, ProtocolHeaders protocolHeaders) {
 	}
 
-	private record ProtocolHeaders(String status, String timeStart, String timeFinish, String bankOrderId, String sepaOrderStatus,
+	private record ProtocolHeaders(String status, String resultStatus, String pinOk, String scaRequired, String vopRequired, String vopResult,
+			String recipientNameCorrected, String timeStart, String timeFinish, String bankOrderId, String sepaOrderStatus,
 			String sepaCancellationCode, String protocolText) {
 	}
 

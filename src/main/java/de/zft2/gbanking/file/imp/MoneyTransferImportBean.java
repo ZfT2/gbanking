@@ -19,12 +19,15 @@ import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.Currency;
+import de.zft2.gbanking.db.dao.enu.MoneyTransferProtocolResultStatus;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.SepaCancellationCode;
 import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.db.dao.enu.VopResult;
 import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.service.moneytransfer.MoneyTransferProtocolEvaluator;
 
 public abstract class MoneyTransferImportBean implements BaseMessagesDb {
 
@@ -159,22 +162,39 @@ public abstract class MoneyTransferImportBean implements BaseMessagesDb {
 	private void persistProtocol(MoneyTransfer moneyTransfer, ParsedProtocol parsedProtocol) {
 		MoneyTransferProtocol protocol = new MoneyTransferProtocol(moneyTransfer.getId(), parsedProtocol.moneytransferStatus(),
 				parsedProtocol.timeStart(), parsedProtocol.timeFinish());
+		MoneyTransferProtocolEvaluator.Evaluation evaluation = mergeEvaluation(parsedProtocol);
 		protocol.setBankOrderId(parsedProtocol.bankOrderId());
 		protocol.setSepaOrderStatus(parsedProtocol.sepaOrderStatus());
 		protocol.setSepaCancellationCode(parsedProtocol.sepaCancellationCode());
-		protocol.setProtocolText(parsedProtocol.protocolText());
+		evaluation.applyTo(protocol);
 		dbController.insertOrUpdate(protocol);
+	}
+
+	private MoneyTransferProtocolEvaluator.Evaluation mergeEvaluation(ParsedProtocol protocol) {
+		MoneyTransferProtocolEvaluator.Evaluation legacy = MoneyTransferProtocolEvaluator.evaluateLegacy(protocol.moneytransferStatus(),
+				protocol.protocolText());
+		return new MoneyTransferProtocolEvaluator.Evaluation(protocol.resultStatus() != null ? protocol.resultStatus() : legacy.resultStatus(),
+				protocol.pinOk() != null ? protocol.pinOk() : legacy.pinOk(),
+				protocol.scaRequired() != null ? protocol.scaRequired() : legacy.scaRequired(),
+				protocol.vopRequired() != null ? protocol.vopRequired() : legacy.vopRequired(),
+				protocol.vopResult() != null ? protocol.vopResult() : legacy.vopResult(),
+				protocol.recipientNameCorrected() != null ? protocol.recipientNameCorrected() : legacy.recipientNameCorrected(),
+				legacy.bankResponse());
 	}
 
 	private ProtocolKey toProtocolKey(MoneyTransferProtocol protocol) {
 		return new ProtocolKey(protocol.getMoneytransferStatus(), protocol.getTimeStart(), protocol.getTimeFinish(), protocol.getBankOrderId(),
-				protocol.getSepaOrderStatus(), protocol.getSepaCancellationCode(),
+				protocol.getSepaOrderStatus(), protocol.getSepaCancellationCode(), protocol.getResultStatus(), protocol.isPinOk(),
+				protocol.isScaRequired(), protocol.isVopRequired(), protocol.getVopResult(), protocol.isRecipientNameCorrected(),
 				normalizeText(protocol.getProtocolText()));
 	}
 
 	private ProtocolKey toProtocolKey(ParsedProtocol protocol) {
+		MoneyTransferProtocolEvaluator.Evaluation evaluation = mergeEvaluation(protocol);
 		return new ProtocolKey(protocol.moneytransferStatus(), protocol.timeStart(), protocol.timeFinish(), protocol.bankOrderId(),
-				protocol.sepaOrderStatus(), protocol.sepaCancellationCode(), normalizeText(protocol.protocolText()));
+				protocol.sepaOrderStatus(), protocol.sepaCancellationCode(), evaluation.resultStatus(), evaluation.pinOk(),
+				evaluation.scaRequired(), evaluation.vopRequired(), evaluation.vopResult(), evaluation.recipientNameCorrected(),
+				normalizeText(evaluation.bankResponse()));
 	}
 
 	private TransferKey toTransferKey(ImportCandidate candidate) {
@@ -225,8 +245,10 @@ public abstract class MoneyTransferImportBean implements BaseMessagesDb {
 			OrderType orderType, LocalDate executionDate, List<ParsedProtocol> protocols) {
 	}
 
-	protected record ParsedProtocol(MoneyTransferStatus moneytransferStatus, LocalDateTime timeStart, LocalDateTime timeFinish,
-			String bankOrderId, SepaOrderStatus sepaOrderStatus, SepaCancellationCode sepaCancellationCode, String protocolText) {
+	protected record ParsedProtocol(MoneyTransferStatus moneytransferStatus, MoneyTransferProtocolResultStatus resultStatus, Boolean pinOk,
+			Boolean scaRequired, Boolean vopRequired, VopResult vopResult, Boolean recipientNameCorrected, LocalDateTime timeStart,
+			LocalDateTime timeFinish, String bankOrderId, SepaOrderStatus sepaOrderStatus, SepaCancellationCode sepaCancellationCode,
+			String protocolText) {
 	}
 
 	private record ImportCandidate(BankAccount account, ParsedTransfer transfer) {
@@ -237,6 +259,7 @@ public abstract class MoneyTransferImportBean implements BaseMessagesDb {
 	}
 
 	private record ProtocolKey(MoneyTransferStatus moneytransferStatus, LocalDateTime timeStart, LocalDateTime timeFinish, String bankOrderId,
-			SepaOrderStatus sepaOrderStatus, SepaCancellationCode sepaCancellationCode, String protocolText) {
+			SepaOrderStatus sepaOrderStatus, SepaCancellationCode sepaCancellationCode, MoneyTransferProtocolResultStatus resultStatus,
+			boolean pinOk, boolean scaRequired, boolean vopRequired, VopResult vopResult, boolean recipientNameCorrected, String protocolText) {
 	}
 }

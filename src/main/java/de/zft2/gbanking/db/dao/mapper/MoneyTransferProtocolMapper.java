@@ -8,9 +8,11 @@ import java.time.LocalDateTime;
 
 import de.zft2.gbanking.db.StatementsConfig.ResultType;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
+import de.zft2.gbanking.db.dao.enu.MoneyTransferProtocolResultStatus;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.SepaCancellationCode;
 import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
+import de.zft2.gbanking.db.dao.enu.VopResult;
 import de.zft2.gbanking.util.TypeConverter;
 
 public class MoneyTransferProtocolMapper extends AbstractDaoMapper<MoneyTransferProtocol, Void> {
@@ -32,8 +34,14 @@ public class MoneyTransferProtocolMapper extends AbstractDaoMapper<MoneyTransfer
 		ps.setString(5, protocol.getBankOrderId());
 		setEnumNullable(6, protocol.getSepaOrderStatus(), ps);
 		setEnumNullable(7, protocol.getSepaCancellationCode(), ps);
-		ps.setString(8, protocol.getProtocolText());
-		ps.setTimestamp(9, TypeConverter.toSqlTimestampNow());
+		ps.setInt(8, protocol.getResultStatus().getDbStateId());
+		ps.setBoolean(9, protocol.isPinOk());
+		ps.setBoolean(10, protocol.isScaRequired());
+		ps.setBoolean(11, protocol.isVopRequired());
+		setEnumNullable(12, protocol.getVopResult(), ps);
+		ps.setBoolean(13, protocol.isRecipientNameCorrected());
+		ps.setString(14, protocol.getProtocolText());
+		ps.setTimestamp(15, TypeConverter.toSqlTimestampNow());
 	}
 
 	@Override
@@ -45,6 +53,12 @@ public class MoneyTransferProtocolMapper extends AbstractDaoMapper<MoneyTransfer
 		protocol.setBankOrderId(rs.getString("bankOrderId"));
 		protocol.setSepaOrderStatus(getEnumNullable("sepaOrderStatus", SepaOrderStatus.class, rs));
 		protocol.setSepaCancellationCode(getEnumNullable("sepaCancellationCode", SepaCancellationCode.class, rs));
+		protocol.setResultStatus(MoneyTransferProtocolResultStatus.forInt(rs.getInt("resultStatus")));
+		protocol.setPinOk(rs.getBoolean("pinOk"));
+		protocol.setScaRequired(rs.getBoolean("scaRequired"));
+		protocol.setVopRequired(rs.getBoolean("vopRequired"));
+		protocol.setVopResult(getEnumNullable("vopResult", VopResult.class, rs));
+		protocol.setRecipientNameCorrected(rs.getBoolean("recipientNameCorrected"));
 		protocol.setProtocolText(rs.getString("protocolText"));
 	}
 

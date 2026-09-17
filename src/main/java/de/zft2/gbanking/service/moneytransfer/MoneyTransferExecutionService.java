@@ -36,6 +36,7 @@ import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
 import de.zft2.gbanking.db.dao.enu.StandingorderMode;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
+import de.zft2.gbanking.logging.HbciLogMessageSanitizer;
 import de.zft2.gbanking.logging.SensitiveDataMasker;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.BankingCapabilityService;
@@ -101,8 +102,10 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 					: communicationState.finish;
 			if (communicationState.start != null) {
 				applyFailedOperationStatus(moneyTransfer, operation);
-				persistExecutionResult(moneyTransfer, operation, false, communicationState,
-						MoneyTransferStatus.ERROR, createProtocolText(communicationState.status, communicationState.jobResult, ex), BankResponseData.EMPTY);
+				String technicalProtocol = createProtocolText(communicationState.status, communicationState.jobResult, ex);
+				logTechnicalProtocol(moneyTransfer, technicalProtocol);
+				persistExecutionResult(moneyTransfer, operation, false, communicationState, MoneyTransferStatus.ERROR,
+						MoneyTransferProtocolEvaluator.evaluate(false, technicalProtocol, false, null, false), BankResponseData.EMPTY);
 			}
 			log.error("Money transfer execution failed. transferId={}, type={}, accountId={}", moneyTransfer.getId(), moneyTransfer.getOrderType(),
 					transferAccount.getId(), ex);
@@ -178,12 +181,15 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		communicationState.jobResult = job.getJobResult();
 
 		boolean result = communicationState.status.isOK() && (communicationState.jobResult == null || communicationState.jobResult.isOK());
-		applyRecipientNameFromVoP(moneyTransfer, session.callback());
+		boolean recipientNameCorrected = applyRecipientNameFromVoP(moneyTransfer, session.callback());
 		BankResponseData bankResponse = updateMoneyTransferAfterExecution(moneyTransfer, operation, session.callback(), communicationState.status,
 				communicationState.jobResult, result);
+		String technicalProtocol = createProtocolText(communicationState.status, communicationState.jobResult, null);
+		logTechnicalProtocol(moneyTransfer, technicalProtocol);
 		persistExecutionResult(moneyTransfer, operation, result, communicationState,
 				result ? moneyTransfer.getMoneytransferStatus() : MoneyTransferStatus.ERROR,
-				createProtocolText(communicationState.status, communicationState.jobResult, null), bankResponse);
+				MoneyTransferProtocolEvaluator.evaluate(result, technicalProtocol, session.callback().isVopRequired(),
+						session.callback().getVopStatus(), recipientNameCorrected), bankResponse);
 		if (result && operation == BankOrderOperation.CREATE && moneyTransfer.getOrderType() == OrderType.REALTIME_TRANSFER) {
 			instantPaymentStatusService.retrieveStatusIfNecessary(session.handler(), session.callback(), moneyTransfer, hbciSenderAccount,
 					bankResponse.sepaOrderStatus(), communicationState.jobResult);
@@ -397,11 +403,11 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		return iban != null && iban.length() >= 2 ? iban.substring(0, 2).toUpperCase(Locale.ROOT) : null;
 	}
 
-	private void applyRecipientNameFromVoP(MoneyTransfer moneyTransfer, GBankingHBCICallback hbciCallback) {
+	private boolean applyRecipientNameFromVoP(MoneyTransfer moneyTransfer, GBankingHBCICallback hbciCallback) {
 		String confirmedRecipientName = trimToNull(hbciCallback.getConfirmedRecipientName());
 		Recipient currentRecipient = moneyTransfer.getRecipient();
 		if (confirmedRecipientName == null || currentRecipient == null || confirmedRecipientName.equals(currentRecipient.getName())) {
-			return;
+			return false;
 		}
 
 		Recipient confirmedRecipient = createConfirmedRecipient(currentRecipient, confirmedRecipientName);
@@ -409,6 +415,7 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		moneyTransfer.setRecipient(persistedRecipient);
 		moneyTransfer.setRecipientId(persistedRecipient.getId());
 		log.info("Updated money transfer recipient after VOP confirmation. transferId={}, recipientId={}", moneyTransfer.getId(), persistedRecipient.getId());
+		return true;
 	}
 
 	private Recipient createConfirmedRecipient(Recipient currentRecipient, String confirmedRecipientName) {
@@ -549,7 +556,7 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 	}
 
 	private void persistExecutionResult(MoneyTransfer moneyTransfer, BankOrderOperation operation, boolean success,
-			CommunicationState communicationState, MoneyTransferStatus protocolStatus, String protocolText,
+			CommunicationState communicationState, MoneyTransferStatus protocolStatus, MoneyTransferProtocolEvaluator.Evaluation evaluation,
 			BankResponseData bankResponse) {
 		dbController.executeInTransaction(() -> {
 			if (success && operation == BankOrderOperation.EDIT) {
@@ -557,7 +564,7 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 			}
 			dbController.insertOrUpdate(moneyTransfer);
 			saveProtocol(moneyTransfer, communicationState.start, communicationState.finish, protocolStatus,
-					protocolText, bankResponse);
+					evaluation, bankResponse);
 		});
 	}
 
@@ -576,7 +583,7 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 	}
 
 	private void saveProtocol(MoneyTransfer moneyTransfer, LocalDateTime start, LocalDateTime finish, MoneyTransferStatus protocolStatus,
-			String protocolText, BankResponseData bankResponse) {
+			MoneyTransferProtocolEvaluator.Evaluation evaluation, BankResponseData bankResponse) {
 		if (start == null || moneyTransfer.getId() <= 0) {
 			return;
 		}
@@ -585,9 +592,16 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		protocol.setBankOrderId(firstNonBlank(bankResponse.bankOrderId(), moneyTransfer.getBankOrderId()));
 		protocol.setSepaOrderStatus(bankResponse.sepaOrderStatus());
 		protocol.setSepaCancellationCode(bankResponse.sepaCancellationCode());
-		protocol.setProtocolText(protocolText);
+		evaluation.applyTo(protocol);
 		dbController.insertOrUpdate(protocol);
 		log.debug("Saved money transfer protocol for transferId={}, status={}", moneyTransfer.getId(), moneyTransfer.getMoneytransferStatus());
+	}
+
+	private void logTechnicalProtocol(MoneyTransfer moneyTransfer, String technicalProtocol) {
+		if (log.isDebugEnabled()) {
+			log.debug("Technical money transfer protocol. transferId={}{}{}", moneyTransfer.getId(), System.lineSeparator(),
+					HbciLogMessageSanitizer.sanitize(technicalProtocol));
+		}
 	}
 
 	private String createProtocolText(HBCIExecStatus status, HBCIJobResult jobResult, Exception exception) {

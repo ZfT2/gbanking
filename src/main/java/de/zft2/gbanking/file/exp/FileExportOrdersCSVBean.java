@@ -99,6 +99,12 @@ public class FileExportOrdersCSVBean extends FileExportBean {
 				getTechnicalName(safeRecipient.getSource()),
 
 				protocol != null ? getTechnicalName(protocol.getMoneytransferStatus()) : null,
+				protocol != null && protocol.getResultStatus() != null ? protocol.getResultStatus().name() : null,
+				protocol != null ? protocol.isPinOk() : null,
+				protocol != null ? protocol.isScaRequired() : null,
+				protocol != null ? protocol.isVopRequired() : null,
+				protocol != null && protocol.getVopResult() != null ? protocol.getVopResult().name() : null,
+				protocol != null ? protocol.isRecipientNameCorrected() : null,
 				protocol != null ? protocol.getTimeStart() : null,
 				protocol != null ? protocol.getTimeFinish() : null,
 				protocol != null ? protocol.getBankOrderId() : null,
@@ -136,6 +142,10 @@ public class FileExportOrdersCSVBean extends FileExportBean {
 				ExportConstants.STATE.toString(), ExportConstants.RECIPIENT_NAME.toString(), ExportConstants.RECIPIENT_IBAN.toString(),
 				ExportConstants.RECIPIENT_BIC.toString(), ExportConstants.RECIPIENT_ACCOUNT_NUMBER.toString(), ExportConstants.BLZ.toString(),
 				ExportConstants.NOTICE.toString(), ExportConstants.RECIPIENT_SOURCE.toString(), ExportConstants.PROTOCOL_STATUS.toString(),
+				ExportConstants.PROTOCOL_RESULT_STATUS.toString(), ExportConstants.PROTOCOL_PIN_OK.toString(),
+				ExportConstants.PROTOCOL_SCA_REQUIRED.toString(),
+				ExportConstants.PROTOCOL_VOP_REQUIRED.toString(), ExportConstants.PROTOCOL_VOP_RESULT.toString(),
+				ExportConstants.PROTOCOL_RECIPIENT_NAME_CORRECTED.toString(),
 				ExportConstants.PROTOCOL_TIME_START.toString(), ExportConstants.PROTOCOL_TIME_FINISH.toString(),
 				ExportConstants.PROTOCOL_BANK_ORDER_ID.toString(), ExportConstants.PROTOCOL_SEPA_ORDER_STATUS.toString(),
 				ExportConstants.PROTOCOL_SEPA_CANCELLATION_CODE.toString(), ExportConstants.PROTOCOL_TEXT.toString());
