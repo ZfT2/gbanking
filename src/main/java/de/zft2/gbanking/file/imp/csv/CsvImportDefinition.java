@@ -15,13 +15,15 @@ public final class CsvImportDefinition {
 	private static final String EXTRA_HEADER = "extra.header";
 
 	private final String name;
+	private final CsvImportDefinitionType type;
 	private final Map<CsvImportTarget, List<String>> mappings;
 	private final Map<String, String> options;
 	private final Set<String> definedHeaders;
 	private final List<String> extraHeaders;
 
-	CsvImportDefinition(String name, Map<String, String> properties) {
+	CsvImportDefinition(String name, CsvImportDefinitionType type, Map<String, String> properties) {
 		this.name = name;
+		this.type = type;
 		Map<CsvImportTarget, List<String>> targetMappings = new EnumMap<>(CsvImportTarget.class);
 		Map<String, String> definitionOptions = new LinkedHashMap<>();
 		Set<String> headers = new LinkedHashSet<>();
@@ -56,6 +58,10 @@ public final class CsvImportDefinition {
 		return name;
 	}
 
+	public CsvImportDefinitionType getType() {
+		return type;
+	}
+
 	public List<String> getSourceFields(CsvImportTarget target) {
 		return mappings.getOrDefault(target, List.of());
 	}
@@ -65,7 +71,11 @@ public final class CsvImportDefinition {
 	}
 
 	public Set<String> getRequiredHeaders() {
-		return Set.copyOf(getSourceFields(CsvImportTarget.AMOUNT));
+		Set<String> headers = new LinkedHashSet<>();
+		for (CsvImportTarget target : type.getRequiredTargets()) {
+			headers.addAll(getSourceFields(target));
+		}
+		return Set.copyOf(headers);
 	}
 
 	public List<String> getExtraHeaders() {

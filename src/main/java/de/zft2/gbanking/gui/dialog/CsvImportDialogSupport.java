@@ -14,6 +14,7 @@ import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer;
 import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer.Analysis;
 import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer.Match;
 import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer.Problem;
+import de.zft2.gbanking.file.imp.csv.CsvImportDefinitionType;
 import de.zft2.gbanking.messages.Messages;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonBar;
@@ -49,6 +50,21 @@ public final class CsvImportDialogSupport {
 			targetAccount = selectedAccount.get();
 		}
 		return Optional.of(new Selection(selectedMatch.get().definition().getName(), targetAccount));
+	}
+
+	public static Optional<StockSelection> prepareStock(Window owner, Path importFile) throws IOException {
+		Analysis analysis = new CsvImportAnalyzer().analyzeStock(importFile);
+		if (analysis.problem() != null) {
+			showProblem(owner, analysis);
+			return Optional.empty();
+		}
+
+		Optional<Match> selectedMatch = selectMatch(owner, analysis.matches());
+		if (selectedMatch.isEmpty() || !confirmHeaderDifferences(owner, selectedMatch.get())) {
+			return Optional.empty();
+		}
+		Match match = selectedMatch.get();
+		return Optional.of(new StockSelection(match.definition().getName(), match.definition().getType()));
 	}
 
 	private static void showProblem(Window owner, Analysis analysis) {
@@ -129,5 +145,8 @@ public final class CsvImportDialogSupport {
 	}
 
 	public record Selection(String definitionName, BankAccount account) {
+	}
+
+	public record StockSelection(String definitionName, CsvImportDefinitionType definitionType) {
 	}
 }

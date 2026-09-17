@@ -1,6 +1,7 @@
 package de.zft2.gbanking.hbci;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -19,6 +20,7 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 import de.zft2.gbanking.db.dao.BankAccess;
+import de.zft2.gbanking.db.dao.enu.TanProcedure;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.dialog.hbci.HbciCallbackMessageDialog;
 
@@ -75,6 +77,42 @@ class GBankingHBCICallbackTest {
 			assertEquals("900", retData.toString());
 			verify(dialog, never()).requestSelection(Mockito.anyString(), Mockito.anyString(), Mockito.anyList(), Mockito.anyString(), Mockito.anyString());
 		}
+	}
+
+	@Test
+	void needPtSecMechShouldReuseSelectionForSameBankAccessWithinRetrievalScope() {
+		try (MockedStatic<DialogWindowSupport> dialogSupportMock = mockStatic(DialogWindowSupport.class);
+				MockedConstruction<HbciCallbackMessageDialog> dialogConstruction = Mockito.mockConstruction(
+						HbciCallbackMessageDialog.class, (mock, context) -> when(mock.requestSelection(Mockito.anyString(),
+								Mockito.anyString(), Mockito.anyList(), Mockito.anyString(), Mockito.anyString()))
+								.thenReturn("907"));
+				GBankingHBCICallback.SecurityMechanismSelectionScope ignored =
+						GBankingHBCICallback.openSecurityMechanismSelectionScope()) {
+			dialogSupportMock.when(DialogWindowSupport::findBestOwnerWindow).thenReturn(Optional.empty());
+			BankAccess firstAccess = bankAccess(42);
+			BankAccess secondAccess = bankAccess(42);
+			GBankingHBCICallback firstCallback = new GBankingHBCICallback(firstAccess);
+			GBankingHBCICallback secondCallback = new GBankingHBCICallback(secondAccess);
+			StringBuffer firstResult = new StringBuffer("906:iTAN-Card|907:flateXSecure");
+			StringBuffer secondResult = new StringBuffer("906:iTAN-Card|907:flateXSecure");
+
+			firstCallback.callback(null, GBankingHBCICallback.NEED_PT_SECMECH, "Sicherheitsverfahren", 0, firstResult);
+			secondCallback.callback(null, GBankingHBCICallback.NEED_PT_SECMECH, "Sicherheitsverfahren", 0, secondResult);
+
+			assertEquals("907", firstResult.toString());
+			assertEquals("907", secondResult.toString());
+			assertSame(TanProcedure.APP_TAN, firstAccess.getFints().getTanProcedure());
+			verify(dialogConstruction.constructed().get(0)).requestSelection(Mockito.anyString(), Mockito.anyString(),
+					Mockito.anyList(), Mockito.anyString(), Mockito.anyString());
+			verify(dialogConstruction.constructed().get(1), never()).requestSelection(Mockito.anyString(), Mockito.anyString(),
+					Mockito.anyList(), Mockito.anyString(), Mockito.anyString());
+		}
+	}
+
+	private BankAccess bankAccess(int id) {
+		BankAccess access = new BankAccess();
+		access.setId(id);
+		return access;
 	}
 
 	@Test

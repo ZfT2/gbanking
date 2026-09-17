@@ -45,6 +45,10 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 		this(selectionTarget, AccountListScope.FOLLOW_VIEW_SETTING, UI_PANEL_ACCOUNT);
 	}
 
+	public AccountListPanel(AccountSelectionTarget selectionTarget, AccountListScope accountListScope) {
+		this(selectionTarget, accountListScope, UI_PANEL_ACCOUNT);
+	}
+
 	public AccountListPanel(AccountSelectionTarget selectionTarget, AccountListScope accountListScope, String panelTitleKey) {
 		this(selectionTarget, accountListScope, panelTitleKey, createModel(accountListScope));
 	}
@@ -254,7 +258,7 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 	}
 
 	private static List<BankAccount> loadAccounts(AccountListScope accountListScope) {
-		List<BankAccount> accounts = accountListScope == AccountListScope.ONLINE_ONLY || GuiContext.isOnlyOnlineAccountsVisible()
+		List<BankAccount> accounts = accountListScope.usesOnlineFilter(GuiContext.isOnlyOnlineAccountsVisible())
 				? DBController.getInstance(".").getAll(BankAccount.class, SQL_SELECT_ALL_ONLINE_BANKACCOUNTS)
 				: DBController.getInstance(".").getAll(BankAccount.class);
 		return accounts.stream().filter(AccountListPanel::isGeneralAccount).toList();

@@ -10,7 +10,10 @@ import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
+import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.file.imp.csv.CsvImportDefinitionType;
 import de.zft2.gbanking.gui.dialog.CsvImportDialogSupport;
+import de.zft2.gbanking.gui.dialog.CsvImportDialogSupport.StockSelection;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.dialog.MoneyTransferImportStatusDialog;
 import de.zft2.gbanking.gui.dialog.stock.PortfolioPerformanceImportMappingDialog;
@@ -114,12 +117,46 @@ final class FileTransferCoordinator implements BaseGui {
 			if (importType == ExportType.STOCK_PP_XML && assignments == null) {
 				return;
 			}
-			startStockFileOperation(importFile, importType, portfolio, true, assignments, overviewPanel);
+			startStockFileOperation(importFile, importType, portfolio, true, assignments, null, overviewPanel);
 		} catch (IOException | RuntimeException exception) {
 			log.error("Portfolio Performance import preparation failed. type={}, file={}",
 					importType, fileName(importFile), exception);
 			showWarning(owner, exception.getMessage());
 		}
+	}
+
+	void processStockCsvImport() {
+		StockPortfolioOverviewPanel overviewPanel = stockOverview();
+		PortfolioSummary portfolio = overviewPanel != null ? overviewPanel.getSelectedPortfolio() : null;
+		if (portfolio == null) {
+			showWarning(owner, getText("ALERT_STOCK_PP_PORTFOLIO_REQUIRED"));
+			return;
+		}
+		Path importFile = chooseImportFile(FileType.CSV);
+		if (importFile == null) {
+			return;
+		}
+		try {
+			Optional<StockSelection> selection = CsvImportDialogSupport.prepareStock(owner, importFile);
+			if (selection.isPresent()) {
+				StockSelection selected = selection.get();
+				startStockFileOperation(importFile, stockExportType(selected.definitionType()), portfolio, true, null,
+						selected.definitionName(), overviewPanel);
+			}
+		} catch (IOException | RuntimeException exception) {
+			log.error("CSV stock import preparation failed. file={}", fileName(importFile), exception);
+			showWarning(owner, exception.getMessage());
+		}
+	}
+
+	private ExportType stockExportType(CsvImportDefinitionType type) {
+		return switch (type) {
+		case STOCK_PORTFOLIO_TRANSACTION -> ExportType.STOCK_PP_TRANSACTIONS_CSV;
+		case STOCK_ACCOUNT_TRANSACTION -> ExportType.STOCK_PP_ACCOUNT_TRANSACTIONS_CSV;
+		case STOCK_SECURITY -> ExportType.STOCK_PP_SECURITIES_CSV;
+		case STOCK_SECURITY_PRICE -> ExportType.STOCK_PP_PRICES_CSV;
+		default -> throw new GBankingException("Unbekannter CSV-Importtyp: " + type);
+		};
 	}
 
 	private XmlImportAssignments prepareXmlAssignments(Path file, ExportType importType,
@@ -157,7 +194,7 @@ final class FileTransferCoordinator implements BaseGui {
 		}
 		Path exportFile = chooseExportFile(exportType.getFileType());
 		if (exportFile != null) {
-			startStockFileOperation(exportFile, exportType, portfolio, false, null, overviewPanel);
+			startStockFileOperation(exportFile, exportType, portfolio, false, null, null, overviewPanel);
 		}
 	}
 
@@ -254,9 +291,10 @@ final class FileTransferCoordinator implements BaseGui {
 	}
 
 	private void startStockFileOperation(Path file, ExportType type, PortfolioSummary portfolio,
-			boolean importOperation, XmlImportAssignments assignments, StockPortfolioOverviewPanel overviewPanel) {
+			boolean importOperation, XmlImportAssignments assignments, String csvDefinitionName,
+			StockPortfolioOverviewPanel overviewPanel) {
 		PortfolioPerformanceFileProgressBarPanel progressPanel = new PortfolioPerformanceFileProgressBarPanel(owner,
-				portfolio, importOperation, assignments,
+				portfolio, importOperation, assignments, csvDefinitionName,
 				importOperation ? () -> refreshStockImportViews(overviewPanel) : null);
 		Stage progressWindow = progressPanel.createNewFileImportProgressBarWindow();
 		progressPanel.startTask(file.toString(), type, null);

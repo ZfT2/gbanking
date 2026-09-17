@@ -27,6 +27,7 @@ class DaoEnumMappingTest {
 		assertSame(DataType.BIGDECIMAL, DataType.forInt(4));
 		assertSame(HbciEncodingFilterType.BASE64, HbciEncodingFilterType.forInt(1));
 		assertSame(InstituteStatus.DUPLICATE, InstituteStatus.forInt(2));
+		assertSame(InstituteValidityDateType.FILE_MONTH, InstituteValidityDateType.forInt(4));
 		assertSame(MoneyTransferStatus.ERROR, MoneyTransferStatus.forInt(4));
 		assertSame(MoneyTransferStatus.INVENTORY, MoneyTransferStatus.forInt(5));
 		assertSame(MoneyTransferStatus.DELETED, MoneyTransferStatus.forInt(6));
@@ -62,6 +63,7 @@ class DaoEnumMappingTest {
 		assertUniqueDbStateIds(DataType.class);
 		assertUniqueDbStateIds(HbciEncodingFilterType.class);
 		assertUniqueDbStateIds(InstituteStatus.class);
+		assertUniqueDbStateIds(InstituteValidityDateType.class);
 		assertUniqueDbStateIds(MoneyTransferStatus.class);
 		assertUniqueDbStateIds(OrderType.class);
 		assertUniqueDbStateIds(ParameterDataType.class);
@@ -83,6 +85,8 @@ class DaoEnumMappingTest {
 		assertSame(Source.IMPORT, Source.forString(Source.IMPORT.toString()));
 		assertSame(StandingorderMode.MONTHLY, StandingorderMode.forString(StandingorderMode.MONTHLY.toString()));
 		assertSame(TanProcedure.APP_TAN, TanProcedure.forCode(999));
+		assertSame(TanProcedure.I_TAN, TanProcedure.forCode(906));
+		assertSame(TanProcedure.APP_TAN, TanProcedure.forCode(907));
 		assertTrue(TanProcedure.PHOTO_TAN.getCodes().containsAll(List.of(900, 902, 903, 932)));
 		assertEquals(List.of(TanProcedure.PUSH_TAN), TanProcedure.forCodeAndDescription(921, "pushTAN"));
 		assertEquals(List.of(TanProcedure.BESTSIGN), TanProcedure.forCodeAndDescription(921, "BestSign-Push"));

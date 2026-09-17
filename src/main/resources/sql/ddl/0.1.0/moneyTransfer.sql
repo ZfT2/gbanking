@@ -55,7 +55,7 @@ CREATE INDEX IF NOT EXISTS idx_moneytransfer_history ON moneytransfer (historyor
 CREATE TABLE moneytransferForeign (
   id INTEGER PRIMARY KEY,
   moneytransfer_id INTEGER NOT NULL UNIQUE,
-  currency TEXT NOT NULL,
+  currency INTEGER NOT NULL,
   recipientCountry TEXT,
   recipientAccountNumber TEXT,
   recipientBankCode TEXT,
@@ -70,6 +70,7 @@ CREATE TABLE moneytransferForeign (
   endToEndReference TEXT,
   updatedAt TEXT NOT NULL,
   FOREIGN KEY(moneytransfer_id) REFERENCES moneytransfer(id) ON DELETE CASCADE,
+  CHECK (currency BETWEEN 1 AND 40),
   CHECK (chargeBearer BETWEEN 1 AND 3));
 
 ;

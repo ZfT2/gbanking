@@ -1,21 +1,3 @@
-[SQL_SETUP_CREATE_STOCK_NUMERIC_SCALE]
-CREATE TABLE stockNumericScale (
-  valueType INTEGER PRIMARY KEY,
-  scaleDigits INTEGER NOT NULL,
-  scaleFactor INTEGER NOT NULL,
-  description TEXT NOT NULL,
-  CHECK (valueType BETWEEN 1 AND 4),
-  CHECK (scaleDigits BETWEEN 0 AND 18),
-  CHECK (scaleFactor > 0));
-
-[SQL_SETUP_INSERT_STOCK_NUMERIC_SCALE]
-INSERT INTO stockNumericScale (valueType, scaleDigits, scaleFactor, description)
-VALUES
-  (1, 9, 1000000000, 'Stueckzahl oder Nominale'),
-  (2, 8, 100000000, 'Absoluter oder prozentualer Kurs'),
-  (3, 9, 1000000000, 'Zins- oder Prozentsatz'),
-  (4, 12, 1000000000000, 'Wechselkurs oder Anpassungsfaktor');
-
 [SQL_SETUP_CREATE_STOCK_DATA_SOURCE]
 CREATE TABLE stockDataSource (
   id INTEGER PRIMARY KEY,
@@ -631,7 +613,7 @@ CREATE TABLE stockPortfolioStatementSubBalance (
   locked INTEGER NOT NULL DEFAULT 0,
   lockedUntil TEXT,
   custodyCountry TEXT,
-  custodyType TEXT,
+  custodyType INTEGER,
   custodyPlace TEXT,
   comment TEXT,
   createdAt TEXT NOT NULL,
@@ -639,6 +621,7 @@ CREATE TABLE stockPortfolioStatementSubBalance (
   CHECK (qualifier BETWEEN 1 AND 5),
   CHECK (locked IN (0, 1)),
   CHECK (locked = 1 OR lockedUntil IS NULL),
+  CHECK (custodyType IS NULL OR custodyType IN (1, 2, 3, 4, 9)),
   CHECK (custodyCountry IS NULL OR LENGTH(custodyCountry) = 2));
 
 [SQL_SETUP_CREATE_TRIGGER_STOCK_PORTFOLIO_STATEMENT_BLOCK_UPDATE]

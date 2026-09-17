@@ -37,6 +37,27 @@ class GBankingMenuBarTest implements BaseMessages {
 		});
 	}
 
+	@Test
+	void fileMenuShouldGroupStockCsvImportAndPortfolioPerformanceExports() {
+		JavaFxTestSupport.runFx(() -> {
+			GBankingMenuBar menuBar = new GBankingMenuBar(mock(GBankingGui.class), null,
+					mock(BankingCapabilityService.class));
+			Menu fileMenu = findMenu(menuBar.getMenus(), "UI_MENU_FILE");
+			Menu importMenu = findMenu(fileMenu.getItems(), "UI_MENU_FILE_IMPORT");
+			Menu importStockMenu = findMenu(importMenu.getItems(), "UI_MENU_FILE_STOCK_PORTFOLIOS");
+			assertEquals(List.of(getText("UI_MENU_FILE_CSV_FORMATS"), getText("UI_MENU_FILE_PP_XML")),
+					importStockMenu.getItems().stream().map(MenuItem::getText).toList());
+
+			Menu exportMenu = findMenu(fileMenu.getItems(), "UI_MENU_FILE_EXPORT");
+			Menu exportStockMenu = findMenu(exportMenu.getItems(), "UI_MENU_FILE_STOCK_PORTFOLIOS");
+			Menu portfolioPerformance = findMenu(exportStockMenu.getItems(), "UI_MENU_FILE_PORTFOLIO_PERFORMANCE");
+			assertEquals(List.of(getText("UI_MENU_FILE_PP_PORTFOLIO_TRANSACTIONS"),
+					getText("UI_MENU_FILE_PP_ACCOUNT_TRANSACTIONS"), getText("UI_MENU_FILE_PP_SECURITIES"),
+					getText("UI_MENU_FILE_PP_PRICES")),
+					portfolioPerformance.getItems().stream().map(MenuItem::getText).toList());
+		});
+	}
+
 	private Menu findMenu(List<? extends MenuItem> items, String messageKey) {
 		return items.stream().filter(Menu.class::isInstance).map(Menu.class::cast)
 				.filter(menu -> getText(messageKey).equals(menu.getText())).findFirst().orElseThrow();

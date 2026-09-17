@@ -39,7 +39,25 @@ public enum CsvImportTarget {
 	CREDITCARD_MERCHANT_AREA("Kreditkarte.Haendlerregion"),
 	CREDITCARD_MERCHANT_CATEGORY("Kreditkarte.Haendlerkategorie"),
 	FEE_AMOUNT("Gebuehr.Betrag"),
-	FEE_CURRENCY("Gebuehr.Waehrung");
+	FEE_CURRENCY("Gebuehr.Waehrung"),
+	STOCK_DATE("Transaktion.Datum"),
+	STOCK_TRANSACTION_TYPE("Transaktion.Typ"),
+	STOCK_VALUE("Transaktion.Wert"),
+	STOCK_BOOKING_CURRENCY("Transaktion.Buchungswaehrung"),
+	STOCK_GROSS_VALUE("Transaktion.Bruttobetrag"),
+	STOCK_GROSS_CURRENCY("Transaktion.Bruttowaehrung"),
+	STOCK_EXCHANGE_RATE("Transaktion.Wechselkurs"),
+	STOCK_FEES("Transaktion.Gebuehren"),
+	STOCK_TAXES("Transaktion.Steuern"),
+	STOCK_QUANTITY("Transaktion.Stueck"),
+	STOCK_NOTE("Transaktion.Notiz"),
+	SECURITY_NAME("Wertpapier.Name"),
+	SECURITY_CURRENCY("Wertpapier.Waehrung"),
+	SECURITY_ISIN("Wertpapier.Isin"),
+	SECURITY_WKN("Wertpapier.Wkn"),
+	SECURITY_TICKER("Wertpapier.Ticker"),
+	SECURITY_PROVIDER("Wertpapier.Anbieter"),
+	STOCK_PRICE_DATE("Wertpapierkurs.Datum");
 
 	private static final Map<String, CsvImportTarget> TARGETS_BY_PROPERTY = createTargetMap();
 

@@ -35,10 +35,12 @@ import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.Currency;
+import de.zft2.gbanking.db.dao.enu.StockCustodyType;
 import de.zft2.gbanking.db.dao.enu.StockDataSourceType;
 import de.zft2.gbanking.db.dao.enu.StockIdentifierType;
 import de.zft2.gbanking.db.dao.enu.StockImportRecordStatus;
 import de.zft2.gbanking.db.dao.enu.StockImportStatus;
+import de.zft2.gbanking.db.dao.enu.StockNumericValueType;
 import de.zft2.gbanking.db.dao.enu.StockPriceBasis;
 import de.zft2.gbanking.db.dao.enu.StockPriceType;
 import de.zft2.gbanking.db.dao.enu.StockQuantityType;
@@ -85,9 +87,9 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 	private static final String FINTS_FORMAT = "MT535";
 	private static final String FINTS_IMPORTER_VERSION = "1";
 	private static final String PORTFOLIO_JOB = "WPDepotList";
-	private static final int QUANTITY_SCALE = 9;
-	private static final int PRICE_SCALE = 8;
-	private static final int EXCHANGE_RATE_SCALE = 12;
+	private static final int QUANTITY_SCALE = StockNumericValueType.QUANTITY.getScaleDigits();
+	private static final int PRICE_SCALE = StockNumericValueType.PRICE.getScaleDigits();
+	private static final int EXCHANGE_RATE_SCALE = StockNumericValueType.FACTOR.getScaleDigits();
 	private static final Set<String> SECURITY_QUANTITY_UNITS = Set.of("STK", "STCK");
 
 	private final StockPortfolioService portfolioService = ServiceRegistry.getService(StockPortfolioService.class);
@@ -396,7 +398,7 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 			target.setLocked(source.locked);
 			target.setLockedUntil(source.locked ? toLocalDate(source.lockeduntil) : null);
 			target.setCustodyCountry(normalizeCountry(source.country));
-			target.setCustodyType(custodyType(source.verwahrung));
+			target.setCustodyType(StockCustodyType.forInt(source.verwahrung));
 			target.setCustodyPlace(trimToNull(source.lager));
 			target.setComment(trimToNull(source.comment));
 			dbController.insertOrUpdate(target);
@@ -914,17 +916,6 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 	private static String normalizeMic(String value) {
 		String normalized = trimToNull(value);
 		return normalized != null && normalized.length() == 4 ? normalized.toUpperCase(Locale.ROOT) : null;
-	}
-
-	private static String custodyType(int value) {
-		return switch (value) {
-		case 1 -> "Girosammelverwahrung";
-		case 2 -> "Streifbandverwahrung";
-		case 3 -> "Haussammelverwahrung";
-		case 4 -> "Wertpapierrechnung";
-		case 9 -> "Sonstige";
-		default -> null;
-		};
 	}
 
 	private static String firstNonBlank(String first, String second) {

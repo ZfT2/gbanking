@@ -18,8 +18,10 @@ import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.Currency;
+import de.zft2.gbanking.gui.GuiContext;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
 import de.zft2.gbanking.gui.enu.PageContext;
+import de.zft2.gbanking.service.BankingCapabilityService;
 import de.zft2.gbanking.service.stock.StockPortfolioService;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
 import javafx.beans.property.BooleanProperty;
@@ -39,6 +41,7 @@ class StockPortfolioOverviewPanelTest {
 
 	@AfterEach
 	void closeDatabase() {
+		GuiContext.setOnlyOnlineAccountsVisible(false);
 		DBControllerTestUtil.closeAndNullifyConnection();
 	}
 
@@ -46,6 +49,7 @@ class StockPortfolioOverviewPanelTest {
 	@SuppressWarnings("unchecked")
 	void shouldProvidePortfolioAndSettlementAccountLayout() {
 		StockPortfolioService service = mock(StockPortfolioService.class);
+		BankingCapabilityService capabilityService = mock(BankingCapabilityService.class);
 		PortfolioSummary portfolio = new PortfolioSummary(1, "Depot A", "Bank A", "DE123",
 				LocalDate.of(2026, 1, 1), 2, "Girokonto", "Bank A", "DE456", Currency.EUR,
 				new BigDecimal("100.00"));
@@ -59,7 +63,7 @@ class StockPortfolioOverviewPanelTest {
 		when(service.getPortfolioAccount(portfolio)).thenReturn(portfolioAccount);
 
 		JavaFxTestSupport.runFx(() -> {
-			StockPortfolioOverviewPanel panel = new StockPortfolioOverviewPanel(service);
+			StockPortfolioOverviewPanel panel = new StockPortfolioOverviewPanel(service, capabilityService);
 			panel.refreshOnShow();
 
 			assertEquals(PageContext.STOCK_PORTFOLIOS, panel.getPageContext());
@@ -117,6 +121,53 @@ class StockPortfolioOverviewPanelTest {
 			assertTrue(portfolioDetails.lookupAll(".gbanking-button-bar").stream()
 					.allMatch(node -> Integer.valueOf(4).equals(GridPane.getRowIndex(node))));
 		});
+	}
+
+	@Test
+	void shouldShowOnlyFinTsCapablePortfoliosWhenOnlineFilterIsEnabled() {
+		StockPortfolioService service = mock(StockPortfolioService.class);
+		BankingCapabilityService capabilityService = mock(BankingCapabilityService.class);
+		PortfolioSummary onlinePortfolio = portfolio(1, "Online-Depot");
+		PortfolioSummary offlinePortfolio = portfolio(2, "Offline-Depot");
+		BankAccount onlineAccount = portfolioAccount(11, false);
+		BankAccount offlineAccount = portfolioAccount(12, true);
+		when(service.getPortfolios()).thenReturn(List.of(onlinePortfolio, offlinePortfolio));
+		when(service.getPortfolioAccount(onlinePortfolio)).thenReturn(onlineAccount);
+		when(service.getPortfolioAccount(offlinePortfolio)).thenReturn(offlineAccount);
+		when(capabilityService.supportsStockPortfolio(onlineAccount)).thenReturn(true);
+		when(capabilityService.supportsStockPortfolio(offlineAccount)).thenReturn(false);
+		GuiContext.setOnlyOnlineAccountsVisible(true);
+
+		JavaFxTestSupport.runFx(() -> {
+			StockPortfolioOverviewPanel panel = new StockPortfolioOverviewPanel(service, capabilityService);
+			panel.refreshOnShow();
+			TreeTableView<?> tree = navigationTree(panel);
+			assertEquals(1, tree.getRoot().getChildren().size());
+			assertEquals(onlinePortfolio, panel.getSelectedPortfolio());
+
+			GuiContext.setOnlyOnlineAccountsVisible(false);
+			panel.refreshOnShow();
+			assertEquals(2, tree.getRoot().getChildren().size());
+		});
+	}
+
+	private static PortfolioSummary portfolio(int id, String name) {
+		return new PortfolioSummary(id, name, "Bank", "DEPOT-" + id, LocalDate.of(2026, 1, 1),
+				100 + id, "Verrechnung", "Bank", "DE123", Currency.EUR, BigDecimal.ZERO);
+	}
+
+	private static BankAccount portfolioAccount(int id, boolean offline) {
+		BankAccount account = new BankAccount();
+		account.setId(id);
+		account.setAccountType(AccountType.DEPOT);
+		account.setOfflineAccount(offline);
+		return account;
+	}
+
+	private static TreeTableView<?> navigationTree(StockPortfolioOverviewPanel panel) {
+		SplitPane mainPane = (SplitPane) panel.getChildren().get(1);
+		VBox navigation = (VBox) mainPane.getItems().get(0);
+		return (TreeTableView<?>) navigation.getChildren().get(1);
 	}
 
 	@Test

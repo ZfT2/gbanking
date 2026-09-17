@@ -2,6 +2,7 @@ package de.zft2.gbanking.db.repository;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.Collection;
 
 import de.zft2.gbanking.db.DBController;
@@ -20,8 +21,8 @@ public class InstituteValidityRepository {
 				.prepareStatement(DaoSqlStatements.SQL_UPSERT_INSTITUTE_VALIDITY_SEEN)) {
 			for (Observation observation : observations) {
 				statement.setInt(1, observation.instituteId());
-				statement.setString(2, observation.validFromType().name());
-				statement.setString(3, observation.validToType() != null ? observation.validToType().name() : null);
+				statement.setInt(2, observation.validFromType().getDbStateId());
+				setEnumId(3, observation.validToType(), statement);
 				statement.setInt(4, observation.importHistoryId());
 				statement.setInt(5, observation.importHistoryId());
 				statement.setTimestamp(6, TypeConverter.toSqlTimestampNow());
@@ -40,14 +41,24 @@ public class InstituteValidityRepository {
 		try (PreparedStatement statement = DBController.getConnection()
 				.prepareStatement(DaoSqlStatements.SQL_CLOSE_INSTITUTE_VALIDITY)) {
 			for (Integer instituteId : instituteIds) {
-				statement.setString(1, InstituteValidityDateType.FIRST_MISSING.name());
-				statement.setTimestamp(2, TypeConverter.toSqlTimestampNow());
-				statement.setInt(3, instituteId);
+				statement.setInt(1, InstituteValidityDateType.SOURCE_DATE.getDbStateId());
+				statement.setInt(2, InstituteValidityDateType.FIRST_MISSING.getDbStateId());
+				statement.setTimestamp(3, TypeConverter.toSqlTimestampNow());
+				statement.setInt(4, instituteId);
 				statement.addBatch();
 			}
 			statement.executeBatch();
 		} catch (SQLException exception) {
 			throw new GBankingException("Could not close institute validity observations", exception);
+		}
+	}
+
+	private static void setEnumId(int index, InstituteValidityDateType value, PreparedStatement statement)
+			throws SQLException {
+		if (value == null) {
+			statement.setNull(index, Types.INTEGER);
+		} else {
+			statement.setInt(index, value.getDbStateId());
 		}
 	}
 

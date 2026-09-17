@@ -39,6 +39,22 @@ INSERT INTO bankAccount (
     (900004, NULL, NULL, NULL, 'Haushaltskasse', 1, 13, 5,
      NULL, NULL, 'BAR-DEMO', NULL, NULL, NULL, 0, '0.00',
      NULL, 'Max Mustermann', NULL, 'DE', NULL, 0, 1, 1, 250.00,
+     '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
+    (900005, NULL, NULL, NULL, 'Demo-Depot Wachstum', 1, 16, 5,
+     NULL, NULL, 'DEPOT-DEMO-01', NULL, 'Demo Broker', NULL, 0, '0.00',
+     NULL, 'Max Mustermann', NULL, 'DE', NULL, 0, 1, 1, NULL,
+     '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
+    (900006, NULL, NULL, NULL, 'Verrechnung Wachstum', 1, 12, 5,
+     NULL, NULL, 'VERRECHNUNG-DEMO-01', NULL, 'Demo Broker', NULL, 0, '0.00',
+     NULL, 'Max Mustermann', NULL, 'DE', NULL, 0, 1, 1, 10000.00,
+     '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
+    (900007, NULL, NULL, NULL, 'Demo-Depot Nachhaltig', 1, 16, 5,
+     NULL, NULL, 'DEPOT-DEMO-02', NULL, 'Demo Broker', NULL, 0, '0.00',
+     NULL, 'Max Mustermann', NULL, 'DE', NULL, 0, 1, 1, NULL,
+     '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
+    (900008, NULL, NULL, NULL, 'Verrechnung Nachhaltig', 1, 12, 5,
+     NULL, NULL, 'VERRECHNUNG-DEMO-02', NULL, 'Demo Broker', NULL, 0, '0.00',
+     NULL, 'Max Mustermann', NULL, 'DE', NULL, 0, 1, 1, 7500.00,
      '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000');
 
 [SQL_DEMO_INSERT_BANK_ACCOUNT_IDENTIFIERS]
@@ -49,6 +65,134 @@ INSERT INTO bankAccountIdentifiers (id, account_id, propertyType, value) VALUES
     (900014, 900002, 2, '0000000002'),
     (900015, 900003, 1, 'DE39999999990000000003'),
     (900016, 900003, 1, '0000000003');
+
+[SQL_DEMO_ENSURE_MANUAL_STOCK_DATA_SOURCE]
+INSERT OR IGNORE INTO stockDataSource (
+    id, sourceCode, sourceName, sourceType, defaultPriority, enabled, updatedAt
+) VALUES (
+    1, 'MANUAL', 'Manuelle Eingabe', 1, 100, 1, '2026-06-30 18:00:00.000'
+);
+
+[SQL_DEMO_INSERT_STOCK_PORTFOLIOS]
+INSERT INTO stockPortfolio (
+    id, account_id, currentSettlementRelation_id, openedAt, closedAt, createdAt, updatedAt
+) VALUES
+    (900101, 900005, 900111, '2026-01-01 00:00:00.000', NULL,
+     '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
+    (900102, 900007, 900112, '2026-01-01 00:00:00.000', NULL,
+     '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000');
+
+[SQL_DEMO_INSERT_STOCK_SETTLEMENT_ACCOUNTS]
+INSERT INTO stockPortfolioSettlementAccount (
+    id, portfolio_id, account_id, validFrom, validTo, createdAt, updatedAt
+) VALUES
+    (900111, 900101, 900006, '2026-01-01 00:00:00.000', NULL,
+     '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
+    (900112, 900102, 900008, '2026-01-01 00:00:00.000', NULL,
+     '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000');
+
+[SQL_DEMO_INSERT_STOCK_SECURITIES]
+INSERT INTO stockSecurity (
+    id, securityType, name, issuer, domicileCountry, maturityDate, defaultQuantityType,
+    nominalCurrency, defaultQuoteCurrency, defaultQuotationType, defaultPriceBasis,
+    securityState, createdAt, updatedAt
+) VALUES
+    (900201, 4, 'Weltweit Demo ETF', 'Demo Asset Management', 'DE', NULL, 1,
+     NULL, 1, 1, NULL, 1, '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
+    (900202, 1, 'Demo Technologie AG', 'Demo Technologie AG', 'DE', NULL, 1,
+     NULL, 1, 1, NULL, 1, '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
+    (900203, 1, 'Historische Demo AG', 'Historische Demo AG', 'DE', NULL, 1,
+     NULL, 1, 1, NULL, 2, '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
+    (900204, 4, 'Gruene Zukunft ETF', 'Demo Nachhaltig Invest', 'DE', NULL, 1,
+     NULL, 1, 1, NULL, 1, '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000');
+
+[SQL_DEMO_INSERT_STOCK_SECURITY_IDENTIFIERS]
+INSERT INTO stockSecurityIdentifier (
+    id, security_id, source_id, identifierType, identifierValue, marketIdentifierCode,
+    validFrom, validTo, createdAt, updatedAt
+) VALUES
+    (900211, 900201, NULL, 1, 'DE000DEMO001', NULL, '2026-01-01', NULL,
+     '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
+    (900212, 900201, NULL, 2, 'DEM001', NULL, '2026-01-01', NULL,
+     '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
+    (900213, 900202, NULL, 1, 'DE000DEMO002', NULL, '2026-01-01', NULL,
+     '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
+    (900214, 900202, NULL, 2, 'DEM002', NULL, '2026-01-01', NULL,
+     '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
+    (900215, 900203, NULL, 1, 'DE000DEMO003', NULL, '2026-01-01', NULL,
+     '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
+    (900216, 900203, NULL, 2, 'DEM003', NULL, '2026-01-01', NULL,
+     '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
+    (900217, 900204, NULL, 1, 'DE000DEMO004', NULL, '2026-01-01', NULL,
+     '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
+    (900218, 900204, NULL, 2, 'DEM004', NULL, '2026-01-01', NULL,
+     '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000');
+
+[SQL_DEMO_INSERT_STOCK_PRICE_SOURCES]
+INSERT INTO stockSecurityPriceSource (
+    id, security_id, source_id, providerSymbol, marketIdentifierCode, priority, enabled, createdAt, updatedAt
+) VALUES
+    (900301, 900201, 1, NULL, NULL, 0, 1, '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
+    (900302, 900202, 1, NULL, NULL, 0, 1, '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
+    (900303, 900203, 1, NULL, NULL, 0, 1, '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
+    (900304, 900204, 1, NULL, NULL, 0, 1, '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000');
+
+[SQL_DEMO_INSERT_STOCK_PRICES]
+INSERT INTO stockSecurityPrice (
+    id, priceSource_id, importRecord_id, quotedAt, priceE8, quoteCurrency, quotationType,
+    priceBasis, priceType, volumeE9, externalReference, deleted, supersedesPrice_id, createdAt
+) VALUES
+    (900311, 900301, NULL, '2026-01-31 18:00:00.000', 10900000000, 1, 1, NULL, 2, NULL, NULL, 0, NULL, '2026-01-31 18:00:00.000'),
+    (900312, 900301, NULL, '2026-03-31 18:00:00.000', 12100000000, 1, 1, NULL, 2, NULL, NULL, 0, NULL, '2026-03-31 18:00:00.000'),
+    (900313, 900301, NULL, '2026-06-30 18:00:00.000', 12800000000, 1, 1, NULL, 2, NULL, NULL, 0, NULL, '2026-06-30 18:00:00.000'),
+    (900314, 900302, NULL, '2026-02-28 18:00:00.000', 8500000000, 1, 1, NULL, 2, NULL, NULL, 0, NULL, '2026-02-28 18:00:00.000'),
+    (900315, 900302, NULL, '2026-04-30 18:00:00.000', 8900000000, 1, 1, NULL, 2, NULL, NULL, 0, NULL, '2026-04-30 18:00:00.000'),
+    (900316, 900302, NULL, '2026-06-30 18:00:00.000', 9600000000, 1, 1, NULL, 2, NULL, NULL, 0, NULL, '2026-06-30 18:00:00.000'),
+    (900317, 900303, NULL, '2026-04-30 18:00:00.000', 5200000000, 1, 1, NULL, 2, NULL, NULL, 0, NULL, '2026-04-30 18:00:00.000'),
+    (900318, 900303, NULL, '2026-05-31 18:00:00.000', 4700000000, 1, 1, NULL, 2, NULL, NULL, 0, NULL, '2026-05-31 18:00:00.000'),
+    (900319, 900303, NULL, '2026-06-30 18:00:00.000', 5000000000, 1, 1, NULL, 2, NULL, NULL, 0, NULL, '2026-06-30 18:00:00.000'),
+    (900320, 900304, NULL, '2026-02-28 18:00:00.000', 6300000000, 1, 1, NULL, 2, NULL, NULL, 0, NULL, '2026-02-28 18:00:00.000'),
+    (900321, 900304, NULL, '2026-04-30 18:00:00.000', 6800000000, 1, 1, NULL, 2, NULL, NULL, 0, NULL, '2026-04-30 18:00:00.000'),
+    (900322, 900304, NULL, '2026-06-30 18:00:00.000', 7100000000, 1, 1, NULL, 2, NULL, NULL, 0, NULL, '2026-06-30 18:00:00.000');
+
+[SQL_DEMO_INSERT_PENDING_STOCK_TRANSACTIONS]
+INSERT INTO stockTransaction (
+    id, portfolio_id, source_id, transactionType, transactionStatus, tradeAt,
+    settlementDueAt, cashValueAt, settlementDateInferred, editableFieldMask, createdAt, updatedAt
+) VALUES
+    (900401, 900101, 1, 1, 1, '2026-01-15 10:00:00.000', '2026-01-19 00:00:00.000', '2026-01-19 00:00:00.000', 0, 4095, '2026-01-15 10:00:00.000', '2026-01-15 10:00:00.000'),
+    (900402, 900101, 1, 1, 1, '2026-02-03 11:00:00.000', '2026-02-05 00:00:00.000', '2026-02-05 00:00:00.000', 0, 4095, '2026-02-03 11:00:00.000', '2026-02-03 11:00:00.000'),
+    (900403, 900101, 1, 2, 1, '2026-03-10 09:30:00.000', '2026-03-12 00:00:00.000', '2026-03-12 00:00:00.000', 0, 4095, '2026-03-10 09:30:00.000', '2026-03-10 09:30:00.000'),
+    (900404, 900101, 1, 1, 1, '2026-04-01 14:00:00.000', '2026-04-07 00:00:00.000', '2026-04-07 00:00:00.000', 0, 4095, '2026-04-01 14:00:00.000', '2026-04-01 14:00:00.000'),
+    (900405, 900101, 1, 2, 1, '2026-05-04 15:00:00.000', '2026-05-06 00:00:00.000', '2026-05-06 00:00:00.000', 0, 4095, '2026-05-04 15:00:00.000', '2026-05-04 15:00:00.000'),
+    (900406, 900102, 1, 1, 1, '2026-01-22 10:00:00.000', '2026-01-26 00:00:00.000', '2026-01-26 00:00:00.000', 0, 4095, '2026-01-22 10:00:00.000', '2026-01-22 10:00:00.000'),
+    (900407, 900102, 1, 1, 1, '2026-02-12 11:30:00.000', '2026-02-16 00:00:00.000', '2026-02-16 00:00:00.000', 0, 4095, '2026-02-12 11:30:00.000', '2026-02-12 11:30:00.000'),
+    (900408, 900102, 1, 2, 1, '2026-04-20 13:00:00.000', '2026-04-22 00:00:00.000', '2026-04-22 00:00:00.000', 0, 4095, '2026-04-20 13:00:00.000', '2026-04-20 13:00:00.000'),
+    (900409, 900102, 1, 1, 1, '2026-05-05 09:00:00.000', '2026-05-07 00:00:00.000', '2026-05-07 00:00:00.000', 0, 4095, '2026-05-05 09:00:00.000', '2026-05-05 09:00:00.000'),
+    (900410, 900102, 1, 2, 1, '2026-06-10 16:00:00.000', '2026-06-12 00:00:00.000', '2026-06-12 00:00:00.000', 0, 4095, '2026-06-10 16:00:00.000', '2026-06-10 16:00:00.000');
+
+[SQL_DEMO_INSERT_STOCK_TRANSACTION_LEGS]
+INSERT INTO stockTransactionSecurityLeg (
+    id, transaction_id, legNumber, security_id, legRole, quantityE9, quantityType,
+    priceE8, priceCurrency, quotationType, priceBasis, accruedInterestDays, createdAt
+) VALUES
+    (900421, 900401, 1, 900201, 1, 20000000000, 1, 10500000000, 1, 1, NULL, NULL, '2026-01-15 10:00:00.000'),
+    (900422, 900402, 1, 900202, 1, 15000000000, 1, 8200000000, 1, 1, NULL, NULL, '2026-02-03 11:00:00.000'),
+    (900423, 900403, 1, 900201, 1, -5000000000, 1, 11900000000, 1, 1, NULL, NULL, '2026-03-10 09:30:00.000'),
+    (900424, 900404, 1, 900203, 1, 8000000000, 1, 5500000000, 1, 1, NULL, NULL, '2026-04-01 14:00:00.000'),
+    (900425, 900405, 1, 900203, 1, -8000000000, 1, 4900000000, 1, 1, NULL, NULL, '2026-05-04 15:00:00.000'),
+    (900426, 900406, 1, 900201, 1, 10000000000, 1, 10800000000, 1, 1, NULL, NULL, '2026-01-22 10:00:00.000'),
+    (900427, 900407, 1, 900204, 1, 30000000000, 1, 6100000000, 1, 1, NULL, NULL, '2026-02-12 11:30:00.000'),
+    (900428, 900408, 1, 900204, 1, -5000000000, 1, 6600000000, 1, 1, NULL, NULL, '2026-04-20 13:00:00.000'),
+    (900429, 900409, 1, 900202, 1, 4000000000, 1, 9100000000, 1, 1, NULL, NULL, '2026-05-05 09:00:00.000'),
+    (900430, 900410, 1, 900201, 1, -2000000000, 1, 12400000000, 1, 1, NULL, NULL, '2026-06-10 16:00:00.000');
+
+[SQL_DEMO_SETTLE_STOCK_TRANSACTIONS]
+UPDATE stockTransaction
+SET transactionStatus = 2,
+    settledAt = settlementDueAt,
+    updatedAt = settlementDueAt
+WHERE id BETWEEN 900401 AND 900410;
 
 [SQL_DEMO_INSERT_RECIPIENTS]
 INSERT INTO recipient (
@@ -292,7 +436,7 @@ INSERT INTO moneytransferForeign (
     recipientBankCountry, recipientBankAddressLine1, recipientBankAddressLine2,
     chargeBearer, regulatoryReporting, endToEndReference, updatedAt
 ) VALUES
-    (941001, 940007, 'USD', 'US', 'DEMO-ACCOUNT-4711', 'DEMOUS33', NULL,
+    (941001, 940007, 2, 'US', 'DEMO-ACCOUNT-4711', 'DEMOUS33', NULL,
      '100 Demo Street', 'Demo City', 'US', '1 Banking Avenue', 'Demo City',
      1, 'Demo-Warenlieferung', 'E2E-FOREIGN-DEMO-001', '2026-06-24 10:00:00.000');
 

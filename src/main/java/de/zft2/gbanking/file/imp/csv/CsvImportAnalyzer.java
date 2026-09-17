@@ -8,6 +8,7 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import de.zft2.gbanking.exception.GBankingException;
 
@@ -30,8 +31,20 @@ public class CsvImportAnalyzer {
 	}
 
 	public Analysis analyze(Path importFile) throws IOException {
+		return analyze(importFile, definition -> definition.getType() == CsvImportDefinitionType.BOOKING);
+	}
+
+	public Analysis analyzeStock(Path importFile) throws IOException {
+		return analyze(importFile, definition -> definition.getType().isStockImport());
+	}
+
+	public Analysis analyze(Path importFile, CsvImportDefinitionType type) throws IOException {
+		return analyze(importFile, definition -> definition.getType() == type);
+	}
+
+	private Analysis analyze(Path importFile, Predicate<CsvImportDefinition> filter) throws IOException {
 		List<Match> inspected = new ArrayList<>();
-		for (CsvImportDefinition definition : repository.load()) {
+		for (CsvImportDefinition definition : repository.load().stream().filter(filter).toList()) {
 			try {
 				CsvImportData data = dataReader.read(importFile, definition);
 				inspected.add(toMatch(definition, data.headers()));
@@ -68,7 +81,8 @@ public class CsvImportAnalyzer {
 		Set<String> missingRequired = difference(definition.getRequiredHeaders(), actualHeaders);
 		Set<String> optionalHeaders = difference(definition.getDefinedHeaders(), definition.getRequiredHeaders());
 		Set<String> missingOptional = difference(optionalHeaders, actualHeaders);
-		Set<String> unknown = difference(actualHeaders, definition.getDefinedHeaders());
+		Set<String> unknown = definition.getType().acceptsDynamicHeaders()
+				? Set.of() : difference(actualHeaders, definition.getDefinedHeaders());
 		Set<String> matching = new LinkedHashSet<>(actualHeaders);
 		matching.retainAll(definition.getDefinedHeaders());
 		return new Match(definition, actualHeaders, missingRequired, missingOptional, unknown, matching.size());

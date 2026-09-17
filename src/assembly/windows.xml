@@ -22,6 +22,14 @@
 			<outputDirectory>/data</outputDirectory>
 		</fileSet>
 
+		<fileSet>
+			<directory>${project.basedir}/properties</directory>
+			<includes>
+				<include>csv-format.properties</include>
+			</includes>
+			<outputDirectory>/properties</outputDirectory>
+		</fileSet>
+
 		<!-- GPL Lizenzdatei -->
 		<fileSet>
 			<directory>${project.basedir}</directory>

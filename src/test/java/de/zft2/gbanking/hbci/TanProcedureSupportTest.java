@@ -70,6 +70,23 @@ class TanProcedureSupportTest {
 		assertEquals(TanProcedure.BESTSIGN, TanProcedureSupport.resolveProcedureForCode("920", access).orElseThrow());
 	}
 
+	@Test
+	void flatexProceduresShouldResolveAndPersistTheirBankSpecificCodes() {
+		BankAccess access = createAccess(TanProcedure.I_TAN, List.of("906", "907"));
+		access.getFints().setBpd(toProperties(List.of(
+				new Bpd("Params_1.TAN2StepPar6.ParTAN2Step.TAN2StepParams_1.secfunc", "906"),
+				new Bpd("Params_1.TAN2StepPar6.ParTAN2Step.TAN2StepParams_1.name", "iTAN-Card"),
+				new Bpd("Params_1.TAN2StepPar6.ParTAN2Step.TAN2StepParams_2.secfunc", "907"),
+				new Bpd("Params_1.TAN2StepPar6.ParTAN2Step.TAN2StepParams_2.name", "flateXSecure"))));
+
+		assertEquals("906", TanProcedureSupport.resolveTanMethodCode(access).orElseThrow());
+		assertEquals(TanProcedure.I_TAN, TanProcedureSupport.resolveProcedureForCode("906", access).orElseThrow());
+		assertEquals(TanProcedure.APP_TAN, TanProcedureSupport.resolveProcedureForCode("907", access).orElseThrow());
+
+		access.getFints().setTanProcedure(TanProcedure.APP_TAN);
+		assertEquals("907", TanProcedureSupport.resolveTanMethodCode(access).orElseThrow());
+	}
+
 	private BankAccess createAccess(TanProcedure tanProcedure, List<String> allowedTwostepMechanisms) {
 		BankAccess access = new BankAccess();
 		access.getFints().setTanProcedure(tanProcedure);

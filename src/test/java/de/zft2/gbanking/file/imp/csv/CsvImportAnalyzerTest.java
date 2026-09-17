@@ -24,7 +24,7 @@ class CsvImportAnalyzerTest {
 
 	@Test
 	void repositoryShouldLoadBundledDefinitionsWithoutCreatingUserFile() {
-		Path definitionFile = tempDir.resolve("properties/import/csv.properties");
+		Path definitionFile = tempDir.resolve("properties/csv-format.properties");
 
 		List<CsvImportDefinition> definitions = new CsvImportDefinitionRepository(definitionFile).load();
 
@@ -32,7 +32,9 @@ class CsvImportAnalyzerTest {
 				definitions.stream().limit(3).map(CsvImportDefinition::getName).toList());
 		assertEquals(List.of("Buchung: VR-NetWorld", "Buchung: DKB Web", "Buchung: N26 Deutsch", "Buchung: N26 English",
 				"Buchung: Commerzbank Web", "Buchung: Commerzbank Web erweitert", "Buchung: Atruvia VR-Banken und GLS",
-				"Buchung: Sparda-Bank West", "Buchung: Postbank Web", "Buchung: Vivid"),
+				"Buchung: Sparda-Bank West", "Buchung: Postbank Web", "Buchung: Vivid",
+				"Depotumsatz: Portfolio Performance", "Kontoumsatz: Portfolio Performance",
+				"Wertpapier: Portfolio Performance", "Wertpapierkurs: Portfolio Performance"),
 				definitions.stream().skip(3).map(CsvImportDefinition::getName).toList());
 		assertFalse(Files.exists(definitionFile));
 	}
@@ -87,7 +89,7 @@ class CsvImportAnalyzerTest {
 
 	@Test
 	void repositoryShouldAddUserDefinitionsToBundledDefaults() throws Exception {
-		Path definitionFile = tempDir.resolve("csv.properties");
+		Path definitionFile = tempDir.resolve("csv-format.properties");
 		Files.writeString(definitionFile, """
 				[Buchung: Eigene Bank]
 				Betrag=Umsatz
@@ -96,13 +98,13 @@ class CsvImportAnalyzerTest {
 
 		List<CsvImportDefinition> definitions = new CsvImportDefinitionRepository(definitionFile).load();
 
-		assertEquals(14, definitions.size());
+		assertEquals(18, definitions.size());
 		assertEquals("Buchung: Eigene Bank", definitions.get(definitions.size() - 1).getName());
 	}
 
 	@Test
 	void repositoryShouldPreferUserDefinitionWithSameName() throws Exception {
-		Path definitionFile = tempDir.resolve("csv.properties");
+		Path definitionFile = tempDir.resolve("csv-format.properties");
 		Files.writeString(definitionFile, """
 				[Buchung: GBanking]
 				Betrag=Eigener Betrag
@@ -115,6 +117,36 @@ class CsvImportAnalyzerTest {
 		assertEquals(List.of("Eigener Betrag"), definition.getSourceFields(CsvImportTarget.AMOUNT));
 		assertEquals(List.of("Eigener Zweck"), definition.getSourceFields(CsvImportTarget.PURPOSE));
 		assertEquals(List.of(), definition.getSourceFields(CsvImportTarget.DATE));
+	}
+
+	@Test
+	void bundledDefinitionsShouldRecognizePortfolioPerformanceStockFormats() throws Exception {
+		CsvImportAnalyzer analyzer = new CsvImportAnalyzer(
+				new CsvImportDefinitionRepository(tempDir.resolve("missing-csv-format.properties")));
+		Path transactions = csv("""
+				Datum;Typ;Wert;Buchungswährung;Bruttobetrag;Währung Bruttobetrag;Wechselkurs;Gebühren;Steuern;Stück;ISIN;WKN;Ticker-Symbol;Wertpapiername;Notiz
+				2026-01-02T12:00;Kauf;102,00;EUR;;;;2,00;;10;DE0000000001;ABC123;ABC.DE;Beispiel AG;Erstkauf
+				""");
+
+		Analysis transactionAnalysis = analyzer.analyzeStock(transactions);
+		Analysis securityAnalysis = analyzer.analyzeStock(csv("""
+				ISIN;WKN;Ticker-Symbol;Wertpapiername;Währung;Notiz;Gesamtkostenquote (TER);Fondsgröße;Anbieter;Kaufgebühr (prozentual);Verwaltungsgebühr (prozentual)
+				DE0000000001;ABC123;ABC.DE;Beispiel AG;EUR;;;;Beispielbank;;
+				"""));
+		Analysis priceAnalysis = analyzer.analyzeStock(csv("""
+				Datum;DE0000000001
+				2026-03-02;12,50
+				"""));
+
+		assertNull(transactionAnalysis.problem());
+		assertEquals(List.of("Depotumsatz: Portfolio Performance", "Kontoumsatz: Portfolio Performance"),
+				transactionAnalysis.matches().stream().map(match -> match.definition().getName()).toList());
+		assertNull(securityAnalysis.problem());
+		assertEquals(List.of("Wertpapier: Portfolio Performance"),
+				securityAnalysis.matches().stream().map(match -> match.definition().getName()).toList());
+		assertNull(priceAnalysis.problem());
+		assertEquals("Wertpapierkurs: Portfolio Performance", priceAnalysis.matches().get(0).definition().getName());
+		assertEquals(Set.of(), priceAnalysis.matches().get(0).unknownHeaders());
 	}
 
 	@Test

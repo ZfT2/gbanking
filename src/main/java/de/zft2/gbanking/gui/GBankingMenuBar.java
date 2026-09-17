@@ -68,18 +68,11 @@ final class GBankingMenuBar extends MenuBar implements BaseGui {
 		fileImportSepaOrders.setOnAction(e -> gui.processMoneyTransferImport(ExportType.MONEYTRANSFERS_SEPA_XML));
 		fileImportOrdersMenu.getItems().addAll(fileImportCsvOrders, fileImportSepaOrders);
 		Menu fileImportStockMenu = new Menu(getText("UI_MENU_FILE_STOCK_PORTFOLIOS"));
+		MenuItem fileImportStockCsv = new MenuItem(getText("UI_MENU_FILE_CSV_FORMATS"));
+		fileImportStockCsv.setOnAction(e -> gui.processStockCsvImport());
 		MenuItem fileImportStockXml = new MenuItem(getText("UI_MENU_FILE_PP_XML"));
 		fileImportStockXml.setOnAction(e -> gui.processStockImport(ExportType.STOCK_PP_XML));
-		MenuItem fileImportStockTransactions = new MenuItem(getText("UI_MENU_FILE_PP_PORTFOLIO_TRANSACTIONS"));
-		fileImportStockTransactions.setOnAction(e -> gui.processStockImport(ExportType.STOCK_PP_TRANSACTIONS_CSV));
-		MenuItem fileImportStockAccountTransactions = new MenuItem(getText("UI_MENU_FILE_PP_ACCOUNT_TRANSACTIONS"));
-		fileImportStockAccountTransactions.setOnAction(e -> gui.processStockImport(ExportType.STOCK_PP_ACCOUNT_TRANSACTIONS_CSV));
-		MenuItem fileImportStockSecurities = new MenuItem(getText("UI_MENU_FILE_PP_SECURITIES"));
-		fileImportStockSecurities.setOnAction(e -> gui.processStockImport(ExportType.STOCK_PP_SECURITIES_CSV));
-		MenuItem fileImportStockPrices = new MenuItem(getText("UI_MENU_FILE_PP_PRICES"));
-		fileImportStockPrices.setOnAction(e -> gui.processStockImport(ExportType.STOCK_PP_PRICES_CSV));
-		fileImportStockMenu.getItems().addAll(fileImportStockXml, fileImportStockTransactions,
-				fileImportStockAccountTransactions, fileImportStockSecurities, fileImportStockPrices);
+		fileImportStockMenu.getItems().addAll(fileImportStockCsv, fileImportStockXml);
 		fileImportMenu.getItems().addAll(fileImportBookingsMenu, fileImportOrdersMenu, fileImportStockMenu);
 
 		Menu fileExportMenu = new Menu(getText("UI_MENU_FILE_EXPORT"));
@@ -100,6 +93,7 @@ final class GBankingMenuBar extends MenuBar implements BaseGui {
 		fileExportSepaOrders.setOnAction(e -> gui.processExport(ExportType.MONEYTRANSFERS_SEPA_XML));
 		fileExportOrdersMenu.getItems().addAll(fileExportCSVOrders, fileExportSepaOrders);
 		Menu fileExportStockMenu = new Menu(getText("UI_MENU_FILE_STOCK_PORTFOLIOS"));
+		Menu fileExportPortfolioPerformanceMenu = new Menu(getText("UI_MENU_FILE_PORTFOLIO_PERFORMANCE"));
 		MenuItem fileExportStockTransactions = new MenuItem(getText("UI_MENU_FILE_PP_PORTFOLIO_TRANSACTIONS"));
 		fileExportStockTransactions.setOnAction(e -> gui.processStockExport(ExportType.STOCK_PP_TRANSACTIONS_CSV));
 		MenuItem fileExportStockAccountTransactions = new MenuItem(getText("UI_MENU_FILE_PP_ACCOUNT_TRANSACTIONS"));
@@ -108,8 +102,9 @@ final class GBankingMenuBar extends MenuBar implements BaseGui {
 		fileExportStockSecurities.setOnAction(e -> gui.processStockExport(ExportType.STOCK_PP_SECURITIES_CSV));
 		MenuItem fileExportStockPrices = new MenuItem(getText("UI_MENU_FILE_PP_PRICES"));
 		fileExportStockPrices.setOnAction(e -> gui.processStockExport(ExportType.STOCK_PP_PRICES_CSV));
-		fileExportStockMenu.getItems().addAll(fileExportStockTransactions, fileExportStockAccountTransactions,
-				fileExportStockSecurities, fileExportStockPrices);
+		fileExportPortfolioPerformanceMenu.getItems().addAll(fileExportStockTransactions,
+				fileExportStockAccountTransactions, fileExportStockSecurities, fileExportStockPrices);
+		fileExportStockMenu.getItems().add(fileExportPortfolioPerformanceMenu);
 		fileExportMenu.getItems().addAll(fileExportBookingsMenu, fileExportOrdersMenu, fileExportStockMenu);
 
 		MenuItem createBackupMenuItem = new MenuItem(getText("UI_MENU_FILE_CREATE_BACKUP"));

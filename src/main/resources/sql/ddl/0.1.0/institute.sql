@@ -75,16 +75,16 @@ CREATE TABLE IF NOT EXISTS institute_db.institute (
 CREATE TABLE IF NOT EXISTS institute_db.instituteValidity (
   id INTEGER PRIMARY KEY,
   institute_id INTEGER NOT NULL UNIQUE,
-  validFromType TEXT NOT NULL,
-  validToType TEXT,
+  validFromType INTEGER NOT NULL,
+  validToType INTEGER,
   firstSeenFile INTEGER NOT NULL,
   lastSeenFile INTEGER NOT NULL,
   updatedAt TEXT NOT NULL,
   FOREIGN KEY(institute_id) REFERENCES institute(id) ON DELETE CASCADE,
   FOREIGN KEY(firstSeenFile) REFERENCES importHistory(id),
   FOREIGN KEY(lastSeenFile) REFERENCES importHistory(id),
-  CHECK (validFromType IN ('SOURCE_DATE', 'FIRST_SEEN', 'FILE_MONTH')),
-  CHECK (validToType IS NULL OR validToType IN ('SOURCE_DATE', 'FIRST_MISSING', 'FILE_MONTH')));
+  CHECK (validFromType IN (1, 2, 4)),
+  CHECK (validToType IS NULL OR validToType IN (1, 3, 4)));
 ;
 
 [SQL_SETUP_CREATE_INSTITUTE_DK]

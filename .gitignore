@@ -40,6 +40,7 @@ import/dwn
 
 #Files in Folders
 properties/*.properties
+!properties/csv-format.properties
 properties/import/*.properties
 properties/import/intern/*.properties
 properties/intern/*.properties

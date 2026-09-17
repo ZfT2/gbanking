@@ -3,6 +3,7 @@ package de.zft2.gbanking.db.dao;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
@@ -101,13 +102,13 @@ public class MoneyTransfer extends Dao {
 	}
 
 	public String getCurrency() {
-		return foreignTransfer != null && foreignTransfer.getCurrency() != null ? foreignTransfer.getCurrency() : currency;
+		return foreignTransfer != null && foreignTransfer.getCurrency() != null ? foreignTransfer.getCurrency().name() : currency;
 	}
 
 	public void setCurrency(String currency) {
 		this.currency = currency;
 		if (foreignTransfer != null) {
-			foreignTransfer.setCurrency(currency);
+			foreignTransfer.setCurrency(Currency.forCode(currency));
 		}
 	}
 
@@ -174,7 +175,7 @@ public class MoneyTransfer extends Dao {
 	public void setForeignTransfer(MoneyTransferForeign foreignTransfer) {
 		this.foreignTransfer = foreignTransfer;
 		if (foreignTransfer != null && currency != null && foreignTransfer.getCurrency() == null) {
-			foreignTransfer.setCurrency(currency);
+			foreignTransfer.setCurrency(Currency.forCode(currency));
 		}
 	}
 

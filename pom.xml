@@ -181,6 +181,14 @@
 	<build>
 		<resources>
 			<resource>
+				<directory>${project.basedir}/properties</directory>
+				<targetPath>properties</targetPath>
+				<filtering>false</filtering>
+				<includes>
+					<include>csv-format.properties</include>
+				</includes>
+			</resource>
+			<resource>
 				<directory>src/main/resources</directory>
 				<filtering>false</filtering>
 				<excludes>

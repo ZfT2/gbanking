@@ -33,6 +33,7 @@ import de.zft2.gbanking.db.dao.Category;
 import de.zft2.gbanking.db.dao.CategoryRule;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.BookingType;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.ForeignChargeBearer;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
@@ -550,7 +551,7 @@ class GBankingServiceTest {
 		Recipient foreignRecipient = new Recipient("Foreign Recipient", "GB29NWBK60161331926819", "BICCODE", null, null, "Recipient Bank", Source.ONLINE);
 
 		MoneyTransferForeign foreignTransfer = new MoneyTransferForeign();
-		foreignTransfer.setCurrency("GBP");
+		foreignTransfer.setCurrency(Currency.GBP);
 		foreignTransfer.setRecipientCountry("GB");
 		foreignTransfer.setRecipientAccountNumber("31926819");
 		foreignTransfer.setRecipientBankCode("NWBK601613");

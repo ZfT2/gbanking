@@ -24,6 +24,7 @@ import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.StockCashLegRole;
 import de.zft2.gbanking.db.dao.enu.StockIdentifierType;
+import de.zft2.gbanking.db.dao.enu.StockNumericValueType;
 import de.zft2.gbanking.db.dao.enu.StockTransactionStatus;
 import de.zft2.gbanking.db.dao.enu.StockTransactionType;
 import de.zft2.gbanking.db.dao.stock.StockSecurity;
@@ -41,8 +42,8 @@ import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
 
 public class PortfolioPerformanceExportService extends AbstractDbService {
 
-	private static final int QUANTITY_SCALE = 9;
-	private static final int PRICE_SCALE = 8;
+	private static final int QUANTITY_SCALE = StockNumericValueType.QUANTITY.getScaleDigits();
+	private static final int PRICE_SCALE = StockNumericValueType.PRICE.getScaleDigits();
 	private static final String[] TRANSACTION_HEADERS = { "Datum", "Typ", "Wert", "Buchungswährung",
 			"Bruttobetrag", "Währung Bruttobetrag", "Wechselkurs", "Gebühren", "Steuern", "Stück", "ISIN",
 			"WKN", "Ticker-Symbol", "Wertpapiername", "Notiz" };

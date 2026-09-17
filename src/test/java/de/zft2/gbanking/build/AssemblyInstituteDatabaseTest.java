@@ -17,6 +17,7 @@ class AssemblyInstituteDatabaseTest {
 
 	private static final Pattern FILE_SET_PATTERN = Pattern.compile("<fileSet>.*?</fileSet>", Pattern.DOTALL);
 	private static final String INSTITUTE_INCLUDE = "<include>institute.db</include>";
+	private static final String CSV_FORMAT_INCLUDE = "<include>csv-format.properties</include>";
 
 	@Test
 	void allDistributionAssembliesPackageInstituteDatabase() throws IOException {
@@ -27,6 +28,21 @@ class AssemblyInstituteDatabaseTest {
 
 		for (String platform : List.of("windows", "linux", "mac")) {
 			assertAssemblyIncludesInstituteDatabase(projectDirectory, platform);
+		}
+	}
+
+	@Test
+	void allDistributionAssembliesPackageCsvFormats() throws IOException {
+		Path projectDirectory = AppPaths.getApplicationBaseDirectory();
+		assertTrue(Files.isRegularFile(projectDirectory.resolve("properties").resolve("csv-format.properties")));
+		for (String platform : List.of("windows", "linux", "mac")) {
+			Path descriptor = projectDirectory.resolve("src").resolve("assembly").resolve(platform + ".xml");
+			String descriptorXml = Files.readString(descriptor);
+			String formatFileSet = FILE_SET_PATTERN.matcher(descriptorXml).results()
+					.map(MatchResult::group).filter(fileSet -> fileSet.contains(CSV_FORMAT_INCLUDE))
+					.findFirst().orElseThrow(() -> new AssertionError(platform + " assembly does not include CSV formats"));
+			assertTrue(formatFileSet.contains("<directory>${project.basedir}/properties</directory>"));
+			assertTrue(formatFileSet.contains("<outputDirectory>/properties</outputDirectory>"));
 		}
 	}
 

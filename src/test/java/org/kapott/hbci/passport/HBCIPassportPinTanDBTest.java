@@ -3,6 +3,7 @@ package org.kapott.hbci.passport;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,6 +21,7 @@ import org.kapott.hbci.manager.HBCIUtils;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.db.dao.BankAccess;
+import de.zft2.gbanking.db.dao.enu.TanProcedure;
 import de.zft2.gbanking.testdata.TestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -117,6 +119,33 @@ class HBCIPassportPinTanDBTest {
 			assertEquals("0", storedBankAccess.getFints().getSysId());
 			assertEquals(List.of("946"), storedBankAccess.getFints().getAllowedTwostepMechanisms());
 			assertNull(storedBankAccess.getFints().getHbciVersion());
+		} finally {
+			passport.close();
+		}
+	}
+
+	@Test
+	void saveChangesShouldPersistSelectedFlatexTanProcedure() {
+		Properties bpd = new Properties();
+		bpd.setProperty("Params_1.TAN2StepPar6.ParTAN2Step.TAN2StepParams_1.secfunc", "906");
+		bpd.setProperty("Params_1.TAN2StepPar6.ParTAN2Step.TAN2StepParams_1.name", "iTAN-Card");
+		bpd.setProperty("Params_1.TAN2StepPar6.ParTAN2Step.TAN2StepParams_2.secfunc", "907");
+		bpd.setProperty("Params_1.TAN2StepPar6.ParTAN2Step.TAN2StepParams_2.name", "flateXSecure");
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("12345679");
+		bankAccess.getFints().setBpd(bpd);
+		bankAccess.getFints().setTanProcedure(TanProcedure.I_TAN);
+		bankAccess.getFints().setAllowedTwostepMechanisms(List.of("906", "907"));
+		bankAccess = dbController.insertOrUpdate(bankAccess);
+		dbController.insertOrUpdatePD(bankAccess);
+
+		HBCIPassportPinTanDB passport = new HBCIPassportPinTanDB("12345679");
+		try {
+			assertEquals("906", passport.getCurrentTANMethod(false));
+			passport.setCurrentTANMethod("907");
+			passport.saveChanges();
+
+			BankAccess storedBankAccess = dbController.getBankAccessByBlz("12345679");
+			assertSame(TanProcedure.APP_TAN, storedBankAccess.getFints().getTanProcedure());
 		} finally {
 			passport.close();
 		}

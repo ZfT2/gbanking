@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.StockDataSourceType;
 import de.zft2.gbanking.db.dao.enu.StockIdentifierType;
+import de.zft2.gbanking.db.dao.enu.StockNumericValueType;
 import de.zft2.gbanking.db.dao.enu.StockPriceBasis;
 import de.zft2.gbanking.db.dao.enu.StockPriceType;
 import de.zft2.gbanking.db.dao.enu.StockQuotationType;
@@ -32,7 +33,7 @@ import de.zft2.gbanking.service.stock.quote.QuoteProviderSettings.Configuration;
 
 public class StockQuoteRetrievalService extends AbstractDbService {
 
-	private static final int PRICE_SCALE = 8;
+	private static final int PRICE_SCALE = StockNumericValueType.PRICE.getScaleDigits();
 	private static final int MARKET_DATA_PRIORITY = 50;
 
 	private final MarketDataClient client;

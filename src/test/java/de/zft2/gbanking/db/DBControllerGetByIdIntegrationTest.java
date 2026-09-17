@@ -17,6 +17,7 @@ import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferForeign;
 import de.zft2.gbanking.db.dao.Recipient;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.ForeignChargeBearer;
 import de.zft2.gbanking.db.dao.enu.InstituteStatus;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
@@ -26,13 +27,13 @@ import de.zft2.gbanking.testdata.TestDataFactory;
 class DBControllerGetByIdIntegrationTest extends DBControllerIntegrationBaseTest {
 
 	@Test
-	void getByIdShouldMapMoneyTransferRecipientAndForeignDetails() {
+	void getByIdShouldMapMoneyTransferRecipientAndForeignDetails() throws Exception {
 		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("12345678"));
 		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
 		Recipient recipient = db.insertOrUpdate(TestDataFactory.createSampleRecipient01());
 
 		MoneyTransferForeign foreignDetails = new MoneyTransferForeign();
-		foreignDetails.setCurrency("USD");
+		foreignDetails.setCurrency(Currency.USD);
 		foreignDetails.setRecipientCountry("US");
 		foreignDetails.setRecipientAccountNumber("123456789");
 		foreignDetails.setRecipientBankCode("BOFAUS3N");
@@ -57,9 +58,17 @@ class DBControllerGetByIdIntegrationTest extends DBControllerIntegrationBaseTest
 		assertEquals(recipient.getId(), storedTransfer.getRecipient().getId());
 		assertEquals(recipient.getName(), storedTransfer.getRecipient().getName());
 		assertNotNull(storedTransfer.getForeignTransfer());
-		assertEquals("USD", storedTransfer.getForeignTransfer().getCurrency());
+		assertEquals(Currency.USD, storedTransfer.getForeignTransfer().getCurrency());
 		assertEquals("US", storedTransfer.getForeignTransfer().getRecipientCountry());
 		assertEquals("E2E-PRIMARY-ID", storedTransfer.getForeignTransfer().getEndToEndReference());
+		try (var statement = DBController.getConnection().prepareStatement(
+				"SELECT currency, typeof(currency) AS currencyType FROM moneytransferForeign WHERE moneytransfer_id = ?")) {
+			statement.setInt(1, transfer.getId());
+			try (var resultSet = statement.executeQuery()) {
+				assertEquals(Currency.USD.getDbStateId(), resultSet.getInt("currency"));
+				assertEquals("integer", resultSet.getString("currencyType"));
+			}
+		}
 
 		transfer.setOrderType(OrderType.TRANSFER);
 		db.insertOrUpdate(transfer);

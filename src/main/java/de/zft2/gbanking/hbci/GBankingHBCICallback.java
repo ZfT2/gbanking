@@ -5,8 +5,10 @@ import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
 import org.apache.logging.log4j.Level;
@@ -52,6 +54,7 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 	private static final String UI_BUTTON_CONTINUE = "UI_BUTTON_CONTINUE";
 
 	private static final int ESTIMATED_STATUS_MESSAGE_COUNT = 20;
+	private static final ThreadLocal<Map<Integer, String>> SECURITY_MECHANISM_SELECTIONS = new ThreadLocal<>();
 
 	private final BankAccess bankAccess;
 	private final HbciCallbackMessageDialog statusDialog;
@@ -98,7 +101,7 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 			retDataBuilder.replace(0, retDataBuilder.length(), requestTan(reason, msg, retDataBuilder.toString()));
 		}
 		case NEED_PT_SECMECH -> {
-			String selectedSecurityMechanism = requestSelection(msg, retDataBuilder.toString(), "UI_DIALOG_HBCI_FEEDBACK_SELECT_SECMECH");
+			String selectedSecurityMechanism = requestSecurityMechanism(msg, retDataBuilder.toString());
 			if (selectedSecurityMechanism == null || selectedSecurityMechanism.isBlank()) {
 				throw new HBCI_Exception("No TAN security mechanism selected");
 			}
@@ -350,6 +353,69 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 			return options.get(0).value();
 		}
 		return statusDialog.requestSelection(message, rawOptions, options, getText(UI_BUTTON_OK), getText(UI_BUTTON_CANCEL));
+	}
+
+	private String requestSecurityMechanism(String message, String rawOptions) {
+		List<HbciCallbackMessageDialog.DialogOption> options = parseOptions(rawOptions);
+		String cachedSelection = cachedSecurityMechanism(options);
+		if (cachedSelection != null) {
+			return cachedSelection;
+		}
+		options.forEach(option -> TanProcedureSupport.warnIfUnsupportedProcedure(option.value(), option.label()));
+
+		String selection = requestSelection(message, rawOptions, "UI_DIALOG_HBCI_FEEDBACK_SELECT_SECMECH");
+		if (selection != null && options.stream().anyMatch(option -> selection.equals(option.value()))) {
+			rememberSecurityMechanism(selection);
+			TanProcedureSupport.resolveProcedureForCode(selection, bankAccess)
+					.ifPresent(bankAccess.getFints()::setTanProcedure);
+		}
+		return selection;
+	}
+
+	private String cachedSecurityMechanism(List<HbciCallbackMessageDialog.DialogOption> options) {
+		Map<Integer, String> selections = SECURITY_MECHANISM_SELECTIONS.get();
+		if (selections == null || bankAccess.getId() <= 0) {
+			return null;
+		}
+		String selection = selections.get(bankAccess.getId());
+		return selection != null && options.stream().anyMatch(option -> selection.equals(option.value()))
+				? selection : null;
+	}
+
+	private void rememberSecurityMechanism(String selection) {
+		Map<Integer, String> selections = SECURITY_MECHANISM_SELECTIONS.get();
+		if (selections != null && bankAccess.getId() > 0) {
+			selections.put(bankAccess.getId(), selection);
+		}
+	}
+
+	public static SecurityMechanismSelectionScope openSecurityMechanismSelectionScope() {
+		Map<Integer, String> previousSelections = SECURITY_MECHANISM_SELECTIONS.get();
+		SECURITY_MECHANISM_SELECTIONS.set(previousSelections != null ? previousSelections : new HashMap<>());
+		return new SecurityMechanismSelectionScope(previousSelections);
+	}
+
+	public static final class SecurityMechanismSelectionScope implements AutoCloseable {
+
+		private final Map<Integer, String> previousSelections;
+		private boolean closed;
+
+		private SecurityMechanismSelectionScope(Map<Integer, String> previousSelections) {
+			this.previousSelections = previousSelections;
+		}
+
+		@Override
+		public void close() {
+			if (closed) {
+				return;
+			}
+			closed = true;
+			if (previousSelections == null) {
+				SECURITY_MECHANISM_SELECTIONS.remove();
+			} else {
+				SECURITY_MECHANISM_SELECTIONS.set(previousSelections);
+			}
+		}
 	}
 
 	private List<HbciCallbackMessageDialog.DialogOption> parseOptions(String rawOptions) {

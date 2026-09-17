@@ -362,6 +362,7 @@ class AccountTransactionServiceAdditionalTest {
 			verify(umsatzJob).setParam("my", konto);
 			verify(umsatzJob).setParam("startdate", toUtilDate(existingBookingDate.minusDays(1)));
 			verify(handle).execute();
+			verify(passport).saveChanges();
 			verify(callbacks.constructed().get(0)).startStatusDialog();
 			verify(callbacks.constructed().get(0)).finishStatusDialog();
 			verify(passport).close();

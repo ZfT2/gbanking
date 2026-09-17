@@ -62,6 +62,10 @@
     -fx-fill: -fx-selection-bar-text;
 }
 
+.table-row-cell:selected .table-cell .hyperlink {
+    -fx-text-fill: -fx-selection-bar-text;
+}
+
 /* Amount columns */
 .table-cell.amount-positive,
 .table-row-cell:selected .table-cell.amount-positive {

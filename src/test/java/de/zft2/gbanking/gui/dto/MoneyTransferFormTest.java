@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.MoneyTransferForeign;
 import de.zft2.gbanking.db.dao.Recipient;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.StandingorderMode;
@@ -63,7 +64,7 @@ class MoneyTransferFormTest {
 	void extendedConstructor_shouldKeepForeignTransferCurrency() {
 		Recipient foreignRecipient = new Recipient("Foreign Recipient", "GB29NWBK60161331926819", null, null, null, "Recipient Bank", Source.ONLINE);
 		MoneyTransferForeign foreignTransfer = new MoneyTransferForeign();
-		foreignTransfer.setCurrency("GBP");
+		foreignTransfer.setCurrency(Currency.GBP);
 		foreignTransfer.setRecipientCountry("GB");
 		MoneyTransferForm form = new MoneyTransferForm(new BankAccount(), OrderType.FOREIGN_TRANSFER, foreignRecipient, new BigDecimal("19.95"), "Invoice",
 				LocalDate.now(ZoneId.systemDefault()), foreignTransfer);
@@ -76,7 +77,7 @@ class MoneyTransferFormTest {
 		Recipient foreignRecipient = new Recipient("Foreign Recipient", "GB29NWBK60161331926819", null, null, null, "Recipient Bank", Source.ONLINE);
 		MoneyTransferForeign foreignTransfer = new MoneyTransferForeign();
 		foreignTransfer.setRecipientCountry("GB");
-		foreignTransfer.setCurrency("GBP");
+		foreignTransfer.setCurrency(Currency.GBP);
 
 		MoneyTransferForm form = new MoneyTransferForm(new BankAccount(), OrderType.FOREIGN_TRANSFER, foreignRecipient, new BigDecimal("19.95"), "Invoice",
 				LocalDate.now(ZoneId.systemDefault()), foreignTransfer);

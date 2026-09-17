@@ -11,12 +11,16 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.ParameterDataBankAccess;
 import de.zft2.gbanking.db.dao.enu.TanProcedure;
 
 public final class TanProcedureSupport {
 
+	private static final Logger log = LogManager.getLogger(TanProcedureSupport.class);
 	private static final Pattern TAN2STEP_PARAM_PATTERN = Pattern.compile("(.+\\.TAN2StepParams_\\d+)\\.(secfunc|name)$");
 	private static final Pattern TAN_CODE_PATTERN = Pattern.compile("\\d+");
 
@@ -74,11 +78,28 @@ public final class TanProcedureSupport {
 
 		Map<TanProcedure, SupportedTanProcedure> result = new LinkedHashMap<>();
 		for (TanMechanism mechanism : mechanisms) {
-			for (TanProcedure procedure : TanProcedure.forCodeAndDescription(mechanism.codeAsInt(), mechanism.description())) {
+			List<TanProcedure> procedures = TanProcedure.forCodeAndDescription(mechanism.codeAsInt(), mechanism.description());
+			if (procedures.isEmpty()) {
+				logUnsupportedProcedure(mechanism.code(), mechanism.description());
+			}
+			for (TanProcedure procedure : procedures) {
 				result.putIfAbsent(procedure, new SupportedTanProcedure(procedure, mechanism.code(), mechanism.description()));
 			}
 		}
 		return new ArrayList<>(result.values());
+	}
+
+	static void warnIfUnsupportedProcedure(String code, String description) {
+		boolean supported = parseCode(code)
+				.map(parsedCode -> !TanProcedure.forCodeAndDescription(parsedCode, description).isEmpty())
+				.orElse(false);
+		if (!supported) {
+			logUnsupportedProcedure(code, description);
+		}
+	}
+
+	private static void logUnsupportedProcedure(String code, String description) {
+		log.warn("Bank reported an unsupported TAN procedure. code={}, description={}", code, description);
 	}
 
 	private static List<TanProcedure> fallbackProcedures() {

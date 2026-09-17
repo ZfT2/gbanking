@@ -35,6 +35,7 @@ import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.OrderType;
+import de.zft2.gbanking.hbci.GBankingHBCICallback;
 import de.zft2.gbanking.gui.BackgroundActionCoordinator.QuiesceMode;
 import de.zft2.gbanking.gui.BackgroundActionCoordinator.QuiesceResult;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
@@ -398,7 +399,7 @@ public class GBankingGui extends Application implements BaseGui {
 	private List<String> updateSelectedAccounts(List<BankAccount> checkedAccounts, Map<Integer, char[]> pinMap) {
 		List<String> skippedBanks = new ArrayList<>();
 		Set<Integer> blockedBankKeys = new HashSet<>();
-		try {
+		try (var ignored = GBankingHBCICallback.openSecurityMechanismSelectionScope()) {
 			for (BankAccount bankAccount : checkedAccounts) {
 				CancellationSupport.throwIfCancellationRequested();
 				if (bankAccount.getAccountType() == AccountType.DEPOT) {
@@ -777,7 +778,7 @@ public class GBankingGui extends Application implements BaseGui {
 		refreshExistingOverview(PageContext.ACCOUNTS_TRANSACTIONS);
 		refreshExistingOverview(PageContext.ACCOUNTS_MONEYTRANSFERS);
 		refreshExistingOverview(PageContext.CATEGORIES);
-		refreshExistingOverview(PageContext.ALL_ACCOUNTS);
+		refreshExistingOverview(PageContext.STOCK_PORTFOLIOS);
 	}
 
 	private void refreshExistingOverview(PageContext pageContext) {
@@ -871,6 +872,10 @@ public class GBankingGui extends Application implements BaseGui {
 
 	void processStockImport(ExportType importType) {
 		fileTransferCoordinator.processStockImport(importType);
+	}
+
+	void processStockCsvImport() {
+		fileTransferCoordinator.processStockCsvImport();
 	}
 
 	void processExport(ExportType exportType) {

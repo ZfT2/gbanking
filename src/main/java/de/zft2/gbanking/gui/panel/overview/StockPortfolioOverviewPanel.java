@@ -15,6 +15,7 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.StockTransactionType;
+import de.zft2.gbanking.gui.GuiContext;
 import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.component.GBankingTableView;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
@@ -32,6 +33,7 @@ import de.zft2.gbanking.gui.util.FormGridHelper;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.gui.util.FxTableUtils;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
+import de.zft2.gbanking.service.BankingCapabilityService;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.StockPortfolioService;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
@@ -82,6 +84,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	private static final double TABLE_DIVIDER = 0.5;
 
 	private final StockPortfolioService service;
+	private final BankingCapabilityService capabilityService;
 	private final TreeTableView<NavigationEntry> navigationTree = new TreeTableView<>();
 	private final CheckBox portfolioSelectAll = new CheckBox();
 	private final Set<Integer> selectedPortfolioIds = new HashSet<>();
@@ -112,11 +115,13 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	private PortfolioSummary selectedPortfolio;
 
 	public StockPortfolioOverviewPanel() {
-		this(ServiceRegistry.getService(StockPortfolioService.class));
+		this(ServiceRegistry.getService(StockPortfolioService.class),
+				ServiceRegistry.getService(BankingCapabilityService.class));
 	}
 
-	StockPortfolioOverviewPanel(StockPortfolioService service) {
+	StockPortfolioOverviewPanel(StockPortfolioService service, BankingCapabilityService capabilityService) {
 		this.service = service;
+		this.capabilityService = capabilityService;
 		setPageContext(PageContext.STOCK_PORTFOLIOS);
 		configureNavigation();
 		configurePositionTable();
@@ -531,7 +536,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 
 	private void reloadPortfolios() {
 		int selectedId = selectedPortfolio != null ? selectedPortfolio.portfolioId() : 0;
-		portfolios = service.getPortfolios();
+		portfolios = loadVisiblePortfolios();
 		selectedPortfolioIds.retainAll(portfolios.stream().map(PortfolioSummary::portfolioId).toList());
 		TreeItem<NavigationEntry> root = new TreeItem<>();
 		for (PortfolioSummary portfolio : portfolios) {
@@ -553,6 +558,16 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		} else {
 			selectPortfolio(null);
 		}
+	}
+
+	private List<PortfolioSummary> loadVisiblePortfolios() {
+		List<PortfolioSummary> availablePortfolios = service.getPortfolios();
+		if (!GuiContext.isOnlyOnlineAccountsVisible()) {
+			return availablePortfolios;
+		}
+		return availablePortfolios.stream()
+				.filter(portfolio -> capabilityService.supportsStockPortfolio(service.getPortfolioAccount(portfolio)))
+				.toList();
 	}
 
 	private NavigationEntry createPortfolioEntry(PortfolioSummary portfolio) {

@@ -2,6 +2,7 @@ package de.zft2.gbanking.db.dao.stock;
 
 import java.time.LocalDate;
 
+import de.zft2.gbanking.db.dao.enu.StockCustodyType;
 import de.zft2.gbanking.db.dao.enu.StockSubBalanceQualifier;
 
 @StockTable(name = "stockPortfolioStatementSubBalance", parentColumn = "statementPosition_id", createdAt = true)
@@ -13,7 +14,7 @@ public class StockPortfolioStatementSubBalance extends StockDao {
 	private boolean locked;
 	private LocalDate lockedUntil;
 	private String custodyCountry;
-	private String custodyType;
+	private StockCustodyType custodyType;
 	private String custodyPlace;
 	private String comment;
 
@@ -29,8 +30,8 @@ public class StockPortfolioStatementSubBalance extends StockDao {
 	public void setLockedUntil(LocalDate lockedUntil) { this.lockedUntil = lockedUntil; }
 	public String getCustodyCountry() { return custodyCountry; }
 	public void setCustodyCountry(String custodyCountry) { this.custodyCountry = custodyCountry; }
-	public String getCustodyType() { return custodyType; }
-	public void setCustodyType(String custodyType) { this.custodyType = custodyType; }
+	public StockCustodyType getCustodyType() { return custodyType; }
+	public void setCustodyType(StockCustodyType custodyType) { this.custodyType = custodyType; }
 	public String getCustodyPlace() { return custodyPlace; }
 	public void setCustodyPlace(String custodyPlace) { this.custodyPlace = custodyPlace; }
 	public String getComment() { return comment; }

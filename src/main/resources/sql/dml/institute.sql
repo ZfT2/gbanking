@@ -67,7 +67,7 @@ ON CONFLICT(institute_id) DO UPDATE SET
 
 [SQL_CLOSE_INSTITUTE_VALIDITY]
 UPDATE institute_db.instituteValidity
-SET validToType = CASE WHEN validToType = 'SOURCE_DATE' THEN validToType ELSE ? END,
+SET validToType = CASE WHEN validToType = ? THEN validToType ELSE ? END,
     updatedAt = ?
 WHERE institute_id = ?;
 

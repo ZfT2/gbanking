@@ -147,7 +147,7 @@ final class MoneyTransferInputForeignPanel extends MoneyTransferInputBasePanel {
 	@Override
 	protected MoneyTransferForeign buildForeignTransferDetails() {
 		MoneyTransferForeign foreignTransfer = new MoneyTransferForeign();
-		foreignTransfer.setCurrency(currencyCombo.getValue() != null ? currencyCombo.getValue().name() : Currency.EUR.name());
+		foreignTransfer.setCurrency(currencyCombo.getValue() != null ? currencyCombo.getValue() : Currency.EUR);
 		foreignTransfer.setRecipientCountry(normalizeCountry(trimToNull(tfRecipientCountry.getText())));
 		foreignTransfer.setRecipientAccountNumber(trimToNull(tfRecipientAccountNumber.getText()));
 		foreignTransfer.setRecipientBankCode(trimToNull(tfRecipientBankCode.getText()));

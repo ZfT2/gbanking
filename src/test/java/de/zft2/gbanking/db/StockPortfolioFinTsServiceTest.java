@@ -38,6 +38,7 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.Currency;
+import de.zft2.gbanking.db.dao.enu.StockCustodyType;
 import de.zft2.gbanking.db.dao.enu.StockImportStatus;
 import de.zft2.gbanking.db.dao.enu.StockStatementStatus;
 import de.zft2.gbanking.db.dao.enu.StockTransactionType;
@@ -65,7 +66,7 @@ class StockPortfolioFinTsServiceTest extends DBControllerIntegrationBaseTest {
 	private static final LocalDate STATEMENT_DATE = LocalDate.of(2026, 9, 15);
 
 	@Test
-	void shouldConfigurePortfolioAndReconcileFinTsStatementsIdempotently() {
+	void shouldConfigurePortfolioAndReconcileFinTsStatementsIdempotently() throws Exception {
 		BankAccount depotAccount = createAccount("FinTS-Depot", AccountType.DEPOT);
 		BankAccount settlementAccount = createAccount("Girokonto", AccountType.CURRENT_ACCOUNT);
 		StockPortfolioFinTsService service = new StockPortfolioFinTsService();
@@ -85,7 +86,18 @@ class StockPortfolioFinTsServiceTest extends DBControllerIntegrationBaseTest {
 		assertEquals(1, db.getAll(StockSecurity.class).size());
 		assertEquals(2, db.getAll(StockSecurityIdentifier.class).size());
 		assertEquals(1, db.getAll(StockPortfolioStatementPosition.class).size());
-		assertEquals(1, db.getAll(StockPortfolioStatementSubBalance.class).size());
+		List<StockPortfolioStatementSubBalance> subBalances = db.getAll(StockPortfolioStatementSubBalance.class);
+		assertEquals(1, subBalances.size());
+		assertEquals(StockCustodyType.COLLECTIVE_SAFE_CUSTODY, subBalances.get(0).getCustodyType());
+		try (var statement = DBController.getConnection().createStatement();
+				var resultSet = statement.executeQuery(
+						"SELECT custodyType, typeof(custodyType) AS custodyTypeStorage "
+								+ "FROM stockPortfolioStatementSubBalance")) {
+			assertTrue(resultSet.next());
+			assertEquals(StockCustodyType.COLLECTIVE_SAFE_CUSTODY.getDbStateId(),
+					resultSet.getInt("custodyType"));
+			assertEquals("integer", resultSet.getString("custodyTypeStorage"));
+		}
 		StockPortfolioStatement statement = db.getAll(StockPortfolioStatement.class).get(0);
 		assertEquals(StockStatementStatus.FINAL, statement.getStatementStatus());
 		assertEquals(123L, statement.getReportedAccruedInterestMinor());
@@ -366,6 +378,7 @@ class StockPortfolioFinTsServiceTest extends DBControllerIntegrationBaseTest {
 		SubSaldo available = new SubSaldo();
 		available.qualifier = "AVAILABLE";
 		available.saldo = new BigDecimalValue(quantity, "");
+		available.verwahrung = 1;
 		security.addSubSaldo(available);
 		entry.addEntry(security);
 		return entry;

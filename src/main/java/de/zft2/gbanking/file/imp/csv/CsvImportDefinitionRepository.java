@@ -17,13 +17,13 @@ import de.zft2.gbanking.util.AppPaths;
 
 public class CsvImportDefinitionRepository {
 
-	public static final String FILE_NAME = "csv.properties";
-	private static final String DEFAULT_RESOURCE = "/properties/import/" + FILE_NAME;
+	public static final String FILE_NAME = "csv-format.properties";
+	private static final String DEFAULT_RESOURCE = "/properties/" + FILE_NAME;
 
 	private final Path definitionFile;
 
 	public CsvImportDefinitionRepository() {
-		this(AppPaths.getImportPropertiesDirectory().resolve(FILE_NAME));
+		this(AppPaths.resolveInApplicationDirectory("properties", FILE_NAME));
 	}
 
 	public CsvImportDefinitionRepository(Path definitionFile) {
@@ -42,7 +42,7 @@ public class CsvImportDefinitionRepository {
 				merge(definitions, parse(Files.readAllLines(definitionFile, StandardCharsets.UTF_8), definitionFile.toString()));
 			}
 			if (definitions.isEmpty()) {
-				throw new GBankingException("No booking definitions found in " + DEFAULT_RESOURCE);
+				throw new GBankingException("No CSV import definitions found in " + DEFAULT_RESOURCE);
 			}
 			return List.copyOf(definitions.values());
 		} catch (IOException exception) {
@@ -75,7 +75,7 @@ public class CsvImportDefinitionRepository {
 			if (!line.isEmpty() && !line.startsWith("#") && !line.startsWith(";")) {
 				if (line.startsWith("[") && line.endsWith("]")) {
 					addDefinition(definitions, currentName, properties, source);
-					currentName = bookingSectionName(line);
+					currentName = sectionName(line);
 					properties = new LinkedHashMap<>();
 				} else if (currentName != null) {
 					int separator = line.indexOf('=');
@@ -94,16 +94,23 @@ public class CsvImportDefinitionRepository {
 		if (name == null) {
 			return;
 		}
-		CsvImportDefinition definition = new CsvImportDefinition(name, properties);
-		if (definition.getSourceFields(CsvImportTarget.AMOUNT).isEmpty()) {
-			throw new GBankingException("CSV import definition '" + name + "' has no Betrag mapping in " + source);
+		CsvImportDefinitionType type = CsvImportDefinitionType.fromSectionName(name);
+		if (type == null) {
+			return;
+		}
+		CsvImportDefinition definition = new CsvImportDefinition(name, type, properties);
+		List<String> missingMappings = type.getRequiredTargets().stream()
+				.filter(target -> definition.getSourceFields(target).isEmpty())
+				.map(CsvImportTarget::getPropertyName).toList();
+		if (!missingMappings.isEmpty()) {
+			throw new GBankingException("CSV import definition '" + name + "' has no mapping for "
+					+ String.join(", ", missingMappings) + " in " + source);
 		}
 		definitions.add(definition);
 	}
 
-	private String bookingSectionName(String line) {
-		String name = line.substring(1, line.length() - 1).trim();
-		return name.regionMatches(true, 0, "Buchung:", 0, "Buchung:".length()) ? name : null;
+	private String sectionName(String line) {
+		return line.substring(1, line.length() - 1).trim();
 	}
 
 	private GBankingException invalidLine(String source, int lineNumber) {

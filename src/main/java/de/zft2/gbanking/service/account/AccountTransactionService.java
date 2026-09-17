@@ -186,6 +186,7 @@ public class AccountTransactionService extends AbstractDbService {
 				getText("UI_DIALOG_HBCI_JOB_PENDING_TRANSACTIONS", accountName)));
 
 		HBCIExecStatus status = session.handler().execute();
+		session.passport().saveChanges();
 		boolean result = status.isOK();
 
 		if (!result) {

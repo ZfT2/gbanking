@@ -27,6 +27,7 @@ import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.StockCashLegRole;
 import de.zft2.gbanking.db.dao.enu.StockDataSourceType;
 import de.zft2.gbanking.db.dao.enu.StockIdentifierType;
+import de.zft2.gbanking.db.dao.enu.StockNumericValueType;
 import de.zft2.gbanking.db.dao.enu.StockPriceBasis;
 import de.zft2.gbanking.db.dao.enu.StockPriceType;
 import de.zft2.gbanking.db.dao.enu.StockQuantityType;
@@ -59,9 +60,9 @@ public class StockPortfolioService extends AbstractDbService {
 
 	private static final String MANUAL_SOURCE_CODE = "MANUAL";
 	private static final String RECONCILIATION_SOURCE_CODE = "RECONCILIATION";
-	private static final int QUANTITY_SCALE = 9;
-	private static final int PRICE_SCALE = 8;
-	private static final int EXCHANGE_RATE_SCALE = 12;
+	private static final int QUANTITY_SCALE = StockNumericValueType.QUANTITY.getScaleDigits();
+	private static final int PRICE_SCALE = StockNumericValueType.PRICE.getScaleDigits();
+	private static final int EXCHANGE_RATE_SCALE = StockNumericValueType.FACTOR.getScaleDigits();
 
 	public List<PortfolioSummary> getPortfolios() {
 		Map<Integer, BankAccount> accounts = dbController.getAll(BankAccount.class).stream()

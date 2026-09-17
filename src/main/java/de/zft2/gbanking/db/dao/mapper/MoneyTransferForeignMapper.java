@@ -6,6 +6,7 @@ import java.sql.SQLException;
 
 import de.zft2.gbanking.db.StatementsConfig.ResultType;
 import de.zft2.gbanking.db.dao.MoneyTransferForeign;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.ForeignChargeBearer;
 import de.zft2.gbanking.util.TypeConverter;
 
@@ -20,7 +21,7 @@ public class MoneyTransferForeignMapper extends AbstractDaoMapper<MoneyTransferF
 		int index = 1;
 
 		ps.setInt(index++, foreignTransfer.getMoneyTransferId());
-		ps.setString(index++, foreignTransfer.getCurrency());
+		ps.setInt(index++, foreignTransfer.getCurrency().getDbStateId());
 		ps.setString(index++, foreignTransfer.getRecipientCountry());
 		ps.setString(index++, foreignTransfer.getRecipientAccountNumber());
 		ps.setString(index++, foreignTransfer.getRecipientBankCode());
@@ -43,7 +44,7 @@ public class MoneyTransferForeignMapper extends AbstractDaoMapper<MoneyTransferF
 		int index = 1;
 
 		ps.setInt(index++, foreignTransfer.getMoneyTransferId());
-		ps.setString(index++, foreignTransfer.getCurrency());
+		ps.setInt(index++, foreignTransfer.getCurrency().getDbStateId());
 		ps.setString(index++, foreignTransfer.getRecipientCountry());
 		ps.setString(index++, foreignTransfer.getRecipientAccountNumber());
 		ps.setString(index++, foreignTransfer.getRecipientBankCode());
@@ -62,7 +63,7 @@ public class MoneyTransferForeignMapper extends AbstractDaoMapper<MoneyTransferF
 	@Override
 	public void mapDao(MoneyTransferForeign foreignTransfer, ResultType resultType, ResultSet rs) throws SQLException {
 		foreignTransfer.setMoneyTransferId(rs.getInt("moneytransfer_id"));
-		foreignTransfer.setCurrency(rs.getString("currency"));
+		foreignTransfer.setCurrency(Currency.forInt(rs.getInt("currency")));
 		foreignTransfer.setRecipientCountry(rs.getString("recipientCountry"));
 		foreignTransfer.setRecipientAccountNumber(rs.getString("recipientAccountNumber"));
 		foreignTransfer.setRecipientBankCode(rs.getString("recipientBankCode"));

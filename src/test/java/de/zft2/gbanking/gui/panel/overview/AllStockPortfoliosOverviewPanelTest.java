@@ -11,25 +11,29 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.gui.GuiContext;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
 import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.gui.panel.layout.DetailListPane;
 import de.zft2.gbanking.gui.panel.stock.StockPortfolioManagementDetailPanel;
 import de.zft2.gbanking.gui.panel.stock.StockPortfolioManagementListPanel;
 import de.zft2.gbanking.service.stock.StockPortfolioAdministrationService;
+import de.zft2.gbanking.service.stock.StockPortfolioAdministrationService.PortfolioDetails;
 import javafx.scene.control.TableView;
 
 class AllStockPortfoliosOverviewPanelTest {
 
 	@AfterEach
 	void closeDatabase() {
+		GuiContext.setOnlyOnlineAccountsVisible(false);
 		DBControllerTestUtil.closeAndNullifyConnection();
 	}
 
 	@Test
 	void shouldUseAllAccountsStyleDetailAndListLayout() {
 		StockPortfolioAdministrationService service = mock(StockPortfolioAdministrationService.class);
-		when(service.getPortfolios()).thenReturn(List.of());
+		when(service.getPortfolios()).thenReturn(List.of(mock(PortfolioDetails.class), mock(PortfolioDetails.class)));
+		GuiContext.setOnlyOnlineAccountsVisible(true);
 
 		JavaFxTestSupport.runFx(() -> {
 			AllStockPortfoliosOverviewPanel panel = new AllStockPortfoliosOverviewPanel(service);
@@ -42,6 +46,7 @@ class AllStockPortfoliosOverviewPanelTest {
 					StockPortfolioManagementListPanel.class, content.getCenter());
 			TableView<?> table = assertInstanceOf(TableView.class, listPanel.getCenter());
 			assertEquals(8, table.getColumns().size());
+			assertEquals(2, table.getItems().size());
 		});
 	}
 }

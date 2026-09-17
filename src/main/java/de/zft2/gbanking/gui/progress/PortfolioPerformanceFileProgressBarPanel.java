@@ -15,6 +15,7 @@ public class PortfolioPerformanceFileProgressBarPanel extends BaseFileProgressBa
 	private final boolean importOperation;
 	private final boolean importAdditionalAccounts;
 	private final XmlImportAssignments assignments;
+	private final String csvDefinitionName;
 	private final Runnable successCallback;
 
 	public PortfolioPerformanceFileProgressBarPanel(Window parent, PortfolioSummary portfolio,
@@ -35,11 +36,24 @@ public class PortfolioPerformanceFileProgressBarPanel extends BaseFileProgressBa
 	private PortfolioPerformanceFileProgressBarPanel(Window parent, PortfolioSummary portfolio,
 			boolean importOperation, boolean importAdditionalAccounts, XmlImportAssignments assignments,
 			Runnable successCallback) {
+		this(parent, portfolio, importOperation, importAdditionalAccounts, assignments, null, successCallback);
+	}
+
+	public PortfolioPerformanceFileProgressBarPanel(Window parent, PortfolioSummary portfolio,
+			boolean importOperation, XmlImportAssignments assignments, String csvDefinitionName,
+			Runnable successCallback) {
+		this(parent, portfolio, importOperation, false, assignments, csvDefinitionName, successCallback);
+	}
+
+	private PortfolioPerformanceFileProgressBarPanel(Window parent, PortfolioSummary portfolio,
+			boolean importOperation, boolean importAdditionalAccounts, XmlImportAssignments assignments,
+			String csvDefinitionName, Runnable successCallback) {
 		super(parent);
 		this.portfolio = portfolio;
 		this.importOperation = importOperation;
 		this.importAdditionalAccounts = importAdditionalAccounts;
 		this.assignments = assignments;
+		this.csvDefinitionName = csvDefinitionName;
 		this.successCallback = successCallback;
 	}
 
@@ -79,7 +93,7 @@ public class PortfolioPerformanceFileProgressBarPanel extends BaseFileProgressBa
 		task = assignments != null
 				? new PortfolioPerformanceFileTask(fileName, exportType, portfolio, importOperation, assignments)
 				: new PortfolioPerformanceFileTask(fileName, exportType, portfolio, importOperation,
-						importAdditionalAccounts);
+						importAdditionalAccounts, csvDefinitionName);
 		super.startTask(accountListPanel);
 	}
 }

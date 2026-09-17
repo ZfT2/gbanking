@@ -1,11 +1,12 @@
 package de.zft2.gbanking.db.dao;
 
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.ForeignChargeBearer;
 
 public class MoneyTransferForeign extends Dao {
 
 	private int moneyTransferId;
-	private String currency;
+	private Currency currency;
 	private String recipientCountry;
 	private String recipientAccountNumber;
 	private String recipientBankCode;
@@ -27,11 +28,11 @@ public class MoneyTransferForeign extends Dao {
 		this.moneyTransferId = moneyTransferId;
 	}
 
-	public String getCurrency() {
+	public Currency getCurrency() {
 		return currency;
 	}
 
-	public void setCurrency(String currency) {
+	public void setCurrency(Currency currency) {
 		this.currency = currency;
 	}
 

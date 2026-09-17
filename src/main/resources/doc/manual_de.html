@@ -287,11 +287,12 @@
 								<tr><td>Umsätze</td><td>CSV, FP3 (Moneyplex), MT940, XML (Moneyplex)</td><td>CSV, FP3, MT940, XML</td></tr>
 								<tr><td>Zahlungsaufträge</td><td>GBanking-CSV</td><td>GBanking-CSV</td></tr>
 								<tr><td>Kreditkartenumsätze</td><td>Spezieller CSV-Import in ein ausgewähltes Kreditkartenkonto</td><td>Über normalen Umsatzexport</td></tr>
-								<tr><td>Depots und Wertpapiere</td><td>Portfolio-Performance-Gesamtdatei (XML) sowie CSV für Depotumsätze, Kontoumsätze, Wertpapierstammdaten und Kurse</td><td>Portfolio-Performance-CSV für Depotumsätze, Kontoumsätze, Wertpapierstammdaten und Kurse</td></tr>
+								<tr><td>Depots und Wertpapiere</td><td>Konfigurierbare CSV-Formate für Depotumsätze, Kontoumsätze, Wertpapierstammdaten und Kurse sowie Portfolio-Performance-Gesamtdatei (XML)</td><td>Portfolio-Performance-CSV für Depotumsätze, Kontoumsätze, Wertpapierstammdaten und Kurse</td></tr>
 							</tbody>
 						</table>
 					</div>
 					<p>Ein Import über <strong>Datei</strong> ordnet Umsätze anhand der Kontodaten zu. Starten Sie ihn über das Kontextmenü eines Kontos oder Umsatzes, ist das Zielkonto bereits vorgegeben. Neue, noch unbekannte Importkonten und Kontakte können aus den Dateidaten angelegt werden; erkannte Dubletten werden nicht nochmals gespeichert.</p>
+					<p>Die verfügbaren CSV-Importformate und ihre Spaltenzuordnungen stehen in <code>properties/csv-format.properties</code>. Dort können auch eigene Formate für Umsätze, Depotumsätze, Kontoumsätze, Wertpapiere und Wertpapierkurse ergänzt werden.</p>
 					<p>Beim Export wählen Sie die Konten über ihre Kontrollkästchen. Formate, die nur ein Konto abbilden können, verlangen genau ein Zielkonto. CSV-Dateien enthalten zusätzlich Kontobezeichnung, IBAN und Kontonummer. Die vollständige Feldliste und Beispiele finden Sie in der <a href="csv-booking-format.html">CSV-Formatbeschreibung</a>.</p>
 					<p>Vor dem Import einer Portfolio-Performance-Gesamtdatei zeigt GBanking alle enthaltenen Depots und Konten an. Sie können jeden Eintrag über ein Auswahlfeld einem kompatiblen vorhandenen Depot beziehungsweise Konto zuordnen oder neu anlegen lassen. Ist kein Depot ausgewählt, lassen sich so alle enthaltenen Depots mit ihren Verrechnungskonten in einem Vorgang anlegen und importieren.</p>
 					<p>Enthält die Datei weitere, nicht mit einem Depot verknüpfte Konten, fragt GBanking zuvor, ob diese zusätzlichen Offline-Konten einschließlich ihrer Umsätze in die Vorschau und den Import aufgenommen werden sollen.</p>

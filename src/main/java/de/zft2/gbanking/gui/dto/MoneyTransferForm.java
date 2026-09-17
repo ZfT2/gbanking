@@ -2,13 +2,14 @@ package de.zft2.gbanking.gui.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.MoneyTransferForeign;
 import de.zft2.gbanking.db.dao.Recipient;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.StandingorderMode;
-import java.time.ZoneId;
 
 public class MoneyTransferForm {
 
@@ -52,9 +53,9 @@ public class MoneyTransferForm {
 		this.recipientBlz = foreignTransfer != null ? foreignTransfer.getRecipientBankCode() : null;
 		if (this.foreignTransfer != null) {
 			if (this.foreignTransfer.getCurrency() == null) {
-				this.foreignTransfer.setCurrency(currency);
+				this.foreignTransfer.setCurrency(Currency.forCode(currency));
 			} else {
-				this.currency = this.foreignTransfer.getCurrency();
+				this.currency = this.foreignTransfer.getCurrency().name();
 			}
 		}
 	}
@@ -129,13 +130,13 @@ public class MoneyTransferForm {
 	}
 
 	public String getCurrency() {
-		return foreignTransfer != null && foreignTransfer.getCurrency() != null ? foreignTransfer.getCurrency() : currency;
+		return foreignTransfer != null && foreignTransfer.getCurrency() != null ? foreignTransfer.getCurrency().name() : currency;
 	}
 
 	public void setCurrency(String currency) {
 		this.currency = currency;
 		if (foreignTransfer != null) {
-			foreignTransfer.setCurrency(currency);
+			foreignTransfer.setCurrency(Currency.forCode(currency));
 		}
 	}
 
@@ -178,7 +179,7 @@ public class MoneyTransferForm {
 	public void setForeignTransfer(MoneyTransferForeign foreignTransfer) {
 		this.foreignTransfer = foreignTransfer;
 		if (foreignTransfer != null && currency != null && foreignTransfer.getCurrency() == null) {
-			foreignTransfer.setCurrency(currency);
+			foreignTransfer.setCurrency(Currency.forCode(currency));
 		}
 	}
 

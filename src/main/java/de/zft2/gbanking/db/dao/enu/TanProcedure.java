@@ -11,10 +11,10 @@ import de.zft2.gbanking.enu.LocalizedEnumValue;
 public enum TanProcedure implements IdType, LocalizedEnumValue {
 	
 	UNKNOWN(List.of(), 2),
-	I_TAN(List.of(900, 912, 996, 997), List.of("itan", "i tan", "indizierte tan"), 3),
+	I_TAN(List.of(900, 906, 912, 996, 997), List.of("itan", "i tan", "itan card", "indizierte tan"), 3),
 	M_TAN(List.of(901, 930, 942, 996), List.of("mobiletan", "mobile tan", "mtan", "m tan"), 4),
 	SMS_TAN(List.of(903, 920, 930), List.of("smstan", "sms tan", "sms"), 5),
-	APP_TAN(List.of(931, 940, 997, 999), List.of("app tan", "app"), true, 6),
+	APP_TAN(List.of(907, 931, 940, 997, 999), List.of("app tan", "app", "flatexsecure", "flatex secure"), true, 6),
 	APP_SECUREGO_PLUS(List.of(946), List.of("securego plus", "securego+"), 7),
 	CHIP_TAN(List.of(901, 904, 910, 911, 912, 913, 921, 962, 972, 994, 995),
 			List.of("chiptan", "chip tan", "smarttan", "smart tan"), true, 8),

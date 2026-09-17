@@ -17,6 +17,14 @@ class AccountListPanelTest {
 		assertTrue(AccountListPanel.isGeneralAccount(account(AccountType.DEPOT_ACCOUNT)));
 	}
 
+	@Test
+	void allScopeShouldIgnoreOnlineViewSetting() {
+		assertFalse(AccountListScope.ALL.usesOnlineFilter(true));
+		assertFalse(AccountListScope.FOLLOW_VIEW_SETTING.usesOnlineFilter(false));
+		assertTrue(AccountListScope.FOLLOW_VIEW_SETTING.usesOnlineFilter(true));
+		assertTrue(AccountListScope.ONLINE_ONLY.usesOnlineFilter(false));
+	}
+
 	private BankAccount account(AccountType accountType) {
 		BankAccount account = new BankAccount();
 		account.setAccountType(accountType);

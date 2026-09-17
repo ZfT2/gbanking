@@ -7,6 +7,7 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.gui.panel.account.AccountDetailPanel;
 import de.zft2.gbanking.gui.panel.account.AccountListPanel;
+import de.zft2.gbanking.gui.panel.account.AccountListScope;
 import de.zft2.gbanking.gui.panel.account.AccountSelectionTarget;
 import de.zft2.gbanking.gui.panel.layout.DetailListPane;
 
@@ -26,7 +27,7 @@ public class AllAccountsOverviewPanel extends OverviewBasePanel implements Accou
 		log.info("Initializing AllAccountsOverviewPanel");
 
 		accountDetailPanel = new AccountDetailPanel(true, () -> refreshAccountList());
-		accountListPanel = new AccountListPanel(this);
+		accountListPanel = new AccountListPanel(this, AccountListScope.ALL);
 
 		setOverviewContent("UI_PANEL_ALL_ACCOUNTS", new DetailListPane(accountDetailPanel, accountListPanel));
 	}

@@ -25,6 +25,8 @@ import de.zft2.gbanking.db.dao.stock.StockPortfolio;
 import de.zft2.gbanking.db.dao.stock.StockPortfolioSettlementAccount;
 import de.zft2.gbanking.db.dao.stock.StockSecurity;
 import de.zft2.gbanking.gui.enu.ExportType;
+import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer;
+import de.zft2.gbanking.file.imp.csv.CsvImportDefinitionRepository;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceExportService;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService.XmlImportAssignments;
@@ -80,13 +82,42 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		assertTrue(Files.readString(exportedAccounts).contains("2026-03-01T00:00;Dividende;8,00;EUR"));
 		assertTrue(Files.readString(exportedSecurities).contains("DE0000000001;ABC123;ABC.DE;Beispiel AG;EUR"));
 		assertTrue(Files.readString(exportedPrices).contains("2026-03-02;12,5"));
-
 		int securityId = db.getAll(StockSecurity.class).get(0).getId();
 		int importedPriceId = portfolioService.getPrices(securityId).get(0).priceId();
 		portfolioService.deletePrice(securityId, importedPriceId, true);
 		Path pricesAfterDeletion = files.resolve("export-prices-after-deletion.csv");
 		exporter.exportFile(pricesAfterDeletion, ExportType.STOCK_PP_PRICES_CSV, portfolio);
 		assertFalse(Files.readString(pricesAfterDeletion).contains("2026-03-02;12,5"));
+	}
+
+	@Test
+	void stockCsvImportShouldUseConfiguredColumnMappings() throws Exception {
+		PortfolioSummary portfolio = createPortfolio();
+		createSource();
+		Path definitions = write("custom-csv-format.properties", """
+				[Depotumsatz: Eigenes Format]
+				Transaktion.Datum=Handelstag
+				Transaktion.Typ=Vorgang
+				Transaktion.Wert=Gesamtwert
+				Transaktion.Buchungswaehrung=Devisen
+				Transaktion.Stueck=Anzahl
+				Wertpapier.Name=Titel
+				Wertpapier.Isin=Kennung
+				Format.DecimalSeparator=.
+				Format.ThousandSeparator=,
+				""");
+		Path transactions = write("custom-transactions.csv", """
+				Handelstag;Vorgang;Gesamtwert;Devisen;Anzahl;Titel;Kennung
+				2026-05-02T10:30;Kauf;51.25;EUR;5;Konfiguriert AG;DE0000000099
+				""");
+		CsvImportAnalyzer analyzer = new CsvImportAnalyzer(new CsvImportDefinitionRepository(definitions));
+
+		var result = new PortfolioPerformanceImportService(analyzer).importFile(transactions,
+				ExportType.STOCK_PP_TRANSACTIONS_CSV, portfolio, "Depotumsatz: Eigenes Format");
+
+		assertEquals(1, result.securities());
+		assertEquals(1, result.transactions());
+		assertEquals("Konfiguriert AG", db.getAll(StockSecurity.class).get(0).getName());
 	}
 
 	@Test

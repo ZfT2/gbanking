@@ -10,6 +10,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.DateTimeException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -20,9 +21,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-
-import org.apache.commons.csv.CSVParser;
-import org.apache.commons.csv.CSVRecord;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
@@ -36,6 +34,7 @@ import de.zft2.gbanking.db.dao.enu.StockDataSourceType;
 import de.zft2.gbanking.db.dao.enu.StockIdentifierType;
 import de.zft2.gbanking.db.dao.enu.StockImportRecordStatus;
 import de.zft2.gbanking.db.dao.enu.StockImportStatus;
+import de.zft2.gbanking.db.dao.enu.StockNumericValueType;
 import de.zft2.gbanking.db.dao.enu.StockPriceType;
 import de.zft2.gbanking.db.dao.enu.StockQuantityType;
 import de.zft2.gbanking.db.dao.enu.StockQuotationType;
@@ -59,6 +58,14 @@ import de.zft2.gbanking.db.dao.stock.StockTransactionCashLeg;
 import de.zft2.gbanking.db.dao.stock.StockTransactionMetadata;
 import de.zft2.gbanking.db.dao.stock.StockTransactionSecurityLeg;
 import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer;
+import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer.Analysis;
+import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer.Match;
+import de.zft2.gbanking.file.imp.csv.CsvImportData;
+import de.zft2.gbanking.file.imp.csv.CsvImportDefinition;
+import de.zft2.gbanking.file.imp.csv.CsvImportDefinitionType;
+import de.zft2.gbanking.file.imp.csv.CsvImportTarget;
+import de.zft2.gbanking.file.imp.csv.CsvImportValueParser;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceData.Document;
@@ -74,12 +81,17 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 	private static final String SOURCE_CODE = "PORTFOLIO_PERFORMANCE";
 	private static final String IMPORTER_KEY = "PORTFOLIO_PERFORMANCE";
 	private static final String IMPORTER_VERSION = "1";
-	private static final int QUANTITY_SCALE = 9;
-	private static final int PRICE_SCALE = 8;
+	private static final int QUANTITY_SCALE = StockNumericValueType.QUANTITY.getScaleDigits();
+	private static final int PRICE_SCALE = StockNumericValueType.PRICE.getScaleDigits();
+	private final CsvImportAnalyzer csvImportAnalyzer;
 
-	private static final List<String> TRANSACTION_HEADERS = List.of("Datum", "Typ", "Wert", "Buchungswährung",
-			"Stück", "Wertpapiername");
-	private static final List<String> SECURITY_HEADERS = List.of("Wertpapiername", "Währung");
+	public PortfolioPerformanceImportService() {
+		this(new CsvImportAnalyzer());
+	}
+
+	public PortfolioPerformanceImportService(CsvImportAnalyzer csvImportAnalyzer) {
+		this.csvImportAnalyzer = Objects.requireNonNull(csvImportAnalyzer);
+	}
 
 	public ImportResult importFile(Path file, ExportType importType, PortfolioSummary portfolio) throws IOException {
 		return importFile(file, importType, portfolio, false);
@@ -87,22 +99,27 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 
 	public ImportResult importFile(Path file, ExportType importType, PortfolioSummary portfolio,
 			boolean importAdditionalAccounts) throws IOException {
-		return importFile(file, importType, portfolio, importAdditionalAccounts, null);
+		return importFile(file, importType, portfolio, importAdditionalAccounts, null, null);
 	}
 
 	public ImportResult importFile(Path file, ExportType importType, PortfolioSummary portfolio,
 			XmlImportAssignments assignments) throws IOException {
-		return importFile(file, importType, portfolio, false, assignments);
+		return importFile(file, importType, portfolio, false, assignments, null);
+	}
+
+	public ImportResult importFile(Path file, ExportType importType, PortfolioSummary portfolio,
+			String csvDefinitionName) throws IOException {
+		return importFile(file, importType, portfolio, false, null, csvDefinitionName);
 	}
 
 	private ImportResult importFile(Path file, ExportType importType, PortfolioSummary portfolio,
-			boolean importAdditionalAccounts, XmlImportAssignments assignments) throws IOException {
+			boolean importAdditionalAccounts, XmlImportAssignments assignments, String csvDefinitionName) throws IOException {
 		if (portfolio != null || importType != ExportType.STOCK_PP_XML) {
 			requirePortfolio(portfolio);
 		}
 		byte[] content = Files.readAllBytes(file);
 		String contentHash = hash(content, portfolio != null ? portfolio.portfolioId() : 0,
-				importAdditionalAccounts, assignments);
+				importAdditionalAccounts, assignments, importType.name() + ":" + nullToEmpty(csvDefinitionName));
 		StockDataSource source = requireSource();
 		if (isAlreadyImported(source.getId(), contentHash)) {
 			return new ImportResult(0, 0, 0, 0, 0, 0, true);
@@ -114,7 +131,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 			Counters counters = new Counters();
 			try {
 				importByType(file, importType, portfolio, source, record, counters,
-						importAdditionalAccounts, assignments);
+						importAdditionalAccounts, assignments, csvDefinitionName);
 				batch.setImportStatus(StockImportStatus.IMPORTED);
 				batch.setCompletedAt(LocalDateTime.now());
 				dbController.insertOrUpdate(batch);
@@ -127,16 +144,21 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 
 	private void importByType(Path file, ExportType importType, PortfolioSummary portfolio, StockDataSource source,
 			StockImportRecord record, Counters counters, boolean importAdditionalAccounts,
-			XmlImportAssignments assignments) throws IOException {
+			XmlImportAssignments assignments, String csvDefinitionName) throws IOException {
 		switch (importType) {
 		case STOCK_PP_XML -> importDocument(new PortfolioPerformanceXmlReader().read(file), portfolio, source, record,
 				counters, new PriceImportCache(), importAdditionalAccounts, assignments);
-		case STOCK_PP_TRANSACTIONS_CSV -> importTransactions(readTransactions(file), false, portfolio, source, record,
+		case STOCK_PP_TRANSACTIONS_CSV -> importTransactions(readTransactions(file, csvDefinition(file,
+				CsvImportDefinitionType.STOCK_PORTFOLIO_TRANSACTION, csvDefinitionName)), false, portfolio, source, record,
 				new HashMap<>(), counters);
-		case STOCK_PP_ACCOUNT_TRANSACTIONS_CSV -> importTransactions(readTransactions(file), true, portfolio, source, record,
+		case STOCK_PP_ACCOUNT_TRANSACTIONS_CSV -> importTransactions(readTransactions(file, csvDefinition(file,
+				CsvImportDefinitionType.STOCK_ACCOUNT_TRANSACTION, csvDefinitionName)), true, portfolio, source, record,
 				new HashMap<>(), counters);
-		case STOCK_PP_SECURITIES_CSV -> importSecurities(readSecurities(file), source, counters);
-		case STOCK_PP_PRICES_CSV -> importPriceCsv(file, portfolio, source, record, counters, new PriceImportCache());
+		case STOCK_PP_SECURITIES_CSV -> importSecurities(readSecurities(file, csvDefinition(file,
+				CsvImportDefinitionType.STOCK_SECURITY, csvDefinitionName)), source, counters);
+		case STOCK_PP_PRICES_CSV -> importPriceCsv(file, csvDefinition(file,
+				CsvImportDefinitionType.STOCK_SECURITY_PRICE, csvDefinitionName), portfolio, source, record, counters,
+				new PriceImportCache());
 		default -> throw new GBankingException("Unbekanntes Portfolio-Performance-Importformat: " + importType);
 		}
 	}
@@ -517,43 +539,128 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		return importedType == ImportedType.BUY || importedType == ImportedType.SELL;
 	}
 
-	private List<Security> readSecurities(Path file) throws IOException {
-		try (CSVParser parser = PortfolioPerformanceCsvSupport.parse(file)) {
-			PortfolioPerformanceCsvSupport.requireHeaders(parser, SECURITY_HEADERS);
-			List<Security> result = new ArrayList<>();
-			for (CSVRecord row : parser) {
-				result.add(new Security(null, PortfolioPerformanceCsvSupport.required(row, "Wertpapiername"),
-						Currency.forCode(PortfolioPerformanceCsvSupport.required(row, "Währung")),
-						PortfolioPerformanceCsvSupport.value(row, "ISIN"), PortfolioPerformanceCsvSupport.value(row, "WKN"),
-						PortfolioPerformanceCsvSupport.value(row, "Ticker-Symbol"),
-						PortfolioPerformanceCsvSupport.value(row, "Anbieter"), List.of()));
+	private CsvImportDefinition csvDefinition(Path file, CsvImportDefinitionType expectedType,
+			String definitionName) throws IOException {
+		Match match;
+		if (definitionName != null) {
+			match = csvImportAnalyzer.match(file, definitionName);
+			if (match == null || match.definition().getType() != expectedType) {
+				throw new GBankingException("CSV-Importformat '" + definitionName + "' wurde nicht gefunden");
 			}
-			return result;
+		} else {
+			Analysis analysis = csvImportAnalyzer.analyze(file, expectedType);
+			if (analysis.problem() != null || analysis.matches().size() != 1) {
+				throw new GBankingException("Für die CSV-Datei wurde kein eindeutiges Importformat vom Typ '"
+						+ expectedType + "' gefunden");
+			}
+			match = analysis.matches().get(0);
+		}
+		if (!match.hasRequiredHeaders()) {
+			throw new GBankingException("Im CSV-Importformat '" + match.definition().getName()
+					+ "' fehlen Pflichtspalten: " + String.join(", ", match.missingRequiredHeaders()));
+		}
+		return match.definition();
+	}
+
+	private CsvImportData readCsv(Path file, CsvImportDefinition definition) throws IOException {
+		return csvImportAnalyzer.read(file, definition);
+	}
+
+	private Map<String, StockSecurity> priceColumns(CsvImportData data, CsvImportDefinition definition,
+			Map<String, StockSecurity> securities) {
+		Set<String> dateHeaders = Set.copyOf(definition.getSourceFields(CsvImportTarget.STOCK_PRICE_DATE));
+		Map<String, StockSecurity> columns = new LinkedHashMap<>();
+		for (String header : data.headers()) {
+			if (dateHeaders.contains(header)) {
+				continue;
+			}
+			StockSecurity security = securities.get(normalize(header));
+			if (security == null) {
+				throw new GBankingException("Für die Kursspalte '" + header
+						+ "' wurde kein Wertpapier gefunden. Bitte zuerst die Wertpapier-Stammdaten importieren.");
+			}
+			columns.put(header, security);
+		}
+		return columns;
+	}
+
+	private static String value(CsvImportData.Row row, CsvImportDefinition definition, CsvImportTarget target) {
+		for (String header : definition.getSourceFields(target)) {
+			String value = row.text(header);
+			if (value != null) {
+				return value;
+			}
+		}
+		return null;
+	}
+
+	private static String requiredValue(CsvImportData.Row row, CsvImportDefinition definition,
+			CsvImportTarget target) {
+		String value = value(row, definition, target);
+		if (value == null) {
+			throw new GBankingException("Pflichtfeld '" + target.getPropertyName() + "' fehlt in Zeile "
+					+ row.lineNumber());
+		}
+		return value;
+	}
+
+	private static BigDecimal decimal(CsvImportData.Row row, CsvImportDefinition definition,
+			CsvImportTarget target) {
+		return decimal(value(row, definition, target), definition, target.getPropertyName(), row.lineNumber());
+	}
+
+	private static BigDecimal decimal(String value, CsvImportDefinition definition, String field, long row) {
+		try {
+			return CsvImportValueParser.parseDecimal(value, definition);
+		} catch (NumberFormatException exception) {
+			throw new GBankingException("Ungültige Zahl in Feld '" + field + "', Zeile " + row + ": " + value,
+					exception);
 		}
 	}
 
-	private List<Transaction> readTransactions(Path file) throws IOException {
-		try (CSVParser parser = PortfolioPerformanceCsvSupport.parse(file)) {
-			PortfolioPerformanceCsvSupport.requireHeaders(parser, TRANSACTION_HEADERS);
-			List<Transaction> result = new ArrayList<>();
-			for (CSVRecord row : parser) {
-				result.add(new Transaction(null, PortfolioPerformanceCsvSupport.dateTime(row),
-						PortfolioPerformanceCsvSupport.required(row, "Typ"),
-						PortfolioPerformanceCsvSupport.decimal(row, "Wert"),
-						Currency.forCode(PortfolioPerformanceCsvSupport.required(row, "Buchungswährung")),
-						PortfolioPerformanceCsvSupport.decimal(row, "Bruttobetrag"),
-						Currency.forCode(PortfolioPerformanceCsvSupport.value(row, "Währung Bruttobetrag")),
-						PortfolioPerformanceCsvSupport.decimal(row, "Wechselkurs"),
-						PortfolioPerformanceCsvSupport.decimal(row, "Gebühren"),
-						PortfolioPerformanceCsvSupport.decimal(row, "Steuern"),
-						PortfolioPerformanceCsvSupport.decimal(row, "Stück"), null,
-						PortfolioPerformanceCsvSupport.value(row, "ISIN"), PortfolioPerformanceCsvSupport.value(row, "WKN"),
-						PortfolioPerformanceCsvSupport.value(row, "Ticker-Symbol"),
-						PortfolioPerformanceCsvSupport.value(row, "Wertpapiername"),
-						PortfolioPerformanceCsvSupport.value(row, "Notiz")));
-			}
-			return result;
+	private static LocalDateTime dateTime(CsvImportData.Row row, CsvImportDefinition definition,
+			CsvImportTarget target) {
+		String value = requiredValue(row, definition, target);
+		try {
+			return CsvImportValueParser.parseDateTime(value, definition);
+		} catch (DateTimeException | NumberFormatException exception) {
+			throw new GBankingException("Ungültiges Datum in Zeile " + row.lineNumber() + ": " + value, exception);
 		}
+	}
+
+	private List<Security> readSecurities(Path file, CsvImportDefinition definition) throws IOException {
+		List<Security> result = new ArrayList<>();
+		for (CsvImportData.Row row : readCsv(file, definition).rows()) {
+			result.add(new Security(null, requiredValue(row, definition, CsvImportTarget.SECURITY_NAME),
+					Currency.forCode(requiredValue(row, definition, CsvImportTarget.SECURITY_CURRENCY)),
+					value(row, definition, CsvImportTarget.SECURITY_ISIN),
+					value(row, definition, CsvImportTarget.SECURITY_WKN),
+					value(row, definition, CsvImportTarget.SECURITY_TICKER),
+					value(row, definition, CsvImportTarget.SECURITY_PROVIDER), List.of()));
+		}
+		return result;
+	}
+
+	private List<Transaction> readTransactions(Path file, CsvImportDefinition definition) throws IOException {
+		List<Transaction> result = new ArrayList<>();
+		for (CsvImportData.Row row : readCsv(file, definition).rows()) {
+			result.add(new Transaction(null, dateTime(row, definition, CsvImportTarget.STOCK_DATE),
+					requiredValue(row, definition, CsvImportTarget.STOCK_TRANSACTION_TYPE),
+					decimal(row, definition, CsvImportTarget.STOCK_VALUE),
+					Currency.forCode(requiredValue(row, definition, CsvImportTarget.STOCK_BOOKING_CURRENCY)),
+					decimal(row, definition, CsvImportTarget.STOCK_GROSS_VALUE),
+					Currency.forCode(value(row, definition, CsvImportTarget.STOCK_GROSS_CURRENCY)),
+					decimal(row, definition, CsvImportTarget.STOCK_EXCHANGE_RATE),
+					decimal(row, definition, CsvImportTarget.STOCK_FEES),
+					decimal(row, definition, CsvImportTarget.STOCK_TAXES),
+					decimal(row, definition, CsvImportTarget.STOCK_QUANTITY), null,
+					value(row, definition, CsvImportTarget.SECURITY_ISIN),
+					value(row, definition, CsvImportTarget.SECURITY_WKN),
+					value(row, definition, CsvImportTarget.SECURITY_TICKER),
+					value(row, definition, CsvImportTarget.SECURITY_NAME),
+					value(row, definition, CsvImportTarget.STOCK_NOTE)));
+		}
+		return result;
 	}
 
 	private void importSecurities(List<Security> securities, StockDataSource source, Counters counters) {
@@ -562,36 +669,25 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		}
 	}
 
-	private void importPriceCsv(Path file, PortfolioSummary portfolio, StockDataSource source,
+	private void importPriceCsv(Path file, CsvImportDefinition definition, PortfolioSummary portfolio, StockDataSource source,
 			StockImportRecord record, Counters counters, PriceImportCache priceCache) throws IOException {
-		try (CSVParser parser = PortfolioPerformanceCsvSupport.parse(file)) {
-			PortfolioPerformanceCsvSupport.requireHeaders(parser, List.of("Datum"));
-			Map<String, StockSecurity> securities = securityLookup();
-			Map<String, StockSecurity> columns = new LinkedHashMap<>();
-			for (String header : parser.getHeaderNames()) {
-				if (!"Datum".equals(header)) {
-					StockSecurity security = securities.get(normalize(header));
-					if (security == null) {
-						throw new GBankingException("Für die Kursspalte '" + header
-								+ "' wurde kein Wertpapier gefunden. Bitte zuerst die Wertpapier-Stammdaten importieren.");
+		CsvImportData data = readCsv(file, definition);
+		Map<String, StockSecurity> securities = securityLookup();
+		Map<String, StockSecurity> columns = priceColumns(data, definition, securities);
+		Currency fallbackCurrency = portfolio.settlementCurrency();
+		for (CsvImportData.Row row : data.rows()) {
+			LocalDate priceDate = dateTime(row, definition, CsvImportTarget.STOCK_PRICE_DATE).toLocalDate();
+			for (Map.Entry<String, StockSecurity> column : columns.entrySet()) {
+				BigDecimal priceValue = decimal(row.text(column.getKey()), definition, column.getKey(), row.lineNumber());
+				if (priceValue != null) {
+					StockSecurity security = column.getValue();
+					if (security.getDefaultQuoteCurrency() == null && fallbackCurrency != null) {
+						security.setDefaultQuoteCurrency(fallbackCurrency);
+						dbController.insertOrUpdate(security);
 					}
-					columns.put(header, security);
-				}
-			}
-			Currency fallbackCurrency = portfolio.settlementCurrency();
-			for (CSVRecord row : parser) {
-				for (Map.Entry<String, StockSecurity> column : columns.entrySet()) {
-					BigDecimal value = PortfolioPerformanceCsvSupport.decimal(row, column.getKey());
-					if (value != null) {
-						StockSecurity security = column.getValue();
-						if (security.getDefaultQuoteCurrency() == null && fallbackCurrency != null) {
-							security.setDefaultQuoteCurrency(fallbackCurrency);
-							dbController.insertOrUpdate(security);
-						}
-						if (savePrice(security, new Price(PortfolioPerformanceCsvSupport.date(row), value), source, record,
-								column.getKey(), priceCache)) {
-							counters.prices++;
-						}
+					if (savePrice(security, new Price(priceDate, priceValue), source, record,
+							column.getKey(), priceCache)) {
+						counters.prices++;
 					}
 				}
 			}
@@ -1108,11 +1204,11 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 	}
 
 	private static String hash(byte[] content, int portfolioId) {
-		return hash(content, portfolioId, false, null);
+		return hash(content, portfolioId, false, null, null);
 	}
 
 	private static String hash(byte[] content, int portfolioId, boolean importAdditionalAccounts,
-			XmlImportAssignments assignments) {
+			XmlImportAssignments assignments, String discriminator) {
 		try {
 			MessageDigest digest = MessageDigest.getInstance("SHA-256");
 			digest.update(content);
@@ -1125,6 +1221,9 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 			}
 			if (assignments != null) {
 				digest.update(assignments.fingerprint().getBytes(StandardCharsets.UTF_8));
+			}
+			if (discriminator != null) {
+				digest.update(discriminator.getBytes(StandardCharsets.UTF_8));
 			}
 			return java.util.HexFormat.of().formatHex(digest.digest());
 		} catch (NoSuchAlgorithmException exception) {

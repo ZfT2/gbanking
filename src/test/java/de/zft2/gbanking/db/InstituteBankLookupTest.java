@@ -132,11 +132,23 @@ class InstituteBankLookupTest extends DBControllerIntegrationBaseTest {
 						+ "(SELECT COUNT(*) FROM institute) AS instituteCount, "
 						+ "(SELECT COUNT(*) FROM instituteValidity) AS validityCount, "
 						+ "(SELECT COUNT(DISTINCT institute_id) FROM instituteValidity) AS distinctInstituteCount, "
+						+ "(SELECT type FROM pragma_table_info('instituteValidity') "
+						+ " WHERE name = 'validFromType') AS validFromTypeDeclaration, "
+						+ "(SELECT type FROM pragma_table_info('instituteValidity') "
+						+ " WHERE name = 'validToType') AS validToTypeDeclaration, "
+						+ "(SELECT COUNT(*) FROM instituteValidity "
+						+ " WHERE typeof(validFromType) <> 'integer') AS invalidValidFromStorage, "
+						+ "(SELECT COUNT(*) FROM instituteValidity "
+						+ " WHERE validToType IS NOT NULL AND typeof(validToType) <> 'integer') AS invalidValidToStorage, "
 						+ "(SELECT COUNT(*) FROM instituteAdditional a JOIN institute i ON i.id = a.institute_id "
 						+ " WHERE i.validTo IS NULL) AS currentAdditionalCount")) {
 			assertTrue(result.next());
 			assertEquals(result.getInt("instituteCount"), result.getInt("validityCount"));
 			assertEquals(result.getInt("validityCount"), result.getInt("distinctInstituteCount"));
+			assertEquals("INTEGER", result.getString("validFromTypeDeclaration"));
+			assertEquals("INTEGER", result.getString("validToTypeDeclaration"));
+			assertEquals(0, result.getInt("invalidValidFromStorage"));
+			assertEquals(0, result.getInt("invalidValidToStorage"));
 			assertTrue(result.getInt("currentAdditionalCount") > 0);
 		}
 	}

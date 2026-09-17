@@ -286,10 +286,12 @@
 								<tr><td>Transactions</td><td>CSV, FP3 (Moneyplex), MT940, XML (Moneyplex)</td><td>CSV, FP3, MT940, XML</td></tr>
 								<tr><td>Payment orders</td><td>GBanking CSV</td><td>GBanking CSV</td></tr>
 								<tr><td>Credit-card transactions</td><td>Special CSV import into a selected credit-card account</td><td>Through the regular transaction export</td></tr>
+								<tr><td>Portfolios and securities</td><td>Configurable CSV formats for portfolio transactions, account transactions, securities and prices, plus Portfolio Performance complete file (XML)</td><td>Portfolio Performance CSV for portfolio transactions, account transactions, securities and prices</td></tr>
 							</tbody>
 						</table>
 					</div>
 					<p>An import started from <strong>File</strong> matches transactions to their account data. When started from an account or transaction context menu, the target account is already known. New import accounts and contacts can be created from file data; recognised duplicates are not stored again.</p>
+					<p>The available CSV import formats and their column mappings are stored in <code>properties/csv-format.properties</code>. You can add custom formats for transactions, portfolio transactions, account transactions, securities and security prices there.</p>
 					<p>For export, select accounts with their checkboxes. Formats that can represent only one account require exactly one selection. CSV output also includes the account name, IBAN and account number. See the <a href="csv-booking-format_en.html">CSV format description</a> for the full field list and examples.</p>
 					<div class="warning"><strong>Confidential files:</strong> Import sources and exports are outside tenant encryption. Store and transfer them securely.</div>
 					<p class="back-to-top"><a href="#top">Back to top</a></p>

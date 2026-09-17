@@ -13,6 +13,7 @@ import de.zft2.gbanking.db.StatementsConfig.StatementType;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferForeign;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.ForeignChargeBearer;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
@@ -72,8 +73,8 @@ public class StatementsLogicMoneyTransfer extends StatementsLogicDefault<MoneyTr
 			moneyTransfer.setForeignTransfer(foreignTransfer);
 		}
 		foreignTransfer.setMoneyTransferId(moneyTransfer.getId());
-		if (foreignTransfer.getCurrency() == null || foreignTransfer.getCurrency().isBlank()) {
-			foreignTransfer.setCurrency(moneyTransfer.getCurrency() != null && !moneyTransfer.getCurrency().isBlank() ? moneyTransfer.getCurrency() : "EUR");
+		if (foreignTransfer.getCurrency() == null) {
+			foreignTransfer.setCurrency(Currency.forCodeOrDefault(moneyTransfer.getCurrency(), Currency.EUR));
 		}
 		if (foreignTransfer.getChargeBearer() == null) {
 			foreignTransfer.setChargeBearer(ForeignChargeBearer.SHARED);

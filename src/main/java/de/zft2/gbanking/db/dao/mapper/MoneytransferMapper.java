@@ -9,6 +9,7 @@ import de.zft2.gbanking.db.StatementsConfig.ResultType;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferForeign;
 import de.zft2.gbanking.db.dao.Recipient;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.ForeignChargeBearer;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
@@ -59,7 +60,8 @@ public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> 
 		moneytransfer.setPurposeCode(rs.getString("purposeCode"));
 		moneytransfer.setEndToEndId(rs.getString("endToEndId"));
 		moneytransfer.setAmount(rs.getBigDecimal(SqlFields.BOOKING_AMOUNT));
-		moneytransfer.setCurrency(rs.getString("currency"));
+		Currency currency = getEnumNullable("currency", Currency.class, rs);
+		moneytransfer.setCurrency(currency != null ? currency.name() : null);
 		moneytransfer.setExecutionDate(TypeConverter.toLocalDateFromDateStrShort(rs.getString("executionDate")));
 		int executionDay = rs.getInt("executionDay");
 		moneytransfer.setExecutionDay(rs.wasNull() ? null : executionDay);
@@ -96,7 +98,7 @@ public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> 
 		MoneyTransferForeign foreignTransfer = new MoneyTransferForeign();
 		foreignTransfer.setId(foreignId);
 		foreignTransfer.setMoneyTransferId(rs.getInt("foreign_moneytransfer_id"));
-		foreignTransfer.setCurrency(rs.getString("foreign_currency"));
+		foreignTransfer.setCurrency(getEnumNullable("foreign_currency", Currency.class, rs));
 		foreignTransfer.setRecipientCountry(rs.getString("recipientCountry"));
 		foreignTransfer.setRecipientAccountNumber(rs.getString("recipientAccountNumber"));
 		foreignTransfer.setRecipientBankCode(rs.getString("recipientBankCode"));

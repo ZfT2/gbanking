@@ -17,6 +17,7 @@ public class PortfolioPerformanceFileTask extends BaseFileTask {
 	private final boolean importOperation;
 	private final boolean importAdditionalAccounts;
 	private final XmlImportAssignments assignments;
+	private final String csvDefinitionName;
 	private ImportResult importResult;
 
 	public PortfolioPerformanceFileTask(String fileName, ExportType exportType, PortfolioSummary portfolio,
@@ -26,22 +27,29 @@ public class PortfolioPerformanceFileTask extends BaseFileTask {
 
 	public PortfolioPerformanceFileTask(String fileName, ExportType exportType, PortfolioSummary portfolio,
 			boolean importOperation, boolean importAdditionalAccounts) {
-		this(fileName, exportType, portfolio, importOperation, importAdditionalAccounts, null);
+		this(fileName, exportType, portfolio, importOperation, importAdditionalAccounts, null, null);
+	}
+
+	public PortfolioPerformanceFileTask(String fileName, ExportType exportType, PortfolioSummary portfolio,
+			boolean importOperation, boolean importAdditionalAccounts, String csvDefinitionName) {
+		this(fileName, exportType, portfolio, importOperation, importAdditionalAccounts, null, csvDefinitionName);
 	}
 
 	public PortfolioPerformanceFileTask(String fileName, ExportType exportType, PortfolioSummary portfolio,
 			boolean importOperation, XmlImportAssignments assignments) {
-		this(fileName, exportType, portfolio, importOperation, false, assignments);
+		this(fileName, exportType, portfolio, importOperation, false, assignments, null);
 	}
 
 	private PortfolioPerformanceFileTask(String fileName, ExportType exportType, PortfolioSummary portfolio,
-			boolean importOperation, boolean importAdditionalAccounts, XmlImportAssignments assignments) {
+			boolean importOperation, boolean importAdditionalAccounts, XmlImportAssignments assignments,
+			String csvDefinitionName) {
 		super(fileName);
 		this.exportType = exportType;
 		this.portfolio = portfolio;
 		this.importOperation = importOperation;
 		this.importAdditionalAccounts = importAdditionalAccounts;
 		this.assignments = assignments;
+		this.csvDefinitionName = csvDefinitionName;
 	}
 
 	@Override
@@ -52,7 +60,9 @@ public class PortfolioPerformanceFileTask extends BaseFileTask {
 			PortfolioPerformanceImportService service = ServiceRegistry.getService(PortfolioPerformanceImportService.class);
 			importResult = assignments != null
 					? service.importFile(Path.of(fileName), exportType, portfolio, assignments)
-					: service.importFile(Path.of(fileName), exportType, portfolio, importAdditionalAccounts);
+					: csvDefinitionName != null
+							? service.importFile(Path.of(fileName), exportType, portfolio, csvDefinitionName)
+							: service.importFile(Path.of(fileName), exportType, portfolio, importAdditionalAccounts);
 		} else {
 			ServiceRegistry.getService(PortfolioPerformanceExportService.class)
 					.exportFile(Path.of(fileName), exportType, portfolio);

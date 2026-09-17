@@ -61,8 +61,8 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 		institute.setImportFileName(rs.getString("importFileName"));
 		institute.setValidFrom(getIsoDateNullable("validFrom", rs));
 		institute.setValidTo(getIsoDateNullable("validTo", rs));
-		institute.setValidFromType(InstituteValidityDateType.forString(rs.getString("validFromType")));
-		institute.setValidToType(InstituteValidityDateType.forString(rs.getString("validToType")));
+		institute.setValidFromType(getEnumNullable("validFromType", InstituteValidityDateType.class, rs));
+		institute.setValidToType(getEnumNullable("validToType", InstituteValidityDateType.class, rs));
 		institute.setFirstSeenFile(rs.getString("firstSeenFile"));
 		institute.setLastSeenFile(rs.getString("lastSeenFile"));
 		institute.setValidityUpdatedAt(TypeConverter.toLocalDateFromSqlDate(rs.getDate("validityUpdatedAt")));

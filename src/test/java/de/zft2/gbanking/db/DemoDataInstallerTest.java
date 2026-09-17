@@ -32,10 +32,16 @@ class DemoDataInstallerTest extends DBControllerIntegrationBaseTest {
 	void shouldInstallConsistentAndRepresentativeDemoData() throws SQLException {
 		new DemoDataInstaller().install();
 
-		assertEquals(4, countRows("bankAccount"));
+		assertEquals(8, countRows("bankAccount"));
 		assertEquals(222, countRows("booking"));
 		assertEquals(18, countRows("category"));
 		assertEquals(7, countRows("moneytransfer"));
+		assertEquals(2, countRows("stockPortfolio"));
+		assertEquals(4, countRows("stockSecurity"));
+		assertEquals(10, countRows("stockTransaction"));
+		assertEquals(12, countRows("stockSecurityPrice"));
+		assertEquals(6, countRows("stockPortfolioPosition"));
+		assertEquals(5, countRows("stockPortfolioPositionWithHoldings"));
 		assertEquals(2, db.getAll(CategoryRule.class).size());
 		assertFalse(hasForeignKeyViolation());
 		assertAdditionalCategoriesAreUsed();
@@ -97,6 +103,13 @@ class DemoDataInstallerTest extends DBControllerIntegrationBaseTest {
 		case "moneytransfer" -> "SELECT COUNT(*) FROM moneytransfer";
 		case "moneytransferForeign" -> "SELECT COUNT(*) FROM moneytransferForeign";
 		case "moneytransferProtocol" -> "SELECT COUNT(*) FROM moneytransferProtocol";
+		case "stockPortfolio" -> "SELECT COUNT(*) FROM stockPortfolio";
+		case "stockSecurity" -> "SELECT COUNT(*) FROM stockSecurity";
+		case "stockTransaction" -> "SELECT COUNT(*) FROM stockTransaction";
+		case "stockSecurityPrice" -> "SELECT COUNT(*) FROM stockSecurityPrice";
+		case "stockPortfolioPosition" -> "SELECT COUNT(*) FROM stockPortfolioPosition";
+		case "stockPortfolioPositionWithHoldings" ->
+				"SELECT COUNT(*) FROM stockPortfolioPosition WHERE quantityE9 <> 0";
 		default -> throw new IllegalArgumentException("Unsupported demo table: " + tableName);
 		};
 		try (Statement statement = DBController.getConnection().createStatement();
