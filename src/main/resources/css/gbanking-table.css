@@ -182,6 +182,18 @@
     -fx-font-weight: bold;
 }
 
+.money-transfer-account-balance.amount-positive {
+    -fx-text-fill: -gb-amount-positive;
+}
+
+.money-transfer-account-balance.amount-negative {
+    -fx-text-fill: -gb-amount-negative;
+}
+
+.money-transfer-account-balance.amount-neutral {
+    -fx-text-fill: black;
+}
+
 .gbanking-form-grid {
     -fx-background-color: transparent;
     -fx-hgap: 12;

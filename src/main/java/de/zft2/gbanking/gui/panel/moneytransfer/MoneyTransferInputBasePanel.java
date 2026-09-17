@@ -8,6 +8,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 import de.zft2.gbanking.cache.InstituteLookupCache;
@@ -58,6 +59,9 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 	private static final String UI_BUTTON_NO = "UI_BUTTON_NO";
 	private static final String IBAN_VALID_SYMBOL = "\u2713";
 	private static final String IBAN_INVALID_SYMBOL = "\u2717";
+	private static final String AMOUNT_POSITIVE = "amount-positive";
+	private static final String AMOUNT_NEGATIVE = "amount-negative";
+	private static final String AMOUNT_NEUTRAL = "amount-neutral";
 
 	private static final double BIC_COLUMN_WIDTH = 110.0;
 	private static final double CURRENCY_COLUMN_WIDTH = 90.0;
@@ -79,6 +83,7 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 	private final Button buttonDelete = new Button();
 
 	private final StackPane currencyFieldHolder = new StackPane(new Label(getText("UI_LABEL_CURRENCY_EUR")));
+	private final Label accountBalanceLabel = new Label();
 	private final MoneyTransferDetailListTabPanel parentPanel;
 	private MoneyTransfer currentMoneytransfer;
 	private boolean specificFieldsInitialized = false;
@@ -100,7 +105,16 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 		this.parentPanel = parentPanel;
 		this.moneyTransferService = moneyTransferService;
 		this.bankingCapabilityService = bankingCapabilityService;
+		configureAccountBalanceLabel();
 		createBasePanel();
+	}
+
+	private void configureAccountBalanceLabel() {
+		accountBalanceLabel.getStyleClass().add("money-transfer-account-balance");
+		accountBalanceLabel.setMinWidth(USE_PREF_SIZE);
+		accountBalanceLabel.setAlignment(Pos.CENTER_RIGHT);
+		setTitleRightNode(accountBalanceLabel);
+		updateAccountBalanceLabel(null);
 	}
 
 	private void createBasePanel() {
@@ -381,6 +395,7 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 	public void updatePanelFieldValues(BankAccount selectedAccount) {
 		if (selectedAccount == null) {
 			resetTitle();
+			updateAccountBalanceLabel(null);
 			resetTextFields();
 			refreshCapabilityState(null);
 			return;
@@ -389,7 +404,53 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 			resetTextFields();
 		}
 		updateTitle(selectedAccount.getAccountName());
+		updateAccountBalanceLabel(selectedAccount);
 		refreshCapabilityState(selectedAccount);
+	}
+
+	private void updateAccountBalanceLabel(BankAccount account) {
+		BigDecimal balance = resolveAccountBalance(account);
+		accountBalanceLabel.getStyleClass().removeAll(AMOUNT_POSITIVE, AMOUNT_NEGATIVE, AMOUNT_NEUTRAL);
+		if (balance == null) {
+			accountBalanceLabel.setText("");
+			accountBalanceLabel.setVisible(false);
+			return;
+		}
+
+		accountBalanceLabel.setText(getText("UI_TABLE_BALANCE") + ": " + formatAccountBalance(account, balance));
+		accountBalanceLabel.getStyleClass().add(amountStyleClass(balance));
+		accountBalanceLabel.setVisible(true);
+	}
+
+	static BigDecimal resolveAccountBalance(BankAccount account) {
+		if (account == null) {
+			return null;
+		}
+		if (account.getBalance() != null) {
+			return account.getBalance();
+		}
+		List<Booking> bookings = account.getBookings();
+		if (bookings == null) {
+			return null;
+		}
+		return bookings.stream()
+				.filter(Objects::nonNull)
+				.filter(booking -> booking.getSource() == null || !booking.getSource().isPrenotification())
+				.map(booking -> booking.getAmount())
+				.filter(Objects::nonNull)
+				.reduce(BigDecimal.ZERO, BigDecimal::add);
+	}
+
+	static String formatAccountBalance(BankAccount account, BigDecimal balance) {
+		String currency = account != null ? account.getCurrency() : null;
+		return formatAmountForDisplay(balance) + (currency != null ? " " + currency : "");
+	}
+
+	static String amountStyleClass(BigDecimal amount) {
+		if (amount.signum() > 0) {
+			return AMOUNT_POSITIVE;
+		}
+		return amount.signum() < 0 ? AMOUNT_NEGATIVE : AMOUNT_NEUTRAL;
 	}
 
 	public void refreshCapabilityState(BankAccount selectedAccount) {

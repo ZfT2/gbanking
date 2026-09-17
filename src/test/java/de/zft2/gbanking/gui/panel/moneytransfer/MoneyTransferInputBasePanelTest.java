@@ -6,11 +6,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import de.zft2.gbanking.db.dao.BankAccount;
+import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
+import de.zft2.gbanking.db.dao.enu.Source;
 
 class MoneyTransferInputBasePanelTest {
 
@@ -82,6 +87,35 @@ class MoneyTransferInputBasePanelTest {
 	}
 
 	@Test
+	void resolveAccountBalance_shouldPreferBankBalance() {
+		BankAccount account = new BankAccount();
+		account.setBalance(new BigDecimal("123.45"));
+		account.setBookings(List.of(booking("999.99", Source.ONLINE)));
+
+		assertEquals(new BigDecimal("123.45"), MoneyTransferInputBasePanel.resolveAccountBalance(account));
+	}
+
+	@Test
+	void resolveAccountBalance_shouldCalculateFallbackWithoutPrenotifications() {
+		BankAccount account = new BankAccount();
+		account.setBookings(List.of(booking("100.00", Source.IMPORT), booking("-20.50", Source.ONLINE),
+				booking("999.00", Source.ONLINE_PRENO)));
+
+		BigDecimal balance = MoneyTransferInputBasePanel.resolveAccountBalance(account);
+
+		assertEquals(new BigDecimal("79.50"), balance);
+		account.setBaseCurrency(Currency.CHF);
+		assertEquals("79,50 CHF", MoneyTransferInputBasePanel.formatAccountBalance(account, balance));
+	}
+
+	@Test
+	void amountStyleClass_shouldReflectAmountSign() {
+		assertEquals("amount-positive", MoneyTransferInputBasePanel.amountStyleClass(BigDecimal.ONE));
+		assertEquals("amount-negative", MoneyTransferInputBasePanel.amountStyleClass(BigDecimal.ONE.negate()));
+		assertEquals("amount-neutral", MoneyTransferInputBasePanel.amountStyleClass(BigDecimal.ZERO));
+	}
+
+	@Test
 	void isArchivedMoneyTransfer_shouldDetectAllArchivedOrders() {
 		MoneyTransfer sentTransfer = new MoneyTransfer();
 		sentTransfer.setMoneytransferStatus(MoneyTransferStatus.SENT);
@@ -98,5 +132,12 @@ class MoneyTransferInputBasePanelTest {
 		assertFalse(MoneyTransferInputBasePanel.isArchivedMoneyTransfer(newTransfer));
 		assertFalse(MoneyTransferInputBasePanel.isArchivedMoneyTransfer(new MoneyTransfer()));
 		assertFalse(MoneyTransferInputBasePanel.isArchivedMoneyTransfer(null));
+	}
+
+	private static Booking booking(String amount, Source source) {
+		Booking booking = new Booking();
+		booking.setAmount(new BigDecimal(amount));
+		booking.setSource(source);
+		return booking;
 	}
 }

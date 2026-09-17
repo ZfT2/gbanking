@@ -3,9 +3,13 @@ package de.zft2.gbanking.gui.panel;
 import de.zft2.gbanking.gui.util.FormGridHelper;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.Label;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
@@ -14,6 +18,8 @@ public abstract class AbstractTitledFormPanel extends BasePanel {
 	protected final GridPane formGrid = FormGridHelper.createDefaultGrid();
 	private final VBox contentBox = new VBox(8);
 	private final TitledPane titledPane = new TitledPane();
+	private final Label titleLabel = new Label();
+	private final HBox titleRow = new HBox(8);
 
 	private String titleKey;
 
@@ -24,7 +30,7 @@ public abstract class AbstractTitledFormPanel extends BasePanel {
 		VBox.setVgrow(formGrid, Priority.NEVER);
 
 		this.titleKey = titleKey;
-		titledPane.setText(getText(titleKey));
+		setTitle(getText(titleKey));
 		titledPane.setCollapsible(false);
 		titledPane.setContent(contentBox);
 		titledPane.setMaxWidth(Double.MAX_VALUE);
@@ -57,11 +63,27 @@ public abstract class AbstractTitledFormPanel extends BasePanel {
 		contentBox.getChildren().add(node);
 	}
 
+	protected final void setTitleRightNode(Node node) {
+		titleLabel.setMinWidth(0);
+		titleLabel.setMaxWidth(Double.MAX_VALUE);
+		HBox.setHgrow(titleLabel, Priority.ALWAYS);
+		titleRow.setAlignment(Pos.CENTER_LEFT);
+		titleRow.getChildren().setAll(titleLabel, node);
+		titleRow.prefWidthProperty().bind(titledPane.widthProperty().subtract(36));
+		titledPane.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+		titledPane.setGraphic(titleRow);
+	}
+
 	protected final void updateTitle(String additionalTitle) {
-		titledPane.setText(getText(titleKey) + " - " + additionalTitle);
+		setTitle(getText(titleKey) + " - " + additionalTitle);
 	}
 
 	protected final void resetTitle() {
-		titledPane.setText(getText(titleKey));
+		setTitle(getText(titleKey));
+	}
+
+	private void setTitle(String title) {
+		titleLabel.setText(title);
+		titledPane.setText(title);
 	}
 }
