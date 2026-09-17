@@ -4,6 +4,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.dao.BankAccount;
+import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.gui.panel.account.AccountListPanel;
@@ -31,6 +32,7 @@ public class CategoryOverviewPanel extends OverviewBasePanel implements AccountS
 	private CategoryInputPanel categoryInputPanel;
 	private CategoryListPanel categoryListPanel;
 	private BankAccount selectedAccount;
+	private TabPane tabPane;
 
 	public CategoryOverviewPanel() {
 		categoryRuleInputPanel = new CategoryRuleInputPanel(this);
@@ -44,7 +46,7 @@ public class CategoryOverviewPanel extends OverviewBasePanel implements AccountS
 		setPageContext(PageContext.CATEGORIES);
 
 		accountListPanel = new AccountListPanel(this);
-		TabPane tabPane = new TabPane();
+		tabPane = new TabPane();
 		tabPane.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 		tabPane.getTabs().setAll(createTab("UI_TAB_CATEGORY_RULES", createTabContent(categoryRuleInputPanel, categoryRuleListPanel)),
 				createTab("UI_TAB_CATEGORIES", createTabContent(categoryInputPanel, categoryListPanel)));
@@ -103,6 +105,13 @@ public class CategoryOverviewPanel extends OverviewBasePanel implements AccountS
 
 	public AccountListPanel getAccountListPanel() {
 		return accountListPanel;
+	}
+
+	public void useBookingAsRuleTemplate(BankAccount account, Booking booking) {
+		tabPane.getSelectionModel().selectFirst();
+		selectedAccount = account;
+		accountListPanel.selectAccount(account);
+		categoryRuleInputPanel.prefillFromBooking(account, booking);
 	}
 
 	@Override

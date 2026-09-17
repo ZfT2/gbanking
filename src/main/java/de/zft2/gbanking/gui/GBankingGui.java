@@ -47,6 +47,7 @@ import de.zft2.gbanking.gui.panel.about.AboutPanel;
 import de.zft2.gbanking.gui.panel.action.PinAskDialog;
 import de.zft2.gbanking.gui.panel.overview.AccountsTransactionsOverviewPanel;
 import de.zft2.gbanking.gui.panel.overview.AllTransactionsOverviewPanel;
+import de.zft2.gbanking.gui.panel.overview.CategoryOverviewPanel;
 import de.zft2.gbanking.gui.panel.overview.MoneyTransferOverviewPanel;
 import de.zft2.gbanking.gui.panel.overview.OpenActionsOverviewPanel;
 import de.zft2.gbanking.gui.panel.overview.OverviewBasePanel;
@@ -134,6 +135,7 @@ public class GBankingGui extends Application implements BaseGui {
 		this.primaryStage = stage;
 		fileTransferCoordinator = new FileTransferCoordinator(stage);
 		GuiContext.setMoneyTransferTemplateHandler((booking, orderType) -> openMoneyTransferTemplate(booking, orderType));
+		GuiContext.setCategoryRuleTemplateHandler(booking -> openCategoryRuleTemplate(booking));
 		log.info("Starting GBanking application.");
 
 		restoreOptions();
@@ -276,6 +278,20 @@ public class GBankingGui extends Application implements BaseGui {
 		MoneyTransferOverviewPanel moneyTransferPanel = (MoneyTransferOverviewPanel) OverviewPanelFactory
 				.retrievePanel(PageContext.ACCOUNTS_MONEYTRANSFERS.name());
 		moneyTransferPanel.useBookingAsTemplate(account, booking, orderType);
+	}
+
+	private void openCategoryRuleTemplate(Booking booking) {
+		if (booking == null) {
+			return;
+		}
+		BankAccount account = DBController.getInstance(".").getById(BankAccount.class, booking.getAccountId());
+		if (account == null) {
+			showWarning(primaryStage, getText("ALERT_CATEGORY_RULE_TEMPLATE_ACCOUNT_MISSING"));
+			return;
+		}
+
+		CategoryOverviewPanel categoryPanel = (CategoryOverviewPanel) activateOverview(PageContext.CATEGORIES);
+		categoryPanel.useBookingAsRuleTemplate(account, booking);
 	}
 
 	List<BankAccount> getSelectedAccountsForAccountUpdate() {

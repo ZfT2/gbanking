@@ -14,9 +14,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.dao.BankAccount;
+import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Category;
 import de.zft2.gbanking.db.dao.CategoryRule;
 import de.zft2.gbanking.db.dao.CategoryRule.JoinType;
+import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.gui.KeyboardShortcutDispatcher;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.panel.AbstractTitledFormPanel;
@@ -245,6 +247,37 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 		selectedAccount = bankAccount;
 		refreshCategoryChoices();
 		refreshAccountScopeDisplay();
+	}
+
+	public void prefillFromBooking(BankAccount account, Booking booking) {
+		if (account == null || booking == null) {
+			return;
+		}
+		selectedAccount = account;
+		resetTextFields();
+		updatePanelFieldValues(createRuleTemplate(account, booking));
+		selectedCategoryRule = null;
+		updatedAtText.clear();
+	}
+
+	static CategoryRule createRuleTemplate(BankAccount account, Booking booking) {
+		CategoryRule template = new CategoryRule();
+		template.setBankAccountList(List.of(account));
+		template.setCategory(booking.getCategory());
+		template.setJoinType(JoinType.AND);
+		template.setFilterDateFrom(booking.getDateBooking());
+		template.setFilterDateTo(booking.getDateBooking());
+		template.setFilterAmountFrom(booking.getAmount());
+		template.setFilterAmountTo(booking.getAmount());
+		template.setFilterPurpose(TextValues.trimToNull(booking.getPurpose()));
+
+		Recipient recipient = booking.getRecipient();
+		if (recipient != null) {
+			template.setFilterRecipientName(TextValues.trimToNull(recipient.getName()));
+			template.setFilterRecipientIban(TextValues.trimToNull(recipient.getIban()));
+			template.setFilterRecipientAccountNumber(TextValues.trimToNull(recipient.getAccountNumber()));
+		}
+		return template;
 	}
 
 	private BigDecimal parseAmount(String value) {

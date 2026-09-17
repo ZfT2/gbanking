@@ -1,6 +1,7 @@
 package de.zft2.gbanking.gui;
 
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
@@ -9,6 +10,7 @@ import de.zft2.gbanking.db.dao.enu.OrderType;
 public final class GuiContext {
 
 	private static BiConsumer<Booking, OrderType> moneyTransferTemplateHandler;
+	private static Consumer<Booking> categoryRuleTemplateHandler;
 	private static Integer selectedAccountId;
 	private static boolean onlyOnlineAccountsVisible;
 	private static boolean onlySecuritiesWithHoldingsVisible;
@@ -27,6 +29,20 @@ public final class GuiContext {
 		}
 		if (handler != null) {
 			handler.accept(booking, orderType);
+		}
+	}
+
+	public static synchronized void setCategoryRuleTemplateHandler(Consumer<Booking> handler) {
+		categoryRuleTemplateHandler = handler;
+	}
+
+	public static void useBookingAsCategoryRuleTemplate(Booking booking) {
+		Consumer<Booking> handler;
+		synchronized (GuiContext.class) {
+			handler = categoryRuleTemplateHandler;
+		}
+		if (handler != null) {
+			handler.accept(booking);
 		}
 	}
 

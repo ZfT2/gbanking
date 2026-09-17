@@ -61,6 +61,7 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 	MenuItem exportFp3Item = new MenuItem(getText("UI_MENU_FILE_FP3"));
 	MenuItem exportMt940Item = new MenuItem(getText("UI_MENU_FILE_MT940"));
 	MenuItem exportXmlItem = new MenuItem(getText("UI_MENU_FILE_XML"));
+	MenuItem newCategoryRuleItem = new MenuItem(getText("UI_MENU_BOOKING_TEMPLATE_NEW_CATEGORY_RULE"));
 
 	TransactionListPanelContextMenu(TransactionListPanel parentPanelTransactionList) {
 		this(parentPanelTransactionList, ServiceRegistry.getService(BankingCapabilityService.class), ServiceRegistry.getService(BookingService.class),
@@ -133,8 +134,9 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 		newTransferItem.setOnAction(event -> handleUseAsTemplate(OrderType.TRANSFER));
 		newScheduledTransferItem.setOnAction(event -> handleUseAsTemplate(OrderType.SCHEDULED_TRANSFER));
 		newStandingOrderItem.setOnAction(event -> handleUseAsTemplate(OrderType.STANDING_ORDER));
+		newCategoryRuleItem.setOnAction(event -> handleUseAsCategoryRuleTemplate());
 
-		useAsTemplateMenu.getItems().addAll(newTransferItem, newScheduledTransferItem, newStandingOrderItem);
+		useAsTemplateMenu.getItems().addAll(newTransferItem, newScheduledTransferItem, newStandingOrderItem, newCategoryRuleItem);
 		return useAsTemplateMenu;
 	}
 
@@ -167,8 +169,11 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 		useAsTemplateMenu.setDisable(!canUseTemplate);
 		for (MenuItem templateItem : useAsTemplateMenu.getItems()) {
 			OrderType orderType = (OrderType) templateItem.getProperties().get(OrderType.class);
-			templateItem.setDisable(!canUseTemplate || orderType == null || !bankingCapabilityService.supportsTransferOrderType(contextAccount, orderType));
+			if (orderType != null) {
+				templateItem.setDisable(!canUseTemplate || !bankingCapabilityService.supportsTransferOrderType(contextAccount, orderType));
+			}
 		}
+		newCategoryRuleItem.setDisable(!canUseTemplate);
 		importMenu.setDisable(contextAccount == null);
 		exportMenu.setDisable(contextAccount == null);
 	}
@@ -387,6 +392,15 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 		}
 		panelTransactionList.handleBookingSelection(selectedBooking);
 		GuiContext.useBookingAsMoneyTransferTemplate(selectedBooking, orderType);
+	}
+
+	private void handleUseAsCategoryRuleTemplate() {
+		Booking selectedBooking = getSelectedBooking();
+		if (selectedBooking == null || resolveContextAccount(selectedBooking) == null) {
+			return;
+		}
+		panelTransactionList.handleBookingSelection(selectedBooking);
+		GuiContext.useBookingAsCategoryRuleTemplate(selectedBooking);
 	}
 
 	private void handleExportBookings(ExportType exportType) {

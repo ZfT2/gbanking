@@ -82,10 +82,22 @@ class GuiContextTest {
 		assertEquals(OrderType.TRANSFER, forwardedOrderType.get());
 	}
 
+	@Test
+	void categoryRuleTemplateShouldBeForwardedToRegisteredHandler() {
+		AtomicReference<Booking> forwardedBooking = new AtomicReference<>();
+		Booking booking = new Booking();
+		GuiContext.setCategoryRuleTemplateHandler(template -> forwardedBooking.set(template));
+
+		GuiContext.useBookingAsCategoryRuleTemplate(booking);
+
+		assertSame(booking, forwardedBooking.get());
+	}
+
 	private static void resetContext() {
 		GuiContext.resetTenantState();
 		GuiContext.setOnlyOnlineAccountsVisible(false);
 		GuiContext.setOnlySecuritiesWithHoldingsVisible(false);
 		GuiContext.setMoneyTransferTemplateHandler(null);
+		GuiContext.setCategoryRuleTemplateHandler(null);
 	}
 }
