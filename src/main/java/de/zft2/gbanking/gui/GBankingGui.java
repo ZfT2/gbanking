@@ -96,7 +96,7 @@ public class GBankingGui extends Application implements BaseGui {
 	private static final Logger log = LogManager.getLogger(GBankingGui.class);
 
 	static final List<String> HELP_DOCUMENTS = List.of("manual_de.html", "manual_en.html", "csv-booking-format.html",
-			"csv-booking-format_en.html", "gbanking-doc.css");
+			"csv-booking-format_en.html", "developer_de.html", "developer_en.html", "gbanking-doc.css");
 	private static final int UPDATE_PROGRESS_BAR_HEIGHT = 10;
 	private static final int UPDATE_PROGRESS_BAR_WIDTH = 160;
 	private static final int OPEN_ACTION_RESULT_COLUMNS = 90;
