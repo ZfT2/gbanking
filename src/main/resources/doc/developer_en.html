@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>GBanking Developer Documentation</title>
+	<link rel="stylesheet" href="gbanking-doc.css">
+</head>
+<body id="top">
+	<a class="skip-link" href="#content">Skip to content</a>
+	<div class="page">
+		<nav class="topbar" aria-label="Document navigation">
+			<p><strong>Language:</strong> <a href="developer_de.html" lang="de">Deutsch</a> | English</p>
+			<p><strong>User manual:</strong> <a href="manual_de.html" lang="de">Deutsch</a> | <a href="manual_en.html">English</a></p>
+			<p><strong>Reference:</strong> <a href="csv-booking-format_en.html">CSV format for transactions</a></p>
+		</nav>
+
+		<header class="hero">
+			<h1>GBanking Developer Documentation</h1>
+			<p>Architecture, persistence, services and the JavaFX GUI – an introduction to the codebase and a guide to extending it safely.</p>
+		</header>
+
+		<div class="content-layout">
+			<nav class="toc" aria-labelledby="toc-title">
+				<h2 id="toc-title">Contents</h2>
+				<ol>
+					<li><a href="#getting-started">Getting started</a></li>
+					<li><a href="#architecture">Architecture and packages</a></li>
+					<li><a href="#lifecycle">Application and session lifecycle</a></li>
+					<li><a href="#persistence">Persistence</a></li>
+					<li><a href="#services">Application functions and services</a></li>
+					<li><a href="#gui">GUI</a></li>
+					<li><a href="#flows">Core flows</a></li>
+					<li><a href="#cross-cutting">Cross-cutting concerns</a></li>
+					<li><a href="#extending">Extending a feature</a></li>
+					<li><a href="#tests">Tests, build and troubleshooting</a></li>
+					<li><a href="#onboarding">Suggested onboarding path</a></li>
+				</ol>
+			</nav>
+
+			<main id="content">
+				<section id="getting-started">
+					<h2>1. Getting started</h2>
+					<p class="lead">GBanking is a Java desktop application. It is built with Maven, targets Java 17 and uses JavaFX 21 for its user interface. Production data is stored in SQLite; FinTS/HBCI, Enablebanking and PayPal are the principal external banking integrations.</p>
+					<h3>Prerequisites</h3>
+					<ul>
+						<li>JDK 17 or newer and a suitable Maven installation.</li>
+						<li>Git; JavaFX tests on Linux also need a graphical session or <code>xvfb-run</code>.</li>
+						<li>Never put real credentials into tests, logs, fixtures or commits.</li>
+					</ul>
+					<pre><code>mvn clean install
+
+# one test or test class
+mvn -Dtest=ServiceRegistryTest test
+
+# distribution archive for a target platform
+mvn -Pwindows clean package
+mvn -Plinux clean package
+mvn -Pmac clean package</code></pre>
+					<p>The application entry point is <code>de.zft2.gbanking.GBanking</code>. It uses <code>AppPaths</code> to determine the application directory and launches <code>GBankingGui</code>. Production code is below <code>src/main/java</code>, resources below <code>src/main/resources</code>, and tests mirror the package structure below <code>src/test/java</code>.</p>
+					<div class="note"><strong>First orientation:</strong> The quickest way to understand a business feature is usually to follow it from an <code>OverviewPanel</code>, through its service, to the DAO or repository. Tests next to these classes often document edge cases more precisely than the UI does.</div>
+					<p class="back-to-top"><a href="#top">Back to top</a></p>
+				</section>
+
+				<section id="architecture">
+					<h2>2. Architecture and packages</h2>
+					<p>The architecture has three main areas. The boundary is pragmatic: new business logic belongs in services even though a few legacy or view-specific paths still call <code>DBController</code> directly.</p>
+					<pre><code>JavaFX GUI and tasks
+        |
+        v
+Domain services  ---&gt;  FinTS / Enablebanking / PayPal / files / quote sources
+        |
+        v
+DBController / DbExecutor
+        |
+        v
+DAO repositories / mappers / SQL templates
+        |
+        v
+tenant-bound SQLite session</code></pre>
+					<div class="table-wrap">
+						<table>
+							<thead><tr><th>Package</th><th>Purpose</th><th>Key entry points</th></tr></thead>
+							<tbody>
+								<tr><td><code>de.zft2.gbanking</code></td><td>Application startup and shared message interfaces.</td><td><code>GBanking</code>, <code>BaseMessages</code>, <code>BaseMessagesBean</code></td></tr>
+								<tr><td><code>db</code></td><td>Sessions, transactions, generic CRUD, repositories, SQL configuration and migrations.</td><td><code>DBController</code>, <code>DbExecutor</code>, <code>DbSession</code>, <code>DbTransactionManager</code></td></tr>
+								<tr><td><code>db.dao</code>, <code>db.dao.enu</code></td><td>Persisted domain objects and their enum values.</td><td><code>Dao</code>, <code>BankAccount</code>, <code>Booking</code>, <code>MoneyTransfer</code></td></tr>
+								<tr><td><code>db.dao.mapper</code>, <code>db.dao.logic</code></td><td>JDBC result mapping and parameter binding; loading and writing relations.</td><td><code>AbstractDaoMapper</code>, <code>StatementsLogic</code>, <code>StatementsConfig</code></td></tr>
+								<tr><td><code>db.dao.stock</code>, <code>db.repository</code></td><td>Securities model and specialized or generic repository implementations.</td><td><code>StockDaoMetadata</code>, <code>StockDaoRepository</code>, <code>JdbcDaoRepository</code></td></tr>
+								<tr><td><code>tenant</code></td><td>Tenant directories, login, locking, encryption, open/close lifecycle and backups.</td><td><code>TenantStore</code>, <code>TenantSession</code>, <code>TenantDatabaseLifecycleManager</code></td></tr>
+								<tr><td><code>service</code> and subpackages</td><td>Business use cases and transaction boundaries.</td><td><code>ServiceRegistry</code>, <code>AbstractDbService</code>, domain services</td></tr>
+								<tr><td><code>gui</code> and subpackages</td><td>JavaFX application, navigation, dialogs, overview pages, detail panels and UI helpers.</td><td><code>GBankingGui</code>, <code>OverviewPanelFactory</code>, <code>OverviewBasePanel</code></td></tr>
+								<tr><td><code>hbci</code>, <code>enablebanking</code>, <code>paypal</code></td><td>Adapters and clients for external banking protocols.</td><td><code>GBankingHBCICallback</code>, <code>EnablebankingApiClient</code>, <code>PaypalSoapClient</code></td></tr>
+								<tr><td><code>file.imp</code>, <code>file.exp</code></td><td>CSV, XML, MT940, SEPA and Portfolio Performance imports and exports.</td><td><code>BaseFileTask</code>, import and export beans</td></tr>
+								<tr><td><code>rebooking</code>, <code>analysis</code></td><td>Rebooking detection and analysis calculations.</td><td><code>RebookingRules</code>, <code>TurnoverAnalyzer</code></td></tr>
+								<tr><td><code>update</code>, <code>logging</code></td><td>Signed updates, diagnostics, logging configuration and sensitive-value masking.</td><td><code>UpdateManager</code>, <code>DiagnosticPackageCreator</code>, <code>SensitiveDataMasker</code></td></tr>
+								<tr><td><code>messages</code>, <code>util</code>, <code>concurrent</code>, <code>cache</code></td><td>Localization and shared infrastructure.</td><td><code>Messages</code>, <code>AppPaths</code>, <code>CancellationSupport</code></td></tr>
+							</tbody>
+						</table>
+					</div>
+					<p class="back-to-top"><a href="#top">Back to top</a></p>
+				</section>
+
+				<section id="lifecycle">
+					<h2>3. Application and session lifecycle</h2>
+					<ol>
+						<li><code>GBanking.main</code> sets <code>gbanking.baseDir</code> and launches JavaFX.</li>
+						<li><code>GBankingGui.start</code> restores environment and GUI settings and initializes file chooser state.</li>
+						<li><code>TenantLoginDialog</code> authenticates the tenant, acquires its file lock and prepares the working database.</li>
+						<li><code>DbRuntimeContext</code> binds the database, data and account-statement directories to a new session generation.</li>
+						<li>The main window is assembled. <code>OverviewPanelFactory</code> creates the initial <code>ACCOUNTS_TRANSACTIONS</code> page on first use.</li>
+						<li><code>GBankingService.setup</code> starts maintenance of the institute directory; further services are obtained from <code>ServiceRegistry</code>.</li>
+					</ol>
+					<p>During a tenant switch, backup restore or shutdown, the GUI is disabled. <code>BackgroundActionCoordinator</code> waits for database-bound background actions or cancels them after an explicit user choice. Only then are SQLite, temporary files and the tenant session closed. Services, caches, GUI context and lazily created panels are reset between tenants.</p>
+					<div class="warning"><strong>Important invariant:</strong> A background thread must never continue against an old database session after a tenant switch. Start database work through <code>BackgroundActionCoordinator</code> or <code>DbRuntimeContext.startBackgroundThread</code>, and never bypass these coordinators when implementing a lifecycle transition.</div>
+					<p><code>TenantDatabaseLifecycleManager</code> decrypts the database before opening, detects recovery states and encrypts it again after closing. See the final chapter of the <a href="manual_en.html#encryption">user manual</a> for the protection model and its limitations.</p>
+					<p class="back-to-top"><a href="#top">Back to top</a></p>
+				</section>
+
+				<section id="persistence">
+					<h2>4. Persistence</h2>
+					<h3>Data locations and sessions</h3>
+					<p><code>TenantPaths</code> describes a tenant's database, encrypted database, backup and account-statement directories. When an external data directory is configured, the readable SQLite working file may live separately below <code>work/tenant/&lt;UUID&gt;/db</code>. Domain code must use <code>TenantPaths</code>, <code>DbRuntimeContext</code> and <code>AppPaths</code> rather than assembling these paths itself.</p>
+					<p><code>DbConnectionHandler</code> manages exactly one active <code>DbSession</code>. A session owns the JDBC connection, <code>JdbcOperations</code>, repository catalog and per-session setup markers. It cannot be reused when its generation no longer matches <code>DbRuntimeContext</code>.</p>
+					<h3>Access layers</h3>
+					<div class="table-wrap">
+						<table>
+							<thead><tr><th>Component</th><th>Purpose</th><th>Core functions</th></tr></thead>
+							<tbody>
+								<tr><td><code>DBController</code></td><td>Public facade for standard CRUD and domain-specific aggregate operations.</td><td><code>getInstance</code>, <code>executeInTransaction</code>, recipient, category, account and booking operations</td></tr>
+								<tr><td><code>DbExecutor</code></td><td>Generic read and write operations for DAOs.</td><td><code>getById</code>, <code>getByIdFull</code>, <code>getAll</code>, <code>getAllByParent</code>, <code>insertOrUpdate</code>, <code>delete</code></td></tr>
+								<tr><td><code>DaoRepository&lt;T&gt;</code></td><td>Uniform contract for each DAO type.</td><td><code>findById</code>, <code>find</code>, <code>findAll</code>, <code>executeWrite</code>, <code>delete</code></td></tr>
+								<tr><td><code>DaoRepositoryCatalog</code></td><td>Maps DAO classes to generic, read-only, securities or specialized repositories.</td><td>Registration while creating a <code>DbSession</code></td></tr>
+								<tr><td><code>StatementsConfig</code></td><td>Associates each DAO with a mapper, relation logic, view and SQL statements.</td><td><code>StatementType</code>, <code>ResultType</code>, metadata lookup</td></tr>
+								<tr><td><code>JdbcOperations</code></td><td>Low-level JDBC operations with prepared statements and result mapping.</td><td>Query, update and batch helpers</td></tr>
+							</tbody>
+						</table>
+					</div>
+					<p><code>getById</code> and <code>getAll</code> do not normally load complete relations. Their <code>Full</code> variants select additional columns and let the matching <code>StatementsLogic</code> resolve relationships. This distinction avoids unnecessary object graphs in list views.</p>
+					<h3>SQL and mapping</h3>
+					<ul>
+						<li><code>src/main/resources/sql/dml</code> contains named queries and write statements. <code>SqlTemplateRepository</code> reads and validates the templates.</li>
+						<li><code>DaoSqlStatements</code> exposes frequently used keys as constants.</li>
+						<li>Mappers below <code>db.dao.mapper</code> read result sets and bind entity values. Relation logic below <code>db.dao.logic</code> completes dependent objects and many-to-many tables.</li>
+						<li>Securities DAOs use <code>StockDaoMetadata</code>, allowing many tables to share one <code>StockDaoRepository</code>.</li>
+					</ul>
+					<h3>Transactions and side effects</h3>
+					<p><code>DBController.executeInTransaction</code> or <code>DbExecutor.withDbTransaction</code> marks a business transaction boundary. <code>DbTransactionManager</code> serializes database access with a fair lock. Nested calls join the outer transaction; a failing inner call marks the whole transaction rollback-only. If a commit outcome or connection state is uncertain, the session is quarantined so processing cannot silently continue on questionable state.</p>
+					<div class="tip"><strong>Rule:</strong> Group related writes in one service method and one explicit transaction. File or in-memory side effects that must be reverted on rollback should use the persistence layer's existing rollback mechanisms.</div>
+					<h3>Schema and migrations</h3>
+					<p>The baseline is versioned below <code>sql/ddl/0.1.0</code>; later directories contain incremental scripts. <code>DbMigrationRunner</code> reads hidden settings to determine pending versions, applies them in order and records schema and application versions. Migrations run with auto-commit, so each script must be designed to fail clearly and be safe in its intended state. <code>DbConnectionHandler</code> then checks foreign keys and database integrity.</p>
+					<p>The public institute directory is a separate <code>institute.db</code> file. It is prepared and attached to the tenant connection as schema <code>institute_db</code>. Do not treat changes to tenant data and the institute directory as one domain transaction.</p>
+					<h3>Adding a persistent type</h3>
+					<ol>
+						<li>Add the DAO and any enums; define identity, nullability and state fields.</li>
+						<li>Add DDL as a new versioned migration; never reinterpret an already released migration.</li>
+						<li>Add DML keys and implement the mapper and, when needed, <code>StatementsLogic</code>.</li>
+						<li>Register the type in <code>StatementsConfig</code> and <code>DaoRepositoryCatalog</code>. Use the read-only repository for read-only types.</li>
+						<li>Add repository/controller tests for CRUD, relations, rollback, foreign keys and migration.</li>
+					</ol>
+					<p class="back-to-top"><a href="#top">Back to top</a></p>
+				</section>
+
+				<section id="services">
+					<h2>5. Application functions and services</h2>
+					<p class="lead">Services implement business use cases. They own validation, provider selection, transaction boundaries and the order of persistence steps. GUI classes should collect inputs and present results, not reimplement the same rules.</p>
+					<h3>Creation and lifetime</h3>
+					<p>Registered classes implement the empty <code>Service</code> marker interface. <code>ServiceRegistry.getService</code> invokes a no-argument constructor and caches one instance per service class. Constructors obtain dependent services from the registry as well. Tenant switching and backup restore clear the registry. Tests can use <code>setService</code>, <code>removeService</code> and <code>resetServices</code> to inject doubles and isolate state.</p>
+					<p><code>AbstractDbService</code> supplies <code>DBController.getInstance(".")</code>. In this context the dot means “use the database activated by <code>DbRuntimeContext</code>”, not “open an arbitrary new tenant database”.</p>
+					<h3>Domain groups</h3>
+					<div class="table-wrap">
+						<table>
+							<thead><tr><th>Package</th><th>Core services</th><th>Responsibility</th></tr></thead>
+							<tbody>
+								<tr><td><code>service.account</code></td><td><code>AccountTransactionService</code>, <code>AccountStatementService</code>, <code>RebookingService</code></td><td>Retrieve balances and transactions, handle duplicates/pending entries, manage statements and detect rebookings.</td></tr>
+								<tr><td><code>service.bankaccess</code></td><td><code>BankAccessService</code>, <code>BankMessageService</code></td><td>Initialize bank access, synchronize BPD/UPD and accounts, retrieve bank messages.</td></tr>
+								<tr><td><code>service.booking</code>, <code>service.category</code>, <code>service.recipient</code></td><td><code>BookingService</code>, <code>BookingSplitService</code>, <code>BookingCategoryService</code>, <code>CategoryService</code>, <code>RecipientService</code></td><td>Edit/split/delete transactions, apply categories and rules, consolidate recipients.</td></tr>
+								<tr><td><code>service.moneytransfer</code></td><td><code>MoneyTransferService</code>, <code>MoneyTransferExecutionService</code>, <code>MoneyTransferInventoryService</code></td><td>Maintain and submit orders, retrieve bank-side inventories, interpret protocol and status.</td></tr>
+								<tr><td><code>service.stock</code></td><td><code>StockPortfolioService</code>, <code>StockPortfolioFinTsService</code>, administration and Portfolio Performance services</td><td>Portfolios, positions, transactions, settlement accounts, prices, FinTS holdings and file exchange.</td></tr>
+								<tr><td><code>service.stock.quote</code></td><td><code>StockQuoteRetrievalService</code>, <code>QuoteProvider</code>, <code>MarketDataClient</code></td><td>Configure quote sources, retrieve data and normalize results.</td></tr>
+								<tr><td><code>service.action</code></td><td><code>OpenActionsSelection</code>, <code>OpenActionsExecutionUtil</code></td><td>Collect and execute pending account, portfolio and payment actions in a controlled sequence.</td></tr>
+								<tr><td><code>service.importproperties</code>, <code>service.institute</code></td><td><code>ImportPropertiesSynchronizationService</code>, <code>InstituteImportService</code></td><td>Synchronize import definitions and import public institute data.</td></tr>
+								<tr><td><code>service.settings</code></td><td><code>SettingsStore</code>, <code>SettingDefinition</code></td><td>Read and write typed settings with defaults.</td></tr>
+							</tbody>
+						</table>
+					</div>
+					<h3>Core functions</h3>
+					<ul>
+						<li><code>AccountTransactionService.retrieveAccountTransactionsWithResult</code> selects PayPal, Enablebanking or FinTS from the configured bank access and unifies persistence afterwards.</li>
+						<li><code>BankingCapabilityService</code> evaluates account type, access, BPD, UPD and announced business transactions. The GUI queries it before offering online actions.</li>
+						<li><code>MoneyTransferExecutionService</code> encapsulates security-sensitive execution, bank responses and status transitions; <code>FinTsStatusProtocolService</code> and the protocol evaluator interpret feedback.</li>
+						<li><code>StockPortfolioService</code> is the main facade for portfolio views, transactions, prices, income, transfers and settlement-account bookings.</li>
+						<li><code>GBankingService.postRetriveActions</code> links rebookings and applies category rules after retrieval.</li>
+					</ul>
+					<h3>External adapters</h3>
+					<p><code>HbciSessionRunner</code> limits the lifetime of HBCI handlers, passports and secrets. <code>GBankingHBCICallback</code> connects PIN/TAN dialogs and status to the GUI. Enablebanking has separate classes for OAuth authorization, callback server, API client and paginated transaction retrieval. PayPal encapsulates SOAP transport, account and transaction services. Provider-specific DTOs should remain in these adapter packages and be translated into GBanking domain objects before reaching services and persistence.</p>
+					<div class="warning"><strong>Security rule:</strong> Never store or log PINs, TANs, OAuth keys or full account identifiers without filtering. Keep secrets alive for the shortest possible time, clear them after use and rely on the existing masking and callback classes.</div>
+					<p class="back-to-top"><a href="#top">Back to top</a></p>
+				</section>
+
+				<section id="gui">
+					<h2>6. GUI</h2>
+					<h3>Navigation and pages</h3>
+					<p><code>GBankingGui</code> owns the main window and coordinates application-wide actions. <code>GBankingNavigationBar</code> combines menus and quick navigation. Each main page is represented by a <code>PageContext</code>. <code>OverviewPanelFactory</code> maps that enum to an <code>OverviewBasePanel</code>, creates it on first access and caches it for the current tenant session. <code>refreshOnShow</code> refreshes data when the page is shown again.</p>
+					<div class="table-wrap">
+						<table>
+							<thead><tr><th>GUI package</th><th>Contents</th></tr></thead>
+							<tbody>
+								<tr><td><code>gui.panel.overview</code></td><td>Main pages for accounts/transactions, portfolios, orders, categories, recipients, administration and analysis.</td></tr>
+								<tr><td><code>gui.panel.account</code>, <code>transaction</code>, <code>stock</code>, <code>moneytransfer</code>, etc.</td><td>Domain-specific list, detail and form panels.</td></tr>
+								<tr><td><code>gui.dialog</code></td><td>Modal dialogs; subpackages group tenant, FinTS, rebooking and securities dialogs.</td></tr>
+								<tr><td><code>gui.progress</code></td><td>JavaFX tasks and progress windows for file and online operations.</td></tr>
+								<tr><td><code>gui.component</code>, <code>gui.util</code></td><td>Reusable tables, columns, fields, styles, shortcuts and FX-thread helpers.</td></tr>
+								<tr><td><code>gui.model</code>, <code>gui.dto</code>, <code>gui.enu</code></td><td>View-only state, selection models and navigation types.</td></tr>
+							</tbody>
+						</table>
+					</div>
+					<h3>Reusable patterns</h3>
+					<ul>
+						<li><code>AbstractFilterableTablePanel&lt;T&gt;</code> wires a master list, filtered and sorted views, search field, selection and context menu. Subclasses supply <code>matchesFilter</code> and their columns.</li>
+						<li><code>AbstractTitledFormPanel</code> and <code>FormGridHelper</code> standardize forms. <code>DetailFormEditMode</code> consistently toggles fields and buttons between viewing and editing.</li>
+						<li><code>MasterContentPane</code> and <code>DetailListPane</code> implement master-detail layouts. <code>GuiLayoutState</code> persists window, table and SplitPane state.</li>
+						<li><code>KeyboardShortcutDispatcher</code> registers find, save, cancel and refresh actions for the active area.</li>
+						<li>Text comes from <code>messages_de.properties</code> and <code>messages_en.properties</code> through <code>BaseMessagesBean.getText</code>; do not hard-code visible text in Java.</li>
+					</ul>
+					<h3>Threads and refresh</h3>
+					<p>Read or change JavaFX nodes only on the FX Application Thread. Long-running network, file and database operations belong in a <code>Task</code>. <code>BaseGui.startBackgroundTask</code> delegates to <code>BackgroundActionCoordinator</code>. Its default <code>DATABASE</code> scope binds the current tenant session; use <code>INDEPENDENT</code> only for truly tenant-independent work. Completion handling and visible updates return to the FX thread.</p>
+					<div class="tip"><strong>Refresh pattern:</strong> After a successful save, use the service result, reload the affected list and restore selection deliberately. Do not assume that a cached OverviewPanel automatically observes changes in another panel.</div>
+					<h3>Adding a main page</h3>
+					<ol>
+						<li>Add a value to <code>PageContext</code> and update both message bundles.</li>
+						<li>Implement an <code>OverviewBasePanel</code>, use <code>setPageContext</code> and <code>setOverviewContent</code>, and define <code>refreshOnShow</code>.</li>
+						<li>Add its mapping to <code>OverviewPanelFactory.createOverviewPanel</code>.</li>
+						<li>Connect a menu or navigation action to <code>GBankingGui.activateOverview</code>.</li>
+						<li>Add factory/navigation and panel tests; test JavaFX code on the correct thread with <code>JavaFxTestSupport</code>.</li>
+					</ol>
+					<p class="back-to-top"><a href="#top">Back to top</a></p>
+				</section>
+
+				<section id="flows">
+					<h2>7. Core flows</h2>
+					<h3>Retrieving account transactions</h3>
+					<ol>
+						<li>The account view asks <code>BankingCapabilityService</code> whether an update is supported and starts a database-bound task.</li>
+						<li><code>AccountTransactionService</code> resolves the bank access and selects FinTS, Enablebanking or PayPal.</li>
+						<li>The adapter returns balance, booked and, when available, pending transactions as GBanking objects.</li>
+						<li>A DB transaction updates the balance, sources, duplicate state, new/pending bookings and retrieval status.</li>
+						<li><code>GBankingService</code> then links rebookings and applies category rules.</li>
+						<li>The GUI consumes the structured result, clears secrets and refreshes affected views.</li>
+					</ol>
+					<h3>Executing a payment order</h3>
+					<p>The GUI validates whether input is allowed and obtains confirmation. The money-transfer service persists the order and delegates bank execution to <code>MoneyTransferExecutionService</code>. Protocol services and evaluators translate feedback into an unambiguous local state. An unknown commit or bank response must never be treated as automatically safe to retry.</p>
+					<h3>Portfolios and securities</h3>
+					<p><code>StockPortfolioFinTsService</code> imports bank holdings and reconciliation data. <code>StockPortfolioService</code> then combines portfolios, positions, transactions, security master data, prices and settlement accounts into summary records for the GUI. Manual buys, sells, income and transfers write all related legs and bookings in one transaction.</p>
+					<h3>File import</h3>
+					<p><code>FileTransferCoordinator</code> selects a file and target, creates the matching import task and opens the progress dialog. Parsers and import beans live below <code>file.imp</code>; assignment, duplicate detection and persistence are separated. The coordinator refreshes affected OverviewPanels only after successful completion. Exports follow the same pattern using <code>file.exp</code>.</p>
+					<p class="back-to-top"><a href="#top">Back to top</a></p>
+				</section>
+
+				<section id="cross-cutting">
+					<h2>8. Cross-cutting concerns</h2>
+					<ul>
+						<li><strong>Localization:</strong> <code>Messages</code> supports German and English. Every new visible key belongs in both properties files; a missing key otherwise appears as the key itself.</li>
+						<li><strong>Logging:</strong> Use Log4j2 and parameterized messages. <code>SensitiveDataMasker</code> and <code>HbciLogMessageSanitizer</code> protect common secrets; review new logging paths for financial and authentication data.</li>
+						<li><strong>Settings:</strong> GUI/environment state uses <code>RestoreHandler</code> and <code>EnvironmentOptions</code>; domain settings use typed <code>SettingsStore</code> entries in the database.</li>
+						<li><strong>Cancellation:</strong> Longer loops and I/O paths should observe <code>CancellationSupport</code>. A cancelled operation must not leave a partial business change.</li>
+						<li><strong>Updates:</strong> The <code>update</code> package separates release metadata, download, checksum, signature verification, extraction and installer launch. Do not bypass verification steps.</li>
+						<li><strong>Help documents:</strong> HTML files live below <code>src/main/resources/doc</code>. Every relative link must appear in <code>GBankingGui.HELP_DOCUMENTS</code> so the target is copied to the temporary help directory.</li>
+					</ul>
+					<p class="back-to-top"><a href="#top">Back to top</a></p>
+				</section>
+
+				<section id="extending">
+					<h2>9. Extending a feature</h2>
+					<p>Start with the business use case, not the button. A typical vertical change follows this order:</p>
+					<ol>
+						<li><strong>Define behavior:</strong> Describe input, result, failure cases, tenant scope and atomic boundary.</li>
+						<li><strong>Model/persistence:</strong> Reuse existing DAOs and queries. Add schema, migration, mapper and repository only when new persistent state is required.</li>
+						<li><strong>Service:</strong> Coordinate validation, transaction and provider/file adapters in a testable service method. Return structured results instead of GUI callbacks.</li>
+						<li><strong>GUI:</strong> Bind input, invoke the service directly for short work or in a task for long work, display useful errors and refresh views.</li>
+						<li><strong>Localization and help:</strong> Update German and English text together, as well as the user manual and developer documentation when architecture changes.</li>
+						<li><strong>Tests:</strong> Cover service edge cases first, then persistence integration and focused GUI tests. Run the complete build before handing off.</li>
+					</ol>
+					<div class="note"><strong>Code review questions:</strong> Is the transaction boundary correct? Are secrets and personal data kept out of logs? Can an old background task write into a new tenant? Are both languages complete? Could an uncertain external order be retried automatically?</div>
+					<p class="back-to-top"><a href="#top">Back to top</a></p>
+				</section>
+
+				<section id="tests">
+					<h2>10. Tests, build and troubleshooting</h2>
+					<h3>Test types</h3>
+					<ul>
+						<li>Unit tests use JUnit 5 and Mockito. <code>ServiceRegistry.setService</code> can inject test doubles.</li>
+						<li>Persistence tests open a database in a temporary directory and close it through <code>DBController.resetConnection</code> or existing test helpers.</li>
+						<li>JavaFX tests create controls and run assertions through <code>JavaFxTestSupport.runFx</code> or <code>callFx</code>.</li>
+						<li>Migration, integrity, import and encryption tests pay particular attention to failure and recovery paths.</li>
+					</ul>
+					<p>Maven runs tests with <code>target/test-working</code> as the working directory, software rendering and headless AWT. Test code must not assume that the repository is the current working directory. CI runs JavaFX tests on Linux with <code>xvfb-run -a mvn -B clean test</code>.</p>
+					<h3>Suggested verification</h3>
+					<pre><code># fast domain cycle
+mvn -Dtest=AffectedServiceTest test
+
+# full verification
+mvn clean test
+
+# complete build
+mvn clean install</code></pre>
+					<p>For database failures, inspect the original log event first; follow-up errors may come from a deliberately quarantined session. For stale views, verify that the service succeeded, completion runs on the FX thread and the correct cached panel was refreshed. During tenant switching, active actions and the session generation are the first places to inspect.</p>
+					<div class="warning"><strong>Test data:</strong> Never use the production <code>gbanking.db</code> or a real tenant directory as a test target. Temporary directories and existing fixtures keep tests reproducible and prevent data loss.</div>
+					<p class="back-to-top"><a href="#top">Back to top</a></p>
+				</section>
+
+				<section id="onboarding">
+					<h2>11. Suggested onboarding path</h2>
+					<ol>
+						<li><strong>Application shell:</strong> Read <code>GBanking</code>, <code>GBankingGui.start</code>, <code>PageContext</code> and <code>OverviewPanelFactory</code>.</li>
+						<li><strong>A small domain:</strong> Trace categories or recipients from the OverviewPanel through the service, <code>DBController</code>, repository, mapper and SQL.</li>
+						<li><strong>Transactions:</strong> Study <code>DbExecutor</code>, <code>DbTransactionManager</code>, <code>DbSession</code> and their tests.</li>
+						<li><strong>Online flow:</strong> Follow transaction retrieval through <code>AccountTransactionService</code>, one provider adapter and the post-processing services.</li>
+						<li><strong>Complex domain:</strong> Then read <code>StockPortfolioService</code> or <code>MoneyTransferExecutionService</code>; both demonstrate atomic multi-table workflows and structured results.</li>
+						<li><strong>Lifecycle/security:</strong> Review <code>TenantDatabaseLifecycleManager</code>, <code>BackgroundActionCoordinator</code> and the encryption/backup tests.</li>
+					</ol>
+					<div class="tip"><strong>A good first change:</strong> Extend a small, already tested list or form feature. This exercises localization, service access, refresh, a GUI test and the full build without immediately touching banking protocols or encryption.</div>
+					<p class="back-to-top"><a href="#top">Back to top</a></p>
+				</section>
+			</main>
+		</div>
+
+		<footer class="footer">GBanking – technical manual and developer documentation</footer>
+	</div>
+</body>
+</html>

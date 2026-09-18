@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="de">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>GBanking Entwicklerdokumentation</title>
+	<link rel="stylesheet" href="gbanking-doc.css">
+</head>
+<body id="top">
+	<a class="skip-link" href="#inhalt">Direkt zum Inhalt</a>
+	<div class="page">
+		<nav class="topbar" aria-label="Dokumentnavigation">
+			<p><strong>Sprache:</strong> Deutsch | <a href="developer_en.html" lang="en">English</a></p>
+			<p><strong>Benutzerhandbuch:</strong> <a href="manual_de.html">Deutsch</a> | <a href="manual_en.html" lang="en">English</a></p>
+			<p><strong>Referenz:</strong> <a href="csv-booking-format.html">CSV-Format für Umsätze</a></p>
+		</nav>
+
+		<header class="hero">
+			<h1>GBanking Entwicklerdokumentation</h1>
+			<p>Architektur, Persistenz, Services und JavaFX-GUI – als Einstieg in den Quellcode und als Wegweiser für sichere Erweiterungen.</p>
+		</header>
+
+		<div class="content-layout">
+			<nav class="toc" aria-labelledby="toc-title">
+				<h2 id="toc-title">Inhaltsverzeichnis</h2>
+				<ol>
+					<li><a href="#einstieg">Einstieg und Entwicklungsumgebung</a></li>
+					<li><a href="#architektur">Architektur und Packages</a></li>
+					<li><a href="#lebenszyklus">Start- und Sitzungslebenszyklus</a></li>
+					<li><a href="#persistenz">Persistenz</a></li>
+					<li><a href="#services">Programmfunktionen und Services</a></li>
+					<li><a href="#gui">GUI</a></li>
+					<li><a href="#ablaeufe">Zentrale Abläufe</a></li>
+					<li><a href="#querschnitt">Querschnittsthemen</a></li>
+					<li><a href="#erweitern">Eine Funktion erweitern</a></li>
+					<li><a href="#tests">Tests, Build und Fehlersuche</a></li>
+					<li><a href="#einarbeitung">Empfohlener Einarbeitungspfad</a></li>
+				</ol>
+			</nav>
+
+			<main id="inhalt">
+				<section id="einstieg">
+					<h2>1. Einstieg und Entwicklungsumgebung</h2>
+					<p class="lead">GBanking ist eine Java-Desktop-Anwendung. Sie wird mit Maven gebaut, verwendet Java 17 als Compiler-Ziel und JavaFX 21 für die Oberfläche. Die produktiven Daten liegen in SQLite; FinTS/HBCI, Enablebanking und PayPal bilden die wichtigsten externen Bankschnittstellen.</p>
+					<h3>Voraussetzungen</h3>
+					<ul>
+						<li>JDK 17 oder neuer und ein passendes Maven.</li>
+						<li>Git; für JavaFX-Tests unter Linux zusätzlich eine grafische Sitzung oder <code>xvfb-run</code>.</li>
+						<li>Keine echten Zugangsdaten in Tests, Logs, Fixtures oder Commits.</li>
+					</ul>
+					<pre><code>mvn clean install
+
+# einzelner Test oder eine Testklasse
+mvn -Dtest=ServiceRegistryTest test
+
+# Distributionsarchiv für die aktuelle Zielplattform
+mvn -Pwindows clean package
+mvn -Plinux clean package
+mvn -Pmac clean package</code></pre>
+					<p>Der Programmeinstieg ist <code>de.zft2.gbanking.GBanking</code>. Die Klasse bestimmt über <code>AppPaths</code> das Anwendungsverzeichnis und startet <code>GBankingGui</code>. Produktivcode liegt unter <code>src/main/java</code>, Ressourcen unter <code>src/main/resources</code> und Tests spiegeln die Paketstruktur unter <code>src/test/java</code>.</p>
+					<div class="note"><strong>Erste Orientierung:</strong> Eine Fachfunktion lässt sich meist am schnellsten von einem <code>OverviewPanel</code> über den zugehörigen Service bis zum DAO beziehungsweise Repository verfolgen. Die Tests neben diesen Klassen dokumentieren viele Randfälle genauer als die Oberfläche.</div>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="architektur">
+					<h2>2. Architektur und Packages</h2>
+					<p>Die Architektur ist in drei Hauptbereiche gegliedert. Die Trennung ist pragmatisch: Neue Geschäftslogik gehört in Services, auch wenn einige ältere oder rein ansichtsbezogene Pfade direkt auf <code>DBController</code> zugreifen.</p>
+					<pre><code>JavaFX-GUI und Tasks
+        |
+        v
+Fachservices  -----&gt;  FinTS / Enablebanking / PayPal / Dateien / Kursquellen
+        |
+        v
+DBController / DbExecutor
+        |
+        v
+DAO-Repositories / Mapper / SQL-Templates
+        |
+        v
+mandantengebundene SQLite-Sitzung</code></pre>
+					<div class="table-wrap">
+						<table>
+							<thead><tr><th>Package</th><th>Aufgabe</th><th>Wichtige Einstiegspunkte</th></tr></thead>
+							<tbody>
+								<tr><td><code>de.zft2.gbanking</code></td><td>Programmstart und gemeinsame Nachrichten-Schnittstellen.</td><td><code>GBanking</code>, <code>BaseMessages</code>, <code>BaseMessagesBean</code></td></tr>
+								<tr><td><code>db</code></td><td>Sitzung, Transaktionen, generische CRUD-API, Repositories, SQL-Konfiguration und Migration.</td><td><code>DBController</code>, <code>DbExecutor</code>, <code>DbSession</code>, <code>DbTransactionManager</code></td></tr>
+								<tr><td><code>db.dao</code>, <code>db.dao.enu</code></td><td>Persistierte Fachobjekte und ihre Enum-Werte.</td><td><code>Dao</code>, <code>BankAccount</code>, <code>Booking</code>, <code>MoneyTransfer</code></td></tr>
+								<tr><td><code>db.dao.mapper</code>, <code>db.dao.logic</code></td><td>Abbildung von JDBC-Ergebnissen und Parameterbindung; Laden und Schreiben von Relationen.</td><td><code>AbstractDaoMapper</code>, <code>StatementsLogic</code>, <code>StatementsConfig</code></td></tr>
+								<tr><td><code>db.dao.stock</code>, <code>db.repository</code></td><td>Wertpapiermodell und spezialisierte beziehungsweise generische Repository-Implementierungen.</td><td><code>StockDaoMetadata</code>, <code>StockDaoRepository</code>, <code>JdbcDaoRepository</code></td></tr>
+								<tr><td><code>tenant</code></td><td>Mandantenverzeichnis, Anmeldung, Sperre, Verschlüsselung, Öffnen/Schließen und Sicherungen.</td><td><code>TenantStore</code>, <code>TenantSession</code>, <code>TenantDatabaseLifecycleManager</code></td></tr>
+								<tr><td><code>service</code> und Unterpackages</td><td>Fachliche Anwendungsfälle und Transaktionsgrenzen.</td><td><code>ServiceRegistry</code>, <code>AbstractDbService</code>, domänenspezifische Services</td></tr>
+								<tr><td><code>gui</code> und Unterpackages</td><td>JavaFX-Anwendung, Navigation, Dialoge, Übersichten, Detailansichten und UI-Hilfen.</td><td><code>GBankingGui</code>, <code>OverviewPanelFactory</code>, <code>OverviewBasePanel</code></td></tr>
+								<tr><td><code>hbci</code>, <code>enablebanking</code>, <code>paypal</code></td><td>Adapter und Clients für externe Bankprotokolle.</td><td><code>GBankingHBCICallback</code>, <code>EnablebankingApiClient</code>, <code>PaypalSoapClient</code></td></tr>
+								<tr><td><code>file.imp</code>, <code>file.exp</code></td><td>CSV-, XML-, MT940-, SEPA- und Portfolio-Performance-Importe und -Exporte.</td><td><code>BaseFileTask</code>, Import- und Export-Beans</td></tr>
+								<tr><td><code>rebooking</code>, <code>analysis</code></td><td>Umbuchungserkennung und Auswertungsberechnung.</td><td><code>RebookingRules</code>, <code>TurnoverAnalyzer</code></td></tr>
+								<tr><td><code>update</code>, <code>logging</code></td><td>Signierte Updates, Diagnosepakete, Log-Konfiguration und Maskierung vertraulicher Werte.</td><td><code>UpdateManager</code>, <code>DiagnosticPackageCreator</code>, <code>SensitiveDataMasker</code></td></tr>
+								<tr><td><code>messages</code>, <code>util</code>, <code>concurrent</code>, <code>cache</code></td><td>Lokalisierung und gemeinsam verwendete Infrastruktur.</td><td><code>Messages</code>, <code>AppPaths</code>, <code>CancellationSupport</code></td></tr>
+							</tbody>
+						</table>
+					</div>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="lebenszyklus">
+					<h2>3. Start- und Sitzungslebenszyklus</h2>
+					<ol>
+						<li><code>GBanking.main</code> setzt <code>gbanking.baseDir</code> und startet JavaFX.</li>
+						<li><code>GBankingGui.start</code> lädt Umgebungs- und GUI-Einstellungen und initialisiert die Dateiauswahl.</li>
+						<li><code>TenantLoginDialog</code> authentifiziert den Mandanten, erwirbt dessen Dateisperre und lässt die Arbeitsdatenbank vorbereiten.</li>
+						<li><code>DbRuntimeContext</code> bindet Datenbank-, Daten- und Kontoauszugsverzeichnis an eine neue Sitzungsgeneration.</li>
+						<li>Die Hauptansicht wird aufgebaut. <code>OverviewPanelFactory</code> erzeugt die Startseite <code>ACCOUNTS_TRANSACTIONS</code> erst beim ersten Zugriff.</li>
+						<li><code>GBankingService.setup</code> startet die Pflege des Bankverzeichnisses; weitere Services werden aus <code>ServiceRegistry</code> bezogen.</li>
+					</ol>
+					<p>Beim Mandantenwechsel, Wiederherstellen einer Sicherung oder Beenden wird die GUI gesperrt. <code>BackgroundActionCoordinator</code> wartet auf datenbankgebundene Hintergrundaktionen oder bricht sie nach Benutzerentscheidung kontrolliert ab. Erst danach werden SQLite, temporäre Dateien und die Mandantensitzung geschlossen. Services, Caches, GUI-Kontext und lazily erzeugte Panels werden zwischen Mandanten zurückgesetzt.</p>
+					<div class="warning"><strong>Wichtige Invariante:</strong> Ein Hintergrundthread darf nicht nach einem Mandantenwechsel mit einer alten Datenbanksitzung weiterarbeiten. Datenbankgebundene Arbeiten deshalb über <code>BackgroundActionCoordinator</code> beziehungsweise <code>DbRuntimeContext.startBackgroundThread</code> starten und den Sitzungswechsel nie an diesen Koordinatoren vorbei implementieren.</div>
+					<p><code>TenantDatabaseLifecycleManager</code> entschlüsselt die Datenbank zum Öffnen, prüft Wiederherstellungszustände und verschlüsselt sie nach dem Schließen wieder. Details zum Schutzmodell und seinen Grenzen stehen im letzten Kapitel des <a href="manual_de.html#verschluesselung">Benutzerhandbuchs</a>.</p>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="persistenz">
+					<h2>4. Persistenz</h2>
+					<h3>Datenorte und Sitzung</h3>
+					<p><code>TenantPaths</code> beschreibt die Verzeichnisse eines Mandanten: Datenbank, verschlüsselte Datenbank, Sicherungen und Kontoauszüge. Bei einem extern konfigurierten Datenverzeichnis kann die lesbare SQLite-Arbeitsdatei getrennt unter <code>work/tenant/&lt;UUID&gt;/db</code> liegen. Der fachliche Code soll Pfade nicht selbst zusammensetzen, sondern <code>TenantPaths</code>, <code>DbRuntimeContext</code> und <code>AppPaths</code> verwenden.</p>
+					<p><code>DbConnectionHandler</code> verwaltet genau eine aktive <code>DbSession</code>. Eine Sitzung kapselt JDBC-Verbindung, <code>JdbcOperations</code>, Repository-Katalog und sitzungsbezogene Setup-Marker. Stimmt ihre Generation nicht mehr mit <code>DbRuntimeContext</code> überein, darf sie nicht weiterverwendet werden.</p>
+					<h3>Zugriffsschichten</h3>
+					<div class="table-wrap">
+						<table>
+							<thead><tr><th>Baustein</th><th>Zweck</th><th>Zentrale Funktionen</th></tr></thead>
+							<tbody>
+								<tr><td><code>DBController</code></td><td>Öffentliche Fassade für Standard-CRUD und domänenspezifische Sammeloperationen.</td><td><code>getInstance</code>, <code>executeInTransaction</code>, Empfänger-, Kategorie-, Konto- und Buchungsoperationen</td></tr>
+								<tr><td><code>DbExecutor</code></td><td>Generische Lese- und Schreiboperationen für DAOs.</td><td><code>getById</code>, <code>getByIdFull</code>, <code>getAll</code>, <code>getAllByParent</code>, <code>insertOrUpdate</code>, <code>delete</code></td></tr>
+								<tr><td><code>DaoRepository&lt;T&gt;</code></td><td>Einheitlicher Vertrag je DAO-Typ.</td><td><code>findById</code>, <code>find</code>, <code>findAll</code>, <code>executeWrite</code>, <code>delete</code></td></tr>
+								<tr><td><code>DaoRepositoryCatalog</code></td><td>Ordnet DAO-Klassen generischen, schreibgeschützten, Wertpapier- oder Spezial-Repositories zu.</td><td>Registrierung beim Aufbau einer <code>DbSession</code></td></tr>
+								<tr><td><code>StatementsConfig</code></td><td>Verknüpft DAO, Mapper, Relationslogik, View und SQL-Anweisungen.</td><td><code>StatementType</code>, <code>ResultType</code>, Metadatenauflösung</td></tr>
+								<tr><td><code>JdbcOperations</code></td><td>Niedrige JDBC-Ebene mit vorbereiteten Anweisungen und Ergebnisabbildung.</td><td>Query-, Update- und Batch-Helfer</td></tr>
+							</tbody>
+						</table>
+					</div>
+					<p><code>getById</code> und <code>getAll</code> laden standardmäßig keine vollständigen Relationen. Die <code>Full</code>-Varianten wählen zusätzliche Spalten und lassen die jeweilige <code>StatementsLogic</code> Beziehungen auflösen. Diese Unterscheidung verhindert unnötige Objektgraphen in Tabellenansichten.</p>
+					<h3>SQL und Mapping</h3>
+					<ul>
+						<li><code>src/main/resources/sql/dml</code> enthält benannte Abfragen und Schreibanweisungen. <code>SqlTemplateRepository</code> liest und prüft diese Vorlagen.</li>
+						<li><code>DaoSqlStatements</code> stellt häufig verwendete Schlüssel als Konstanten bereit.</li>
+						<li>Mapper unter <code>db.dao.mapper</code> lesen ResultSets und binden Entitätswerte. Relationslogik unter <code>db.dao.logic</code> ergänzt abhängige Objekte und M:N-Tabellen.</li>
+						<li>Wertpapier-DAOs verwenden <code>StockDaoMetadata</code>; dadurch können viele Tabellen über denselben <code>StockDaoRepository</code> verarbeitet werden.</li>
+					</ul>
+					<h3>Transaktionen und Nebenwirkungen</h3>
+					<p><code>DBController.executeInTransaction</code> beziehungsweise <code>DbExecutor.withDbTransaction</code> markiert die fachliche Transaktionsgrenze. <code>DbTransactionManager</code> serialisiert Datenbankzugriffe mit einem fairen Lock. Verschachtelte Aufrufe nehmen an der äußeren Transaktion teil; schlägt ein innerer Aufruf fehl, wird die gesamte Transaktion als nur noch rollbackfähig markiert. Bei unsicherem Commit oder einer beschädigten Verbindung wird die Sitzung verworfen, damit der Aufruf nicht unbemerkt auf einem zweifelhaften Zustand weiterläuft.</p>
+					<div class="tip"><strong>Regel:</strong> Mehrere zusammengehörige Schreibvorgänge immer in einer Service-Methode und einer expliziten Transaktion bündeln. Dateien oder In-Memory-Änderungen, die bei einem Rollback zurückgenommen werden müssen, über die vorhandenen Rollback-Mechanismen der Persistenzschicht behandeln.</div>
+					<h3>Schema und Migrationen</h3>
+					<p>Die Baseline liegt versioniert unter <code>sql/ddl/0.1.0</code>; spätere Verzeichnisse enthalten inkrementelle Skripte. <code>DbMigrationRunner</code> ermittelt aus versteckten Einstellungen die noch offenen Versionen, führt sie in Reihenfolge aus und protokolliert Schema- und Anwendungsversion. Migrationen laufen mit Auto-Commit und müssen deshalb einzeln wiederholbar beziehungsweise klar fehlschlagend entworfen werden. <code>DbConnectionHandler</code> prüft anschließend Fremdschlüssel und Integrität.</p>
+					<p>Das öffentliche Bankverzeichnis ist eine separate Datei <code>institute.db</code>. Es wird vorbereitet und als Schema <code>institute_db</code> an die Mandantendatenbank angehängt. Änderungen an Mandantendaten und Bankverzeichnis daher nicht als dieselbe fachliche Persistenz betrachten.</p>
+					<h3>Neuen persistenten Typ ergänzen</h3>
+					<ol>
+						<li>DAO und gegebenenfalls Enums anlegen; Identität, Nullwerte und Zustandsfelder festlegen.</li>
+						<li>DDL als neue Versionsmigration hinzufügen, niemals eine bereits veröffentlichte Migration umdeuten.</li>
+						<li>DML-Schlüssel ergänzen und Mapper sowie gegebenenfalls <code>StatementsLogic</code> implementieren.</li>
+						<li>Typ in <code>StatementsConfig</code> und <code>DaoRepositoryCatalog</code> registrieren. Für reine Lesetypen das Read-only-Repository verwenden.</li>
+						<li>Repository-/Controller-Tests für CRUD, Relationen, Rollback, Fremdschlüssel und Migration schreiben.</li>
+					</ol>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="services">
+					<h2>5. Programmfunktionen und Services</h2>
+					<p class="lead">Services bilden fachliche Anwendungsfälle ab. Sie entscheiden über Validierung, Provider-Auswahl, Transaktionsgrenzen und die Reihenfolge mehrerer Persistenzschritte. GUI-Klassen sollen Eingaben sammeln und Ergebnisse darstellen, nicht dieselbe Fachlogik erneut implementieren.</p>
+					<h3>Erzeugung und Lebensdauer</h3>
+					<p>Alle registrierten Klassen implementieren das leere Marker-Interface <code>Service</code>. <code>ServiceRegistry.getService</code> erzeugt über einen parameterlosen Konstruktor genau eine Instanz je Serviceklasse und cached sie. Konstruktoren beziehen abhängige Services ebenfalls aus der Registry. Bei Mandantenwechsel und Wiederherstellung wird die Registry geleert. Tests können mit <code>setService</code>, <code>removeService</code> und <code>resetServices</code> gezielt Doubles einsetzen und Zustände isolieren.</p>
+					<p><code>AbstractDbService</code> stellt <code>DBController.getInstance(".")</code> bereit. Der Punkt bedeutet in diesem Kontext: die vom <code>DbRuntimeContext</code> aktivierte Datenbank verwenden, nicht eigenmächtig eine neue Mandantendatenbank öffnen.</p>
+					<h3>Fachliche Gruppen</h3>
+					<div class="table-wrap">
+						<table>
+							<thead><tr><th>Package</th><th>Zentrale Services</th><th>Verantwortung</th></tr></thead>
+							<tbody>
+								<tr><td><code>service.account</code></td><td><code>AccountTransactionService</code>, <code>AccountStatementService</code>, <code>RebookingService</code></td><td>Kontostand und Umsätze abrufen, Duplikate/Pending-Umsätze behandeln, Auszüge verwalten, Umbuchungen erkennen.</td></tr>
+								<tr><td><code>service.bankaccess</code></td><td><code>BankAccessService</code>, <code>BankMessageService</code></td><td>Bankzugang initialisieren, BPD/UPD und Konten synchronisieren, Banknachrichten abrufen.</td></tr>
+								<tr><td><code>service.booking</code>, <code>service.category</code>, <code>service.recipient</code></td><td><code>BookingService</code>, <code>BookingSplitService</code>, <code>BookingCategoryService</code>, <code>CategoryService</code>, <code>RecipientService</code></td><td>Umsätze ändern/teilen/löschen, Kategorien und Regeln anwenden, Empfänger konsolidieren.</td></tr>
+								<tr><td><code>service.moneytransfer</code></td><td><code>MoneyTransferService</code>, <code>MoneyTransferExecutionService</code>, <code>MoneyTransferInventoryService</code></td><td>Aufträge pflegen, senden, Bestände bei der Bank abrufen sowie Protokoll und Status auswerten.</td></tr>
+								<tr><td><code>service.stock</code></td><td><code>StockPortfolioService</code>, <code>StockPortfolioFinTsService</code>, Administrations- und Portfolio-Performance-Services</td><td>Depots, Positionen, Transaktionen, Verrechnungskonten, Kurse, FinTS-Bestände und Datei-Austausch.</td></tr>
+								<tr><td><code>service.stock.quote</code></td><td><code>StockQuoteRetrievalService</code>, <code>QuoteProvider</code>, <code>MarketDataClient</code></td><td>Kursquellen konfigurieren, Abruf durchführen und Ergebnisse normalisieren.</td></tr>
+								<tr><td><code>service.action</code></td><td><code>OpenActionsSelection</code>, <code>OpenActionsExecutionUtil</code></td><td>Offene Konten-, Depot- und Zahlungsaktionen sammeln und kontrolliert ausführen.</td></tr>
+								<tr><td><code>service.importproperties</code>, <code>service.institute</code></td><td><code>ImportPropertiesSynchronizationService</code>, <code>InstituteImportService</code></td><td>Importdefinitionen synchronisieren und öffentliche Institutsdaten einlesen.</td></tr>
+								<tr><td><code>service.settings</code></td><td><code>SettingsStore</code>, <code>SettingDefinition</code></td><td>Typisierte Einstellungen mit Standardwerten lesen und schreiben.</td></tr>
+							</tbody>
+						</table>
+					</div>
+					<h3>Zentrale Funktionen</h3>
+					<ul>
+						<li><code>AccountTransactionService.retrieveAccountTransactionsWithResult</code> wählt anhand des Bankzugangs PayPal, Enablebanking oder FinTS und vereinheitlicht die anschließende Persistenz.</li>
+						<li><code>BankingCapabilityService</code> wertet Kontotyp, Zugang, BPD, UPD und gemeldete Geschäftsvorfälle aus. Die GUI fragt diesen Service, bevor sie Online-Aktionen anbietet.</li>
+						<li><code>MoneyTransferExecutionService</code> kapselt die sicherheitskritische Ausführung, Bankantworten und Statusübergänge; <code>FinTsStatusProtocolService</code> und der Protocol Evaluator interpretieren Rückmeldungen.</li>
+						<li><code>StockPortfolioService</code> ist die zentrale Fassade für Depotübersichten, Transaktionen, Kurse, Erträge, Überträge und Verrechnungskonto-Buchungen.</li>
+						<li><code>GBankingService.postRetriveActions</code> verknüpft nach einem Abruf Umbuchungen und wendet Kategorieregeln an.</li>
+					</ul>
+					<h3>Externe Adapter</h3>
+					<p><code>HbciSessionRunner</code> begrenzt die Lebensdauer von HBCI-Handler, Passport und Geheimnissen. <code>GBankingHBCICallback</code> vermittelt PIN/TAN-Dialoge und Status an die GUI. Enablebanking besitzt getrennte Klassen für OAuth-Autorisierung, Callback-Server, API-Client und paginierten Umsatzabruf. PayPal kapselt SOAP-Transport, Konto- und Umsatzservice. Provider-spezifische DTOs sollten in diesen Adapterpackages bleiben; in Services und Persistenz werden sie in GBanking-Fachobjekte übersetzt.</p>
+					<div class="warning"><strong>Sicherheitsregel:</strong> PIN, TAN, OAuth-Schlüssel und vollständige Kontokennungen weder speichern noch ungefiltert protokollieren. Geheimnisse so kurz wie möglich halten, nach Gebrauch löschen und die vorhandenen Maskierungs- und Callback-Klassen verwenden.</div>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="gui">
+					<h2>6. GUI</h2>
+					<h3>Navigation und Seiten</h3>
+					<p><code>GBankingGui</code> besitzt das Hauptfenster und koordiniert anwendungsweite Aktionen. <code>GBankingNavigationBar</code> kombiniert Menü- und Schnellnavigation. Jede Hauptseite ist als <code>PageContext</code> definiert. <code>OverviewPanelFactory</code> bildet diesen Enum-Wert auf ein <code>OverviewBasePanel</code> ab, erzeugt es beim ersten Aufruf und cached es für die aktuelle Mandantensitzung. <code>refreshOnShow</code> aktualisiert Daten beim erneuten Anzeigen.</p>
+					<div class="table-wrap">
+						<table>
+							<thead><tr><th>GUI-Package</th><th>Inhalt</th></tr></thead>
+							<tbody>
+								<tr><td><code>gui.panel.overview</code></td><td>Hauptseiten für Konten/Umsätze, Depots, Aufträge, Kategorien, Empfänger, Verwaltung und Auswertungen.</td></tr>
+								<tr><td><code>gui.panel.account</code>, <code>transaction</code>, <code>stock</code>, <code>moneytransfer</code> usw.</td><td>Domänenspezifische Listen-, Detail- und Formularbereiche.</td></tr>
+								<tr><td><code>gui.dialog</code></td><td>Modale Dialoge; Unterpackages bündeln Mandanten-, FinTS-, Umbuchungs- und Wertpapierdialoge.</td></tr>
+								<tr><td><code>gui.progress</code></td><td>JavaFX-Tasks und Fortschrittsfenster für Datei- und Onlineoperationen.</td></tr>
+								<tr><td><code>gui.component</code>, <code>gui.util</code></td><td>Wiederverwendbare Tabellen, Spalten, Formularfelder, Stile, Shortcuts und FX-Thread-Helfer.</td></tr>
+								<tr><td><code>gui.model</code>, <code>gui.dto</code>, <code>gui.enu</code></td><td>Rein ansichtsbezogener Zustand, Auswahlmodelle und Navigationstypen.</td></tr>
+							</tbody>
+						</table>
+					</div>
+					<h3>Wiederverwendbare Muster</h3>
+					<ul>
+						<li><code>AbstractFilterableTablePanel&lt;T&gt;</code> verdrahtet Masterliste, gefilterte und sortierte Ansicht, Suchfeld, Auswahl und Kontextmenü. Unterklassen implementieren nur <code>matchesFilter</code> und ihre Spalten.</li>
+						<li><code>AbstractTitledFormPanel</code> und <code>FormGridHelper</code> vereinheitlichen Formulare. <code>DetailFormEditMode</code> schaltet Felder und Buttons konsistent zwischen Lesen und Bearbeiten um.</li>
+						<li><code>MasterContentPane</code> und <code>DetailListPane</code> bilden Master-Detail-Layouts. <code>GuiLayoutState</code> merkt Fenster-, Tabellen- und SplitPane-Zustände.</li>
+						<li><code>KeyboardShortcutDispatcher</code> registriert Suchen, Speichern, Abbrechen und Aktualisieren am aktiven Bereich.</li>
+						<li>Texte kommen über <code>BaseMessagesBean.getText</code> aus <code>messages_de.properties</code> und <code>messages_en.properties</code>; sichtbare Texte nicht im Java-Code fest verdrahten.</li>
+					</ul>
+					<h3>Threads und Aktualisierung</h3>
+					<p>JavaFX-Nodes nur auf dem FX Application Thread lesen oder ändern. Lang laufende Netzwerk-, Datei- und Datenbankoperationen gehören in einen <code>Task</code>. <code>BaseGui.startBackgroundTask</code> delegiert an den <code>BackgroundActionCoordinator</code>. Der Standard-Scope <code>DATABASE</code> bindet dabei die aktuelle Mandantensitzung; ausschließlich wirklich mandantenunabhängige Arbeiten verwenden <code>INDEPENDENT</code>. Abschlussbehandlung und sichtbare Aktualisierung laufen wieder auf dem FX-Thread.</p>
+					<div class="tip"><strong>Refresh-Muster:</strong> Nach erfolgreichem Speichern das Service-Ergebnis verwenden, die betroffene Liste neu laden und die Auswahl gezielt wiederherstellen. Verlasse dich nicht darauf, dass ein gecachtes OverviewPanel automatisch von Änderungen in einem anderen Panel erfährt.</div>
+					<h3>Neue Hauptseite ergänzen</h3>
+					<ol>
+						<li>Einen Wert in <code>PageContext</code> ergänzen und beide Übersetzungsdateien pflegen.</li>
+						<li>Ein <code>OverviewBasePanel</code> implementieren, <code>setPageContext</code> und <code>setOverviewContent</code> verwenden und <code>refreshOnShow</code> definieren.</li>
+						<li>Die Zuordnung in <code>OverviewPanelFactory.createOverviewPanel</code> ergänzen.</li>
+						<li>Menü oder Navigation mit <code>GBankingGui.activateOverview</code> verbinden.</li>
+						<li>Factory-/Navigations- und Paneltests ergänzen; JavaFX-Code mit <code>JavaFxTestSupport</code> auf dem richtigen Thread testen.</li>
+					</ol>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="ablaeufe">
+					<h2>7. Zentrale Abläufe</h2>
+					<h3>Kontoumsätze abrufen</h3>
+					<ol>
+						<li>Die Kontenansicht prüft mit <code>BankingCapabilityService</code>, ob ein Update möglich ist, und startet einen datenbankgebundenen Task.</li>
+						<li><code>AccountTransactionService</code> löst den Bankzugang auf und wählt FinTS, Enablebanking oder PayPal.</li>
+						<li>Der Adapter liefert Saldo, gebuchte und gegebenenfalls vorgemerkte Umsätze als GBanking-Objekte.</li>
+						<li>Innerhalb einer DB-Transaktion werden Kontostand, Quellen, Duplikate, neue/vorgemerkte Buchungen und Abrufstatus aktualisiert.</li>
+						<li>Danach verknüpft <code>GBankingService</code> Umbuchungen und wendet Kategorieregeln an.</li>
+						<li>Die GUI verarbeitet das strukturierte Resultat, leert Geheimnisse und lädt betroffene Ansichten neu.</li>
+					</ol>
+					<h3>Zahlungsauftrag ausführen</h3>
+					<p>Die GUI validiert die Eingabefähigkeit und holt eine Freigabe ein. Der Money-Transfer-Service persistiert den Auftrag und übergibt die Bankausführung an <code>MoneyTransferExecutionService</code>. Statusmeldungen werden durch Protokollservice und Evaluator in einen eindeutigen lokalen Zustand übersetzt. Ein unbekannter Commit-Ausgang oder eine unklare Bankantwort darf nicht automatisch als sicher wiederholbar behandelt werden.</p>
+					<h3>Depot und Wertpapier</h3>
+					<p><code>StockPortfolioFinTsService</code> importiert Bankbestände und Abstimmungsdaten. <code>StockPortfolioService</code> kombiniert anschließend Portfolio, Positionen, Transaktionen, Wertpapierstammdaten, Kurse und Verrechnungskonten zu Summary-Records für die GUI. Manuelle Käufe, Verkäufe, Erträge und Überträge schreiben alle zusammengehörigen Legs und Buchungen innerhalb einer Transaktion.</p>
+					<h3>Dateiimport</h3>
+					<p><code>FileTransferCoordinator</code> wählt Datei und Ziel, erstellt eine passende Import-Task und öffnet den Fortschrittsdialog. Parser und Import-Beans liegen unter <code>file.imp</code>; Zuordnung, Duplikatprüfung und Persistenz sind getrennt. Erst nach erfolgreichem Abschluss aktualisiert der Coordinator die betroffenen OverviewPanels. Exportvorgänge folgen demselben Muster mit <code>file.exp</code>.</p>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="querschnitt">
+					<h2>8. Querschnittsthemen</h2>
+					<ul>
+						<li><strong>Lokalisierung:</strong> <code>Messages</code> unterstützt Deutsch und Englisch. Jeder neue sichtbare Schlüssel gehört in beide Properties-Dateien; fehlende Schlüssel erscheinen sonst als Schlüsseltext.</li>
+						<li><strong>Logging:</strong> Log4j2 und parametrisierte Meldungen verwenden. <code>SensitiveDataMasker</code> und <code>HbciLogMessageSanitizer</code> schützen typische Geheimnisse; neue Protokollpfade auf Finanz- und Authentisierungsdaten prüfen.</li>
+						<li><strong>Einstellungen:</strong> GUI-/Umgebungszustand liegt in <code>RestoreHandler</code> und <code>EnvironmentOptions</code>; fachliche Einstellungen werden über <code>SettingsStore</code> typisiert in der Datenbank gehalten.</li>
+						<li><strong>Abbruch:</strong> Längere Schleifen und I/O-Wege sollen <code>CancellationSupport</code> respektieren. Ein abgebrochener Vorgang darf keine halbe fachliche Änderung hinterlassen.</li>
+						<li><strong>Updates:</strong> Das Package <code>update</code> trennt Release-Metadaten, Download, Prüfsumme, Signaturprüfung, Entpacken und Installerstart. Verifikationsschritte nicht umgehen.</li>
+						<li><strong>Hilfedokumente:</strong> HTML-Dateien liegen unter <code>src/main/resources/doc</code>. Jede relative Verknüpfung muss in <code>GBankingGui.HELP_DOCUMENTS</code> stehen, damit sie beim Öffnen des Handbuchs in das temporäre Hilfeverzeichnis kopiert wird.</li>
+					</ul>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="erweitern">
+					<h2>9. Eine Funktion erweitern</h2>
+					<p>Beginne beim fachlichen Anwendungsfall, nicht beim Button. Eine typische vertikale Änderung folgt dieser Reihenfolge:</p>
+					<ol>
+						<li><strong>Verhalten festlegen:</strong> Eingaben, Resultat, Fehlerfälle, Mandantenbezug und atomare Grenze beschreiben.</li>
+						<li><strong>Modell/Persistenz:</strong> Vorhandene DAOs und Queries wiederverwenden; nur bei neuem Zustand Schema, Migration, Mapper und Repository ergänzen.</li>
+						<li><strong>Service:</strong> Validierung, Transaktion und Provider-/Dateiadapter in einer testbaren Service-Methode koordinieren. Strukturierte Resultate statt GUI-Callbacks zurückgeben.</li>
+						<li><strong>GUI:</strong> Eingaben binden, Service in Task oder direkt bei kurzen Operationen aufrufen, Fehler verständlich anzeigen und Ansichten aktualisieren.</li>
+						<li><strong>Lokalisierung und Hilfe:</strong> Deutsche und englische Texte sowie Benutzer- und bei Architekturänderungen Entwicklerdokumentation gemeinsam aktualisieren.</li>
+						<li><strong>Tests:</strong> Service-Randfälle zuerst, anschließend Persistenz-Integration und schlanke GUI-Tests. Den kompletten Build vor Übergabe ausführen.</li>
+					</ol>
+					<div class="note"><strong>Code-Review-Fragen:</strong> Ist die Transaktionsgrenze korrekt? Bleiben Geheimnisse und personenbezogene Daten aus Logs? Kann ein alter Hintergrundtask in einen neuen Mandanten schreiben? Sind beide Sprachen vollständig? Wird ein unsicherer externer Auftrag versehentlich automatisch wiederholt?</div>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="tests">
+					<h2>10. Tests, Build und Fehlersuche</h2>
+					<h3>Testarten</h3>
+					<ul>
+						<li>Reine Unit-Tests verwenden JUnit 5 und Mockito. <code>ServiceRegistry.setService</code> ermöglicht das Einsetzen von Test-Doubles.</li>
+						<li>Persistenztests öffnen eine Datenbank in einem temporären Verzeichnis und schließen sie mit <code>DBController.resetConnection</code> beziehungsweise den vorhandenen Testhilfen.</li>
+						<li>JavaFX-Tests führen Erzeugung und Assertions über <code>JavaFxTestSupport.runFx</code> oder <code>callFx</code> aus.</li>
+						<li>Migrations-, Integritäts-, Import- und Verschlüsselungstests prüfen besonders die Fehler- und Wiederherstellungspfade.</li>
+					</ul>
+					<p>Maven führt Tests mit dem Arbeitsverzeichnis <code>target/test-working</code>, Software-Rendering und Headless-AWT aus. Testcode darf deshalb nicht voraussetzen, dass das Repository das aktuelle Arbeitsverzeichnis ist. CI verwendet für JavaFX unter Linux <code>xvfb-run -a mvn -B clean test</code>.</p>
+					<h3>Empfohlene Prüfung</h3>
+					<pre><code># schneller fachlicher Zyklus
+mvn -Dtest=BetroffenerServiceTest test
+
+# vollständige Prüfung
+mvn clean test
+
+# vollständiger Build
+mvn clean install</code></pre>
+					<p>Bei Datenbankfehlern zuerst das ursprüngliche Logereignis prüfen; Folgefehler können aus einer absichtlich verworfenen Sitzung stammen. Bei nicht aktualisierten Ansichten kontrollieren, ob der Service erfolgreich war, der Abschluss auf dem FX-Thread läuft und das richtige gecachte Panel neu geladen wurde. Bei einem Mandantenwechsel sind aktive Aktionen und die Sitzungsgeneration die ersten Prüfpunkte.</p>
+					<div class="warning"><strong>Testdaten:</strong> Niemals die produktive <code>gbanking.db</code> oder ein reales Mandantenverzeichnis als Testziel verwenden. Temporäre Verzeichnisse und die vorhandenen Test-Fixtures halten Tests reproduzierbar und verhindern Datenverlust.</div>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+
+				<section id="einarbeitung">
+					<h2>11. Empfohlener Einarbeitungspfad</h2>
+					<ol>
+						<li><strong>Programmrahmen:</strong> <code>GBanking</code>, <code>GBankingGui.start</code>, <code>PageContext</code> und <code>OverviewPanelFactory</code> lesen.</li>
+						<li><strong>Eine kleine Domäne:</strong> Kategorien oder Empfänger von OverviewPanel über Service, <code>DBController</code>, Repository, Mapper und SQL verfolgen.</li>
+						<li><strong>Transaktionen:</strong> <code>DbExecutor</code>, <code>DbTransactionManager</code>, <code>DbSession</code> und die zugehörigen Tests studieren.</li>
+						<li><strong>Onlineablauf:</strong> Den Umsatzabruf durch <code>AccountTransactionService</code>, einen Provideradapter und die Post-Processing-Services verfolgen.</li>
+						<li><strong>Komplexe Domäne:</strong> Danach <code>StockPortfolioService</code> oder <code>MoneyTransferExecutionService</code> lesen; beide zeigen atomare Mehrtabellen-Workflows und strukturierte Resultate.</li>
+						<li><strong>Lebenszyklus/Sicherheit:</strong> <code>TenantDatabaseLifecycleManager</code>, <code>BackgroundActionCoordinator</code> und die Verschlüsselungs-/Backup-Tests nachvollziehen.</li>
+					</ol>
+					<div class="tip"><strong>Gute erste Änderung:</strong> Eine kleine, bereits getestete Listen- oder Formularfunktion erweitern. Dadurch werden Lokalisierung, Servicezugriff, Refresh, GUI-Test und vollständiger Build einmal durchlaufen, ohne sofort in Bankprotokolle oder Verschlüsselung eingreifen zu müssen.</div>
+					<p class="back-to-top"><a href="#top">Nach oben</a></p>
+				</section>
+			</main>
+		</div>
+
+		<footer class="footer">GBanking – technisches Handbuch und Entwicklerdokumentation</footer>
+	</div>
+</body>
+</html>
