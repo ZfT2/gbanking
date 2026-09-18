@@ -141,18 +141,19 @@ public class MoneyTransferCsvImportBean extends MoneyTransferImportBean {
 		String timeStart = header(headersByNormalizedName, ExportConstants.PROTOCOL_TIME_START);
 		String timeFinish = header(headersByNormalizedName, ExportConstants.PROTOCOL_TIME_FINISH);
 		String bankOrderId = header(headersByNormalizedName, ExportConstants.PROTOCOL_BANK_ORDER_ID);
+		String hbciJobId = header(headersByNormalizedName, ExportConstants.PROTOCOL_HBCI_JOB_ID);
 		String sepaOrderStatus = header(headersByNormalizedName, ExportConstants.PROTOCOL_SEPA_ORDER_STATUS);
 		String sepaCancellationCode = header(headersByNormalizedName, ExportConstants.PROTOCOL_SEPA_CANCELLATION_CODE);
 		String protocolText = header(headersByNormalizedName, ExportConstants.PROTOCOL_TEXT);
 		if (!hasAnyValue(status, resultStatus, pinOk, scaRequired, vopRequired, vopResult, recipientNameCorrected, timeStart, timeFinish, bankOrderId,
-				sepaOrderStatus, sepaCancellationCode, protocolText)) {
+				hbciJobId, sepaOrderStatus, sepaCancellationCode, protocolText)) {
 			return null;
 		}
 		if (status == null || timeStart == null || timeFinish == null || protocolText == null) {
 			throw new GBankingException(getText("ERROR_MONEYTRANSFER_IMPORT_INVALID_HEADER"));
 		}
 		return new ProtocolHeaders(status, resultStatus, pinOk, scaRequired, vopRequired, vopResult, recipientNameCorrected, timeStart,
-				timeFinish, bankOrderId, sepaOrderStatus, sepaCancellationCode, protocolText);
+				timeFinish, bankOrderId, hbciJobId, sepaOrderStatus, sepaCancellationCode, protocolText);
 	}
 
 	private boolean headerExists(Map<String, String> headersByNormalizedName, ExportConstants header) {
@@ -232,11 +233,12 @@ public class MoneyTransferCsvImportBean extends MoneyTransferImportBean {
 		String timeStart = readField(csvRecord, protocolHeaders.timeStart());
 		String timeFinish = readField(csvRecord, protocolHeaders.timeFinish());
 		String bankOrderId = readField(csvRecord, protocolHeaders.bankOrderId());
+		String hbciJobId = readField(csvRecord, protocolHeaders.hbciJobId());
 		String sepaOrderStatus = readField(csvRecord, protocolHeaders.sepaOrderStatus());
 		String sepaCancellationCode = readField(csvRecord, protocolHeaders.sepaCancellationCode());
 		String protocolText = readField(csvRecord, protocolHeaders.protocolText());
 		if (!hasAnyValue(status, resultStatus, pinOk, scaRequired, vopRequired, vopResult, recipientNameCorrected, timeStart, timeFinish, bankOrderId,
-				sepaOrderStatus, sepaCancellationCode, protocolText)) {
+				hbciJobId, sepaOrderStatus, sepaCancellationCode, protocolText)) {
 			return List.of();
 		}
 		return List.of(new ParsedProtocol(parseProtocolStatus(requireField(csvRecord, protocolHeaders.status(),
@@ -249,7 +251,7 @@ public class MoneyTransferCsvImportBean extends MoneyTransferImportBean {
 				parseBoolean(recipientNameCorrected, ExportConstants.PROTOCOL_RECIPIENT_NAME_CORRECTED, csvRecord),
 				parseLocalDateTime(requireField(csvRecord, protocolHeaders.timeStart(), ExportConstants.PROTOCOL_TIME_START.toString()), csvRecord,
 						ExportConstants.PROTOCOL_TIME_START.toString()),
-				parseOptionalLocalDateTime(timeFinish, csvRecord, ExportConstants.PROTOCOL_TIME_FINISH.toString()), bankOrderId,
+				parseOptionalLocalDateTime(timeFinish, csvRecord, ExportConstants.PROTOCOL_TIME_FINISH.toString()), bankOrderId, hbciJobId,
 				parseEnum(sepaOrderStatus, SepaOrderStatus.class, ExportConstants.PROTOCOL_SEPA_ORDER_STATUS, csvRecord),
 				parseEnum(sepaCancellationCode, SepaCancellationCode.class, ExportConstants.PROTOCOL_SEPA_CANCELLATION_CODE, csvRecord), protocolText));
 	}
@@ -329,7 +331,7 @@ public class MoneyTransferCsvImportBean extends MoneyTransferImportBean {
 	}
 
 	private record ProtocolHeaders(String status, String resultStatus, String pinOk, String scaRequired, String vopRequired, String vopResult,
-			String recipientNameCorrected, String timeStart, String timeFinish, String bankOrderId, String sepaOrderStatus,
+			String recipientNameCorrected, String timeStart, String timeFinish, String bankOrderId, String hbciJobId, String sepaOrderStatus,
 			String sepaCancellationCode, String protocolText) {
 	}
 

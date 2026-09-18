@@ -95,7 +95,7 @@ class MoneyTransferCsvImportBeanTest {
 		String header = HEADER + ";" + structuredProtocolHeader();
 		Path csvFile = writeCsvWithHeader(header, SENDER_IBAN
 				+ ";Max Empfaenger;DE11100100101234567890;MARKDEF1100;123,45;Rechnung 4711;GDDS;gesendet;SUCCESS;true;true;true;"
-				+ "CLOSE_MATCH;true;2026-01-02T03:04:05;2026-01-02T03:05:06;instant-4711;COMPLETED;RECALL;Bankhinweis");
+				+ "CLOSE_MATCH;true;2026-01-02T03:04:05;2026-01-02T03:05:06;instant-4711;20260102/dialog-1/2/4;COMPLETED;RECALL;Bankhinweis");
 
 		MoneyTransferCsvImportBean.ImportResult result = new MoneyTransferCsvImportBean().importFile(csvFile);
 
@@ -110,6 +110,7 @@ class MoneyTransferCsvImportBeanTest {
 		assertEquals(LocalDateTime.of(2026, Month.JANUARY, 2, 3, 4, 5), protocol.getTimeStart());
 		assertEquals(LocalDateTime.of(2026, Month.JANUARY, 2, 3, 5, 6), protocol.getTimeFinish());
 		assertEquals("instant-4711", protocol.getBankOrderId());
+		assertEquals("20260102/dialog-1/2/4", protocol.getHbciJobId());
 		assertEquals(SepaOrderStatus.COMPLETED, protocol.getSepaOrderStatus());
 		assertEquals(SepaCancellationCode.RECALL, protocol.getSepaCancellationCode());
 		assertEquals(MoneyTransferProtocolResultStatus.SUCCESS, protocol.getResultStatus());
@@ -189,7 +190,9 @@ class MoneyTransferCsvImportBeanTest {
 		assertTrue(csv.contains(ExportConstants.PROTOCOL_RESULT_STATUS.toString()));
 		assertTrue(csv.contains(ExportConstants.PROTOCOL_SCA_REQUIRED.toString()));
 		assertTrue(csv.contains(ExportConstants.PROTOCOL_TIME_START.toString()));
+		assertTrue(csv.contains(ExportConstants.PROTOCOL_HBCI_JOB_ID.toString()));
 		assertTrue(csv.contains("instant-export-1"));
+		assertTrue(csv.contains("20260102/dialog-export/2/4"));
 		assertTrue(csv.contains(SepaOrderStatus.COMPLETED.name()));
 		assertTrue(csv.contains(SepaCancellationCode.RECALL.name()));
 		assertTrue(csv.contains("Export-Protokoll"));
@@ -317,6 +320,7 @@ class MoneyTransferCsvImportBeanTest {
 		protocol.setTimeStart(LocalDateTime.of(2026, Month.JANUARY, 2, 3, 4, 5));
 		protocol.setTimeFinish(LocalDateTime.of(2026, Month.JANUARY, 2, 3, 5, 6));
 		protocol.setBankOrderId("instant-export-1");
+		protocol.setHbciJobId("20260102/dialog-export/2/4");
 		protocol.setSepaOrderStatus(SepaOrderStatus.COMPLETED);
 		protocol.setSepaCancellationCode(SepaCancellationCode.RECALL);
 		protocol.setResultStatus(MoneyTransferProtocolResultStatus.SUCCESS);
@@ -356,6 +360,7 @@ class MoneyTransferCsvImportBeanTest {
 				ExportConstants.PROTOCOL_VOP_RESULT.toString(), ExportConstants.PROTOCOL_RECIPIENT_NAME_CORRECTED.toString(),
 				ExportConstants.PROTOCOL_TIME_START.toString(),
 				ExportConstants.PROTOCOL_TIME_FINISH.toString(), ExportConstants.PROTOCOL_BANK_ORDER_ID.toString(),
+				ExportConstants.PROTOCOL_HBCI_JOB_ID.toString(),
 				ExportConstants.PROTOCOL_SEPA_ORDER_STATUS.toString(), ExportConstants.PROTOCOL_SEPA_CANCELLATION_CODE.toString(),
 				ExportConstants.PROTOCOL_TEXT.toString());
 	}

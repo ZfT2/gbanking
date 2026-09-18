@@ -18,5 +18,6 @@ class MoneyTransferArchiveStatusTest {
 		assertTrue(MoneyTransferStatus.NOT_IN_BANK_INVENTORY.isArchiveStatus());
 		assertFalse(MoneyTransferStatus.NEW.isArchiveStatus());
 		assertFalse(MoneyTransferStatus.DELETE_PENDING.isArchiveStatus());
+		assertFalse(MoneyTransferStatus.UNCERTAIN.isArchiveStatus());
 	}
 }

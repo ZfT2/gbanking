@@ -141,7 +141,8 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 		if (!canRetrieveInstantPaymentStatus(selectedTransfers)) {
 			return;
 		}
-		if (selectedTransfers.stream().anyMatch(transfer -> transfer.getBankOrderId() == null || transfer.getBankOrderId().isBlank())) {
+		MoneyTransferService moneyTransferService = ServiceRegistry.getService(MoneyTransferService.class);
+		if (selectedTransfers.stream().anyMatch(transfer -> !moneyTransferService.hasStatusReference(transfer))) {
 			showWarning(getText("ALERT_MONEYTRANSFER_INSTANT_STATUS_REFERENCE_MISSING"));
 			return;
 		}

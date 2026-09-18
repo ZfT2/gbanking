@@ -196,6 +196,10 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_MONEYTRANSFER_DELETE_PENDING_EDIT"));
 			return;
 		}
+		if (isExecutionUncertain(existingMoneyTransfer)) {
+			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_MONEYTRANSFER_UNCERTAIN_IMMUTABLE"));
+			return;
+		}
 		if (isArchivedMoneyTransfer(existingMoneyTransfer)) {
 			if (!confirmCreateNewTransferForArchivedOrder()) {
 				return;
@@ -276,6 +280,10 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 
 	static boolean isArchivedMoneyTransfer(MoneyTransfer moneyTransfer) {
 		return moneyTransfer != null && moneyTransfer.getMoneytransferStatus() != null && moneyTransfer.getMoneytransferStatus().isArchiveStatus();
+	}
+
+	private static boolean isExecutionUncertain(MoneyTransfer moneyTransfer) {
+		return moneyTransfer != null && moneyTransfer.getMoneytransferStatus() == MoneyTransferStatus.UNCERTAIN;
 	}
 
 	private String validateTransferInput(BankAccount account) {
@@ -454,7 +462,8 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 	}
 
 	public void refreshCapabilityState(BankAccount selectedAccount) {
-		if (currentMoneytransfer != null && currentMoneytransfer.getMoneytransferStatus() == MoneyTransferStatus.DELETE_PENDING) {
+		if (currentMoneytransfer != null && (currentMoneytransfer.getMoneytransferStatus() == MoneyTransferStatus.DELETE_PENDING
+				|| isExecutionUncertain(currentMoneytransfer))) {
 			setCapabilityEnabled(false);
 			return;
 		}
@@ -466,7 +475,8 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 		boolean deletionPending = currentMoneytransfer != null
 				&& currentMoneytransfer.getMoneytransferStatus() == MoneyTransferStatus.DELETE_PENDING;
 		buttonDelete.setText(getText(deletionPending ? "UI_BUTTON_CANCEL_BANK_DELETION" : "UI_BUTTON_DELETE"));
-		buttonDelete.setDisable(currentMoneytransfer == null || isArchivedMoneyTransfer(currentMoneytransfer));
+		buttonDelete.setDisable(currentMoneytransfer == null || isArchivedMoneyTransfer(currentMoneytransfer)
+				|| isExecutionUncertain(currentMoneytransfer));
 	}
 
 	public void prefillFromBookingTemplate(Booking booking) {

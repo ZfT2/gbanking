@@ -53,6 +53,10 @@ public class MoneyTransferService extends AbstractDbService {
 		return moneyTransferExecutionService.retrieveInstantPaymentStatuses(moneyTransfers, bankAccount, pin);
 	}
 
+	public boolean hasStatusReference(MoneyTransfer moneyTransfer) {
+		return moneyTransferExecutionService.hasStatusReference(moneyTransfer);
+	}
+
 	public boolean retrieveMoneyTransferInventory(BankAccount bankAccount, OrderType orderType, char[] pin) {
 		return moneyTransferInventoryService.retrieveInventory(bankAccount, orderType, pin);
 	}
@@ -66,6 +70,9 @@ public class MoneyTransferService extends AbstractDbService {
 	}
 
 	public void deleteMoneyTransferFromDB(MoneyTransfer moneytransfer) {
+		if (moneytransfer != null && moneytransfer.getMoneytransferStatus() == MoneyTransferStatus.UNCERTAIN) {
+			throw new GBankingException(getText("ERROR_MONEYTRANSFER_UNCERTAIN_IMMUTABLE"));
+		}
 		if (isBankManagedOrder(moneytransfer)) {
 			throw new GBankingException(getText("ERROR_MONEYTRANSFER_BANK_ORDER_LOCAL_DELETE"));
 		}
@@ -111,6 +118,9 @@ public class MoneyTransferService extends AbstractDbService {
 	}
 
 	private MoneyTransfer saveMoneyTransferToDBInTransaction(MoneyTransferForm mtf, MoneyTransfer existingMoneyTransfer) {
+		if (existingMoneyTransfer != null && existingMoneyTransfer.getMoneytransferStatus() == MoneyTransferStatus.UNCERTAIN) {
+			throw new GBankingException(getText("ERROR_MONEYTRANSFER_UNCERTAIN_IMMUTABLE"));
+		}
 		if (existingMoneyTransfer != null && existingMoneyTransfer.getMoneytransferStatus() == MoneyTransferStatus.DELETE_PENDING) {
 			throw new GBankingException(getText("ERROR_MONEYTRANSFER_DELETE_PENDING_EDIT"));
 		}

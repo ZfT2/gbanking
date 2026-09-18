@@ -25,6 +25,7 @@ class MoneyTransferListPanelTest {
 		assertFalse(MoneyTransferStatus.ERROR.isArchiveStatus());
 		assertFalse(MoneyTransferStatus.INVENTORY.isArchiveStatus());
 		assertFalse(MoneyTransferStatus.DELETE_PENDING.isArchiveStatus());
+		assertFalse(MoneyTransferStatus.UNCERTAIN.isArchiveStatus());
 	}
 
 	@Test

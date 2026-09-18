@@ -108,6 +108,7 @@ public class FileExportOrdersCSVBean extends FileExportBean {
 				protocol != null ? protocol.getTimeStart() : null,
 				protocol != null ? protocol.getTimeFinish() : null,
 				protocol != null ? protocol.getBankOrderId() : null,
+				protocol != null ? protocol.getHbciJobId() : null,
 				protocol != null && protocol.getSepaOrderStatus() != null ? protocol.getSepaOrderStatus().name() : null,
 				protocol != null && protocol.getSepaCancellationCode() != null ? protocol.getSepaCancellationCode().name() : null,
 				protocol != null ? protocol.getProtocolText() : null
@@ -147,7 +148,8 @@ public class FileExportOrdersCSVBean extends FileExportBean {
 				ExportConstants.PROTOCOL_VOP_REQUIRED.toString(), ExportConstants.PROTOCOL_VOP_RESULT.toString(),
 				ExportConstants.PROTOCOL_RECIPIENT_NAME_CORRECTED.toString(),
 				ExportConstants.PROTOCOL_TIME_START.toString(), ExportConstants.PROTOCOL_TIME_FINISH.toString(),
-				ExportConstants.PROTOCOL_BANK_ORDER_ID.toString(), ExportConstants.PROTOCOL_SEPA_ORDER_STATUS.toString(),
+				ExportConstants.PROTOCOL_BANK_ORDER_ID.toString(), ExportConstants.PROTOCOL_HBCI_JOB_ID.toString(),
+				ExportConstants.PROTOCOL_SEPA_ORDER_STATUS.toString(),
 				ExportConstants.PROTOCOL_SEPA_CANCELLATION_CODE.toString(), ExportConstants.PROTOCOL_TEXT.toString());
 		return builder;
 	}

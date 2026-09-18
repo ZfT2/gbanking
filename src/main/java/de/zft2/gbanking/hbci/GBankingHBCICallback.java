@@ -188,6 +188,26 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 		appendFeedback(HbciStatusMessageExtractor.extractMessageLines(failureMessage), failureMessage);
 	}
 
+	public void handleRecoveredOperation(String message) {
+		if (message == null || message.isBlank()) {
+			return;
+		}
+		successful = true;
+		lastErrorDescription = null;
+		statusDialog.updateCurrentAction(message);
+		appendFeedback(List.of(message), message);
+	}
+
+	public void handleUncertainOperation(String message) {
+		if (message == null || message.isBlank()) {
+			return;
+		}
+		successful = false;
+		lastErrorDescription = message;
+		statusDialog.updateCurrentAction(message);
+		appendFeedback(List.of(message), message);
+	}
+
 	public void registerJobDescription(HBCIJob<?> job, String description) {
 		statusDescriptionProvider.registerJobDescription(job, description);
 	}

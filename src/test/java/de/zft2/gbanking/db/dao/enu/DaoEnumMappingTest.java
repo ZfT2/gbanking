@@ -34,6 +34,7 @@ class DaoEnumMappingTest {
 		assertSame(MoneyTransferStatus.SUPERSEDED, MoneyTransferStatus.forInt(8));
 		assertSame(MoneyTransferStatus.NOT_IN_BANK_INVENTORY, MoneyTransferStatus.forInt(9));
 		assertSame(MoneyTransferStatus.DELETE_PENDING, MoneyTransferStatus.forInt(10));
+		assertSame(MoneyTransferStatus.UNCERTAIN, MoneyTransferStatus.forInt(11));
 		assertSame(MoneyTransferProtocolResultStatus.ERROR_LIMIT_INSUFFICIENT, MoneyTransferProtocolResultStatus.forInt(3));
 		assertSame(OrderType.STANDING_ORDER, OrderType.forInt(4));
 		assertSame(OrderType.FOREIGN_TRANSFER, OrderType.forInt(5));

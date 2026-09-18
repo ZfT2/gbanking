@@ -49,29 +49,48 @@ class InstantPaymentStatusService extends AbstractDbService {
 	}
 
 	boolean retrieveStatus(HBCIHandler handler, GBankingHBCICallback callback, MoneyTransfer moneyTransfer, Konto senderAccount) {
+		return retrieveStatusResolution(handler, callback, moneyTransfer, senderAccount).requestSuccessful();
+	}
+
+	MoneyTransferStatusResolution retrieveStatusResolution(HBCIHandler handler, GBankingHBCICallback callback, MoneyTransfer moneyTransfer,
+			Konto senderAccount) {
 		String bankOrderId = trimToNull(moneyTransfer.getBankOrderId());
 		if (bankOrderId == null || !ensureStatusRequestSupported(handler, true)) {
-			return false;
+			return MoneyTransferStatusResolution.NOT_RESOLVED;
 		}
 		return requestStatusUntilFinished(handler, callback, moneyTransfer, senderAccount, bankOrderId);
 	}
 
-	private boolean requestStatusUntilFinished(HBCIHandler handler, GBankingHBCICallback callback, MoneyTransfer moneyTransfer,
+	private MoneyTransferStatusResolution requestStatusUntilFinished(HBCIHandler handler, GBankingHBCICallback callback, MoneyTransfer moneyTransfer,
 			Konto senderAccount, String bankOrderId) {
 		int waitSeconds = minimumWaitSeconds(handler);
-		boolean successful = false;
+		boolean requestSuccessful = false;
 		for (int request = 0; request < MAX_REQUESTS; request++) {
 			if (!waitBeforeRequest(waitSeconds)) {
-				return false;
+				return new MoneyTransferStatusResolution(requestSuccessful, null);
 			}
 			StatusResponse response = executeStatusRequest(handler, callback, moneyTransfer, senderAccount, bankOrderId);
-			successful = successful || response != null && response.successful() && response.sepaOrderStatus() != null;
+			requestSuccessful = requestSuccessful || response != null && response.successful();
+			MoneyTransferStatus resolvedStatus = resolveTransferStatus(response);
+			if (resolvedStatus != null) {
+				return new MoneyTransferStatusResolution(requestSuccessful, resolvedStatus);
+			}
 			if (isFinished(response)) {
-				return successful;
+				return new MoneyTransferStatusResolution(requestSuccessful, null);
 			}
 		}
 		log.info("Stopped SEPA instant payment status requests after {} attempts. transferId={}", MAX_REQUESTS, moneyTransfer.getId());
-		return successful;
+		return new MoneyTransferStatusResolution(requestSuccessful, null);
+	}
+
+	private MoneyTransferStatus resolveTransferStatus(StatusResponse response) {
+		if (response == null || !response.successful() || response.sepaOrderStatus() == null) {
+			return null;
+		}
+		if (response.sepaOrderStatus() == SepaOrderStatus.COMPLETED) {
+			return MoneyTransferStatus.SENT;
+		}
+		return response.sepaOrderStatus().isFinal() ? MoneyTransferStatus.ERROR : null;
 	}
 
 	private boolean isFinished(StatusResponse response) {
@@ -238,16 +257,33 @@ class InstantPaymentStatusService extends AbstractDbService {
 	private void persistProtocol(MoneyTransfer moneyTransfer, LocalDateTime start, LocalDateTime finish, HBCIExecStatus executionStatus,
 			HBCIJobResult result, StatusResponse response) {
 		boolean successful = isSuccessful(executionStatus, result);
-		MoneyTransferStatus status = successful ? moneyTransfer.getMoneytransferStatus() : MoneyTransferStatus.ERROR;
+		MoneyTransferStatus resolvedStatus = resolveTransferStatus(response);
+		MoneyTransferStatus status = resolvedStatus != null && moneyTransfer.getMoneytransferStatus() == MoneyTransferStatus.UNCERTAIN
+				? resolvedStatus : moneyTransfer.getMoneytransferStatus();
 		MoneyTransferProtocol protocol = createProtocol(moneyTransfer, status, start, finish, response);
 		String technicalProtocol = createProtocolText(executionStatus, result, response);
 		logTechnicalProtocol(moneyTransfer, technicalProtocol);
-		MoneyTransferProtocolEvaluator.evaluate(successful, technicalProtocol, false, null, false).applyTo(protocol);
-		dbController.insertOrUpdate(protocol);
+		protocolEvaluation(successful, resolvedStatus, technicalProtocol).applyTo(protocol);
+		dbController.executeInTransaction(() -> {
+			if (status != moneyTransfer.getMoneytransferStatus()) {
+				moneyTransfer.setMoneytransferStatus(status);
+				dbController.insertOrUpdate(moneyTransfer);
+			}
+			dbController.insertOrUpdate(protocol);
+		});
+	}
+
+	private MoneyTransferProtocolEvaluator.Evaluation protocolEvaluation(boolean requestSuccessful,
+			MoneyTransferStatus resolvedStatus, String technicalProtocol) {
+		if (!requestSuccessful || resolvedStatus != null) {
+			return MoneyTransferProtocolEvaluator.evaluate(requestSuccessful && resolvedStatus == MoneyTransferStatus.SENT,
+					technicalProtocol, false, null, false);
+		}
+		return MoneyTransferProtocolEvaluator.evaluateUncertain(technicalProtocol, false, null, false);
 	}
 
 	private void persistFailureProtocol(MoneyTransfer moneyTransfer, LocalDateTime start, RuntimeException exception) {
-		MoneyTransferProtocol protocol = createProtocol(moneyTransfer, MoneyTransferStatus.ERROR, start,
+		MoneyTransferProtocol protocol = createProtocol(moneyTransfer, moneyTransfer.getMoneytransferStatus(), start,
 				LocalDateTime.now(ZoneId.systemDefault()),
 				new StatusResponse(moneyTransfer.getBankOrderId(), null, null, false, false));
 		String technicalProtocol = exception.getClass().getName() + ": " + exception.getMessage();
@@ -273,7 +309,8 @@ class InstantPaymentStatusService extends AbstractDbService {
 	}
 
 	private boolean isSuccessful(HBCIExecStatus status, HBCIJobResult result) {
-		return status != null && status.isOK() && result != null && result.isOK();
+		return result != null && result.isOK()
+				&& (status != null && status.isOK() || HbciExecutionAssessment.isOnlyDialogEndFailure(status));
 	}
 
 	private String createProtocolText(HBCIExecStatus executionStatus, HBCIJobResult result, StatusResponse response) {

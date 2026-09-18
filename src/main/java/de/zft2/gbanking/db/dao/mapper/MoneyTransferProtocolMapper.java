@@ -32,16 +32,17 @@ public class MoneyTransferProtocolMapper extends AbstractDaoMapper<MoneyTransfer
 			ps.setNull(4, Types.VARCHAR);
 		}
 		ps.setString(5, protocol.getBankOrderId());
-		setEnumNullable(6, protocol.getSepaOrderStatus(), ps);
-		setEnumNullable(7, protocol.getSepaCancellationCode(), ps);
-		ps.setInt(8, protocol.getResultStatus().getDbStateId());
-		ps.setBoolean(9, protocol.isPinOk());
-		ps.setBoolean(10, protocol.isScaRequired());
-		ps.setBoolean(11, protocol.isVopRequired());
-		setEnumNullable(12, protocol.getVopResult(), ps);
-		ps.setBoolean(13, protocol.isRecipientNameCorrected());
-		ps.setString(14, protocol.getProtocolText());
-		ps.setTimestamp(15, TypeConverter.toSqlTimestampNow());
+		ps.setString(6, protocol.getHbciJobId());
+		setEnumNullable(7, protocol.getSepaOrderStatus(), ps);
+		setEnumNullable(8, protocol.getSepaCancellationCode(), ps);
+		ps.setInt(9, protocol.getResultStatus().getDbStateId());
+		ps.setBoolean(10, protocol.isPinOk());
+		ps.setBoolean(11, protocol.isScaRequired());
+		ps.setBoolean(12, protocol.isVopRequired());
+		setEnumNullable(13, protocol.getVopResult(), ps);
+		ps.setBoolean(14, protocol.isRecipientNameCorrected());
+		ps.setString(15, protocol.getProtocolText());
+		ps.setTimestamp(16, TypeConverter.toSqlTimestampNow());
 	}
 
 	@Override
@@ -51,6 +52,7 @@ public class MoneyTransferProtocolMapper extends AbstractDaoMapper<MoneyTransfer
 		protocol.setTimeStart(parse(rs.getString("timeStart")));
 		protocol.setTimeFinish(parse(rs.getString("timeFinish")));
 		protocol.setBankOrderId(rs.getString("bankOrderId"));
+		protocol.setHbciJobId(rs.getString("hbciJobId"));
 		protocol.setSepaOrderStatus(getEnumNullable("sepaOrderStatus", SepaOrderStatus.class, rs));
 		protocol.setSepaCancellationCode(getEnumNullable("sepaCancellationCode", SepaCancellationCode.class, rs));
 		protocol.setResultStatus(MoneyTransferProtocolResultStatus.forInt(rs.getInt("resultStatus")));

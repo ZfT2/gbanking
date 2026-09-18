@@ -75,6 +75,7 @@ public abstract class FileExportBean implements BaseMessagesDb {
 		PROTOCOL_TIME_START(null, "Protokoll Start"),
 		PROTOCOL_TIME_FINISH(null, "Protokoll Ende"),
 		PROTOCOL_BANK_ORDER_ID(null, "Protokoll Bankauftragskennung"),
+		PROTOCOL_HBCI_JOB_ID(null, "Protokoll HBCI-Auftragskennung"),
 		PROTOCOL_SEPA_ORDER_STATUS(null, "Protokoll SEPA-Auftragsstatus"),
 		PROTOCOL_SEPA_CANCELLATION_CODE(null, "Protokoll SEPA-C-Code"),
 		PROTOCOL_TEXT(null, "Protokoll Text");

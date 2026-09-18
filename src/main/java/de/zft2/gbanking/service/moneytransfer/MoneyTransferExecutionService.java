@@ -50,10 +50,12 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 
 	private final HbciSessionRunner hbciSessionRunner;
 	private final InstantPaymentStatusService instantPaymentStatusService;
+	private final FinTsStatusProtocolService statusProtocolService;
 
 	public MoneyTransferExecutionService() {
 		this.hbciSessionRunner = new HbciSessionRunner();
 		this.instantPaymentStatusService = new InstantPaymentStatusService();
+		this.statusProtocolService = new FinTsStatusProtocolService();
 	}
 
 	boolean executeTransfer(MoneyTransfer moneyTransfer, BankAccount bankAccount, char[] pin) {
@@ -63,6 +65,11 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		if (moneyTransfer == null) {
 			log.warn("Abort money transfer execution. moneytransfer is null!");
 			return result;
+		}
+		if (moneyTransfer.getMoneytransferStatus() == MoneyTransferStatus.UNCERTAIN) {
+			log.warn("Refusing to resubmit money transfer with uncertain execution status. transferId={}", moneyTransfer.getId());
+			HbciSessionRunner.clearSecret(pin);
+			return false;
 		}
 
 		BankAccount transferAccount = resolveBankAccountForTransfer(bankAccount);
@@ -148,7 +155,9 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 			if (Thread.currentThread().isInterrupted()) {
 				break;
 			}
-			if (instantPaymentStatusService.retrieveStatus(session.handler(), session.callback(), moneyTransfer, senderAccount)) {
+			MoneyTransferStatusResolution resolution = reconcileTransferStatus(session.handler(), session.callback(), moneyTransfer,
+					senderAccount, findHbciJobId(moneyTransfer));
+			if (resolution.requestSuccessful()) {
 				successfulRequests++;
 			}
 		}
@@ -180,21 +189,35 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		communicationState.finish = LocalDateTime.now(ZoneId.systemDefault());
 		communicationState.jobResult = job.getJobResult();
 
-		boolean result = communicationState.status.isOK() && (communicationState.jobResult == null || communicationState.jobResult.isOK());
+		BankResponseData bankResponse = extractBankResponse(operation, communicationState.jobResult);
+		ExecutionOutcome outcome = assessExecution(operation, communicationState.status, communicationState.jobResult, bankResponse);
 		boolean recipientNameCorrected = applyRecipientNameFromVoP(moneyTransfer, session.callback());
-		BankResponseData bankResponse = updateMoneyTransferAfterExecution(moneyTransfer, operation, session.callback(), communicationState.status,
-				communicationState.jobResult, result);
+		updateMoneyTransferAfterExecution(moneyTransfer, operation, session.callback(), communicationState.status,
+				communicationState.jobResult, outcome, bankResponse);
 		String technicalProtocol = createProtocolText(communicationState.status, communicationState.jobResult, null);
 		logTechnicalProtocol(moneyTransfer, technicalProtocol);
-		persistExecutionResult(moneyTransfer, operation, result, communicationState,
-				result ? moneyTransfer.getMoneytransferStatus() : MoneyTransferStatus.ERROR,
-				MoneyTransferProtocolEvaluator.evaluate(result, technicalProtocol, session.callback().isVopRequired(),
-						session.callback().getVopStatus(), recipientNameCorrected), bankResponse);
-		if (result && operation == BankOrderOperation.CREATE && moneyTransfer.getOrderType() == OrderType.REALTIME_TRANSFER) {
+		MoneyTransferProtocolEvaluator.Evaluation evaluation = outcome == ExecutionOutcome.UNCERTAIN
+				? MoneyTransferProtocolEvaluator.evaluateUncertain(technicalProtocol, session.callback().isVopRequired(),
+						session.callback().getVopStatus(), recipientNameCorrected)
+				: MoneyTransferProtocolEvaluator.evaluate(outcome == ExecutionOutcome.SUCCESS, technicalProtocol,
+						session.callback().isVopRequired(), session.callback().getVopStatus(), recipientNameCorrected);
+		persistExecutionResult(moneyTransfer, operation, outcome == ExecutionOutcome.SUCCESS, communicationState,
+				moneyTransfer.getMoneytransferStatus(), evaluation, bankResponse);
+
+		if (outcome == ExecutionOutcome.UNCERTAIN) {
+			MoneyTransferStatusResolution resolution = reconcileTransferStatus(session.handler(), session.callback(), moneyTransfer,
+					hbciSenderAccount, bankResponse.hbciJobId());
+			return handleUncertainResolution(session.callback(), moneyTransfer, resolution);
+		}
+		if (outcome == ExecutionOutcome.SUCCESS && HbciExecutionAssessment.isOnlyDialogEndFailure(communicationState.status)) {
+			session.callback().handleRecoveredOperation(getText("UI_DIALOG_HBCI_TRANSFER_STATUS_RECOVERED"));
+		}
+		if (outcome == ExecutionOutcome.SUCCESS && operation == BankOrderOperation.CREATE
+				&& moneyTransfer.getOrderType() == OrderType.REALTIME_TRANSFER) {
 			instantPaymentStatusService.retrieveStatusIfNecessary(session.handler(), session.callback(), moneyTransfer, hbciSenderAccount,
 					bankResponse.sepaOrderStatus(), communicationState.jobResult);
 		}
-		return result;
+		return outcome == ExecutionOutcome.SUCCESS;
 	}
 
 	private HBCIJob<HBCIJobResult> createTransferJob(HBCIHandler handle, MoneyTransfer moneyTransfer, Konto senderAccount, Konto recipientAccount) {
@@ -488,34 +511,47 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		return bankingCapabilityService.supportsBankOrderOperation(bankAccount, moneyTransfer.getOrderType(), operation);
 	}
 
-	private BankResponseData updateMoneyTransferAfterExecution(MoneyTransfer moneyTransfer, BankOrderOperation operation, GBankingHBCICallback hbciCallback,
-			HBCIExecStatus status,
-			HBCIJobResult jobResult, boolean success) {
-		if (!success) {
+	private void updateMoneyTransferAfterExecution(MoneyTransfer moneyTransfer, BankOrderOperation operation, GBankingHBCICallback hbciCallback,
+			HBCIExecStatus status, HBCIJobResult jobResult, ExecutionOutcome outcome, BankResponseData bankResponse) {
+		applyBankResponse(moneyTransfer, bankResponse);
+		if (outcome == ExecutionOutcome.FAILURE) {
 			log.error("HBCI Error, Status: {}", status);
 			if (jobResult != null && !jobResult.isOK()) {
 				hbciCallback.handleFailure(jobResult.getJobStatus().toString());
 			}
-			hbciCallback.handleFailure(status.getErrorString());
+			if (status != null) {
+				hbciCallback.handleFailure(status.getErrorString());
+			}
 			applyFailedOperationStatus(moneyTransfer, operation);
 			log.info("Money transfer execution ended with error. transferId={}", moneyTransfer.getId());
-			return BankResponseData.EMPTY;
+			return;
+		}
+		if (outcome == ExecutionOutcome.UNCERTAIN) {
+			applyExecutionDate(moneyTransfer, operation);
+			moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.UNCERTAIN);
+			log.warn("Money transfer execution status is uncertain after dialog end failure. transferId={}", moneyTransfer.getId());
+			return;
 		}
 
+		applyExecutionDate(moneyTransfer, operation);
+		moneyTransfer.setMoneytransferStatus(resolveSuccessfulStatus(operation));
+		log.info("Money transfer operation was accepted by bank. transferId={}, type={}, operation={}", moneyTransfer.getId(),
+				moneyTransfer.getOrderType(), operation);
+	}
+
+	private void applyExecutionDate(MoneyTransfer moneyTransfer, BankOrderOperation operation) {
 		if (operation == BankOrderOperation.CREATE && (moneyTransfer.getOrderType() == OrderType.TRANSFER
 				|| moneyTransfer.getOrderType() == OrderType.REALTIME_TRANSFER
 				|| moneyTransfer.getOrderType() == OrderType.URGENT_TRANSFER
 				|| moneyTransfer.getOrderType() == OrderType.FOREIGN_TRANSFER)) {
 			moneyTransfer.setExecutionDate(LocalDate.now(ZoneId.systemDefault()));
 		}
-		BankResponseData bankResponse = extractBankResponse(operation, jobResult);
+	}
+
+	private void applyBankResponse(MoneyTransfer moneyTransfer, BankResponseData bankResponse) {
 		if (bankResponse.bankOrderId() != null) {
 			moneyTransfer.setBankOrderId(bankResponse.bankOrderId());
 		}
-		moneyTransfer.setMoneytransferStatus(resolveSuccessfulStatus(operation));
-		log.info("Money transfer operation was accepted by bank. transferId={}, type={}, operation={}", moneyTransfer.getId(),
-				moneyTransfer.getOrderType(), operation);
-		return bankResponse;
 	}
 
 	private void applyFailedOperationStatus(MoneyTransfer moneyTransfer, BankOrderOperation operation) {
@@ -552,7 +588,77 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		} else if (operation == BankOrderOperation.EDIT && jobResult instanceof GVRTermUebEdit scheduledTransferResult) {
 			returnedOrderId = scheduledTransferResult.getOrderId();
 		}
-		return new BankResponseData(trimToNull(returnedOrderId), sepaOrderStatus, sepaCancellationCode);
+		return new BankResponseData(trimToNull(returnedOrderId), resolveHbciJobId(jobResult), sepaOrderStatus, sepaCancellationCode);
+	}
+
+	private String resolveHbciJobId(HBCIJobResult jobResult) {
+		if (jobResult == null || trimToNull(jobResult.getDialogId()) == null || trimToNull(jobResult.getMsgNum()) == null
+				|| trimToNull(jobResult.getSegNum()) == null) {
+			return null;
+		}
+		return trimToNull(jobResult.getJobId());
+	}
+
+	private ExecutionOutcome assessExecution(BankOrderOperation operation, HBCIExecStatus status, HBCIJobResult jobResult,
+			BankResponseData bankResponse) {
+		if (jobResult != null && !jobResult.isOK()) {
+			return ExecutionOutcome.FAILURE;
+		}
+		SepaOrderStatus orderStatus = bankResponse.sepaOrderStatus();
+		if (orderStatus != null && orderStatus.isFinal()) {
+			return orderStatus == SepaOrderStatus.COMPLETED ? ExecutionOutcome.SUCCESS : ExecutionOutcome.FAILURE;
+		}
+		if (status != null && status.isOK()) {
+			return ExecutionOutcome.SUCCESS;
+		}
+		if (operation != BankOrderOperation.CREATE || jobResult == null
+				|| !HbciExecutionAssessment.isOnlyDialogEndFailure(status)) {
+			return ExecutionOutcome.FAILURE;
+		}
+		return ExecutionOutcome.UNCERTAIN;
+	}
+
+	private MoneyTransferStatusResolution reconcileTransferStatus(HBCIHandler handler, GBankingHBCICallback callback,
+			MoneyTransfer moneyTransfer, Konto senderAccount, String hbciJobId) {
+		MoneyTransferStatusResolution instantResolution = MoneyTransferStatusResolution.NOT_RESOLVED;
+		if (moneyTransfer.getOrderType() == OrderType.REALTIME_TRANSFER && trimToNull(moneyTransfer.getBankOrderId()) != null) {
+			instantResolution = instantPaymentStatusService.retrieveStatusResolution(handler, callback, moneyTransfer, senderAccount);
+			if (instantResolution.resolved()) {
+				return instantResolution;
+			}
+		}
+
+		MoneyTransferStatusResolution protocolResolution = statusProtocolService.retrieveStatus(handler, callback, moneyTransfer, hbciJobId);
+		return protocolResolution.resolved() ? protocolResolution
+				: new MoneyTransferStatusResolution(instantResolution.requestSuccessful() || protocolResolution.requestSuccessful(), null);
+	}
+
+	private String findHbciJobId(MoneyTransfer moneyTransfer) {
+		if (moneyTransfer == null || moneyTransfer.getId() <= 0) {
+			return null;
+		}
+		return dbController.getAllByParent(MoneyTransferProtocol.class, moneyTransfer.getId()).stream()
+				.map(MoneyTransferProtocol::getHbciJobId).map(value -> trimToNull(value)).filter(value -> value != null).findFirst().orElse(null);
+	}
+
+	boolean hasStatusReference(MoneyTransfer moneyTransfer) {
+		return moneyTransfer != null && (trimToNull(moneyTransfer.getBankOrderId()) != null || findHbciJobId(moneyTransfer) != null);
+	}
+
+	private boolean handleUncertainResolution(GBankingHBCICallback callback, MoneyTransfer moneyTransfer,
+			MoneyTransferStatusResolution resolution) {
+		if (resolution.resolvedStatus() == MoneyTransferStatus.SENT) {
+			callback.handleRecoveredOperation(getText("UI_DIALOG_HBCI_TRANSFER_STATUS_RECOVERED"));
+			return true;
+		}
+		if (resolution.resolvedStatus() == MoneyTransferStatus.ERROR) {
+			callback.handleFailure(getText("UI_DIALOG_HBCI_TRANSFER_STATUS_REJECTED"));
+			return false;
+		}
+		callback.handleUncertainOperation(getText("UI_DIALOG_HBCI_TRANSFER_STATUS_UNCERTAIN"));
+		log.warn("Could not determine final bank status for money transfer. transferId={}, bankOrderIdPresent={}, hbciJobIdPresent={}",
+				moneyTransfer.getId(), trimToNull(moneyTransfer.getBankOrderId()) != null, findHbciJobId(moneyTransfer) != null);
+		return false;
 	}
 
 	private void persistExecutionResult(MoneyTransfer moneyTransfer, BankOrderOperation operation, boolean success,
@@ -590,6 +696,7 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 
 		MoneyTransferProtocol protocol = new MoneyTransferProtocol(moneyTransfer.getId(), protocolStatus, start, finish);
 		protocol.setBankOrderId(firstNonBlank(bankResponse.bankOrderId(), moneyTransfer.getBankOrderId()));
+		protocol.setHbciJobId(bankResponse.hbciJobId());
 		protocol.setSepaOrderStatus(bankResponse.sepaOrderStatus());
 		protocol.setSepaCancellationCode(bankResponse.sepaCancellationCode());
 		evaluation.applyTo(protocol);
@@ -638,8 +745,15 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		private HBCIJobResult jobResult;
 	}
 
-	private record BankResponseData(String bankOrderId, SepaOrderStatus sepaOrderStatus, SepaCancellationCode sepaCancellationCode) {
+	private enum ExecutionOutcome {
+		SUCCESS,
+		FAILURE,
+		UNCERTAIN
+	}
 
-		private static final BankResponseData EMPTY = new BankResponseData(null, null, null);
+	private record BankResponseData(String bankOrderId, String hbciJobId, SepaOrderStatus sepaOrderStatus,
+			SepaCancellationCode sepaCancellationCode) {
+
+		private static final BankResponseData EMPTY = new BankResponseData(null, null, null, null);
 	}
 }

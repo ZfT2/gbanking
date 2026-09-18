@@ -33,6 +33,13 @@ public final class MoneyTransferProtocolEvaluator {
 		return evaluate(successful, protocolText, vopRequired, mapVopResult(vopStatus, protocolText), recipientNameCorrected);
 	}
 
+	public static Evaluation evaluateUncertain(String protocolText, boolean vopRequired, VoPStatus vopStatus,
+			boolean recipientNameCorrected) {
+		Evaluation evaluation = evaluate(false, protocolText, vopRequired, mapVopResult(vopStatus, protocolText), recipientNameCorrected);
+		return new Evaluation(MoneyTransferProtocolResultStatus.UNKNOWN, evaluation.pinOk(), evaluation.scaRequired(),
+				evaluation.vopRequired(), evaluation.vopResult(), evaluation.recipientNameCorrected(), evaluation.bankResponse());
+	}
+
 	public static Evaluation evaluateLegacy(MoneyTransferStatus transferStatus, String protocolText) {
 		VopResult vopResult = mapVopResult(null, protocolText);
 		boolean successful = SUCCESSFUL_TRANSFER_STATES.contains(transferStatus);

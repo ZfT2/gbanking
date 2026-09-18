@@ -15,7 +15,8 @@ public enum MoneyTransferStatus implements IdType, StateType, LocalizedEnumValue
 	IMPORTED(7),
 	SUPERSEDED(8),
 	NOT_IN_BANK_INVENTORY(9),
-	DELETE_PENDING(10);
+	DELETE_PENDING(10),
+	UNCERTAIN(11);
 
 	private final int dbStateId;
 

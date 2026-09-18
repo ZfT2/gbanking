@@ -15,6 +15,7 @@ public class MoneyTransferProtocol extends Dao {
 	private LocalDateTime timeStart;
 	private LocalDateTime timeFinish;
 	private String bankOrderId;
+	private String hbciJobId;
 	private SepaOrderStatus sepaOrderStatus;
 	private SepaCancellationCode sepaCancellationCode;
 	private MoneyTransferProtocolResultStatus resultStatus = MoneyTransferProtocolResultStatus.UNKNOWN;
@@ -74,6 +75,14 @@ public class MoneyTransferProtocol extends Dao {
 
 	public void setBankOrderId(String bankOrderId) {
 		this.bankOrderId = bankOrderId;
+	}
+
+	public String getHbciJobId() {
+		return hbciJobId;
+	}
+
+	public void setHbciJobId(String hbciJobId) {
+		this.hbciJobId = hbciJobId;
 	}
 
 	public SepaOrderStatus getSepaOrderStatus() {

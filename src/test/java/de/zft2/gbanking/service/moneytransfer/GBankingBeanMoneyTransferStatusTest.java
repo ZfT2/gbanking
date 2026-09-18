@@ -111,6 +111,8 @@ class GBankingBeanMoneyTransferStatusTest {
 				new BigDecimal("37.99"), LocalDate.of(2026, Month.AUGUST, 20), MoneyTransferStatus.DELETE_PENDING));
 		dbController.insertOrUpdate(new MoneyTransfer(account.getId(), OrderType.TRANSFER, recipient.getId(), "Sent transfer", new BigDecimal("39.99"),
 				LocalDate.of(2026, Month.AUGUST, 18), MoneyTransferStatus.SENT));
+		dbController.insertOrUpdate(new MoneyTransfer(account.getId(), OrderType.REALTIME_TRANSFER, recipient.getId(), "Uncertain transfer",
+				new BigDecimal("41.99"), LocalDate.of(2026, Month.AUGUST, 19), MoneyTransferStatus.UNCERTAIN));
 
 		List<MoneyTransfer> transfers = moneyTransferService.retrieveOpenTransfers();
 

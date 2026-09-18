@@ -42,11 +42,13 @@ import org.junit.jupiter.api.TestInstance;
 import org.kapott.hbci.GV.HBCIJob;
 import org.kapott.hbci.GV_Result.GVRDauerEdit;
 import org.kapott.hbci.GV_Result.GVRInstUebSEPA;
+import org.kapott.hbci.GV_Result.GVRStatus;
 import org.kapott.hbci.GV_Result.HBCIJobResult;
 import org.kapott.hbci.manager.HBCIHandler;
 import org.kapott.hbci.passport.HBCIPassport;
 import org.kapott.hbci.status.HBCIDialogStatus;
 import org.kapott.hbci.status.HBCIExecStatus;
+import org.kapott.hbci.status.HBCIMsgStatus;
 import org.kapott.hbci.status.HBCIRetVal;
 import org.kapott.hbci.status.HBCIStatus;
 import org.kapott.hbci.structures.Konto;
@@ -460,10 +462,8 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		MoneyTransfer moneyTransfer = createMoneyTransfer(OrderType.TRANSFER);
 		LocalDate before = LocalDate.now(ZoneId.systemDefault());
 
-		invokePrivate(service, "updateMoneyTransferAfterExecution",
-				new Class<?>[] { MoneyTransfer.class, BankOrderOperation.class, GBankingHBCICallback.class, HBCIExecStatus.class, HBCIJobResult.class,
-						boolean.class },
-				moneyTransfer, BankOrderOperation.CREATE, mock(GBankingHBCICallback.class), mock(HBCIExecStatus.class), null, true);
+		applyExecutionOutcome(service, moneyTransfer, BankOrderOperation.CREATE, mock(GBankingHBCICallback.class),
+				mock(HBCIExecStatus.class), null, "SUCCESS");
 
 		assertEquals(MoneyTransferStatus.SENT, moneyTransfer.getMoneytransferStatus());
 		assertFalse(moneyTransfer.getExecutionDate().isBefore(before));
@@ -479,14 +479,99 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		result.setOrderStatus("3");
 		result.setCancellationCode("4");
 
-		Object response = invokePrivate(service, "updateMoneyTransferAfterExecution",
-				new Class<?>[] { MoneyTransfer.class, BankOrderOperation.class, GBankingHBCICallback.class, HBCIExecStatus.class, HBCIJobResult.class,
-						boolean.class },
-				moneyTransfer, BankOrderOperation.CREATE, mock(GBankingHBCICallback.class), mock(HBCIExecStatus.class), result, true);
+		Object response = applyExecutionOutcome(service, moneyTransfer, BankOrderOperation.CREATE, mock(GBankingHBCICallback.class),
+				mock(HBCIExecStatus.class), result, "SUCCESS");
 
 		assertEquals("instant-4711", moneyTransfer.getBankOrderId());
 		assertEquals(SepaOrderStatus.PROCESSING, invokePrivate(response, "sepaOrderStatus", new Class<?>[0]));
 		assertEquals(SepaCancellationCode.RECALL, invokePrivate(response, "sepaCancellationCode", new Class<?>[0]));
+	}
+
+	@Test
+	void assessExecution_shouldMarkSuccessfulJobWithFailedDialogEndAsUncertain() throws Exception {
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
+		MoneyTransfer moneyTransfer = createMoneyTransfer(OrderType.REALTIME_TRANSFER);
+		GVRInstUebSEPA result = successfulInstantPaymentResult("instant-4711", "3");
+		HBCIExecStatus executionStatus = createDialogEndFailureStatus();
+		Object bankResponse = invokePrivate(service, "extractBankResponse",
+				new Class<?>[] { BankOrderOperation.class, HBCIJobResult.class }, BankOrderOperation.CREATE, result);
+
+		Object outcome = invokePrivate(service, "assessExecution",
+				new Class<?>[] { BankOrderOperation.class, HBCIExecStatus.class, HBCIJobResult.class, bankResponse.getClass() },
+				BankOrderOperation.CREATE, executionStatus, result, bankResponse);
+		applyExecutionOutcome(service, moneyTransfer, BankOrderOperation.CREATE, mock(GBankingHBCICallback.class),
+				executionStatus, result, outcome.toString());
+
+		assertEquals("UNCERTAIN", outcome.toString());
+		assertEquals(MoneyTransferStatus.UNCERTAIN, moneyTransfer.getMoneytransferStatus());
+		assertEquals("instant-4711", moneyTransfer.getBankOrderId());
+		assertTrue(((String) invokePrivate(bankResponse, "hbciJobId", new Class<?>[0])).matches("\\d{8}/dialog-1/2/4"));
+	}
+
+	@Test
+	void assessExecution_shouldHonorFinalRejectedInstantPaymentStatus() throws Exception {
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
+		GVRInstUebSEPA result = successfulInstantPaymentResult("instant-4711", "6");
+		HBCIExecStatus executionStatus = mock(HBCIExecStatus.class);
+		when(executionStatus.isOK()).thenReturn(true);
+		Object bankResponse = invokePrivate(service, "extractBankResponse",
+				new Class<?>[] { BankOrderOperation.class, HBCIJobResult.class }, BankOrderOperation.CREATE, result);
+
+		Object outcome = invokePrivate(service, "assessExecution",
+				new Class<?>[] { BankOrderOperation.class, HBCIExecStatus.class, HBCIJobResult.class, bankResponse.getClass() },
+				BankOrderOperation.CREATE, executionStatus, result, bankResponse);
+
+		assertEquals("FAILURE", outcome.toString());
+	}
+
+	@Test
+	void executeTransfer_shouldNotResubmitUncertainOrderAndShouldClearPin() {
+		MoneyTransfer moneyTransfer = createMoneyTransfer(OrderType.REALTIME_TRANSFER);
+		moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.UNCERTAIN);
+		char[] pin = "secret".toCharArray();
+
+		assertFalse(new MoneyTransferExecutionService().executeTransfer(moneyTransfer, new BankAccount(), pin));
+
+		assertArrayCleared(pin);
+	}
+
+	@Test
+	void finTsStatusProtocolService_shouldResolveAcceptedOrderAndPersistReference() {
+		DBController dbController = DBController.getInstance(tempDir.toString());
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
+		Recipient recipient = dbController.insertOrUpdate(new Recipient("Recipient Name", "DE12345678901234567890", "TESTDEFFXXX", null, null,
+				"Testbank", de.zft2.gbanking.db.dao.enu.Source.MONEYTRANSFER));
+		MoneyTransfer moneyTransfer = createMoneyTransfer(OrderType.REALTIME_TRANSFER);
+		moneyTransfer.setAccountId(account.getId());
+		moneyTransfer.setRecipientId(recipient.getId());
+		moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.UNCERTAIN);
+		moneyTransfer = dbController.insertOrUpdate(moneyTransfer);
+
+		HBCIHandler handler = mock(HBCIHandler.class);
+		Properties supportedJobs = new Properties();
+		supportedJobs.setProperty(FinTsStatusProtocolService.JOB_NAME, "1");
+		when(handler.getSupportedLowlevelJobs()).thenReturn(supportedJobs);
+		HBCIExecStatus executionStatus = mock(HBCIExecStatus.class);
+		when(executionStatus.isOK()).thenReturn(true);
+		when(handler.execute()).thenReturn(executionStatus);
+		GVRStatus result = successfulStatusResult("dialog-1", "2", "4", "0020");
+		@SuppressWarnings("unchecked")
+		HBCIJob<GVRStatus> job = mock(HBCIJob.class);
+		when(job.getJobResult()).thenReturn(result);
+		doReturn(job).when(ServiceRegistry.getService(BankAccessService.class)).newHbciJob(handler, FinTsStatusProtocolService.JOB_NAME);
+		String hbciJobId = "20260918/dialog-1/2/4";
+
+		MoneyTransferStatusResolution resolution = new FinTsStatusProtocolService().retrieveStatus(handler,
+				mock(GBankingHBCICallback.class), moneyTransfer, hbciJobId);
+
+		assertTrue(resolution.requestSuccessful());
+		assertEquals(MoneyTransferStatus.SENT, resolution.resolvedStatus());
+		assertEquals(MoneyTransferStatus.SENT, dbController.getByIdFull(MoneyTransfer.class, moneyTransfer.getId()).getMoneytransferStatus());
+		MoneyTransferProtocol protocol = dbController.getAllByParent(MoneyTransferProtocol.class, moneyTransfer.getId()).get(0);
+		assertEquals(hbciJobId, protocol.getHbciJobId());
+		assertEquals(MoneyTransferStatus.SENT, protocol.getMoneytransferStatus());
+		verify(job).setParam("jobid", hbciJobId);
+		verify(job).addToQueue();
 	}
 
 	@Test
@@ -498,7 +583,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		MoneyTransfer moneyTransfer = createMoneyTransfer(OrderType.REALTIME_TRANSFER);
 		moneyTransfer.setAccountId(account.getId());
 		moneyTransfer.setRecipientId(recipient.getId());
-		moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.SENT);
+		moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.UNCERTAIN);
 		moneyTransfer = dbController.insertOrUpdate(moneyTransfer);
 		moneyTransfer.setBankOrderId("instant-4711");
 
@@ -545,6 +630,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		assertEquals(SepaOrderStatus.COMPLETED, protocol.getSepaOrderStatus());
 		assertEquals(SepaCancellationCode.RECALL, protocol.getSepaCancellationCode());
 		assertEquals(2, dbController.getAllByParent(MoneyTransferProtocol.class, moneyTransfer.getId()).size());
+		assertEquals(MoneyTransferStatus.SENT, dbController.getByIdFull(MoneyTransfer.class, moneyTransfer.getId()).getMoneytransferStatus());
 	}
 
 	@Test
@@ -594,10 +680,8 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		LocalDate executionDate = LocalDate.of(2026, Month.JULY, 15);
 		moneyTransfer.setExecutionDate(executionDate);
 
-		invokePrivate(service, "updateMoneyTransferAfterExecution",
-				new Class<?>[] { MoneyTransfer.class, BankOrderOperation.class, GBankingHBCICallback.class, HBCIExecStatus.class, HBCIJobResult.class,
-						boolean.class },
-				moneyTransfer, BankOrderOperation.CREATE, mock(GBankingHBCICallback.class), mock(HBCIExecStatus.class), null, true);
+		applyExecutionOutcome(service, moneyTransfer, BankOrderOperation.CREATE, mock(GBankingHBCICallback.class),
+				mock(HBCIExecStatus.class), null, "SUCCESS");
 
 		assertEquals(MoneyTransferStatus.SENT, moneyTransfer.getMoneytransferStatus());
 		assertEquals(executionDate, moneyTransfer.getExecutionDate());
@@ -611,10 +695,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		HBCIExecStatus status = mock(HBCIExecStatus.class);
 		when(status.getErrorString()).thenReturn("bank rejected order");
 
-		invokePrivate(service, "updateMoneyTransferAfterExecution",
-				new Class<?>[] { MoneyTransfer.class, BankOrderOperation.class, GBankingHBCICallback.class, HBCIExecStatus.class, HBCIJobResult.class,
-						boolean.class },
-				moneyTransfer, BankOrderOperation.CREATE, callback, status, null, false);
+		applyExecutionOutcome(service, moneyTransfer, BankOrderOperation.CREATE, callback, status, null, "FAILURE");
 
 		assertEquals(MoneyTransferStatus.ERROR, moneyTransfer.getMoneytransferStatus());
 		verify(callback).handleFailure("bank rejected order");
@@ -639,10 +720,8 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		result.setOrderId("standing-new-1");
 		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 
-		Object bankResponse = invokePrivate(service, "updateMoneyTransferAfterExecution",
-				new Class<?>[] { MoneyTransfer.class, BankOrderOperation.class, GBankingHBCICallback.class, HBCIExecStatus.class, HBCIJobResult.class,
-						boolean.class },
-				changedTransfer, BankOrderOperation.EDIT, mock(GBankingHBCICallback.class), mock(HBCIExecStatus.class), result, true);
+		Object bankResponse = applyExecutionOutcome(service, changedTransfer, BankOrderOperation.EDIT,
+				mock(GBankingHBCICallback.class), mock(HBCIExecStatus.class), result, "SUCCESS");
 		LocalDateTime start = LocalDateTime.now();
 		Object communicationState = createCommunicationState(start, start.plusSeconds(1));
 		MoneyTransferProtocolEvaluator.Evaluation evaluation = MoneyTransferProtocolEvaluator.evaluate(true, "accepted", false, null, false);
@@ -670,16 +749,10 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		HBCIExecStatus failedStatus = mock(HBCIExecStatus.class);
 		when(failedStatus.getErrorString()).thenReturn("bank rejected deletion");
 
-		invokePrivate(service, "updateMoneyTransferAfterExecution",
-				new Class<?>[] { MoneyTransfer.class, BankOrderOperation.class, GBankingHBCICallback.class, HBCIExecStatus.class, HBCIJobResult.class,
-						boolean.class },
-				moneyTransfer, BankOrderOperation.DELETE, callback, failedStatus, null, false);
+		applyExecutionOutcome(service, moneyTransfer, BankOrderOperation.DELETE, callback, failedStatus, null, "FAILURE");
 		assertEquals(MoneyTransferStatus.DELETE_PENDING, moneyTransfer.getMoneytransferStatus());
 
-		invokePrivate(service, "updateMoneyTransferAfterExecution",
-				new Class<?>[] { MoneyTransfer.class, BankOrderOperation.class, GBankingHBCICallback.class, HBCIExecStatus.class, HBCIJobResult.class,
-						boolean.class },
-				moneyTransfer, BankOrderOperation.DELETE, callback, mock(HBCIExecStatus.class), null, true);
+		applyExecutionOutcome(service, moneyTransfer, BankOrderOperation.DELETE, callback, mock(HBCIExecStatus.class), null, "SUCCESS");
 		assertEquals(MoneyTransferStatus.DELETED, moneyTransfer.getMoneytransferStatus());
 	}
 
@@ -839,6 +912,60 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		setField(state, "start", start);
 		setField(state, "finish", finish);
 		return state;
+	}
+
+	private static GVRInstUebSEPA successfulInstantPaymentResult(String orderId, String orderStatus) {
+		GVRInstUebSEPA result = new GVRInstUebSEPA();
+		result.setOrderId(orderId);
+		result.setOrderStatus(orderStatus);
+		result.storeResult("basic.dialogid", "dialog-1");
+		result.storeResult("basic.msgnum", "2");
+		result.storeResult("basic.segnum", "4");
+		result.jobStatus.addRetVal(new HBCIRetVal("4", null, null, "0010", "accepted", null));
+		return result;
+	}
+
+	private static GVRStatus successfulStatusResult(String dialogId, String messageNumber, String segmentNumber, String code) {
+		GVRStatus result = new GVRStatus();
+		result.jobStatus.addRetVal(new HBCIRetVal(null, null, null, "0010", "status available", null));
+		GVRStatus.Entry entry = new GVRStatus.Entry();
+		entry.dialogid = dialogId;
+		entry.msgnum = messageNumber;
+		entry.retval = new HBCIRetVal(segmentNumber, null, null, code, "order status", null);
+		result.addEntry(entry);
+		return result;
+	}
+
+	private static HBCIExecStatus createDialogEndFailureStatus() {
+		HBCIDialogStatus dialogStatus = new HBCIDialogStatus();
+		dialogStatus.setInitStatus(successfulMessageStatus());
+		dialogStatus.setMsgStatus(new HBCIMsgStatus[] { successfulMessageStatus() });
+		dialogStatus.setEndStatus(new HBCIMsgStatus());
+		HBCIExecStatus executionStatus = new HBCIExecStatus();
+		executionStatus.addDialogStatus("customer-1", dialogStatus);
+		return executionStatus;
+	}
+
+	private static HBCIMsgStatus successfulMessageStatus() {
+		HBCIMsgStatus status = new HBCIMsgStatus();
+		status.globStatus.addRetVal(new HBCIRetVal(null, null, null, "0010", "OK", null));
+		return status;
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	private static Object applyExecutionOutcome(MoneyTransferExecutionService service, MoneyTransfer moneyTransfer,
+			BankOrderOperation operation, GBankingHBCICallback callback, HBCIExecStatus status, HBCIJobResult jobResult,
+			String outcomeName) throws Exception {
+		Object bankResponse = invokePrivate(service, "extractBankResponse",
+				new Class<?>[] { BankOrderOperation.class, HBCIJobResult.class }, operation, jobResult);
+		Class<? extends Enum> outcomeType = (Class<? extends Enum>) Class.forName(
+				MoneyTransferExecutionService.class.getName() + "$ExecutionOutcome");
+		Object outcome = Enum.valueOf(outcomeType, outcomeName);
+		invokePrivate(service, "updateMoneyTransferAfterExecution",
+				new Class<?>[] { MoneyTransfer.class, BankOrderOperation.class, GBankingHBCICallback.class,
+						HBCIExecStatus.class, HBCIJobResult.class, outcomeType, bankResponse.getClass() },
+				moneyTransfer, operation, callback, status, jobResult, outcome, bankResponse);
+		return bankResponse;
 	}
 
 	private static void setField(Object target, String name, Object value) throws Exception {
