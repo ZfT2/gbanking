@@ -24,6 +24,7 @@ import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.gui.util.FxNodeSupport;
 import de.zft2.gbanking.gui.util.FxTableUtils;
 import javafx.collections.FXCollections;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
@@ -32,8 +33,10 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Control;
+import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.layout.HBox;
 
 public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 
@@ -102,7 +105,7 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 	}
 
 	private void configureGrid() {
-		FormGridHelper.setEqualGrowColumns(formGrid, 3);
+		FormGridHelper.setEqualGrowColumns(formGrid, 4);
 	}
 
 	private void createPanel() {
@@ -111,6 +114,7 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 		} else {
 			addReadonlyDetailsFields();
 		}
+		addUpdatedAtFieldToTitle();
 
 		makeReadOnly(accountIbanText, bankNameText, accountTypText, bankAccessText, currencyText, bankBalanceText, bicText, blzText, numberText, subnumberText,
 				ownerNameText, ownerName2Text, createdAtText, updatedAtText, retrievalAtText, retrievalResultText, retrievalCountsText);
@@ -141,62 +145,50 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 
 	private void addFullDetailsFields() {
 		addFieldInline("UI_LABEL_ACCOUNT_NAME", accountNameText, 0, 0);
-		addFieldInline("UI_LABEL_OWNER", ownerNameText, 1, 0);
-		addFieldInline("UI_LABEL_IBAN", accountIbanText, 2, 0);
-
-		addFieldInline("UI_LABEL_OWNER_2", ownerName2Text, 0, 1);
-		addFieldInline("UI_LABEL_ACCOUNT_NUMBER", numberText, 1, 1);
-		addFieldInline("UI_LABEL_BIC", bicText, 2, 1);
-
-		addFieldInline(UI_LABEL_ACCOUNT_TYPE, accountTypeCombo, 0, 2);
-		addFieldInline("UI_LABEL_SUBNUMBER", subnumberText, 1, 2);
-		addFieldInline("UI_LABEL_BLZ", blzText, 2, 2);
-
-		addFieldInline(UI_LABEL_CURRENCY, currencyText, 0, 3);
-		addFieldInline("UI_LABEL_SEPA_ACCOUNT", isSEPAAccount, 1, 3);
-		addFieldInline("UI_LABEL_BANK", bankNameText, 2, 3);
-
-		addBankBalanceField(0, 4);
-		addFieldInline("UI_LABEL_BANK_ACCESS", bankAccessText, 1, 4);
-		addFieldInline("UI_LABEL_CREATED_AT", createdAtText, 2, 4);
-
 		isOfflineAccount = FormFields.checkBox();
 		accountStateCombo = FormFields.comboM(FXCollections.observableArrayList(AccountState.values()));
-
-		addFieldInline("UI_LABEL_ACCOUNT_STATE", accountStateCombo, 0, 5);
-		addFieldInline("UI_LABEL_OFFLINE_ACCOUNT", isOfflineAccount, 1, 5);
-		addFieldInline("UI_LABEL_UPDATED_AT", updatedAtText, 2, 5);
-
-		addRetrievalStatusFields(6);
+		addFieldInline("UI_LABEL_ACCOUNT_STATE", accountStateCombo, 1, 0);
+		addFieldInline("UI_LABEL_OFFLINE_ACCOUNT", isOfflineAccount, 2, 0);
+		addFieldInline("UI_LABEL_CREATED_AT", createdAtText, 3, 0);
+		addAccountFields(accountTypeCombo, 1);
+		addRetrievalStatusFields(4);
 	}
 
 	private void addReadonlyDetailsFields() {
-		addFieldInline("UI_LABEL_OWNER", ownerNameText, 0, 0);
-		addFieldInline("UI_LABEL_IBAN", accountIbanText, 1, 0);
-		addFieldInline("UI_LABEL_BIC", bicText, 2, 0);
+		addAccountFields(accountTypText, 0);
+		addRetrievalStatusFields(3);
+	}
 
-		addFieldInline("UI_LABEL_OWNER_2", ownerName2Text, 0, 1);
-		addFieldInline("UI_LABEL_ACCOUNT_NUMBER", numberText, 1, 1);
-		addFieldInline("UI_LABEL_BLZ", blzText, 2, 1);
+	private void addAccountFields(Node accountType, int firstRow) {
+		addFieldInline("UI_LABEL_OWNER", ownerNameText, 0, firstRow);
+		addFieldInline("UI_LABEL_IBAN", accountIbanText, 1, firstRow);
+		addFieldInline("UI_LABEL_BIC", bicText, 2, firstRow);
+		addFieldInline("UI_LABEL_BANK", bankNameText, 3, firstRow);
 
-		addFieldInline(UI_LABEL_ACCOUNT_TYPE, accountTypText, 0, 2);
-		addFieldInline("UI_LABEL_SUBNUMBER", subnumberText, 1, 2);
-		addFieldInline("UI_LABEL_BANK", bankNameText, 2, 2);
+		addFieldInline("UI_LABEL_OWNER_2", ownerName2Text, 0, firstRow + 1);
+		addFieldInline("UI_LABEL_ACCOUNT_NUMBER", numberText, 1, firstRow + 1);
+		addFieldInline("UI_LABEL_BLZ", blzText, 2, firstRow + 1);
+		addFieldInline("UI_LABEL_BANK_ACCESS", bankAccessText, 3, firstRow + 1);
 
-		addFieldInline(UI_LABEL_CURRENCY, currencyText, 0, 3);
-		addFieldInline("UI_LABEL_SEPA_ACCOUNT", isSEPAAccount, 1, 3);
-		addFieldInline("UI_LABEL_BANK_ACCESS", bankAccessText, 2, 3);
-
-		addBankBalanceField(0, 4);
-		addFieldInline("UI_LABEL_UPDATED_AT", updatedAtText, 2, 4);
-
-		addRetrievalStatusFields(5);
+		addFieldInline(UI_LABEL_ACCOUNT_TYPE, accountType, 0, firstRow + 2);
+		addFieldInline("UI_LABEL_SUBNUMBER", subnumberText, 1, firstRow + 2);
+		addFieldInline(UI_LABEL_CURRENCY, currencyText, 2, firstRow + 2);
+		addFieldInline("UI_LABEL_SEPA_ACCOUNT", isSEPAAccount, 3, firstRow + 2);
 	}
 
 	private void addRetrievalStatusFields(int row) {
-		addFieldInline("UI_LABEL_ACCOUNT_RETRIEVAL_AT", retrievalAtText, 0, row);
-		addFieldInline("UI_LABEL_ACCOUNT_RETRIEVAL_RESULT", retrievalResultText, 1, row);
-		addFieldInline("UI_LABEL_ACCOUNT_RETRIEVAL_COUNTS", retrievalCountsText, 2, row);
+		addBankBalanceField(0, row);
+		addFieldInline("UI_LABEL_ACCOUNT_RETRIEVAL_AT", retrievalAtText, 1, row);
+		addFieldInline("UI_LABEL_ACCOUNT_RETRIEVAL_RESULT", retrievalResultText, 2, row);
+		addFieldInline("UI_LABEL_ACCOUNT_RETRIEVAL_COUNTS", retrievalCountsText, 3, row);
+	}
+
+	private void addUpdatedAtFieldToTitle() {
+		Label label = new Label(getText("UI_LABEL_UPDATED_AT"));
+		label.getStyleClass().add("gbanking-form-label");
+		HBox field = new HBox(8, label, updatedAtText);
+		field.setAlignment(Pos.CENTER_LEFT);
+		setTitleRightNode(field);
 	}
 
 	private void addBankBalanceField(int col, int row) {
