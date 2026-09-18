@@ -71,7 +71,7 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 	private final CheckBox isSEPAAccount = FormFields.checkBox();
 
 	private final TextField createdAtText = FormFields.textS();
-	private final TextField updatedAtText = FormFields.textS();
+	private final Label updatedAtLabel = new Label();
 	private final TextField retrievalAtText = FormFields.textS();
 	private final TextField retrievalResultText = FormFields.textM();
 	private final TextField retrievalCountsText = FormFields.textS();
@@ -117,7 +117,7 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 		addUpdatedAtFieldToTitle();
 
 		makeReadOnly(accountIbanText, bankNameText, accountTypText, bankAccessText, currencyText, bankBalanceText, bicText, blzText, numberText, subnumberText,
-				ownerNameText, ownerName2Text, createdAtText, updatedAtText, retrievalAtText, retrievalResultText, retrievalCountsText);
+				ownerNameText, ownerName2Text, createdAtText, retrievalAtText, retrievalResultText, retrievalCountsText);
 		setBankBalanceVisible(false);
 
 		disable(isSEPAAccount);
@@ -184,9 +184,9 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 	}
 
 	private void addUpdatedAtFieldToTitle() {
-		Label label = new Label(getText("UI_LABEL_UPDATED_AT"));
-		label.getStyleClass().add("gbanking-form-label");
-		HBox field = new HBox(8, label, updatedAtText);
+		Label caption = new Label(getText("UI_LABEL_UPDATED_AT"));
+		caption.getStyleClass().add("gbanking-form-label");
+		HBox field = new HBox(8, caption, updatedAtLabel);
 		field.setAlignment(Pos.CENTER_LEFT);
 		setTitleRightNode(field);
 	}
@@ -239,7 +239,7 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 		}
 
 		createdAtText.setText(DateFormatUtils.formatShort(bankAccount.getCreatedAt()));
-		updatedAtText.setText(DateFormatUtils.formatShort(bankAccount.getUpdatedAt()));
+		updatedAtLabel.setText(DateFormatUtils.formatShort(bankAccount.getUpdatedAt()));
 		fillRetrievalStatus(bankAccount.getId());
 	}
 
@@ -261,8 +261,8 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 	private void clearForm() {
 		resetTitle();
 		clearTextFields(accountNameText, accountIbanText, accountTypText, bankNameText, bankAccessText, currencyText, bankBalanceText, bicText, blzText,
-				numberText, subnumberText, ownerNameText, ownerName2Text, createdAtText, updatedAtText, retrievalAtText, retrievalResultText,
-				retrievalCountsText);
+				numberText, subnumberText, ownerNameText, ownerName2Text, createdAtText, retrievalAtText, retrievalResultText, retrievalCountsText);
+		updatedAtLabel.setText("");
 		retrievalResultText.setTooltip(null);
 		accountTypeCombo.setValue(null);
 		isSEPAAccount.setSelected(false);

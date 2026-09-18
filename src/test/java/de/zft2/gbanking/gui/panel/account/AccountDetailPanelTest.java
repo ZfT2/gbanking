@@ -72,6 +72,7 @@ class AccountDetailPanelTest {
 		HBox updatedAt = assertInstanceOf(HBox.class, title.getChildren().get(1));
 		Label updatedAtLabel = assertInstanceOf(Label.class, updatedAt.getChildren().get(0));
 		assertEquals(BaseMessages.getTextStatic("UI_LABEL_UPDATED_AT"), updatedAtLabel.getText());
+		assertInstanceOf(Label.class, updatedAt.getChildren().get(1));
 		VBox content = assertInstanceOf(VBox.class, titledPane.getContent());
 		return assertInstanceOf(GridPane.class, content.getChildren().get(0));
 	}
