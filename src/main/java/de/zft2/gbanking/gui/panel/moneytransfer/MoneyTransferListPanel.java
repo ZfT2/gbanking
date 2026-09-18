@@ -1,6 +1,5 @@
 package de.zft2.gbanking.gui.panel.moneytransfer;
 
-import java.io.File;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
@@ -216,14 +215,8 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 	}
 
 	private void importCsvForSelectedAccount() {
-		BankAccount selectedAccount = parentPanel.getSelectedAccount();
-		if (selectedAccount == null) {
-			showWarning(getText("ERROR_MONEYTRANSFER_IMPORT_NO_ACCOUNT_SELECTED"));
-			return;
-		}
-
-		Path importFile = chooseCsvImportFile();
-		if (importFile == null) {
+		List<Path> importFiles = chooseCsvImportFiles();
+		if (importFiles.isEmpty()) {
 			return;
 		}
 		var importStatus = MoneyTransferImportStatusDialog.show(getTableWindow());
@@ -232,10 +225,10 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 		}
 
 		try {
-			MoneyTransferImportProgressBarPanel progressPanel = new MoneyTransferImportProgressBarPanel(getTableWindow(), selectedAccount,
+			MoneyTransferImportProgressBarPanel progressPanel = new MoneyTransferImportProgressBarPanel(getTableWindow(),
 					parentPanel::reloadListPanels, ExportType.MONEYTRANSFERS_CSV, importStatus.get());
 			var progressWindow = progressPanel.createNewFileImportProgressBarWindow();
-			progressPanel.startTask(importFile.toString(), ExportType.MONEYTRANSFERS_CSV, null);
+			progressPanel.startTasks(importFiles, null);
 			progressWindow.show();
 		} catch (Exception e) {
 			log.error("Money transfer CSV import failed", e);
@@ -243,12 +236,12 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 		}
 	}
 
-	private Path chooseCsvImportFile() {
+	private List<Path> chooseCsvImportFiles() {
 		FileChooser fileChooser = new FileChooser();
 		FileChooserDirectorySupport.configure(fileChooser, EnvironmentOptions.DEFAULT_DIR_IMPORT);
 		fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(FileType.CSV.getDescription(), "*" + FileType.CSV.getSuffix()));
-		File selectedFile = fileChooser.showOpenDialog(getTableWindow());
-		return FileChooserDirectorySupport.remember(selectedFile, EnvironmentOptions.DEFAULT_DIR_IMPORT);
+		return FileChooserDirectorySupport.remember(fileChooser.showOpenMultipleDialog(getTableWindow()),
+				EnvironmentOptions.DEFAULT_DIR_IMPORT);
 	}
 
 	private void showWarning(String text) {

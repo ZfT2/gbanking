@@ -3,6 +3,7 @@ package de.zft2.gbanking.gui.util;
 import java.io.File;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.UnaryOperator;
@@ -54,6 +55,19 @@ public final class FileChooserDirectorySupport {
 		if (selectedFile == null) {
 			return null;
 		}
+		rememberDirectory(selectedFile, optionKey);
+		return selectedFile.toPath();
+	}
+
+	public static List<Path> remember(List<File> selectedFiles, String optionKey) {
+		if (selectedFiles == null || selectedFiles.isEmpty()) {
+			return List.of();
+		}
+		rememberDirectory(selectedFiles.get(0), optionKey);
+		return selectedFiles.stream().map(File::toPath).toList();
+	}
+
+	private static void rememberDirectory(File selectedFile, String optionKey) {
 		Runnable currentSaver = null;
 		if (selectedFile.getParent() != null) {
 			synchronized (FileChooserDirectorySupport.class) {
@@ -64,6 +78,5 @@ public final class FileChooserDirectorySupport {
 		if (currentSaver != null) {
 			currentSaver.run();
 		}
-		return selectedFile.toPath();
 	}
 }

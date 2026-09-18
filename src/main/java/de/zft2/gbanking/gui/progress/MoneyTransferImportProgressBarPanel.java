@@ -1,6 +1,8 @@
 package de.zft2.gbanking.gui.progress;
 
-import de.zft2.gbanking.db.dao.BankAccount;
+import java.nio.file.Path;
+import java.util.List;
+
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.file.imp.MoneyTransferImportBean;
 import de.zft2.gbanking.file.imp.MoneyTransferImportTask;
@@ -13,15 +15,12 @@ import javafx.stage.Window;
 
 public class MoneyTransferImportProgressBarPanel extends BaseFileProgressBarPanel {
 
-	private final BankAccount contextAccount;
 	private final Runnable refreshAction;
 	private final ExportType importType;
 	private final MoneyTransferStatus importStatus;
 
-	public MoneyTransferImportProgressBarPanel(Window parent, BankAccount contextAccount, Runnable refreshAction, ExportType importType,
-			MoneyTransferStatus importStatus) {
+	public MoneyTransferImportProgressBarPanel(Window parent, Runnable refreshAction, ExportType importType, MoneyTransferStatus importStatus) {
 		super(parent);
-		this.contextAccount = contextAccount;
 		this.refreshAction = refreshAction;
 		this.importType = importType;
 		this.importStatus = importStatus;
@@ -34,7 +33,11 @@ public class MoneyTransferImportProgressBarPanel extends BaseFileProgressBarPane
 
 	@Override
 	public void startTask(String fileName, ExportType exportType, AccountListPanel accountListPanel) {
-		task = new MoneyTransferImportTask(fileName, importType, contextAccount, importStatus);
+		startTasks(List.of(Path.of(fileName)), accountListPanel);
+	}
+
+	public void startTasks(List<Path> importFiles, AccountListPanel accountListPanel) {
+		task = new MoneyTransferImportTask(importFiles, importType, importStatus);
 		super.startTask(accountListPanel);
 	}
 

@@ -38,6 +38,8 @@ import de.zft2.gbanking.db.dao.enu.VopResult;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.file.exp.FileExportBean.ExportConstants;
 import de.zft2.gbanking.file.exp.FileExportOrdersCSVBean;
+import de.zft2.gbanking.gui.JavaFxTestSupport;
+import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.messages.Messages;
 import de.zft2.gbanking.testdata.TestDataFactory;
 
@@ -87,6 +89,28 @@ class MoneyTransferCsvImportBeanTest {
 		assertEquals("Max Empfänger", transfer.getRecipient().getName());
 		assertEquals("DE11100100101234567890", transfer.getRecipient().getIban());
 		assertEquals("MARKDEF1100", transfer.getRecipient().getBic());
+	}
+
+	@Test
+	void importTask_shouldResolveAccountsForAllFilesAndApplyOneStatus() throws Exception {
+		String secondSenderIban = "DE12500105170648489890";
+		BankAccount firstAccount = insertAccount(SENDER_IBAN, "5407324931");
+		BankAccount secondAccount = insertAccount(secondSenderIban, "0648489890");
+		Path firstFile = writeCsv(SENDER_IBAN
+				+ ";First Recipient;DE11100100101234567890;MARKDEF1100;10,25;First transfer;GDDS");
+		Path secondFile = writeCsv(secondSenderIban
+				+ ";Second Recipient;DE22100100101234567890;MARKDEF1100;20,50;Second transfer;GDDS");
+		MoneyTransferImportTask task = new MoneyTransferImportTask(List.of(firstFile, secondFile), ExportType.MONEYTRANSFERS_CSV,
+				MoneyTransferStatus.NEW);
+
+		JavaFxTestSupport.callFx(task::call);
+
+		assertEquals(2, task.getImportResult().importedCount());
+		assertEquals(0, task.getImportResult().skippedDuplicateCount());
+		assertEquals(MoneyTransferStatus.NEW,
+				dbController.getAllByParent(MoneyTransfer.class, firstAccount.getId()).get(0).getMoneytransferStatus());
+		assertEquals(MoneyTransferStatus.NEW,
+				dbController.getAllByParent(MoneyTransfer.class, secondAccount.getId()).get(0).getMoneytransferStatus());
 	}
 
 	@Test

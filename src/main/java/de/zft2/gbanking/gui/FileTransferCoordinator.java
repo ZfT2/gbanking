@@ -81,8 +81,8 @@ final class FileTransferCoordinator implements BaseGui {
 	}
 
 	void processMoneyTransferImport(ExportType importType) {
-		Path importFile = chooseImportFile(importType.getFileType());
-		if (importFile == null) {
+		List<Path> importFiles = chooseImportFiles(importType.getFileType());
+		if (importFiles.isEmpty()) {
 			log.debug("Money transfer import cancelled. type={}", importType);
 			return;
 		}
@@ -92,11 +92,11 @@ final class FileTransferCoordinator implements BaseGui {
 			return;
 		}
 		try {
-			log.info("Starting money transfer import. type={}, file={}", () -> importType, () -> fileName(importFile));
-			log.debug("Money transfer import path: {}", importFile);
-			startMoneyTransferImport(importFile, importType, importStatus.get());
+			log.info("Starting money transfer import. type={}, files={}", importType, importFiles.size());
+			log.debug("Money transfer import paths: {}", importFiles);
+			startMoneyTransferImport(importFiles, importType, importStatus.get());
 		} catch (Exception exception) {
-			log.error("Money transfer import failed. type={}, file={}", importType, fileName(importFile), exception);
+			log.error("Money transfer import failed. type={}, files={}", importType, importFiles.size(), exception);
 			showWarning(owner, exception.getMessage());
 		}
 	}
@@ -250,6 +250,11 @@ final class FileTransferCoordinator implements BaseGui {
 		return FileChooserDirectorySupport.remember(fileChooser.showOpenDialog(owner), EnvironmentOptions.DEFAULT_DIR_IMPORT);
 	}
 
+	private List<Path> chooseImportFiles(FileType fileType) {
+		configureFileChooser(fileType, EnvironmentOptions.DEFAULT_DIR_IMPORT);
+		return FileChooserDirectorySupport.remember(fileChooser.showOpenMultipleDialog(owner), EnvironmentOptions.DEFAULT_DIR_IMPORT);
+	}
+
 	private Path chooseExportFile(FileType fileType) {
 		configureFileChooser(fileType, EnvironmentOptions.DEFAULT_DIR_EXPORT);
 		return FileChooserDirectorySupport.remember(fileChooser.showSaveDialog(owner), EnvironmentOptions.DEFAULT_DIR_EXPORT);
@@ -268,8 +273,8 @@ final class FileTransferCoordinator implements BaseGui {
 		progressWindow.show();
 	}
 
-	private void startMoneyTransferImport(Path importFile, ExportType importType, MoneyTransferStatus importStatus) {
-		MoneyTransferImportProgressBarPanel progressPanel = new MoneyTransferImportProgressBarPanel(owner, null, () -> {
+	private void startMoneyTransferImport(List<Path> importFiles, ExportType importType, MoneyTransferStatus importStatus) {
+		MoneyTransferImportProgressBarPanel progressPanel = new MoneyTransferImportProgressBarPanel(owner, () -> {
 			MoneyTransferOverviewPanel moneyTransferPanel = (MoneyTransferOverviewPanel) OverviewPanelFactory
 					.retrievePanel(PageContext.ACCOUNTS_MONEYTRANSFERS.name());
 			if (moneyTransferPanel != null) {
@@ -278,7 +283,7 @@ final class FileTransferCoordinator implements BaseGui {
 		}, importType, importStatus);
 		Stage progressWindow = progressPanel.createNewFileImportProgressBarWindow();
 		AccountsTransactionsOverviewPanel overviewPanel = accountsOverview();
-		progressPanel.startTask(importFile.toString(), importType, overviewPanel != null ? overviewPanel.getAccountListPanel() : null);
+		progressPanel.startTasks(importFiles, overviewPanel != null ? overviewPanel.getAccountListPanel() : null);
 		progressWindow.show();
 	}
 
