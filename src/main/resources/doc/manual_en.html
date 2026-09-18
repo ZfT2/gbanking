@@ -16,7 +16,7 @@
 
 		<header class="hero">
 			<h1>GBanking Manual</h1>
-			<p>An easy-to-follow guide to accounts, transactions, contacts, payment orders, analysis and the secure storage of your data.</p>
+			<p>An easy-to-follow guide to accounts, portfolios, securities, transactions, payment orders, analysis and the secure storage of your data.</p>
 		</header>
 
 		<div class="content-layout">
@@ -25,7 +25,6 @@
 				<ol>
 					<li><a href="#overview">Overview</a></li>
 					<li><a href="#startup">Startup and tenants</a></li>
-					<li><a href="#encryption">Encryption and risks</a></li>
 					<li><a href="#navigation">Using the interface</a></li>
 					<li><a href="#bank-access">Bank access, Enablebanking and PayPal</a></li>
 					<li><a href="#accounts">Accounts</a></li>
@@ -36,21 +35,23 @@
 					<li><a href="#orders">Payment orders</a></li>
 					<li><a href="#open-actions">Open actions</a></li>
 					<li><a href="#rebookings">Internal transfers</a></li>
+					<li><a href="#portfolios">Portfolios and securities</a></li>
 					<li><a href="#import-export">Import and export</a></li>
 					<li><a href="#analysis">Analysis</a></li>
 					<li><a href="#directory">Bank directory</a></li>
 					<li><a href="#settings">Settings</a></li>
 					<li><a href="#maintenance">Backup, update and diagnostics</a></li>
 					<li><a href="#keyboard">Keyboard shortcuts</a></li>
+					<li><a href="#encryption">Encryption and risks</a></li>
 				</ol>
 			</nav>
 
 			<main id="content">
 				<section id="overview">
 					<h2>1. Overview</h2>
-					<p class="lead">GBanking is a desktop application for managing bank accounts, transactions, recipients, categories and payment orders. Online banking uses FinTS/HBCI or Enablebanking (PSD2) for account transactions; PayPal accounts can be connected through the PayPal interface.</p>
+					<p class="lead">GBanking is a desktop application for managing bank accounts, portfolios, securities, transactions, recipients, categories and payment orders. Online banking uses FinTS/HBCI or Enablebanking (PSD2) for account transactions; PayPal accounts can be connected through the PayPal interface.</p>
 					<div class="card-grid">
-						<div class="card"><h3>Review</h3><p>See balances, transactions, account statements and bank messages in one place.</p></div>
+						<div class="card"><h3>Review</h3><p>See balances, transactions, portfolio holdings, account statements and bank messages in one place.</p></div>
 						<div class="card"><h3>Organise</h3><p>Filter, categorise, split and flag transactions or link movements between your own accounts.</p></div>
 						<div class="card"><h3>Pay</h3><p>Prepare supported transfers and standing orders and send them to the bank after review.</p></div>
 						<div class="card"><h3>Analyse</h3><p>Compare income, expenses, balance history and categories for selected accounts and periods.</p></div>
@@ -74,42 +75,8 @@
 					<p class="back-to-top"><a href="#top">Back to top</a></p>
 				</section>
 
-				<section id="encryption">
-					<h2>3. Data encryption and remaining risks</h2>
-					<h3>How protection is built</h3>
-					<p>GBanking creates a random 256-bit data key for every tenant. That key encrypts data in <strong>AES-256-GCM</strong> containers. GCM prevents unauthorised reading and also detects an incorrect key or a modified encrypted file.</p>
-					<p>The tenant password does not encrypt every file directly. GBanking derives a wrapping key using <strong>PBKDF2-HMAC-SHA-256</strong>, a random salt and currently 210,000 iterations. This wrapping key protects the actual data key. Separate random nonces are used for the key and file content. <code>tenants.properties</code> contains the username and decryption metadata, but neither the password nor the unencrypted data key.</p>
-					<div class="table-wrap">
-						<table>
-							<thead><tr><th>Area</th><th>At rest</th><th>While GBanking is running</th></tr></thead>
-							<tbody>
-								<tr><td>Database</td><td>Encrypted as <code>gbanking.db.enc</code> after a clean shutdown.</td><td>Open as a readable <code>gbanking.db</code> because SQLite needs to work with it.</td></tr>
-								<tr><td>Backups</td><td>A <code>*.gbbackup</code> stores the database and account statements inside a fully encrypted container.</td><td>The archive is written directly into the encrypted container.</td></tr>
-								<tr><td>Account statements</td><td>Either readable or encrypted as <code>*.enc</code>; changing the option also converts existing files.</td><td>An encrypted statement is temporarily decrypted locally when opened.</td></tr>
-							</tbody>
-						</table>
-					</div>
-					<p>At sign-in, the database is decrypted into a temporary file, checked and atomically made available as the working database. When switching tenants or exiting, GBanking closes SQLite, removes sidecar files, encrypts and verifies the result, atomically replaces the encrypted database and then deletes the working database. The session data key is overwritten in memory on a best-effort basis when the session closes.</p>
-					<p>If the configured data directory is not the default <code>./data</code>, the readable working database stays locally below <code>work/tenant/&lt;UUID&gt;/db</code>, while the encrypted database remains in the selected data directory. Temporarily opened statements are stored below <code>work/tenant/&lt;UUID&gt;/accountStatements</code> and cleaned when switching tenants, exiting and signing in next time.</p>
-					<h3>Password changes</h3>
-					<p>The random data key remains unchanged when the password changes. GBanking wraps it with the new password and updates the encrypted database, managed backups and encrypted statements. The large contents therefore do not need to be encrypted again in full.</p>
-					<h3>What encryption cannot prevent</h3>
-					<ul>
-						<li><strong>Active session:</strong> Anyone who gains access to the computer, user account, memory or readable working database while the tenant is open may be able to read data. Encryption is not a replacement for operating-system security.</li>
-						<li><strong>Crash or power loss:</strong> The readable database and SQLite sidecar files may remain. GBanking detects and validates this recovery state at the next start, but cannot prevent access in the meantime.</li>
-						<li><strong>Account statements:</strong> Per-file encryption is optional. Even an encrypted statement briefly exists as a readable working copy when opened; after a hard crash, cleanup may not occur until the next sign-in.</li>
-						<li><strong>Files outside the tenant:</strong> Exports, original imports, logs, diagnostic packages, environment and GUI settings, and the public bank directory are not automatically protected by tenant encryption.</li>
-						<li><strong>Password strength:</strong> The implementation currently requires only a non-empty password. An attacker holding file copies can test weak passwords offline; key derivation slows this down but cannot prevent it.</li>
-						<li><strong>External backup copies:</strong> Password changes update only containers inside GBanking's managed tenant folders. A backup copied elsewhere beforehand remains accessible with the password that protected it at the time.</li>
-						<li><strong>Deletion:</strong> Files are deleted normally, not securely overwritten. SSDs, filesystem snapshots, recycle bins, backups or cloud version history may retain earlier readable or encrypted states.</li>
-						<li><strong>Lost password:</strong> There is no back door or recovery key. Without a matching password, the data key cannot normally be unlocked.</li>
-					</ul>
-					<div class="tip"><strong>Recommendation:</strong> Use a long, unique tenant password, lock and encrypt the operating-system drive as well, enable statement encryption when needed, and treat exports, logs, diagnostic packages and external backups as confidential financial records.</div>
-					<p class="back-to-top"><a href="#top">Back to top</a></p>
-				</section>
-
 				<section id="navigation">
-					<h2>4. Using the interface</h2>
+					<h2>3. Using the interface</h2>
 					<p>Open the main areas from <strong>Edit</strong>. Tables have a search field that covers their most important visible data. Checkboxes in the first column select multiple accounts, transactions, contacts or orders for a shared action. The checkbox in the table header selects or clears all visible rows.</p>
 					<ul>
 						<li><strong>Accounts/Transactions:</strong> Account-centred workspace with transactions and statements.</li>
@@ -122,7 +89,7 @@
 				</section>
 
 				<section id="bank-access">
-					<h2>5. Bank access, Enablebanking and PayPal</h2>
+					<h2>4. Bank access, Enablebanking and PayPal</h2>
 					<p>Use <strong>Edit &gt; Bank accesses</strong> to configure a FinTS/HBCI access, an Enablebanking access or a PayPal connection.</p>
 					<h3>FinTS/HBCI</h3>
 					<p>A FinTS/HBCI access contains details such as bank code, user ID, FinTS address, protocol version and TAN procedure. During setup or update, GBanking fetches bank parameters (BPD), user parameters (UPD) and associated accounts.</p>
@@ -171,7 +138,7 @@
 				</section>
 
 				<section id="accounts">
-					<h2>6. Accounts</h2>
+					<h2>5. Accounts</h2>
 					<p>In <strong>Accounts/Transactions</strong>, select an account on the left; account details, transactions and statements appear on the right. <strong>All accounts</strong> provides a tenant-wide list with full detail editing.</p>
 					<ul>
 						<li>Online accounts are normally created when a bank access is set up or updated.</li>
@@ -186,7 +153,7 @@
 				</section>
 
 				<section id="transactions">
-					<h2>7. Transactions</h2>
+					<h2>6. Transactions</h2>
 					<p>The transaction list includes the date, recipient or payer, purpose, category, type and amount. Pending transactions use a more subdued style. Filters can search by text, period, amount and other properties.</p>
 					<h3>Details and manual maintenance</h3>
 					<ul>
@@ -202,7 +169,7 @@
 				</section>
 
 				<section id="statements">
-					<h2>8. Account statements and bank messages</h2>
+					<h2>7. Account statements and bank messages</h2>
 					<p>The <strong>Account statements</strong> tab retrieves statements for the selected account, lists them and opens a statement with its associated desktop application. Details include period, statement number, format, file, size, retrieval time and receipt status.</p>
 					<p>Some banks require receipt acknowledgements. They can be sent directly or together with other work under <strong>Open actions</strong>. Retrieval and acknowledgements are available only when the bank supports them.</p>
 					<p><strong>Bank messages</strong> have a separate tab in Bank accesses. FinTS messages can be retrieved and read in detail there.</p>
@@ -210,7 +177,7 @@
 				</section>
 
 				<section id="recipients">
-					<h2>9. Address book and current recipient logic</h2>
+					<h2>8. Address book and current recipient logic</h2>
 					<p>The address book contains both payment recipients and payers from incoming transactions. Contacts are created manually, by transaction imports and online retrieval, and when a payment order is saved. A contact can contain name, IBAN, BIC, account number, bank code, bank and a note.</p>
 					<h3>Finding and using contacts</h3>
 					<ul>
@@ -232,20 +199,22 @@
 				</section>
 
 				<section id="categories">
-					<h2>10. Categories and rules</h2>
+					<h2>9. Categories and rules</h2>
 					<p>Categories can be hierarchical, for example <em>Household / Groceries</em>. The <strong>Category rules</strong> tab defines automatic assignments.</p>
 					<ul>
 						<li>Rules can apply to the current account, selected accounts or all accounts.</li>
 						<li>Conditions include period, amount range, recipient name, IBAN, account number and purpose.</li>
 						<li>Text conditions can be plain search text or regular expressions.</li>
 						<li><strong>All conditions</strong> requires every condition; <strong>Any condition</strong> needs one match.</li>
+						<li><strong>Overwrite existing categorization?</strong> controls whether the rule may replace a category that is already assigned. The option is initially enabled for new rules; clear it to preserve existing assignments.</li>
 					</ul>
+					<p>From a transaction's context menu, choose <strong>Use as template &gt; New categorization rule</strong> to create a rule directly. GBanking copies the account, category, booking date, amount, recipient and purpose into an editable template and initially combines the conditions with <strong>All conditions</strong>.</p>
 					<p>Rules are considered while new transactions are processed and can be reapplied to existing transactions with <strong>Apply categorisation</strong>. A manual category can also be assigned or cleared.</p>
 					<p class="back-to-top"><a href="#top">Back to top</a></p>
 				</section>
 
 				<section id="orders">
-					<h2>11. Payment orders</h2>
+					<h2>10. Payment orders</h2>
 					<p><strong>Orders</strong> provides tabs for SEPA transfers, scheduled transfers, standing orders and foreign transfers. The transfer tab may additionally offer real-time or urgent transfers. GBanking enables only order types supported by the selected account.</p>
 					<ol>
 						<li>Select the sender account and order type.</li>
@@ -254,26 +223,46 @@
 						<li><strong>Save</strong> first stores the order locally.</li>
 						<li><strong>Run &gt; Execute orders</strong> sends checked new or changed orders after PIN/TAN approval.</li>
 					</ol>
+					<p>The input form header shows the current balance of the selected sender account whenever it can be determined. Colour coding distinguishes positive, negative and zero balances.</p>
 					<p>Scheduled-transfer and standing-order inventories are fetched through <strong>Run &gt; Order inventory</strong>. If supported by the bank, changes and deletions are first queued and sent only with <strong>Execute orders</strong>. A queued deletion can be cancelled beforehand.</p>
-					<p>Each order type has an active list and an <strong>Archive</strong>. Previous, superseded, deleted or no-longer-listed versions remain traceable. The context menu shows the technical execution protocol and provides CSV import.</p>
+					<p>Each order type has an active list and an <strong>Archive</strong>. Previous, superseded, deleted or no-longer-listed versions remain traceable. The context menu displays the execution protocol with its interpreted result, PIN, SCA and Verification of Payee indicators, any recipient-name correction, and the bank response. A tooltip explains the Match, Close-Match, No-Match and Opt-out verification results.</p>
+					<div class="warning"><strong>Status after a connection failure:</strong> If the connection fails only after a new order was transmitted, GBanking attempts to resolve its state through the available instant-payment or FinTS status queries. If it remains unclear whether the bank executed the order, the order receives the status <strong>status unclear</strong> and cannot be edited or submitted again. Check it in online banking and do not send a precautionary duplicate.</div>
 					<p class="back-to-top"><a href="#top">Back to top</a></p>
 				</section>
 
 				<section id="open-actions">
-					<h2>12. Running open actions together</h2>
+					<h2>11. Running open actions together</h2>
 					<p><strong>Edit &gt; Open actions</strong> groups pending online work: transaction retrieval, transfers, open scheduled transfers and standing orders, inventory retrieval, account statements and pending statement acknowledgements.</p>
 					<p>Check only the desired rows and select <strong>Run &gt; Execute selected actions</strong>. GBanking groups work by bank access, asks for the required PINs and reports success, failure, cancellation or skipping for each action type.</p>
 					<p class="back-to-top"><a href="#top">Back to top</a></p>
 				</section>
 
 				<section id="rebookings">
-					<h2>13. Internal transfers</h2>
+					<h2>12. Internal transfers</h2>
 					<p>An internal transfer is a movement between two of your own accounts. GBanking can link matching counter-transactions by amount, date and counter account. Linked transfers are neutral in analysis, so moving money internally does not appear as both income and expense.</p>
 					<ul>
 						<li><strong>Run &gt; Assign internal transfers:</strong> Finds and links existing counterparts.</li>
 						<li><strong>Run &gt; Create internal transfers:</strong> Creates selected missing counterparts in the target account.</li>
 						<li><strong>Release internal-transfer link:</strong> Removes an incorrect link from the transaction context menu.</li>
 					</ul>
+					<p class="back-to-top"><a href="#top">Back to top</a></p>
+				</section>
+
+				<section id="portfolios">
+					<h2>13. Portfolios and securities</h2>
+					<p>Under <strong>Edit &gt; Portfolios/Transactions</strong>, GBanking lists security portfolios and their settlement accounts on the left. The selected portfolio shows master data, security positions and portfolio transactions; the <strong>Settlement account</strong> tab shows account data, its balance and related account transactions. Holdings, average acquisition price, acquisition value, latest price, current value and performance are calculated from stored transactions and prices.</p>
+					<h3>Managing portfolios and transactions</h3>
+					<ul>
+						<li>Online portfolios and holdings can be retrieved through FinTS when the bank and access support that operation. Newly detected portfolios are assigned to a suitable current or settlement account.</li>
+						<li>Under <strong>Edit &gt; Administration &gt; All portfolios</strong>, create offline portfolios and maintain their name, account identifiers, state, currency, bank access and time-dependent settlement-account assignment. A later FinTS retrieval may overwrite changes to a bank-linked portfolio.</li>
+						<li>Use <strong>New</strong>, <strong>Edit</strong> and <strong>Delete</strong> for buy and sell transactions. A position's context menu records trades or income and transfers an individual position to another portfolio.</li>
+						<li>A portfolio's context menu can transfer all holdings to another portfolio. It also moves the current balance of the previous settlement account to the new settlement account.</li>
+					</ul>
+					<div class="warning"><strong>Deleting imported transactions:</strong> Deletion can change holdings, acquisition prices and performance. Linked bank transactions remain, and the stored import identifier may prevent automatic restoration during a later retrieval or import.</div>
+					<h3>Managing securities and prices</h3>
+					<p>Under <strong>Edit &gt; Administration &gt; All securities</strong>, maintain master data such as name, type, state, ISIN, WKN, ticker, market, issuer, domicile, quantity and quotation type, and quote and nominal currency. The price list shows date, price, currency, price type and source. Prices can be entered manually, corrected or deleted; the original source record of an externally supplied price remains available for traceability.</p>
+					<p><strong>Retrieve prices</strong> downloads prices from a provider configured under <strong>Settings &gt; Quote providers</strong>. GBanking supports Alpha Vantage, EODHD, Alpaca and named generic HTTPS feeds returning JSON or CSV. Use generic feeds only when the source permits automated retrieval.</p>
+					<p>Import and export through Portfolio Performance files and configurable CSV formats are described in <a href="#import-export">chapter 14</a>.</p>
 					<p class="back-to-top"><a href="#top">Back to top</a></p>
 				</section>
 
@@ -284,15 +273,19 @@
 							<thead><tr><th>Data</th><th>Import</th><th>Export</th></tr></thead>
 							<tbody>
 								<tr><td>Transactions</td><td>CSV, FP3 (Moneyplex), MT940, XML (Moneyplex)</td><td>CSV, FP3, MT940, XML</td></tr>
-								<tr><td>Payment orders</td><td>GBanking CSV</td><td>GBanking CSV</td></tr>
+								<tr><td>Payment orders</td><td>GBanking CSV, SEPA XML</td><td>GBanking CSV, SEPA XML</td></tr>
 								<tr><td>Credit-card transactions</td><td>Special CSV import into a selected credit-card account</td><td>Through the regular transaction export</td></tr>
 								<tr><td>Portfolios and securities</td><td>Configurable CSV formats for portfolio transactions, account transactions, securities and prices, plus Portfolio Performance complete file (XML)</td><td>Portfolio Performance CSV for portfolio transactions, account transactions, securities and prices</td></tr>
 							</tbody>
 						</table>
 					</div>
 					<p>An import started from <strong>File</strong> matches transactions to their account data. When started from an account or transaction context menu, the target account is already known. New import accounts and contacts can be created from file data; recognised duplicates are not stored again.</p>
+					<p>When importing payment orders in GBanking CSV or SEPA XML format, you can select several files at once. GBanking processes them in sequence, shows per-file and overall progress, and reports the combined number of imported orders and duplicates skipped.</p>
 					<p>The available CSV import formats and their column mappings are stored in <code>properties/csv-format.properties</code>. You can add custom formats for transactions, portfolio transactions, account transactions, securities and security prices there.</p>
 					<p>For export, select accounts with their checkboxes. Formats that can represent only one account require exactly one selection. CSV output also includes the account name, IBAN and account number. See the <a href="csv-booking-format_en.html">CSV format description</a> for the full field list and examples.</p>
+					<p>The GBanking CSV export for payment orders includes existing execution protocols with result status, PIN/SCA and Verification of Payee indicators, reference identifiers and the bank response. A later import restores these structured fields.</p>
+					<p>Before importing a Portfolio Performance complete file, GBanking shows every portfolio and account it contains. You can assign each item to a compatible existing portfolio or account, or have GBanking create it. If no portfolio is selected, all contained portfolios and their settlement accounts can be created and imported in one operation.</p>
+					<p>If the file also contains accounts that are not linked to a portfolio, GBanking first asks whether those additional offline accounts and their transactions should be included in the preview and import.</p>
 					<div class="warning"><strong>Confidential files:</strong> Import sources and exports are outside tenant encryption. Store and transfer them securely.</div>
 					<p class="back-to-top"><a href="#top">Back to top</a></p>
 				</section>
@@ -317,6 +310,7 @@
 					<ul>
 						<li><strong>Program settings:</strong> Visible technical values including logging, chipTAN USB reader and optional account-statement file encryption.</li>
 						<li><strong>Recognition patterns:</strong> Search text and regular expressions for special transactions, cancellations and account-specific exclusions. Change these only when you understand their effect.</li>
+						<li><strong>Quote providers:</strong> Credentials for Alpha Vantage, EODHD and Alpaca, plus named generic JSON/CSV quote feeds for the current tenant.</li>
 						<li><strong>Environment-specific settings:</strong> Data directory, import-properties directory and separate last-used import and export directories.</li>
 					</ul>
 					<p>Tenant-specific settings are held in the database and synchronised with import properties. Installation-local values are stored in <code>properties/env.properties</code>; window and layout values remain in <code>properties/gui.properties</code>. Changing statement encryption converts existing statement files accordingly.</p>
@@ -352,6 +346,40 @@
 						</table>
 					</div>
 					<div class="note"><strong>Basic rule:</strong> Carefully verify online orders, recipient details and amounts before confirming bank approval.</div>
+					<p class="back-to-top"><a href="#top">Back to top</a></p>
+				</section>
+
+				<section id="encryption">
+					<h2>20. Data encryption and remaining risks</h2>
+					<h3>How protection is built</h3>
+					<p>GBanking creates a random 256-bit data key for every tenant. That key encrypts data in <strong>AES-256-GCM</strong> containers. GCM prevents unauthorised reading and also detects an incorrect key or a modified encrypted file.</p>
+					<p>The tenant password does not encrypt every file directly. GBanking derives a wrapping key using <strong>PBKDF2-HMAC-SHA-256</strong>, a random salt and currently 210,000 iterations. This wrapping key protects the actual data key. Separate random nonces are used for the key and file content. <code>tenants.properties</code> contains the username and decryption metadata, but neither the password nor the unencrypted data key.</p>
+					<div class="table-wrap">
+						<table>
+							<thead><tr><th>Area</th><th>At rest</th><th>While GBanking is running</th></tr></thead>
+							<tbody>
+								<tr><td>Database</td><td>Encrypted as <code>gbanking.db.enc</code> after a clean shutdown.</td><td>Open as a readable <code>gbanking.db</code> because SQLite needs to work with it.</td></tr>
+								<tr><td>Backups</td><td>A <code>*.gbbackup</code> stores the database and account statements inside a fully encrypted container.</td><td>The archive is written directly into the encrypted container.</td></tr>
+								<tr><td>Account statements</td><td>Either readable or encrypted as <code>*.enc</code>; changing the option also converts existing files.</td><td>An encrypted statement is temporarily decrypted locally when opened.</td></tr>
+							</tbody>
+						</table>
+					</div>
+					<p>At sign-in, the database is decrypted into a temporary file, checked and atomically made available as the working database. When switching tenants or exiting, GBanking closes SQLite, removes sidecar files, encrypts and verifies the result, atomically replaces the encrypted database and then deletes the working database. The session data key is overwritten in memory on a best-effort basis when the session closes.</p>
+					<p>If the configured data directory is not the default <code>./data</code>, the readable working database stays locally below <code>work/tenant/&lt;UUID&gt;/db</code>, while the encrypted database remains in the selected data directory. Temporarily opened statements are stored below <code>work/tenant/&lt;UUID&gt;/accountStatements</code> and cleaned when switching tenants, exiting and signing in next time.</p>
+					<h3>Password changes</h3>
+					<p>The random data key remains unchanged when the password changes. GBanking wraps it with the new password and updates the encrypted database, managed backups and encrypted statements. The large contents therefore do not need to be encrypted again in full.</p>
+					<h3>What encryption cannot prevent</h3>
+					<ul>
+						<li><strong>Active session:</strong> Anyone who gains access to the computer, user account, memory or readable working database while the tenant is open may be able to read data. Encryption is not a replacement for operating-system security.</li>
+						<li><strong>Crash or power loss:</strong> The readable database and SQLite sidecar files may remain. GBanking detects and validates this recovery state at the next start, but cannot prevent access in the meantime.</li>
+						<li><strong>Account statements:</strong> Per-file encryption is optional. Even an encrypted statement briefly exists as a readable working copy when opened; after a hard crash, cleanup may not occur until the next sign-in.</li>
+						<li><strong>Files outside the tenant:</strong> Exports, original imports, logs, diagnostic packages, environment and GUI settings, and the public bank directory are not automatically protected by tenant encryption.</li>
+						<li><strong>Password strength:</strong> The implementation currently requires only a non-empty password. An attacker holding file copies can test weak passwords offline; key derivation slows this down but cannot prevent it.</li>
+						<li><strong>External backup copies:</strong> Password changes update only containers inside GBanking's managed tenant folders. A backup copied elsewhere beforehand remains accessible with the password that protected it at the time.</li>
+						<li><strong>Deletion:</strong> Files are deleted normally, not securely overwritten. SSDs, filesystem snapshots, recycle bins, backups or cloud version history may retain earlier readable or encrypted states.</li>
+						<li><strong>Lost password:</strong> There is no back door or recovery key. Without a matching password, the data key cannot normally be unlocked.</li>
+					</ul>
+					<div class="tip"><strong>Recommendation:</strong> Use a long, unique tenant password, lock and encrypt the operating-system drive as well, enable statement encryption when needed, and treat exports, logs, diagnostic packages and external backups as confidential financial records.</div>
 					<p class="back-to-top"><a href="#top">Back to top</a></p>
 				</section>
 			</main>
