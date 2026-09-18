@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-18
+
+### Added
+- allow multiple files selection for moneytransfer import
+- improve Money transfer error handling, add status call if unclear
+- Money transfer protocol: parse information in (boolean) columns
+- Add override option to category rule
+- Add category rule template context menu
+- Show account balance in money transfer forms
+- Portfolio management: file formats, add view for all instruments
+- Portfolio management: add quote providers
+- Portfolio management: add GUIs and file imports
+- Portfolio management: add database model
+
+### Documentation
+- Updated program documentation regarding new features
+
+### Maintenance
+- release: prepare next development version 0.8.1-SNAPSHOT
+
 ## [0.8.0] - 2026-09-14
 
 ### Changed
@@ -387,23 +407,6 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 - release: prepare next development version 0.9.1-SNAPSHOT
-
-## [0.9.0] - 2026-06-19
-
-### Added
-- add second institute import source for Bundesbank data
-
-### Fixed
-- booking-core version
-
-### Changed
-- Sonarqube findings, classes refactoring
-- package refactoring
-- cleanup unused db statements
-
-### Maintenance
-- disabled some rebooking related tests as they might be wrong
-- release: prepare next development version 0.8.1-SNAPSHOT
 
 ## [0.7.1] - 2026-06-03
 
