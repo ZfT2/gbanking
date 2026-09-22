@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-09-22
+
+### Added
+- Re-arrange account detail panel to four columns layout
+
+### Fixed
+- NullPointerException moneytransfer for bank account(s) without iban
+- UpdatedAt date in account detail panel styling
+
+### Documentation
+- link developer documentation
+- Add developer documentation
+
+### Maintenance
+- release: prepare next development version 0.9.1-SNAPSHOT
+
 ## [0.9.0] - 2026-09-18
 
 ### Added
@@ -390,23 +406,6 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 - release: prepare next development version 0.9.2-SNAPSHOT
-
-## [0.9.1] - 2026-06-22
-
-### Added
-- Only only PIN ask dialog per bank, not one per each account
-
-### Fixed
-- Allow recipient consisting only name, e.g. for interest booking DKB
-- Verwendungszweck from text field if usage is empty
-- Sparkasse FinTS call (Alle Geräte)
-- add BIC to FinTS call to fix DKB request
-
-### Changed
-- Message handling refactoring
-
-### Maintenance
-- release: prepare next development version 0.9.1-SNAPSHOT
 
 ## [0.7.1] - 2026-06-03
 
