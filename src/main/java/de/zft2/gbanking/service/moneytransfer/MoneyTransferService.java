@@ -107,7 +107,11 @@ public class MoneyTransferService extends AbstractDbService {
 	Konto getSenderAccount(HBCIPassport passport, BankAccount bankAccount) throws GBankingException {
 
 		for (Konto konto : passport.getAccounts()) {
-			if (konto.iban.equalsIgnoreCase(bankAccount.getIban()) || konto.number.equalsIgnoreCase(bankAccount.getNumber())) {
+			if (konto.iban == null || konto.iban.isBlank()) {
+				log.debug("Received HBCI account without IBAN while resolving sender account. accountId={}, accountNumber={}, bankCode={}", bankAccount::getId,
+						() -> SensitiveDataMasker.maskAccountNumber(konto.number), () -> SensitiveDataMasker.maskIdentifier(konto.blz));
+			}
+			if (matchesSenderAccount(bankAccount, konto)) {
 				log.debug("Resolved HBCI sender account for account id {}", bankAccount.getId());
 				return konto;
 			}
@@ -115,6 +119,14 @@ public class MoneyTransferService extends AbstractDbService {
 		log.warn("No HBCI sender account found for account id {}, IBAN: {} / Nr.: {}", bankAccount::getId,
 				() -> SensitiveDataMasker.maskIban(bankAccount.getIban()), () -> SensitiveDataMasker.maskAccountNumber(bankAccount.getNumber()));
 		throw new GBankingException(getText("EXCEPTION_MONEYTRANSFER_SENDING_ACCOUNT_NOT_FOUND", SensitiveDataMasker.maskIban(bankAccount.getIban())));
+	}
+
+	private boolean matchesSenderAccount(BankAccount bankAccount, Konto konto) {
+		return equalsIgnoreCase(bankAccount.getIban(), konto.iban) || equalsIgnoreCase(bankAccount.getNumber(), konto.number);
+	}
+
+	private boolean equalsIgnoreCase(String left, String right) {
+		return left != null && left.equalsIgnoreCase(right);
 	}
 
 	private MoneyTransfer saveMoneyTransferToDBInTransaction(MoneyTransferForm mtf, MoneyTransfer existingMoneyTransfer) {
