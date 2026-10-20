@@ -1,5 +1,13 @@
 package de.zft2.gbanking.db.repository;
 
+import static de.zft2.gbanking.db.repository.SqlConstants.DELETE;
+import static de.zft2.gbanking.db.repository.SqlConstants.FROM;
+import static de.zft2.gbanking.db.repository.SqlConstants.INSERT_INTO;
+import static de.zft2.gbanking.db.repository.SqlConstants.ORDER_BY;
+import static de.zft2.gbanking.db.repository.SqlConstants.SELECT;
+import static de.zft2.gbanking.db.repository.SqlConstants.UPDATE;
+import static de.zft2.gbanking.db.repository.SqlConstants.WHERE;
+
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,7 +41,7 @@ public final class StockDaoRepository<T extends StockDao> extends JdbcDaoReposit
 		if (metadata.idColumn().isBlank()) {
 			throw new GBankingException("DAO has no single primary key: " + type().getName());
 		}
-		String sql = "SELECT * FROM " + metadata.tableName() + " WHERE " + metadata.idColumn() + " = ?";
+		String sql = SELECT + '*' + FROM + metadata.tableName() + WHERE + metadata.idColumn() + " = ?";
 		List<T> results = query(sql, type(), ResultType.WITHOUT_RELATIONS, statement -> statement.setInt(1, id));
 		if (results.size() > 1) {
 			throw new GBankingException("Primary-key query returned multiple rows for " + type().getName());
@@ -84,7 +92,7 @@ public final class StockDaoRepository<T extends StockDao> extends JdbcDaoReposit
 		if (statementType != null && statementType != StatementType.DELETE) {
 			throw new GBankingException("Unsupported stock DAO delete type: " + statementType);
 		}
-		return jdbc().update("DELETE FROM " + metadata.tableName() + " WHERE " + requiredIdColumn() + " = ?",
+		return jdbc().update(DELETE + FROM + metadata.tableName() + WHERE + requiredIdColumn() + " = ?",
 				statement -> statement.setInt(1, entity.getId()));
 	}
 
@@ -94,15 +102,15 @@ public final class StockDaoRepository<T extends StockDao> extends JdbcDaoReposit
 				&& query.statementType() != StatementType.SELECT_FULL_DATA) {
 			throw new GBankingException("Unsupported stock DAO query type: " + query.statementType());
 		}
-		StringBuilder sql = new StringBuilder("SELECT * FROM ").append(metadata.tableName());
+		StringBuilder sql = new StringBuilder(SELECT + "*" + FROM).append(metadata.tableName());
 		if (parentQuery) {
 			if (metadata.parentColumn().isBlank() || query.parentId() == null || query.parentId() <= 0) {
 				throw new GBankingException("Stock DAO parent query needs a configured positive parent ID");
 			}
-			sql.append(" WHERE ").append(metadata.parentColumn()).append(" = ?");
+			sql.append(WHERE).append(metadata.parentColumn()).append(" = ?");
 		}
 		if (!metadata.idColumn().isBlank()) {
-			sql.append(" ORDER BY ").append(metadata.idColumn());
+			sql.append(ORDER_BY).append(metadata.idColumn());
 		}
 		return sql.toString();
 	}
@@ -120,7 +128,7 @@ public final class StockDaoRepository<T extends StockDao> extends JdbcDaoReposit
 			columns.add("updatedAt");
 		}
 		String placeholders = String.join(", ", Collections.nCopies(columns.size(), "?"));
-		return "INSERT INTO " + metadata.tableName() + " (" + String.join(", ", columns) + ") VALUES (" + placeholders + ")";
+		return INSERT_INTO + metadata.tableName() + " (" + String.join(", ", columns) + ") VALUES (" + placeholders + ")";
 	}
 
 	private String updateSql() {
@@ -135,8 +143,8 @@ public final class StockDaoRepository<T extends StockDao> extends JdbcDaoReposit
 		if (assignments.isEmpty()) {
 			throw new GBankingException("Stock DAO has no updatable columns: " + type().getName());
 		}
-		return "UPDATE " + metadata.tableName() + " SET " + String.join(", ", assignments)
-				+ " WHERE " + requiredIdColumn() + " = ?";
+		return UPDATE + metadata.tableName() + " SET " + String.join(", ", assignments)
+				+ WHERE + requiredIdColumn() + " = ?";
 	}
 
 	private void verifyWriteAllowed(StatementType statementType) {

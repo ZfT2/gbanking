@@ -289,6 +289,32 @@ public final class JdbcOperations implements AutoCloseable {
 	}
 
 	private record BatchResult(int[] updateCounts, int count) {
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + Arrays.hashCode(updateCounts);
+			result = prime * result + Objects.hash(count);
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			BatchResult other = (BatchResult) obj;
+			return count == other.count && Arrays.equals(updateCounts, other.updateCounts);
+		}
+
+		@Override
+		public String toString() {
+			return "BatchResult [updateCounts=" + Arrays.toString(updateCounts) + ", count=" + count + "]";
+		}
 	}
 
 	private static final class CachedStatement {
