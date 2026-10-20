@@ -74,8 +74,8 @@ public class Booking extends Dao implements Serializable, BookingDetails {
 		this.balance = bookingToCopy.balance;
 		this.additionalDetails = bookingToCopy.additionalDetails != null ? new BookingAdditionalDetails(bookingToCopy.additionalDetails) : null;
 		this.creditCardDetails = bookingToCopy.creditCardDetails != null ? new BookingCreditCardDetails(bookingToCopy.creditCardDetails) : null;
-		this.foreignCurrencyDetails = bookingToCopy.foreignCurrencyDetails != null
-				? new BookingForeignCurrencyDetails(bookingToCopy.foreignCurrencyDetails) : null;
+		this.foreignCurrencyDetails = bookingToCopy.foreignCurrencyDetails != null ? new BookingForeignCurrencyDetails(bookingToCopy.foreignCurrencyDetails)
+				: null;
 		this.fee = bookingToCopy.fee != null ? new BookingFee(bookingToCopy.fee) : null;
 		this.bookingType = bookingToCopy.bookingType;
 		this.crossAccountId = bookingToCopy.crossAccountId;
@@ -83,6 +83,11 @@ public class Booking extends Dao implements Serializable, BookingDetails {
 		this.category = bookingToCopy.category;
 		this.categoryRuleId = bookingToCopy.categoryRuleId;
 		this.categoryRuleName = bookingToCopy.categoryRuleName;
+		this.accountName = bookingToCopy.accountName;
+		this.crossAccountName = bookingToCopy.crossAccountName;
+		this.crossBookingId = bookingToCopy.crossBookingId;
+		this.recipientId = bookingToCopy.recipientId;
+		this.categoryId = bookingToCopy.categoryId;
 	}
 
 	public Booking() {
@@ -452,7 +457,7 @@ public class Booking extends Dao implements Serializable, BookingDetails {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(amount, date, dateBooking, dateValue, purpose, crossAccountId);
+		return Objects.hash(amount, date, dateBooking, dateValue, purpose);
 	}
 
 	@Override

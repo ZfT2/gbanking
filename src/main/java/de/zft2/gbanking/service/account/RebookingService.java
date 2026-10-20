@@ -15,13 +15,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BiPredicate;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.zft2.core.exception.ConfigurationException;
+import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
+import de.zft2.gbanking.db.dao.enu.BankAccessType;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.Recipient;
@@ -156,7 +159,8 @@ final class RebookingService extends AbstractDbService {
 		try {
 			ServiceRegistry.getService(ImportPropertiesSynchronizationService.class).initializeAndSynchronize();
 			fileSnapshots = snapshotTransferPropertiesFiles();
-			OnlineBookingProcessor.generateCrossBookingsForOnline(accounts);
+			OnlineBookingProcessor.generateCrossBookingsForOnline(accounts,
+					createMissingRecipientRoute(dbController.getAll(BankAccess.class)));
 		} catch (ConfigurationException | RuntimeException e) {
 			log.warn("Could not initialize booking-core rebooking detection.", e);
 			return RebookingDetectionContext.empty();
@@ -167,6 +171,24 @@ final class RebookingService extends AbstractDbService {
 
 		return new RebookingDetectionContext(accounts, anchorBookingIds, originalCrossBookingIds,
 				originalCrossAccountIds);
+	}
+
+	private static BiPredicate<BankAccount, BankAccount> createMissingRecipientRoute(Collection<BankAccess> bankAccesses) {
+		Map<Integer, BankAccessType> accessTypes = new HashMap<>();
+		if (bankAccesses != null) {
+			for (BankAccess bankAccess : bankAccesses) {
+				if (bankAccess != null && bankAccess.getId() > 0) {
+					accessTypes.put(bankAccess.getId(), bankAccess.getAccessType());
+				}
+			}
+		}
+		return (sourceAccount, targetAccount) -> isFintsAccount(sourceAccount, accessTypes)
+				&& !isFintsAccount(targetAccount, accessTypes);
+	}
+
+	private static boolean isFintsAccount(BankAccount account, Map<Integer, BankAccessType> accessTypes) {
+		return account != null && account.getBankAccessId() != null
+				&& accessTypes.get(account.getBankAccessId()) == BankAccessType.HBCI;
 	}
 
 	private List<BankAccount> loadAccountsForRebookingCheck(RebookingSearchScope searchScope,

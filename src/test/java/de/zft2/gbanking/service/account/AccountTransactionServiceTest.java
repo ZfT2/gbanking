@@ -38,6 +38,7 @@ import org.kapott.hbci.structures.Saldo;
 import org.kapott.hbci.structures.Value;
 
 import de.zft2.gbanking.cache.InstituteLookupCache;
+import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.BankAccountIdentifier;
 import de.zft2.gbanking.db.dao.Booking;
@@ -459,6 +460,46 @@ class AccountTransactionServiceTest {
 		assertEquals(account.getId(), linkedDeposit.getCrossAccountId());
 		assertEquals(linkedDeposit.getId(), linkedRemoval.getCrossBookingId());
 		assertEquals(linkedRemoval.getId(), linkedDeposit.getCrossBookingId());
+	}
+
+	@Test
+	void detectRebookingsShouldLinkMissingRecipientOnOfflineAccount() {
+		AccountTransactionService service = new AccountTransactionService();
+		DBController dbController = DBController.getInstance(tempDir.toString());
+		LocalDate rebookingDate = LocalDate.of(2026, Month.JUNE, 1);
+		BankAccess fintsAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("50010517"));
+		BankAccount fintsAccount = createAccount("DE12345678901234567890", "12345678");
+		fintsAccount.setBankAccessId(fintsAccess.getId());
+		fintsAccount = dbController.insertOrUpdate(fintsAccount);
+		BankAccount offlineAccount = createAccount("DE22222222222222222222", "22222222");
+		offlineAccount.setOfflineAccount(true);
+		offlineAccount = dbController.insertOrUpdate(offlineAccount);
+		Recipient recipientToOfflineAccount = dbController.insertOrUpdate(createRecipient("Tagesgeld",
+				"DE22222222222222222222", "TESTDEFFXXX", "22222222", "50010517"));
+
+		Booking withdrawal = createBooking(fintsAccount, "Umbuchung Tagesgeld", new BigDecimal("-42.00"), Source.ONLINE);
+		withdrawal.setDateBooking(rebookingDate);
+		withdrawal.setDateValue(rebookingDate);
+		withdrawal.setRecipientId(recipientToOfflineAccount.getId());
+		withdrawal = dbController.insertOrUpdate(withdrawal);
+		Booking deposit = createBooking(offlineAccount, "Umbuchung Tagesgeld", new BigDecimal("42.00"), Source.ONLINE);
+		deposit.setDateBooking(rebookingDate.plusDays(1));
+		deposit.setDateValue(rebookingDate.plusDays(1));
+		deposit = dbController.insertOrUpdate(deposit);
+
+		RebookingAssignmentSummary summary = service.detectRebookings(rebookingDate, rebookingDate, List.of(fintsAccount));
+
+		assertEquals(1, summary.pairCount());
+		assertEquals(1, service.persistDetectedRebookingLinks(summary));
+
+		Booking linkedWithdrawal = dbController.getByIdFull(Booking.class, withdrawal.getId());
+		Booking linkedDeposit = dbController.getByIdFull(Booking.class, deposit.getId());
+		assertEquals(BookingType.REBOOKING_OUT, linkedWithdrawal.getBookingType());
+		assertEquals(BookingType.REBOOKING_IN, linkedDeposit.getBookingType());
+		assertEquals(offlineAccount.getId(), linkedWithdrawal.getCrossAccountId());
+		assertEquals(fintsAccount.getId(), linkedDeposit.getCrossAccountId());
+		assertEquals(linkedDeposit.getId(), linkedWithdrawal.getCrossBookingId());
+		assertEquals(linkedWithdrawal.getId(), linkedDeposit.getCrossBookingId());
 	}
 
 	@Test

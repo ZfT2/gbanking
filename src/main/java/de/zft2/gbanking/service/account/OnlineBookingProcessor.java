@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.function.BiPredicate;
 
 import de.zft2.core.exception.ConfigurationException;
 import de.zft2.core.process.BookingProcessor;
@@ -26,12 +27,13 @@ class OnlineBookingProcessor extends BookingProcessor<Booking, BankAccount> {
 		super();
 	}
 
-	static void generateCrossBookingsForOnline(List<BankAccount> accounts) throws ConfigurationException {
+	static void generateCrossBookingsForOnline(List<BankAccount> accounts,
+			BiPredicate<BankAccount, BankAccount> missingRecipientRoute) throws ConfigurationException {
 		CoreTransferStateSnapshot coreSnapshot = snapshotCoreTransferState();
 		try {
 			propsTransfer = loadPersistentTransferProperties();
 			accountNumbersMap = createAccountNumbersMap(propsTransfer);
-			new OnlineBookingProcessor().generateCrossBookings(accounts, 6, null);
+			new OnlineBookingProcessor().generateCrossBookings(accounts, 6, null, missingRecipientRoute);
 		} finally {
 			restoreCoreTransferState(coreSnapshot);
 		}
