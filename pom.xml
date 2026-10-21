@@ -56,7 +56,7 @@
 
 		<javafx.version>21.0.12</javafx.version>
 		<log4j.version>2.26.1</log4j.version>
-		<sqlitejdbc.version>3.53.2.1</sqlitejdbc.version>
+		<sqlitejdbc.version>3.53.4.0</sqlitejdbc.version>
 		<commonscsv.version>1.14.1</commonscsv.version>
 		<hbci4j.version>4.1.12</hbci4j.version>
 
@@ -64,8 +64,8 @@
 		<bookingcore.version>0.2.6</bookingcore.version>
 
 		<junit.version>5.14.4</junit.version>
-		<mockito.version>5.23.0</mockito.version>
-		<xmlunit.version>2.13.0</xmlunit.version>
+		<mockito.version>5.24.0</mockito.version>
+		<xmlunit.version>2.14.0</xmlunit.version>
 
 		<maven.compiler.plugin.version>3.15.0</maven.compiler.plugin.version>
 		<maven.jar.plugin.version>3.5.1</maven.jar.plugin.version>
@@ -205,6 +205,27 @@
 		</resources>
 
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<version>${maven.enforcer.plugin.version}</version>
+				<executions>
+					<execution>
+						<id>enforce-maven</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<requireMavenVersion>
+									<version>[3.9.0,)</version>
+								</requireMavenVersion>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
