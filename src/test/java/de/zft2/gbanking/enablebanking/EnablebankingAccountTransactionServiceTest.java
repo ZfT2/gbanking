@@ -125,6 +125,23 @@ class EnablebankingAccountTransactionServiceTest {
 				mapped.booked().get(0).getForeignCurrencyDetails().getExchangeRateToBaseCurrency());
 	}
 
+	@Test
+	void shouldIgnoreTransactionsWithoutAnyDate() {
+		BankAccount account = TestDataFactory.createEuroAccount(42);
+		Map<String, Object> withoutDate = transaction("BOOK", "CRDT", "10.50", "without date");
+		withoutDate.remove("booking_date");
+		withoutDate.remove("value_date");
+		Map<String, Object> withValueDateOnly = transaction("BOOK", "CRDT", "11.50", "value date only");
+		withValueDateOnly.remove("booking_date");
+
+		var mapped = service.mapTransactions(account, List.of(withoutDate, withValueDateOnly), null);
+
+		assertEquals(1, mapped.booked().size());
+		assertEquals(1, mapped.skippedWithoutDate());
+		assertEquals("11.50", mapped.booked().get(0).getAmount().toPlainString());
+		assertEquals(LocalDate.of(2026, 8, 21), mapped.booked().get(0).getDateBooking());
+	}
+
 	private Map<String, Object> transaction(String status, String indicator, String amount, String purpose) {
 		Map<String, Object> transaction = new LinkedHashMap<>();
 		transaction.put("status", status);

@@ -288,7 +288,7 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 
 		if (updated) {
 			statistics.incrementUpdated();
-		} else if (existing) {
+		} else if (existing || persistenceResult.skipped()) {
 			statistics.incrementSkipped();
 		} else if (resolvedBooking != null) {
 			if (importedBookings != null) {

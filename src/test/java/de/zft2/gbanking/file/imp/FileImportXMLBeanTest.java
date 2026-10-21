@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.time.Month;
 import java.util.List;
 import java.util.Map;
@@ -131,7 +132,7 @@ class FileImportXMLBeanTest {
 
 		Booking onlineBooking = new Booking();
 		onlineBooking.setAccountId(onlineAccount.getId());
-		onlineBooking.setDateBooking(java.time.LocalDate.of(2025, Month.JANUARY, 1));
+		onlineBooking.setDateBooking(LocalDate.of(2025, Month.JANUARY, 1));
 		onlineBooking.setPurpose("Testbuchung");
 		onlineBooking.setAmount(new BigDecimal("123.45"));
 		onlineBooking.setBookingType(BookingType.DEPOSIT);
@@ -283,18 +284,44 @@ class FileImportXMLBeanTest {
 
 	@Test
 	void fileImportTask_shouldRouteFp3XmlFileThroughFp3XmlExtract() throws Exception {
-		Path fp3File = testResource("fp100.xml");
+		BankAccount account = importFp3File();
+
+		List<Booking> bookings = dbController.getAllByParentFull(Booking.class, account.getId());
+		assertEquals(18, bookings.size());
+	}
+
+	@Test
+	void fileImportTask_shouldImportFp3BookingsWithBookingDateAndValueDate() throws Exception {
+		BankAccount account = importFp3File();
+
+		List<Booking> bookings = dbController.getAllByParentFull(Booking.class, account.getId());
+		Booking bookingWithFourDigitYear = findBookingWithAmount(bookings, "8.97");
+		assertEquals(LocalDate.of(2024, Month.JULY, 25), bookingWithFourDigitYear.getDateBooking());
+		assertNull(bookingWithFourDigitYear.getDateValue());
+
+		Booking bookingWithValueDate = findBookingWithAmount(bookings, "8.56");
+		assertEquals(LocalDate.of(2021, Month.JULY, 26), bookingWithValueDate.getDateBooking());
+		assertEquals(LocalDate.of(2021, Month.JULY, 25), bookingWithValueDate.getDateValue());
+	}
+
+	private BankAccount importFp3File() throws Exception {
 		BankAccount account = TestDataFactory.createSampleAccount(null);
 		account.setAccountName("Vertragssparen - 2000510044");
 		account.setIban("DE09120300002000510044");
 		account.setNumber("2000510044");
 		account = dbController.insertOrUpdate(account);
 
-		FileImportTask task = new FileImportTask(fp3File.toString(), ExportType.BOOKINGS_FP3, account);
+		FileImportTask task = new FileImportTask(testResource("fp100.xml").toString(), ExportType.BOOKINGS_FP3, account);
 		JavaFxTestSupport.callFx(task::call);
+		return account;
+	}
 
-		List<Booking> bookings = dbController.getAllByParentFull(Booking.class, account.getId());
-		assertEquals(18, bookings.size());
+	private Booking findBookingWithAmount(List<Booking> bookings, String amount) {
+		BigDecimal expectedAmount = new BigDecimal(amount);
+		return bookings.stream()
+				.filter(booking -> booking.getAmount() != null && booking.getAmount().compareTo(expectedAmount) == 0)
+				.findFirst()
+				.orElseThrow();
 	}
 
 	@Test

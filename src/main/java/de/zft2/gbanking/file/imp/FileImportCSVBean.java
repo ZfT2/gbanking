@@ -254,11 +254,18 @@ public class FileImportCSVBean extends AbstractBookingImportBean {
 
 	private ImportBooking mapBooking(CsvImportData.Row row, CsvImportDefinition definition, ImportBankAccount account) {
 		BigDecimal amount = requireAmount(row, definition);
+		LocalDate dateBooking = parseDate(row, definition, CsvImportTarget.DATE, definition.getDateOrder());
+		LocalDate dateValue = parseDate(row, definition, CsvImportTarget.VALUE_DATE, definition.getValueDateOrder());
+		if (dateBooking == null && dateValue == null) {
+			// Bookings without any date are not imported. They cannot be demarcated and they would be
+			// imported a second time as soon as they are delivered again with a date.
+			throw new CsvRowException(getText("ERROR_CSV_IMPORT_DATE_MISSING", row.lineNumber()));
+		}
 		ImportBooking booking = new ImportBooking();
 		booking.setAccountName(account.getNamePP());
 		booking.setSource(Source.IMPORT);
-		booking.setDateBooking(parseDate(row, definition, CsvImportTarget.DATE, definition.getDateOrder()));
-		booking.setDateValue(parseDate(row, definition, CsvImportTarget.VALUE_DATE, definition.getValueDateOrder()));
+		booking.setDateBooking(dateBooking);
+		booking.setDateValue(dateValue);
 		booking.setPurpose(purpose(row, definition));
 		booking.setAmount(amount);
 		booking.setCurrency(defaultCurrency(row, definition));

@@ -12,6 +12,8 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.Month;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -104,6 +106,27 @@ class FileImportCSVBeanTest {
 		assertEquals(1, accounts.size());
 		assertEquals("Neues CSV Konto", accounts.get(0).getAccountName());
 		assertEquals(1, dbController.getAllByParentFull(Booking.class, accounts.get(0).getId()).size());
+	}
+
+	@Test
+	void importFileToDatabase_shouldRejectRowsWithoutBookingDateAndValueDate() throws Exception {
+		BankAccount account = createAccount("CSV Ohne Datum", "DE88888888888888888888", "88888888");
+		Path csvFile = writeCsv("""
+				KONTO_NAME;KONTO_IBAN;KONTO_NR;BUCHUNGSDATUM;WERTSTELLUNG;BETRAG;VERWENDUNGSZWECK
+				CSV Ohne Datum;DE88888888888888888888;88888888;;10.04.2026;1.00;Nur Wertstellung
+				CSV Ohne Datum;DE88888888888888888888;88888888;10.04.2026;;2.00;Nur Buchungsdatum
+				CSV Ohne Datum;DE88888888888888888888;88888888;;;-3.00;Ohne Datum
+				CSV Ohne Datum;DE88888888888888888888;88888888;12.04.2026;13.04.2026;4.00;Mit Datum
+				""");
+
+		FileImportCSVBean importer = new FileImportCSVBean(null);
+		importer.importFileToDatabase(csvFile.toString());
+
+		List<Booking> bookings = dbController.getAllByParentFull(Booking.class, account.getId());
+		assertEquals(3, bookings.size());
+		assertEquals(Set.of("Nur Wertstellung", "Nur Buchungsdatum", "Mit Datum"),
+				bookings.stream().map(Booking::getPurpose).collect(Collectors.toSet()));
+		assertEquals(List.of(4L), importer.getRejectedRows().stream().map(row -> row.lineNumber()).toList());
 	}
 
 	@Test

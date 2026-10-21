@@ -5,10 +5,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.Booking;
 
 final class ImportedBookingPersistence {
+
+	private static final Logger log = LogManager.getLogger(ImportedBookingPersistence.class);
 
 	private final DBController dbController;
 	private final Map<Integer, List<Booking>> existingBookingsByAccountId = new HashMap<>();
@@ -28,19 +33,31 @@ final class ImportedBookingPersistence {
 	}
 
 	Result persist(Booking booking) {
+		if (!hasDate(booking)) {
+			// Bookings without any date are ignored. They cannot be demarcated and they would be imported
+			// a second time as soon as they are delivered again with a date.
+			log.warn("Skipped imported booking without booking date and value date. accountId={}, amount={}",
+					booking.getAccountId(), booking.getAmount());
+			return new Result(false, true, null);
+		}
+
 		int accountId = booking.getAccountId();
 		List<Booking> processedBookings = processedBookings(accountId);
 		Booking existingBooking = ImportedBookingMatcher.findMatchingBooking(existingBookings(accountId), processedBookings, booking);
 		if (existingBooking != null) {
 			processedBookings.add(existingBooking);
-			return new Result(true, existingBooking);
+			return new Result(true, false, existingBooking);
 		}
 
 		Booking persistedBooking = dbController.insertOrUpdate(booking);
 		if (persistedBooking != null) {
 			processedBookings.add(persistedBooking);
 		}
-		return new Result(false, persistedBooking);
+		return new Result(false, false, persistedBooking);
+	}
+
+	private static boolean hasDate(Booking booking) {
+		return booking.getDateBooking() != null || booking.getDateValue() != null;
 	}
 
 	private List<Booking> existingBookings(int accountId) {
@@ -52,6 +69,6 @@ final class ImportedBookingPersistence {
 		return processedBookingsByAccountId.computeIfAbsent(accountId, id -> new ArrayList<>());
 	}
 
-	record Result(boolean existing, Booking booking) {
+	record Result(boolean existing, boolean skipped, Booking booking) {
 	}
 }

@@ -222,6 +222,10 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 				Optional.of(new PendingBookingSnapshot(mapped.pending(), retrieval.from())), "Enablebanking");
 		statusDialog.appendMessages(getText("UI_DIALOG_ENABLEBANKING_STATUS_ACCOUNT_RESULT", bankAccount.getAccountName(),
 				result.newBookingCount(), result.pendingBookingCount()));
+		if (mapped.skippedWithoutDate() > 0) {
+			statusDialog.appendMessages(getText("UI_DIALOG_ENABLEBANKING_STATUS_TRANSACTIONS_SKIPPED",
+					mapped.skippedWithoutDate()));
+		}
 		return result;
 	}
 
@@ -412,22 +416,34 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 			LocalDate from) {
 		Map<String, Booking> booked = new LinkedHashMap<>();
 		Map<String, Booking> pending = new LinkedHashMap<>();
+		int skippedWithoutDate = 0;
 		for (Map<String, Object> transaction : transactions) {
 			String status = upper(string(transaction.get("status")));
 			if (!BOOKED_STATUSES.contains(status) && !PENDING_STATUSES.contains(status)) {
 				continue;
 			}
-			Booking booking = mapBooking(account, transaction, status);
-			if (from == null || booking.getDateBooking() == null || !booking.getDateBooking().isBefore(from)) {
+			LocalDate bookingDate = firstDate(transaction, "booking_date", "transaction_date", "value_date");
+			if (bookingDate == null) {
+				// Transactions without any date are ignored. They cannot be demarcated and they would be
+				// imported twice as soon as they are delivered again with a date.
+				skippedWithoutDate++;
+				continue;
+			}
+			Booking booking = mapBooking(account, transaction, status, bookingDate);
+			if (from == null || !bookingDate.isBefore(from)) {
 				String fingerprint = stableReference(transaction, booking);
 				booking.setAdditionalDetails(additionalDetails(transaction, status, fingerprint));
 				(BOOKED_STATUSES.contains(status) ? booked : pending).putIfAbsent(fingerprint, booking);
 			}
 		}
-		return new MappedTransactions(List.copyOf(booked.values()), List.copyOf(pending.values()));
+		if (skippedWithoutDate > 0) {
+			log.warn("Ignored {} Enablebanking transactions without booking date and value date for account id {}",
+					skippedWithoutDate, account.getId());
+		}
+		return new MappedTransactions(List.copyOf(booked.values()), List.copyOf(pending.values()), skippedWithoutDate);
 	}
 
-	private Booking mapBooking(BankAccount account, Map<String, Object> transaction, String status) {
+	private Booking mapBooking(BankAccount account, Map<String, Object> transaction, String status, LocalDate bookingDate) {
 		Map<String, Object> transactionAmount = object(transaction.get("transaction_amount"));
 		BigDecimal amount = decimal(transactionAmount.get(AMOUNT));
 		if (amount == null) {
@@ -435,10 +451,6 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 		}
 		String indicator = upper(string(transaction.get("credit_debit_indicator")));
 		amount = "DBIT".equals(indicator) ? amount.abs().negate() : amount.abs();
-		LocalDate bookingDate = firstDate(transaction, "booking_date", "transaction_date", "value_date");
-		if (bookingDate == null) {
-			bookingDate = LocalDate.now(ZoneId.systemDefault());
-		}
 		Booking booking = new Booking();
 		booking.setAccountId(account.getId());
 		booking.setDateBooking(bookingDate);
@@ -563,7 +575,7 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 		return decimal(balanceAmount.get(AMOUNT));
 	}
 
-	record MappedTransactions(List<Booking> booked, List<Booking> pending) {
+	record MappedTransactions(List<Booking> booked, List<Booking> pending, int skippedWithoutDate) {
 	}
 
 	record TransactionRetrieval(List<Map<String, Object>> transactions, LocalDate from) {

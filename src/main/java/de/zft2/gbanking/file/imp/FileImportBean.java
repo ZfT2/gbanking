@@ -155,6 +155,8 @@ public class FileImportBean implements BaseMessagesDb {
 
 		if (isFp3Import(importFilePath)) {
 			fp32CsvBookingList = converter.convertFp3ToCsvEntries(importFilePath);
+			// The upstream converter only parses two digit years, the dates are restored here.
+			Fp3BookingDateReader.applyDates(importPath, fp32CsvBookingList);
 		} else {
 			converter.getConfig().setWithEmptyAccounts(FileImportSettings.isEmptyXmlAccountImportEnabled());
 			converter.checkAndCorrectInputFile(importFilePath);
@@ -438,7 +440,7 @@ public class FileImportBean implements BaseMessagesDb {
 
 		registerPendingCrossBooking(crossBookingMap, xmlBooking, resolvedBooking);
 		boolean updated = linkCrossBookingIfPossible(crossBookingMap, xmlBooking, resolvedBooking) && existing;
-		return new ImportedBookingResult(existing, updated, resolvedBooking);
+		return new ImportedBookingResult(existing, updated, persistenceResult.skipped(), resolvedBooking);
 	}
 
 	private void registerPendingCrossBooking(Map<de.zft2.core.dto.Booking, Integer> crossBookingMap,
@@ -472,7 +474,7 @@ public class FileImportBean implements BaseMessagesDb {
 	private void applyImportResult(List<Booking> bookingDaoList, ImportAccountStatistics accountStatistics, ImportedBookingResult importResult) {
 		if (importResult.updated()) {
 			accountStatistics.incrementUpdated();
-		} else if (importResult.existing()) {
+		} else if (importResult.existing() || importResult.skipped()) {
 			accountStatistics.incrementSkipped();
 		} else if (importResult.resolvedBooking() != null) {
 			bookingDaoList.add(importResult.resolvedBooking());
@@ -480,7 +482,7 @@ public class FileImportBean implements BaseMessagesDb {
 		}
 	}
 
-	private record ImportedBookingResult(boolean existing, boolean updated, Booking resolvedBooking) {
+	private record ImportedBookingResult(boolean existing, boolean updated, boolean skipped, Booking resolvedBooking) {
 	}
 
 	private boolean canLinkCrossBooking(Booking booking, Booking crossBooking) {
@@ -497,7 +499,7 @@ public class FileImportBean implements BaseMessagesDb {
 
 		for (Booking booking : bookingDaoList) {
 			ImportedBookingPersistence.Result persistenceResult = bookingPersistence.persist(booking);
-			if (persistenceResult.existing()) {
+			if (persistenceResult.existing() || persistenceResult.skipped()) {
 				updateBookingProgress(++importedBookingsCount);
 				continue;
 			}
