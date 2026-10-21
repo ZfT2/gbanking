@@ -1,6 +1,7 @@
 package de.zft2.gbanking.gui.panel.moneytransfer;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -30,6 +31,7 @@ import de.zft2.gbanking.gui.util.FxTableUtils;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.moneytransfer.MoneyTransferService;
+import de.zft2.gbanking.util.StandingOrderSchedule;
 import javafx.collections.FXCollections;
 import javafx.concurrent.Task;
 import javafx.scene.control.Alert;
@@ -76,7 +78,7 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 	private List<TableColumn<MoneyTransfer, ?>> createColumns() {
 		TableColumn<MoneyTransfer, Boolean> selectedCol = createSelectAllSelectionColumn(
 				transfer -> transfer.isSelected(), (transfer, selected) -> transfer.setSelected(selected));
-		TableColumn<MoneyTransfer, java.time.LocalDate> dateCol = TableColumnFactory.createCalendarDateColumn(getText("UI_TABLE_DATE"),
+		TableColumn<MoneyTransfer, java.time.LocalDate> dateCol = TableColumnFactory.createCalendarDateColumn(getText(executionDateColumnKey()),
 				MoneyTransfer::getExecutionDate, 95);
 		TableColumn<MoneyTransfer, String> recipientCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_RECIPIENT"),
 				transfer -> transfer.getRecipient() != null ? transfer.getRecipient().getName() : "", RECIPIENT_COLUMN_MIN_WIDTH,
@@ -96,7 +98,31 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 				transfer -> transfer.getSepaOrderStatus() != null ? transfer.getSepaOrderStatus().toString() : "", INSTANT_STATUS_COLUMN_MIN_WIDTH,
 				INSTANT_STATUS_COLUMN_PREF_WIDTH);
 
-		return List.of(selectedCol, dateCol, recipientCol, purposeCol, amountCol, ibanCol, bankCol, statusCol, instantStatusCol);
+		List<TableColumn<MoneyTransfer, ?>> columns = new ArrayList<>(
+				List.of(selectedCol, dateCol, recipientCol, purposeCol, amountCol, ibanCol, bankCol, statusCol, instantStatusCol));
+		if (orderType == OrderType.STANDING_ORDER) {
+			columns.add(1, createNextExecutionDateColumn());
+		}
+		return columns;
+	}
+
+	/**
+	 * Returns the message key of the execution date column. For a standing order the execution
+	 * date is the date of the first execution.
+	 *
+	 * @return message key of the execution date column
+	 */
+	private String executionDateColumnKey() {
+		return orderType == OrderType.STANDING_ORDER ? "UI_TABLE_FIRST_EXECUTION_DATE" : "UI_TABLE_DATE";
+	}
+
+	private TableColumn<MoneyTransfer, java.time.LocalDate> createNextExecutionDateColumn() {
+		return TableColumnFactory.createCalendarDateColumn(getText("UI_TABLE_NEXT_EXECUTION_DATE"), this::nextExecutionDate, 95);
+	}
+
+	private java.time.LocalDate nextExecutionDate(MoneyTransfer transfer) {
+		return StandingOrderSchedule.nextExecutionDate(transfer.getExecutionDate(), transfer.getExecutionDay(), transfer.getStandingorderMode(),
+				java.time.LocalDate.now(java.time.ZoneId.systemDefault()));
 	}
 
 	private void configureContextMenu() {

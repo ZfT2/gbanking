@@ -465,13 +465,7 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 	}
 
 	private String determineStandingOrderTurnus(StandingorderMode standingorderMode) {
-		return switch (standingorderMode) {
-		case MONTHLY -> "1";
-		case BIMONTHLY -> "2";
-		case QUARTERLY -> "3";
-		case SEMI_ANNUALLY -> "6";
-		case ANNUALLY -> "12";
-		};
+		return String.valueOf(standingorderMode.getIntervalMonths());
 	}
 
 	private String formatStandingOrderExecutionDay(Integer executionDay) {
