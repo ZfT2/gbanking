@@ -27,6 +27,7 @@ import de.zft2.gbanking.paypal.PaypalSupport;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
+import de.zft2.gbanking.util.IbanStructure;
 
 public class EnablebankingSetupService extends AbstractDbService {
 
@@ -169,14 +170,31 @@ public class EnablebankingSetupService extends AbstractDbService {
 
 	static BankAccount mapAccount(String bankName, String country, EnablebankingRemoteAccount remote,
 			BankAccount existing) {
+		return mapAccount(bankName, country, remote, existing, false);
+	}
+
+	/**
+	 * Maps the remote account details onto an already persisted account. The account type of the
+	 * persisted account is kept, because Enablebanking often delivers a wrong or unspecific account
+	 * type that the user has corrected in the setup dialog.
+	 */
+	static BankAccount mapAccountDetails(String bankName, String country, EnablebankingRemoteAccount remote,
+			BankAccount existing) {
+		return mapAccount(bankName, country, remote, existing, true);
+	}
+
+	private static BankAccount mapAccount(String bankName, String country, EnablebankingRemoteAccount remote,
+			BankAccount existing, boolean keepAccountType) {
 		BankAccount account = existing != null ? existing : new BankAccount();
-		AccountType accountType = mapAccountType(remote.cashAccountType());
-		if (accountType == AccountType.UNKNOWN_ACCOUNT && account.getAccountType() != null) {
-			accountType = account.getAccountType();
-		}
-		String iban = firstText(remote.iban(), account.getIban());
-		String number = firstText(remote.number(), account.getNumber(),
-				InstituteLookupCache.extractGermanAccountNumberFromIban(iban));
+		AccountType accountType = resolveAccountType(remote.cashAccountType(), account.getAccountType(),
+				keepAccountType);
+		// Some banks deliver the IBAN in the account number field, so it has to be moved to the IBAN field.
+		String remoteIban = IbanStructure.normalizeIban(remote.number());
+		String iban = remoteIban != null ? remoteIban : firstText(remote.iban(), account.getIban());
+		String existingNumber = accountNumberWithoutIban(account.getNumber());
+		String number = remoteIban != null
+				? firstText(existingNumber, IbanStructure.extractAccountNumber(iban))
+				: firstText(remote.number(), existingNumber, IbanStructure.extractAccountNumber(iban));
 		String ibanBlz = InstituteLookupCache.extractGermanBlzFromIban(iban);
 		boolean germanAccount = ibanBlz != null || "DE".equalsIgnoreCase(firstText(country, account.getCountry()));
 		String blz = firstText(germanAccount ? InstituteLookupCache.normalizeBlzCandidate(remote.blz()) : null,
@@ -206,6 +224,30 @@ public class EnablebankingSetupService extends AbstractDbService {
 		return account;
 	}
 
+	/**
+	 * Determines the account type of an account. The type delivered by Enablebanking is used, unless the
+	 * already persisted type has to be kept because the user corrected it.
+	 */
+	private static AccountType resolveAccountType(String cashAccountType, AccountType existingType,
+			boolean keepExistingType) {
+		AccountType mappedType = mapAccountType(cashAccountType);
+		if (existingType == null) {
+			return mappedType;
+		}
+		if (keepExistingType) {
+			return existingType;
+		}
+		return mappedType != AccountType.UNKNOWN_ACCOUNT ? mappedType : existingType;
+	}
+
+	/**
+	 * Returns the account number of an existing account, dropping an IBAN that was stored in the
+	 * account number field by an earlier release.
+	 */
+	private static String accountNumberWithoutIban(String number) {
+		return IbanStructure.normalizeIban(number) != null ? null : number;
+	}
+
 	private static String createAccountName(AccountType accountType, String number, String currency) {
 		List<String> components = new ArrayList<>(4);
 		if (accountType != AccountType.UNKNOWN_ACCOUNT) {
@@ -219,6 +261,19 @@ public class EnablebankingSetupService extends AbstractDbService {
 		}
 		components.add("(PSD2)");
 		return String.join(" - ", components);
+	}
+
+	/**
+	 * Checks whether the account name was derived from the account type during the setup, so that it
+	 * can be rebuilt after the account type was corrected.
+	 */
+	private static boolean hasDerivedAccountName(BankAccount account, AccountType previousType) {
+		String accountName = account.getAccountName();
+		if (!hasText(accountName)) {
+			return false;
+		}
+		String expectedName = createAccountName(previousType, account.getNumber(), account.getCurrency());
+		return accountName.equals(expectedName);
 	}
 
 	private static AccountType mapAccountType(String cashAccountType) {

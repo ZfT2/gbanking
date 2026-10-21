@@ -1,6 +1,7 @@
 package de.zft2.gbanking.enablebanking;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Map;
@@ -52,6 +53,129 @@ class EnablebankingSetupServiceTest {
 		assertEquals("5407324931 - EUR - (PSD2)", account.getAccountName());
 		assertEquals("5407324931", account.getNumber());
 		assertEquals("50010517", account.getBlz());
+	}
+
+	@Test
+	void mapAccount_shouldMoveGermanIbanFromAccountNumberToIbanField() {
+		EnablebankingRemoteAccount remote = remote(null, "BICADEFFXXX", "50010517",
+				"DE44500105175407324931", "CACC", "EUR", "Max Mustermann");
+
+		BankAccount account = EnablebankingSetupService.mapAccount("Example Bank", "DE", remote, null);
+
+		assertEquals("DE44500105175407324931", account.getIban());
+		assertEquals("5407324931", account.getNumber());
+		assertEquals("50010517", account.getBlz());
+	}
+
+	@Test
+	void mapAccount_shouldMoveNorwegianIbanFromAccountNumberToIbanField() {
+		EnablebankingRemoteAccount remote = remote(null, "ESSENORESS", null,
+				"NO9386011117947", "CARD", "NOK", "Max Mustermann");
+
+		BankAccount account = EnablebankingSetupService.mapAccount("Bank Norwegian", "NO", remote, null);
+
+		assertEquals("NO9386011117947", account.getIban());
+		assertEquals("1117947", account.getNumber());
+		assertTrue(account.isSEPAAccount());
+	}
+
+	@Test
+	void mapAccount_shouldKeepExistingAccountNumberWhenRemoteNumberIsAnIban() {
+		BankAccount existing = new BankAccount();
+		existing.setNumber("4711");
+		EnablebankingRemoteAccount remote = remote(null, "ESSENORESS", null,
+				"NO9386011117947", "CARD", "NOK", "Max Mustermann");
+
+		BankAccount account = EnablebankingSetupService.mapAccount("Bank Norwegian", "NO", remote, existing);
+
+		assertEquals("NO9386011117947", account.getIban());
+		assertEquals("4711", account.getNumber());
+	}
+
+	@Test
+	void mapAccount_shouldReplaceAccountNumberThatHeldTheIban() {
+		BankAccount existing = new BankAccount();
+		existing.setNumber("NO9386011117947");
+		EnablebankingRemoteAccount remote = remote(null, "ESSENORESS", null,
+				"NO9386011117947", "CARD", "NOK", "Max Mustermann");
+
+		BankAccount account = EnablebankingSetupService.mapAccount("Bank Norwegian", "NO", remote, existing);
+
+		assertEquals("NO9386011117947", account.getIban());
+		assertEquals("1117947", account.getNumber());
+	}
+
+	@Test
+	void mapAccountDetails_shouldKeepTheCorrectedAccountType() {
+		BankAccount existing = new BankAccount();
+		existing.setAccountType(AccountType.SAVINGS_ACCOUNT);
+		EnablebankingRemoteAccount remote = remote("DE44500105175407324931", "BICADEFFXXX", "87654321",
+				"4711", "CACC", "EUR", "Max Mustermann");
+
+		BankAccount account = EnablebankingSetupService.mapAccountDetails("Example Bank", "DE", remote, existing);
+
+		assertEquals(AccountType.SAVINGS_ACCOUNT, account.getAccountType());
+	}
+
+	@Test
+	void mapAccountDetails_shouldDeriveTheAccountTypeWhenNoneWasCorrected() {
+		EnablebankingRemoteAccount remote = remote("DE44500105175407324931", "BICADEFFXXX", "87654321",
+				"4711", "SVGS", "EUR", "Max Mustermann");
+
+		BankAccount account = EnablebankingSetupService.mapAccountDetails("Example Bank", "DE", remote, null);
+
+		assertEquals(AccountType.SAVINGS_ACCOUNT, account.getAccountType());
+	}
+
+	@Test
+	void mapAccountDetails_shouldKeepAnExplicitlyUnknownAccountType() {
+		BankAccount existing = new BankAccount();
+		existing.setAccountType(AccountType.UNKNOWN_ACCOUNT);
+		EnablebankingRemoteAccount remote = remote("DE44500105175407324931", "BICADEFFXXX", "87654321",
+				"4711", "CACC", "EUR", "Max Mustermann");
+
+		BankAccount account = EnablebankingSetupService.mapAccountDetails("Example Bank", "DE", remote, existing);
+
+		assertEquals(AccountType.UNKNOWN_ACCOUNT, account.getAccountType());
+	}
+
+	@Test
+	void applyAccountType_shouldCorrectTheAccountTypeAndTheDerivedAccountName() {
+		BankAccount account = new BankAccount();
+		account.setAccountType(AccountType.CURRENT_ACCOUNT);
+		account.setNumber("4711");
+		account.setCurrency("EUR");
+		account.setAccountName("Girokonto - 4711 - EUR - (PSD2)");
+
+		EnablebankingSetupService.applyAccountType(account, AccountType.SAVINGS_ACCOUNT);
+
+		assertEquals(AccountType.SAVINGS_ACCOUNT, account.getAccountType());
+		assertEquals("Sparkonto - 4711 - EUR - (PSD2)", account.getAccountName());
+	}
+
+	@Test
+	void applyAccountType_shouldKeepACustomAccountName() {
+		BankAccount account = new BankAccount();
+		account.setAccountType(AccountType.CURRENT_ACCOUNT);
+		account.setNumber("4711");
+		account.setCurrency("EUR");
+		account.setAccountName("Mein Konto");
+
+		EnablebankingSetupService.applyAccountType(account, AccountType.SAVINGS_ACCOUNT);
+
+		assertEquals(AccountType.SAVINGS_ACCOUNT, account.getAccountType());
+		assertEquals("Mein Konto", account.getAccountName());
+	}
+
+	@Test
+	void applyAccountType_shouldIgnoreAnUnchangedAccountType() {
+		BankAccount account = new BankAccount();
+		account.setAccountType(AccountType.CURRENT_ACCOUNT);
+		account.setAccountName("Girokonto - 4711 - EUR - (PSD2)");
+
+		EnablebankingSetupService.applyAccountType(account, AccountType.CURRENT_ACCOUNT);
+
+		assertEquals("Girokonto - 4711 - EUR - (PSD2)", account.getAccountName());
 	}
 
 	private EnablebankingRemoteAccount remote(String iban, String bic, String blz, String number,
