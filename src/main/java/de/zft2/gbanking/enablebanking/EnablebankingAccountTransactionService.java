@@ -207,7 +207,7 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 		EnablebankingRemoteAccount remoteAccount = findRemoteAccount(bankAccount, session.accounts());
 		String accountUid = remoteAccount.uid();
 		remoteAccount = client.getAccountDetails(accountUid);
-		EnablebankingSetupService.mapAccount(accessData.getAspspName(), accessData.getAspspCountry(),
+		EnablebankingSetupService.mapAccountDetails(accessData.getAspspName(), accessData.getAspspCountry(),
 				remoteAccount, bankAccount);
 		dbController.insertOrUpdate(bankAccount);
 		TransactionRetrieval retrieval = retrieveTransactions(client, accountUid, from, statusDialog);

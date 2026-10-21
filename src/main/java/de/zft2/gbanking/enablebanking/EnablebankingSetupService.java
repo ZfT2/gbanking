@@ -119,6 +119,25 @@ public class EnablebankingSetupService extends AbstractDbService {
 		}
 	}
 
+	/**
+	 * Applies an account type corrected by the user. The automatically derived
+	 * account name is updated as well, because it contains the account type. Custom
+	 * account names are left untouched.
+	 *
+	 * @param account     the account to correct
+	 * @param accountType the account type selected by the user
+	 */
+	public static void applyAccountType(BankAccount account, AccountType accountType) {
+		if (account == null || accountType == null || accountType == account.getAccountType()) {
+			return;
+		}
+		AccountType previousType = account.getAccountType();
+		account.setAccountType(accountType);
+		if (hasDerivedAccountName(account, previousType)) {
+			account.setAccountName(createAccountName(accountType, account.getNumber(), account.getCurrency()));
+		}
+	}
+
 	private List<BankAccount> mapSelectableAccounts(EnablebankingAspsp aspsp,
 			List<EnablebankingRemoteAccount> remoteAccounts) {
 		List<BankAccount> existingAccounts = dbController.getAll(BankAccount.class);

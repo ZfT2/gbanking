@@ -12,23 +12,31 @@ import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Psd2ClientConfiguration;
+import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.enablebanking.EnablebankingAspsp;
 import de.zft2.gbanking.enablebanking.EnablebankingAuthMethod;
 import de.zft2.gbanking.enablebanking.EnablebankingException;
 import de.zft2.gbanking.enablebanking.EnablebankingSetupService;
 import de.zft2.gbanking.gui.BackgroundActionCoordinator;
+import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
+import de.zft2.gbanking.gui.util.FxTableUtils;
+import de.zft2.gbanking.gui.util.TableColumnFactory;
 import de.zft2.gbanking.service.ServiceRegistry;
+import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -172,30 +180,108 @@ final class EnablebankingSetupDialog implements BaseMessages {
 	}
 
 	private Scene createAccountSelectionScene(BankAccess bankAccess) {
-		VBox accountList = new VBox(8);
-		List<CheckBox> choices = new ArrayList<>();
-		for (BankAccount account : bankAccess.getAccounts()) {
-			CheckBox choice = new CheckBox(account.getAccountName() + accountIdentifier(account));
-			choice.setSelected(true);
-			choice.setUserData(account);
-			choices.add(choice);
-			accountList.getChildren().add(choice);
-		}
-		ScrollPane scrollPane = new ScrollPane(accountList);
-		scrollPane.setFitToWidth(true);
-		VBox.setVgrow(scrollPane, Priority.ALWAYS);
+		ObservableList<BankAccount> accounts = FXCollections.observableArrayList(bankAccess.getAccounts());
+		accounts.forEach(account -> account.setSelected(true));
+		TableView<BankAccount> accountTable = createAccountTable(accounts);
 		Button save = new Button(getText("UI_BUTTON_SAVE"));
 		Button cancel = new Button(getText("UI_BUTTON_CANCEL"));
-		save.setOnAction(event -> save(bankAccess, choices, save, cancel));
+		save.setOnAction(event -> save(bankAccess, accounts, save, cancel));
 		cancel.setOnAction(event -> close());
-		VBox root = DialogWindowSupport.createDialogRoot(new Label(getText("UI_ENABLEBANKING_SELECT_ACCOUNTS")), scrollPane,
+		Label hint = new Label(getText("UI_ENABLEBANKING_SELECT_ACCOUNTS"));
+		hint.setWrapText(true);
+		VBox root = DialogWindowSupport.createDialogRoot(hint, accountTable,
 				DialogWindowSupport.createButtonBar(save, cancel));
+		VBox.setVgrow(accountTable, Priority.ALWAYS);
 		return new Scene(root, DIALOG_WIDTH, DIALOG_HEIGHT);
 	}
 
-	private void save(BankAccess bankAccess, List<CheckBox> choices, Button save, Button cancel) {
-		List<BankAccount> selected = choices.stream().filter(CheckBox::isSelected)
-				.map(choice -> (BankAccount) choice.getUserData()).toList();
+	/**
+	 * Creates the overview of the found accounts. The account type is shown in a dropdown, because
+	 * Enablebanking often delivers a wrong or unspecific account type that can be corrected here.
+	 */
+	static TableView<BankAccount> createAccountTable(ObservableList<BankAccount> accounts) {
+		TableView<BankAccount> accountTable = new TableView<>(accounts);
+		accountTable.setEditable(true);
+		accountTable.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+		accountTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+
+		TableColumn<BankAccount, Boolean> selectedColumn = FxTableUtils.createSelectAllSelectionColumn(
+				BaseMessages.getTextStatic("UI_TABLE_SELECT_ALL"), accounts, BankAccount::isSelected,
+				BankAccount::setSelected);
+		TableColumn<BankAccount, String> nameColumn = TableColumnFactory.createTextColumn(
+				BaseMessages.getTextStatic("UI_TABLE_ACCOUNT_NAME"), BankAccount::getAccountName, 180, 220);
+		TableColumn<BankAccount, String> ibanColumn = TableColumnFactory.createTextColumn(
+				BaseMessages.getTextStatic("UI_TABLE_IBAN"), BankAccount::getIban, 180, 220);
+		TableColumn<BankAccount, AccountType> accountTypeColumn = createAccountTypeColumn();
+
+		accountTable.getColumns().setAll(List.of(selectedColumn, nameColumn, ibanColumn, accountTypeColumn));
+		GuiLayoutState.configureTable(accountTable, "dialog.enablebankingAccounts");
+		return accountTable;
+	}
+
+	private static TableColumn<BankAccount, AccountType> createAccountTypeColumn() {
+		TableColumn<BankAccount, AccountType> column = new TableColumn<>(BaseMessages.getTextStatic("UI_TABLE_ACCOUNT_TYPE"));
+		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getAccountType()));
+		column.setCellFactory(ignored -> new AccountTypeCell());
+		FxTableUtils.setPreferredWidth(column, 140, 180);
+		return column;
+	}
+
+	/**
+	 * Cell that shows the account type in an always visible dropdown. The preselection is the account
+	 * type that was derived from the data delivered by Enablebanking.
+	 */
+	private static final class AccountTypeCell extends TableCell<BankAccount, AccountType> {
+
+		private final ComboBox<AccountType> comboBox = new ComboBox<>(
+				FXCollections.observableArrayList(AccountType.values()));
+
+		private AccountTypeCell() {
+			comboBox.setMaxWidth(Double.MAX_VALUE);
+			comboBox.prefWidthProperty().bind(widthProperty().subtract(16));
+			comboBox.setOnAction(event -> applyAccountType());
+			setAlignment(Pos.CENTER_LEFT);
+		}
+
+		@Override
+		protected void updateItem(AccountType accountType, boolean empty) {
+			super.updateItem(accountType, empty);
+			BankAccount account = getAccount();
+			if (empty || account == null) {
+				setGraphic(null);
+				return;
+			}
+			comboBox.setValue(account.getAccountType());
+			setGraphic(comboBox);
+		}
+
+		private void applyAccountType() {
+			BankAccount account = getAccount();
+			if (account == null || comboBox.getValue() == null
+					|| comboBox.getValue() == account.getAccountType()) {
+				return;
+			}
+			EnablebankingSetupService.applyAccountType(account, comboBox.getValue());
+			// The account name contains the account type, so the row has to be redrawn.
+			if (getTableView() != null) {
+				getTableView().refresh();
+			}
+		}
+
+		private BankAccount getAccount() {
+			if (getTableRow() != null && getTableRow().getItem() != null) {
+				return getTableRow().getItem();
+			}
+			TableView<BankAccount> table = getTableView();
+			if (table == null || getIndex() < 0 || getIndex() >= table.getItems().size()) {
+				return null;
+			}
+			return table.getItems().get(getIndex());
+		}
+	}
+
+	private void save(BankAccess bankAccess, List<BankAccount> accounts, Button save, Button cancel) {
+		List<BankAccount> selected = accounts.stream().filter(BankAccount::isSelected).toList();
 		if (selected.isEmpty()) {
 			DialogWindowSupport.showAlert(dialog, AlertType.WARNING, getText("UI_ENABLEBANKING_SELECT_AT_LEAST_ONE"));
 			return;
@@ -280,11 +366,6 @@ final class EnablebankingSetupDialog implements BaseMessages {
 		grid.add(new Label(getText(labelKey)), 0, row);
 		grid.add(field, 1, row);
 		GridPane.setHgrow(field, Priority.ALWAYS);
-	}
-
-	private String accountIdentifier(BankAccount account) {
-		String identifier = account.getIban() != null ? account.getIban() : account.getNumber();
-		return identifier != null ? " (" + identifier + ")" : "";
 	}
 
 	private void showFailure(Window window, Throwable throwable) {
