@@ -151,6 +151,12 @@ Please follow these guidelines:
 - Follow standard Java naming conventions
 - Keep methods short and readable
 - Ask before if you want to introduce new dependencies
+- Write code comments and commit messages  in **English** (Javadoc, `//` comments, inline comments). This applies to
+  production code as well as to test code.
+
+  User-facing text and resource files (`src/main/resources/messages_de.properties`)
+  stay German. Test data (names, notes, amounts in test fixtures) may contain umlauts on purpose —
+  they exercise the case-insensitive lookup.
 
 ---
 
