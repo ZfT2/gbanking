@@ -50,7 +50,9 @@ class EnablebankingSetupDialogTest {
 			comboBox.fireEvent(new ActionEvent());
 
 			assertEquals(AccountType.SAVINGS_ACCOUNT, account.getAccountType());
-			assertEquals("Sparkonto - 4711 - EUR - (PSD2)", account.getAccountName());
+			// The account name contains the localized account type label, so it is derived from the enum
+			// to keep the assertion independent of the locale of the build.
+			assertEquals(AccountType.SAVINGS_ACCOUNT + " - 4711 - EUR - (PSD2)", account.getAccountName());
 		});
 	}
 

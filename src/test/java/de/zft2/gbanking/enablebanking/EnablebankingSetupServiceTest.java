@@ -145,12 +145,14 @@ class EnablebankingSetupServiceTest {
 		account.setAccountType(AccountType.CURRENT_ACCOUNT);
 		account.setNumber("4711");
 		account.setCurrency("EUR");
-		account.setAccountName("Girokonto - 4711 - EUR - (PSD2)");
+		account.setAccountName(AccountType.CURRENT_ACCOUNT + " - 4711 - EUR - (PSD2)");
 
 		EnablebankingSetupService.applyAccountType(account, AccountType.SAVINGS_ACCOUNT);
 
 		assertEquals(AccountType.SAVINGS_ACCOUNT, account.getAccountType());
-		assertEquals("Sparkonto - 4711 - EUR - (PSD2)", account.getAccountName());
+		// The account name contains the localized account type label, so it is derived from the enum
+		// to keep the assertion independent of the locale of the build.
+		assertEquals(AccountType.SAVINGS_ACCOUNT + " - 4711 - EUR - (PSD2)", account.getAccountName());
 	}
 
 	@Test
@@ -171,11 +173,11 @@ class EnablebankingSetupServiceTest {
 	void applyAccountType_shouldIgnoreAnUnchangedAccountType() {
 		BankAccount account = new BankAccount();
 		account.setAccountType(AccountType.CURRENT_ACCOUNT);
-		account.setAccountName("Girokonto - 4711 - EUR - (PSD2)");
+		account.setAccountName(AccountType.CURRENT_ACCOUNT + " - 4711 - EUR - (PSD2)");
 
 		EnablebankingSetupService.applyAccountType(account, AccountType.CURRENT_ACCOUNT);
 
-		assertEquals("Girokonto - 4711 - EUR - (PSD2)", account.getAccountName());
+		assertEquals(AccountType.CURRENT_ACCOUNT + " - 4711 - EUR - (PSD2)", account.getAccountName());
 	}
 
 	private EnablebankingRemoteAccount remote(String iban, String bic, String blz, String number,
