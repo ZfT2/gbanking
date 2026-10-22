@@ -18,8 +18,10 @@ import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TextField;
@@ -33,6 +35,7 @@ public abstract class AbstractFilterableTablePanel<T> extends BorderPane impleme
 	protected final GBankingTableView<T> tableView = new GBankingTableView<>();
 	protected final TextField filterText = new TextField();
 	protected final Label titleLabel = new Label();
+	private final HBox titleRow = new HBox(8);
 	protected final ObservableList<T> masterData;
 	protected final FilteredList<T> filteredData;
 	private boolean restoringSelection;
@@ -54,14 +57,21 @@ public abstract class AbstractFilterableTablePanel<T> extends BorderPane impleme
 		HBox.setHgrow(filterText, Priority.ALWAYS);
 
 		titleLabel.setMaxWidth(Double.MAX_VALUE);
+		// The title must be able to give up space, otherwise a long title pushes the optional
+		// right-aligned node (e.g. a counter) out of the visible area of a narrow window.
+		titleLabel.setMinWidth(0);
+		titleLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
+		titleRow.setAlignment(Pos.CENTER_LEFT);
+		titleRow.getChildren().add(titleLabel);
+		HBox.setHgrow(titleLabel, Priority.ALWAYS);
 		tableView.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 		setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
-		setTop(titleLabel);
+		setTop(titleRow);
 		setCenter(tableView);
 		setBottom(filterBox);
 
-		BorderPane.setMargin(titleLabel, new Insets(0, 0, 6, 0));
+		BorderPane.setMargin(titleRow, new Insets(0, 0, 6, 0));
 		BorderPane.setMargin(filterBox, new Insets(6, 0, 0, 0));
 	}
 
@@ -71,6 +81,19 @@ public abstract class AbstractFilterableTablePanel<T> extends BorderPane impleme
 
 	protected void setPanelTitleByKey(String key) {
 		setPanelTitle(getText(key));
+	}
+
+	/**
+	 * Displays an additional node right-aligned next to the panel title.
+	 *
+	 * @param node the node to display, or {@code null} to remove it
+	 */
+	protected final void setPanelTitleRightNode(Node node) {
+		titleRow.getChildren().clear();
+		titleRow.getChildren().add(titleLabel);
+		if (node != null) {
+			titleRow.getChildren().add(node);
+		}
 	}
 
 	protected void setColumns(List<TableColumn<T, ?>> columns) {

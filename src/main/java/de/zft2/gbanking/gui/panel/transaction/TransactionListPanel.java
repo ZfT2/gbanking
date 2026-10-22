@@ -93,6 +93,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	final TransactionsOverviewBasePanel parentPanel;
 	private final BookingService bookingService;
 	private final Label saldoValueLabel = new Label();
+	private final Label transactionCountLabel = new Label();
 	private final DecimalFormat amountFormat = FxTableUtils.createGermanDecimalFormat();
 	private final DatePicker dateFromFilter = new DatePicker();
 	private final DatePicker dateToFilter = new DatePicker();
@@ -128,6 +129,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 
 	private void createInnerTransactionsPanel() {
 		setPanelTitleByKey("UI_PANEL_TRANSACTIONS");
+		configureTransactionCountLabel();
 		setColumns(createColumns());
 		configureDefaultSorting();
 		configureTableLayout("transactions." + parentPanel.getPageContext().name());
@@ -137,7 +139,10 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 		tableView.setFixedCellSize(70);
 		configureBookingSelection();
 		filteredData.addListener((ListChangeListener<Booking>) change -> updateSaldoLabel());
-		filterText.textProperty().addListener((obs, oldValue, newValue) -> tableView.refresh());
+		filterText.textProperty().addListener((obs, oldValue, newValue) -> {
+			tableView.refresh();
+			updateTransactionCount();
+		});
 		updateSaldoLabel();
 
 		if (parentPanel.getPageContext() == PageContext.ALL_TRANSACTIONS) {
@@ -362,6 +367,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 		String searchText = normalize(filterText.getText());
 		filteredData.setPredicate(booking -> matchesFilter(booking, searchText));
 		tableView.refresh();
+		updateTransactionCount();
 	}
 
 	private void resetFilters() {
@@ -763,10 +769,29 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 		BookingRunningBalanceCalculator.applyTo(bookingList);
 		applyCompactColumnWidths();
 		replaceItems(bookingList);
-		if (parentPanel.getPageContext() == PageContext.ALL_TRANSACTIONS) {
-			setPanelTitle(getText("UI_PANEL_TRANSACTIONS") + " (" + masterData.size() + ")");
-		}
+		updateTransactionCount();
 		refreshFilterChoices();
+	}
+
+	/**
+	 * Places the transaction count right-aligned next to the panel title.
+	 */
+	private void configureTransactionCountLabel() {
+		transactionCountLabel.setAlignment(Pos.CENTER_RIGHT);
+		setPanelTitleRightNode(transactionCountLabel);
+	}
+
+	/**
+	 * Shows the number of transactions of the current account (or of all accounts) in the title row.
+	 * As soon as a filter is active, the number of the filtered transactions is shown and marked
+	 * as filtered.
+	 */
+	private void updateTransactionCount() {
+		boolean filterActive = hasActiveFilter();
+		int transactionCount = filterActive ? filteredData.size() : masterData.size();
+		FxNodeSupport.setVisibleManaged(transactionCountLabel, filterActive || transactionCount > 0);
+		String messageKey = filterActive ? "UI_PANEL_TRANSACTIONS_COUNT_FILTERED" : "UI_PANEL_TRANSACTIONS_COUNT";
+		transactionCountLabel.setText(getText(messageKey, transactionCount));
 	}
 
 	private void updateSaldoLabel() {
