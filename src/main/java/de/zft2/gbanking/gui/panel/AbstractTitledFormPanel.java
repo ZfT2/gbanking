@@ -34,6 +34,10 @@ public abstract class AbstractTitledFormPanel extends BasePanel {
 		titledPane.setCollapsible(false);
 		titledPane.setContent(contentBox);
 		titledPane.setMaxWidth(Double.MAX_VALUE);
+		// The titled pane must be able to give up space. Otherwise its minimum width follows
+		// the current width of the title row and the form would no longer fit into a narrow
+		// window.
+		titledPane.setMinWidth(0);
 
 		FormStyleUtils.styleFormPanel(contentBox);
 		FormStyleUtils.styleTitledPane(titledPane);

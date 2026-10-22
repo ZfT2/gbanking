@@ -5,6 +5,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Control;
 import javafx.scene.control.Label;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -63,6 +64,7 @@ public final class FormGridHelper {
 
 		Label label = new Label(labelText == null ? "" : labelText);
 		label.getStyleClass().add("gbanking-form-label");
+		makeLabelShrinkable(label);
 
 		VBox box = new VBox(2);
 		box.getStyleClass().add("gbanking-form-field-box");
@@ -73,6 +75,7 @@ public final class FormGridHelper {
 			region.setMaxWidth(Double.MAX_VALUE);
 		}
 		if (field instanceof Control control) {
+			control.setMinWidth(0);
 			VBox.setVgrow(control, Priority.NEVER);
 		}
 
@@ -86,7 +89,7 @@ public final class FormGridHelper {
 
 		Label label = new Label(labelText == null ? "" : labelText);
 		label.getStyleClass().add("gbanking-form-label");
-		label.setMinWidth(INLINE_LABEL_WIDTH);
+		makeLabelShrinkable(label);
 		label.setPrefWidth(INLINE_LABEL_WIDTH);
 		label.setMaxWidth(INLINE_LABEL_WIDTH);
 
@@ -96,9 +99,19 @@ public final class FormGridHelper {
 		box.getChildren().addAll(label, field);
 
 		if (field instanceof Control control) {
+			control.setMinWidth(0);
 			HBox.setHgrow(control, Priority.NEVER);
 		}
 
 		return box;
+	}
+
+	/**
+	 * Allows a label to give up space. A label with its natural width enlarges the minimum
+	 * width of the surrounding form, so the form would no longer fit into a narrow window.
+	 */
+	private static void makeLabelShrinkable(Label label) {
+		label.setMinWidth(0);
+		label.setTextOverrun(OverrunStyle.ELLIPSIS);
 	}
 }

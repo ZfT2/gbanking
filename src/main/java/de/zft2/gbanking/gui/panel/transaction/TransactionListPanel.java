@@ -48,6 +48,7 @@ import javafx.scene.control.Control;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
@@ -86,6 +87,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	private static final double FILTER_AMOUNT_WIDTH = 105;
 	private static final double FILTER_CHOICE_WIDTH = 170;
 	private static final double FILTER_TOGGLE_WIDTH = 32;
+	private static final double FILTER_TEXT_MIN_WIDTH = 120;
 	private static final String FILTER_EXPAND_SYMBOL = "\u25bc";
 	private static final String FILTER_COLLAPSE_SYMBOL = "\u25b2";
 	private static final DateTimeFormatter GERMAN_DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.uuuu").withResolverStyle(ResolverStyle.STRICT);
@@ -153,7 +155,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	private void configureFooter() {
 		configureAdvancedFilters();
 		filterText.setPrefWidth(360);
-		filterText.setMinWidth(320);
+		filterText.setMinWidth(FILTER_TEXT_MIN_WIDTH);
 		filterText.setMaxWidth(420);
 
 		FlowPane advancedFilters = createAdvancedFilterPane();
@@ -173,9 +175,10 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 		footer.add(saldoValueLabel, 5, 0);
 		footer.add(advancedFilters, 0, 1, 6, 1);
 		GridPane.setMargin(advancedFilters, new Insets(8, 0, 0, 0));
-		saldoValueLabel.setMinWidth(100);
+		saldoValueLabel.setMinWidth(0);
 		saldoValueLabel.setPrefWidth(110);
 		saldoValueLabel.setMaxWidth(110);
+		saldoValueLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
 		saldoValueLabel.setAlignment(Pos.CENTER_RIGHT);
 		setBottom(footer);
 	}
@@ -814,11 +817,14 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 		}
 	}
 
+	/**
+	 * Aligns a footer column to the corresponding table column. Only the preferred width is
+	 * bound, because a minimum width that follows the table column would enlarge the minimum
+	 * width of the whole panel and the panel would no longer fit into a narrow window.
+	 */
 	private <T> void bindFooterColumnWidth(GridPane footer, TableColumn<Booking, T> column) {
 		ColumnConstraints constraints = new ColumnConstraints();
 		constraints.prefWidthProperty().bind(column.widthProperty());
-		constraints.minWidthProperty().bind(column.widthProperty());
-		constraints.maxWidthProperty().bind(column.widthProperty());
 		footer.getColumnConstraints().add(constraints);
 	}
 

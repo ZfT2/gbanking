@@ -48,6 +48,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Control;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
@@ -180,7 +181,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 
 		VBox rightColumn = new VBox(8, createRecipientPane(), createButtonsPane());
 		rightColumn.setPrefWidth(280);
-		rightColumn.setMinWidth(260);
+		rightColumn.setMinWidth(0);
 		rightColumn.setMaxWidth(320);
 
 		return new HBox(10, leftColumn, rightColumn);
@@ -202,8 +203,8 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		addFieldAbove(grid, "UI_LABEL_SOURCE", bookingSourceCombo, 2, 1);
 		TitledPane additionalNotePane = createAdditionalNotePane();
 		addAdditionalNoteToggleAndUpdatedAtField(grid, createAdditionalNoteToggle(additionalNotePane), 3, 1);
-		applyFixedWidth(amountText, AMOUNT_FIELD_WIDTH);
-		applyFixedWidth(currencyCombo, CURRENCY_FIELD_WIDTH);
+		applyPreferredWidth(amountText, AMOUNT_FIELD_WIDTH);
+		applyPreferredWidth(currencyCombo, CURRENCY_FIELD_WIDTH);
 
 		TitledPane detailsPane = titled(getText("UI_PANEL_TRANSACTION_DETAILS"), grid);
 		currencyDetailsPane = titled(getText("UI_PANEL_BOOKING_CURRENCY_DETAILS"), createCurrencyDetailsGrid());
@@ -286,7 +287,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		Tooltip tooltip = new Tooltip(getText("UI_BOOKING_NOTE_SHOW"));
 		toggle.setTooltip(tooltip);
 		toggle.setAccessibleText(tooltip.getText());
-		applyFixedWidth(toggle, ADDITIONAL_NOTE_TOGGLE_WIDTH);
+		applyPreferredWidth(toggle, ADDITIONAL_NOTE_TOGGLE_WIDTH);
 		toggle.selectedProperty().addListener((obs, wasExpanded, isExpanded) -> {
 			boolean expanded = Boolean.TRUE.equals(isExpanded);
 			FxNodeSupport.setVisibleManaged(additionalNotePane, expanded);
@@ -302,6 +303,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		int row = rowGroup * 2;
 		Label noteLabel = new Label(getText("UI_LABEL_NOTE"));
 		noteLabel.setLabelFor(toggle);
+		noteLabel.setMinWidth(0);
 		noteLabel.setOnMouseClicked(event -> toggle.setSelected(!toggle.isSelected()));
 		HBox noteToggle = new HBox(4, toggle, noteLabel);
 		noteToggle.setAlignment(Pos.CENTER_LEFT);
@@ -311,16 +313,18 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 
 		Label updatedAtLabel = new Label(getText("UI_LABEL_UPDATED_AT"));
 		updatedAtLabel.setMaxWidth(Double.MAX_VALUE);
+		updatedAtLabel.setMinWidth(0);
+		updatedAtLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
 		updatedAtLabel.setAlignment(Pos.CENTER_RIGHT);
 		VBox updatedAtBox = new VBox(2, updatedAtLabel, updatedAtText);
-		updatedAtBox.setMinWidth(UPDATED_AT_FIELD_WIDTH);
+		updatedAtBox.setMinWidth(0);
 		updatedAtBox.setPrefWidth(UPDATED_AT_FIELD_WIDTH);
 		updatedAtBox.setMaxWidth(UPDATED_AT_FIELD_WIDTH);
 		updatedAtBox.setAlignment(Pos.TOP_RIGHT);
 		updatedAtText.setAlignment(Pos.CENTER_RIGHT);
 
 		HBox box = new HBox(8, toggleBox, spacer, updatedAtBox);
-		box.setMinWidth(DETAIL_FIELD_WIDTH);
+		box.setMinWidth(0);
 		box.setPrefWidth(DETAIL_FIELD_WIDTH);
 		box.setMaxWidth(DETAIL_FIELD_WIDTH);
 		box.setAlignment(Pos.TOP_LEFT);
@@ -356,32 +360,47 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 
 	private void addFieldAbove(GridPane grid, String labelKey, Control field, int col, int rowGroup, int colspan) {
 		int row = rowGroup * 2;
-		VBox box = new VBox(2, new Label(getText(labelKey)), field);
+		VBox box = new VBox(2, createFieldLabel(getText(labelKey)), field);
 		grid.add(box, col, row, colspan, 2);
 		field.setMaxWidth(Double.MAX_VALUE);
+		field.setMinWidth(0);
+	}
+
+	/**
+	 * Creates a label for a form field. The label must be able to give up space, otherwise it
+	 * enlarges the minimum width of the detail panel and the panel no longer fits into a narrow
+	 * window.
+	 */
+	private Label createFieldLabel(String text) {
+		Label label = new Label(text);
+		label.setMinWidth(0);
+		label.setTextOverrun(OverrunStyle.ELLIPSIS);
+		return label;
 	}
 
 	private void addAmountCurrencyFields(GridPane grid, int col, int rowGroup) {
 		int row = rowGroup * 2;
-		VBox amountBox = new VBox(2, new Label(getText("UI_LABEL_AMOUNT")), amountText);
-		VBox currencyBox = new VBox(2, new Label(getText("UI_LABEL_CURRENCY")), currencyCombo);
+		VBox amountBox = new VBox(2, createFieldLabel(getText("UI_LABEL_AMOUNT")), amountText);
+		VBox currencyBox = new VBox(2, createFieldLabel(getText("UI_LABEL_CURRENCY")), currencyCombo);
 		HBox box = new HBox(6, amountBox, currencyBox);
 		grid.add(box, col, row, 1, 2);
 	}
 
-	private void applyFixedWidth(Control field, double width) {
-		field.setMinWidth(width);
+	/**
+	 * Applies a preferred and a maximum width to a field. The field stays shrinkable, so that
+	 * the detail panel fits into a narrow window.
+	 */
+	private void applyPreferredWidth(Control field, double width) {
+		field.setMinWidth(0);
 		field.setPrefWidth(width);
 		field.setMaxWidth(width);
 	}
 
 	private void applyDefaultFieldWidth(Control... fields) {
 		for (Control field : fields) {
-			field.setMinWidth(0);
-			field.setPrefWidth(DETAIL_FIELD_WIDTH);
-			field.setMaxWidth(DETAIL_FIELD_WIDTH);
+			applyPreferredWidth(field, DETAIL_FIELD_WIDTH);
 		}
-		applyFixedWidth(updatedAtText, UPDATED_AT_FIELD_WIDTH);
+		applyPreferredWidth(updatedAtText, UPDATED_AT_FIELD_WIDTH);
 	}
 
 	private void loadComboValues() {
