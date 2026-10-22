@@ -6,6 +6,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.function.BiPredicate;
 import java.util.regex.Pattern;
 
 import de.zft2.gbanking.db.dao.Booking;
@@ -22,6 +23,10 @@ public final class BookingDuplicateChecker {
 	private static final Set<String> GENERIC_BANK_REFERENCES = Set.of("NONREF", "NOTPROVIDED", "EREF+NONREF");
 	private static final Pattern MONEYPLEX_REFERENCE_VERSION_SUFFIX = Pattern.compile("[ \\t]{2,}V\\d{5}$",
 			Pattern.CASE_INSENSITIVE);
+	/** Moneyplex reference suffix of a single purpose line, also on a line that only holds the suffix. */
+	private static final Pattern MONEYPLEX_PURPOSE_LINE_SUFFIX = Pattern.compile("(?:[ \\t]{2,}|\\A)V\\d{5}$",
+			Pattern.CASE_INSENSITIVE);
+	private static final Pattern WHITESPACE_RUN = Pattern.compile("\\s+");
 
 	boolean isDuplicate(Booking newBooking, List<Booking> existingBookings, List<Booking> processedIncomingBookings) {
 		return findDuplicate(newBooking, existingBookings, processedIncomingBookings) != null;
@@ -81,14 +86,30 @@ public final class BookingDuplicateChecker {
 	private boolean hasFingerprintDuplicateMatch(Booking newBooking, Booking existingBooking) {
 		Source existingSource = existingBooking.getSource();
 		if (IMPORT_ONLINE_SOURCES.contains(existingSource)) {
-			return hasSameBookingFingerprint(newBooking, existingBooking)
+			return hasSameBookingFingerprint(newBooking, existingBooking, purposeComparator(newBooking, existingBooking))
 					&& hasNoConflictingRecipients(newBooking.getRecipient(), existingBooking.getRecipient());
 		}
 		if (MANUAL_SOURCES.contains(existingSource)) {
-			return hasSameBookingFingerprint(newBooking, existingBooking)
+			return hasSameBookingFingerprint(newBooking, existingBooking, BookingDuplicateChecker::hasEqualPurpose)
 					&& hasMatchingRecipient(newBooking.getRecipient(), existingBooking.getRecipient());
 		}
 		return false;
+	}
+
+	/**
+	 * Returns the purpose comparison for the given pair of bookings. The tolerant comparison is only
+	 * used between imported and online bookings because only there the same transaction can be stored
+	 * with a different level of detail.
+	 *
+	 * @param newBooking     the booking that is checked
+	 * @param existingBooking the booking that is already stored
+	 * @return the comparison of the two purposes
+	 */
+	private static BiPredicate<String, String> purposeComparator(Booking newBooking, Booking existingBooking) {
+		boolean bothImportOrOnline = IMPORT_ONLINE_SOURCES.contains(newBooking.getSource())
+				&& IMPORT_ONLINE_SOURCES.contains(existingBooking.getSource());
+		return bothImportOrOnline ? BookingDuplicateChecker::hasSamePurposeIncludingDetails
+				: BookingDuplicateChecker::hasEqualPurpose;
 	}
 
 	private boolean hasSameStableReference(Booking newBooking, Booking existingBooking) {
@@ -103,12 +124,13 @@ public final class BookingDuplicateChecker {
 		return details != null ? details.getInstref() : null;
 	}
 
-	private boolean hasSameBookingFingerprint(Booking newBooking, Booking existingBooking) {
+	private boolean hasSameBookingFingerprint(Booking newBooking, Booking existingBooking,
+			BiPredicate<String, String> purposeComparator) {
 		return newBooking.getAccountId() == existingBooking.getAccountId()
 				&& Amounts.sameRoundedAmount(newBooking.getAmount(), existingBooking.getAmount())
 				&& sameDate(newBooking.getDateBooking(), existingBooking.getDateBooking())
 				&& sameOptionalDate(newBooking.getDateValue(), existingBooking.getDateValue())
-				&& samePurpose(newBooking.getPurpose(), existingBooking.getPurpose())
+				&& purposeComparator.test(newBooking.getPurpose(), existingBooking.getPurpose())
 				&& sameOptionalInteger(newBooking.getCrossAccountId(), existingBooking.getCrossAccountId());
 	}
 
@@ -155,13 +177,97 @@ public final class BookingDuplicateChecker {
 		return left == null || right == null || left.equals(right);
 	}
 
-	private boolean samePurpose(String left, String right) {
-		String normalizedLeft = normalizePurposeForFingerprint(left);
-		String normalizedRight = normalizePurposeForFingerprint(right);
-		if (normalizedLeft == null || normalizedRight == null) {
-			return normalizedLeft == null && normalizedRight == null;
+	/**
+	 * Compares the purposes of two bookings. The comparison ignores line breaks and the case because an
+	 * imported booking usually stores the purpose in a single line while the online booking of the same
+	 * transaction contains the same text in several lines.
+	 *
+	 * @param left  the purpose of the first booking
+	 * @param right the purpose of the second booking
+	 * @return true if both purposes describe the same text
+	 */
+	private static boolean hasEqualPurpose(String left, String right) {
+		String flattenedLeft = flattenPurpose(left);
+		String flattenedRight = flattenPurpose(right);
+		if (flattenedLeft.isEmpty() || flattenedRight.isEmpty()) {
+			return flattenedLeft.isEmpty() && flattenedRight.isEmpty();
 		}
-		return normalizedLeft.equalsIgnoreCase(normalizedRight);
+		return flattenedLeft.equalsIgnoreCase(flattenedRight);
+	}
+
+	/**
+	 * Compares the purposes of an imported and an online booking. The imported booking contains only the
+	 * core of the purpose while the online booking contains the same core plus additional detail lines of
+	 * the bank, for example the camt usage lines. Both bookings describe the same transaction if the
+	 * shorter purpose is contained in the longer one.
+	 *
+	 * @param left  the purpose of the first booking
+	 * @param right the purpose of the second booking
+	 * @return true if both purposes describe the same transaction
+	 */
+	private static boolean hasSamePurposeIncludingDetails(String left, String right) {
+		String flattenedLeft = flattenPurpose(left);
+		String flattenedRight = flattenPurpose(right);
+		if (flattenedLeft.isEmpty() || flattenedRight.isEmpty()) {
+			return flattenedLeft.isEmpty() && flattenedRight.isEmpty();
+		}
+		if (flattenedLeft.length() <= flattenedRight.length()) {
+			return containsDelimited(flattenedRight, flattenedLeft);
+		}
+		return containsDelimited(flattenedLeft, flattenedRight);
+	}
+
+	/**
+	 * Returns the purpose as a single line without line breaks, without repeated whitespace and without
+	 * the moneyplex reference suffix of the single lines.
+	 *
+	 * @param purpose the purpose of a booking
+	 * @return the flattened purpose, empty if there is no purpose
+	 */
+	private static String flattenPurpose(String purpose) {
+		String normalized = normalizeText(purpose);
+		if (normalized == null) {
+			return "";
+		}
+		StringBuilder flattened = new StringBuilder();
+		for (String line : normalized.split("\n")) {
+			String cleanedLine = MONEYPLEX_PURPOSE_LINE_SUFFIX.matcher(line.trim()).replaceFirst("").trim();
+			cleanedLine = WHITESPACE_RUN.matcher(cleanedLine).replaceAll(" ").trim();
+			if (cleanedLine.isEmpty()) {
+				continue;
+			}
+			if (flattened.length() > 0) {
+				flattened.append(' ');
+			}
+			flattened.append(cleanedLine);
+		}
+		return flattened.toString();
+	}
+
+	/**
+	 * Checks whether the shorter purpose is contained in the longer one. The match must be delimited by a
+	 * non alphanumeric character so that a purpose is not matched inside a word.
+	 *
+	 * @param longer  the flattened purpose of the booking with more text
+	 * @param shorter the flattened purpose of the booking with less text
+	 * @return true if the shorter purpose is contained in the longer one
+	 */
+	private static boolean containsDelimited(String longer, String shorter) {
+		String haystack = longer.toLowerCase(Locale.ROOT);
+		String needle = shorter.toLowerCase(Locale.ROOT);
+		int index = haystack.indexOf(needle);
+		while (index >= 0) {
+			int end = index + needle.length();
+			if (isDelimiting(haystack, index - 1) && isDelimiting(haystack, end)) {
+				return true;
+			}
+			index = haystack.indexOf(needle, index + 1);
+		}
+		return false;
+	}
+
+	private static boolean isDelimiting(String text, int index) {
+		return index < 0 || index >= text.length() || !Character.isLetterOrDigit(text.charAt(index));
 	}
 
 	private boolean sameNonBlankText(String left, String right) {

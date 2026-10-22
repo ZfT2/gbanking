@@ -65,6 +65,58 @@ class BookingDuplicateCheckerTest {
 		assertSame(onlineBooking, checker.findDuplicate(importedBooking, List.of(onlineBooking), List.of()));
 	}
 
+	@Test
+	void shouldDetectDuplicateWhenOnlineBookingHasAdditionalPurposeLines() {
+		Booking onlineBooking = createBooking(Source.ONLINE_NEW,
+				"Abschluss per 30.06.2026\nSaldo Rechnungsabschluss per 30.06.2026\nincl. Abschlussbetrag 3.155,05\nSollzinsen: - 0,25");
+		Booking importedBooking = createBooking(Source.IMPORT_INITIAL, "ABSCHLUSS PER 30.06.2026");
+
+		assertTrue(checker.isDuplicate(onlineBooking, List.of(importedBooking), List.of()));
+	}
+
+	@Test
+	void shouldDetectDuplicateInReverseDirectionWhenOnlineBookingHasAdditionalPurposeLines() {
+		Booking importedBooking = createBooking(Source.IMPORT_INITIAL, "ABSCHLUSS PER 30.06.2026");
+		Booking onlineBooking = createBooking(Source.ONLINE_NEW,
+				"Abschluss per 30.06.2026\nSaldo Rechnungsabschluss per 30.06.2026\nincl. Abschlussbetrag 3.155,05\nSollzinsen: - 0,25");
+
+		assertTrue(checker.isDuplicate(importedBooking, List.of(onlineBooking), List.of()));
+	}
+
+	@Test
+	void shouldDetectDuplicateWhenPurposeDiffersOnlyByLineBreaks() {
+		Booking onlineBooking = createBooking(Source.ONLINE_NEW, "Kartenzahlung\n15.05.2026\nV00010");
+		Booking importedBooking = createBooking(Source.IMPORT_INITIAL, "Kartenzahlung 15.05.2026");
+
+		assertTrue(checker.isDuplicate(onlineBooking, List.of(importedBooking), List.of()));
+	}
+
+	@Test
+	void shouldNotDetectDuplicateForDifferentPurposes() {
+		Booking onlineBooking = createBooking(Source.ONLINE_NEW, "Abschluss per 30.06.2026\nSollzinsen: - 0,25");
+		Booking importedBooking = createBooking(Source.IMPORT_INITIAL, "ABSCHLUSS PER 31.05.2026");
+
+		assertFalse(checker.isDuplicate(onlineBooking, List.of(importedBooking), List.of()));
+	}
+
+	@Test
+	void shouldNotDetectDuplicateWhenPurposeMatchesOnlyInsideAWord() {
+		Booking onlineBooking = createBooking(Source.ONLINE_NEW, "Abschluss per 30.06.2026\nSollzinsen: - 0,25");
+		Booking importedBooking = createBooking(Source.IMPORT_INITIAL, "Zinsen");
+
+		assertFalse(checker.isDuplicate(onlineBooking, List.of(importedBooking), List.of()));
+	}
+
+	@Test
+	void shouldKeepManualBookingComparisonStrict() {
+		Booking onlineBooking = createBooking(Source.ONLINE_NEW, "Kartenzahlung\nDetails der Bank");
+		Booking manualBooking = createBooking(Source.MANUELL, "Kartenzahlung");
+		manualBooking.setRecipient(createRecipient("DE12345678901234567890"));
+		onlineBooking.setRecipient(createRecipient("DE12345678901234567890"));
+
+		assertFalse(checker.isDuplicate(onlineBooking, List.of(manualBooking), List.of()));
+	}
+
 	private static Booking createBooking(Source source, String purpose) {
 		Booking booking = new Booking();
 		booking.setAccountId(1);
