@@ -56,9 +56,10 @@ public class FileExportFP3Bean extends FileExportBean {
 
 	private String createFP3Content(BankAccount account) {
 		totalAccounts = 1;
-		updateWorkerState(1, true, "UI_PROGRESS_EXPORT_FP3_BOOKINGS_ACCOUNT", account.getAccountName());
+		updateState("UI_PROGRESS_EXPORT_FP3_BOOKINGS_ACCOUNT", account.getAccountName());
 
-		List<Booking> bookings = getBookings(account).stream().sorted(BOOKING_ORDER).toList();
+		AccountExportData data = loadAccountExportData(List.of(account)).get(0);
+		List<Booking> bookings = data.bookings().stream().sorted(BOOKING_ORDER).toList();
 		Map<Integer, BigDecimal> balancesByBookingId = calculateBalances(account, bookings);
 		List<Booking> exportRows = new ArrayList<>(bookings);
 		exportRows.sort(BOOKING_ORDER.reversed());
@@ -91,6 +92,7 @@ public class FileExportFP3Bean extends FileExportBean {
 		appendColumnHeader(xml, currency);
 		for (int i = 0; i < bookings.size(); i++) {
 			appendBookingRow(xml, bookings.get(i), balancesByBookingId.get(bookings.get(i).getId()), i);
+			countExportedBooking();
 		}
 		xml.append("\t\t\t<b3 t=\"993,13451\"><m29 u=\"GBanking\" /></b3>\r\n");
 		xml.append("\t\t</page0>\r\n");
@@ -234,7 +236,7 @@ public class FileExportFP3Bean extends FileExportBean {
 		Files.writeString(exportPath, fp3Content, StandardCharsets.UTF_8);
 		log.info("Finished FP3 booking export. file={}", exportPath.getFileName());
 		log.debug("FP3 export path: {}", exportPath);
-		updateWorkerState(99, false, "UI_PROGRESS_FINISH");
+		updateWorkerState(99, "UI_PROGRESS_FINISH");
 	}
 
 	private static LocalDate sortDate(Booking booking) {

@@ -20,6 +20,7 @@ import org.xml.sax.SAXException;
 
 import de.zft2.fp3xmlextract.convert.Converter;
 import de.zft2.fp3xmlextract.convert.Fp3XmlBookingProcessor;
+import de.zft2.gbanking.concurrent.ProgressCalculation;
 import de.zft2.gbanking.concurrent.ProgressReporter;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
@@ -70,24 +71,15 @@ public class FileImportBean extends AbstractBookingImportBean {
 	}
 
 	private void updateWorkerState(long importedCount, long totalCount, int percentageStart, int percentageStop, String messageKey, Object... param) {
-		updateWorkerState(calculateProgress(importedCount, totalCount, percentageStart, percentageStop), messageKey, param);
-	}
-
-	private int calculateProgress(long importedCount, long totalCount, int percentageStart, int percentageStop) {
-		if (totalCount <= 0) {
-			return percentageStop;
-		}
-		long boundedCount = Math.max(0L, Math.min(importedCount, totalCount));
-		double completedFraction = boundedCount / (double) totalCount;
-		return percentageStart + (int) Math.round((percentageStop - percentageStart) * completedFraction);
+		updateWorkerState(ProgressCalculation.calculate(importedCount, totalCount, percentageStart, percentageStop), messageKey, param);
 	}
 
 	private void updateAccountProgress(long importedCount) {
-		updateWorkerProgress(calculateProgress(importedCount, totalAccounts, PROGRESS_ACCOUNTS_START, PROGRESS_ACCOUNTS_END));
+		updateWorkerProgress(ProgressCalculation.calculate(importedCount, totalAccounts, PROGRESS_ACCOUNTS_START, PROGRESS_ACCOUNTS_END));
 	}
 
 	private void updateBookingProgress(long importedCount) {
-		updateWorkerProgress(calculateProgress(importedCount, totalBookings, PROGRESS_BOOKINGS_START, PROGRESS_BOOKINGS_END));
+		updateWorkerProgress(ProgressCalculation.calculate(importedCount, totalBookings, PROGRESS_BOOKINGS_START, PROGRESS_BOOKINGS_END));
 	}
 
 	public boolean importFile(String importFile) {

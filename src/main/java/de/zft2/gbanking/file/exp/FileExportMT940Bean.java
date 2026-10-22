@@ -56,18 +56,19 @@ public class FileExportMT940Bean extends FileExportBean {
 	private String createMT940Content(List<BankAccount> accountList) {
 		StringBuilder content = new StringBuilder();
 		totalAccounts = accountList.size();
-		updateWorkerState(1, true, "UI_PROGRESS_EXPORT_ACCOUNTS", totalAccounts);
+		updateState("UI_PROGRESS_EXPORT_ACCOUNTS", totalAccounts);
 
-		int exportedAccounts = 0;
-		for (BankAccount account : accountList) {
-			updateWorkerStateAccounts(exportedAccounts++, "UI_PROGRESS_EXPORT_MT940_BOOKINGS_ACCOUNT", account.getAccountName());
-			appendStatement(content, account, exportedAccounts);
+		int statementNumber = 0;
+		for (AccountExportData data : loadAccountExportData(accountList)) {
+			updateState("UI_PROGRESS_EXPORT_MT940_BOOKINGS_ACCOUNT", data.account().getAccountName());
+			appendStatement(content, data, ++statementNumber);
 		}
 		return content.toString();
 	}
 
-	private void appendStatement(StringBuilder content, BankAccount account, int statementNumber) {
-		List<Booking> bookings = getBookings(account).stream().sorted(BOOKING_ORDER).toList();
+	private void appendStatement(StringBuilder content, AccountExportData data, int statementNumber) {
+		BankAccount account = data.account();
+		List<Booking> bookings = data.bookings().stream().sorted(BOOKING_ORDER).toList();
 		LocalDate startDate = statementDate(bookings, true);
 		LocalDate endDate = statementDate(bookings, false);
 		String currency = firstNonBlank(account.getCurrency(), "EUR");
@@ -81,6 +82,7 @@ public class FileExportMT940Bean extends FileExportBean {
 		for (Booking booking : bookings) {
 			content.append(createTag61(booking));
 			content.append(createTag86(booking));
+			countExportedBooking();
 		}
 		content.append(":62F:").append(formatBalance(endDate, currency, endBalance)).append(CRLF);
 		content.append("-").append(CRLF);
@@ -226,6 +228,6 @@ public class FileExportMT940Bean extends FileExportBean {
 		Files.writeString(exportPath, mt940Content, StandardCharsets.ISO_8859_1);
 		log.info("Finished MT940 booking export. file={}", exportPath.getFileName());
 		log.debug("MT940 export path: {}", exportPath);
-		updateWorkerState(99, false, "UI_PROGRESS_FINISH");
+		updateWorkerState(99, "UI_PROGRESS_FINISH");
 	}
 }

@@ -55,13 +55,13 @@ public class FileExportCSVBean extends FileExportBean {
 
 		List<Object[]> csvLines = new ArrayList<>();
 		totalAccounts = accountList.size();
-		updateWorkerState(1, true, "UI_PROGRESS_EXPORT_ACCOUNTS", totalAccounts);
+		updateState("UI_PROGRESS_EXPORT_ACCOUNTS", totalAccounts);
 
-		int exportedAccounts = 0;
-		for (BankAccount account : accountList) {
-			updateWorkerStateAccounts(exportedAccounts++, "UI_PROGRESS_EXPORT_BOOKINGS_ACCOUNT", account.getAccountName());
-			for (Booking booking : getBookings(account)) {
-				csvLines.add(createCsvRow(account, booking));
+		for (AccountExportData data : loadAccountExportData(accountList)) {
+			updateState("UI_PROGRESS_EXPORT_BOOKINGS_ACCOUNT", data.account().getAccountName());
+			for (Booking booking : data.bookings()) {
+				csvLines.add(createCsvRow(data.account(), booking));
+				countExportedBooking();
 			}
 		}
 
@@ -114,7 +114,7 @@ public class FileExportCSVBean extends FileExportBean {
 			}
 			csvPrinter.flush();
 		}
-		updateWorkerState(99, false, "UI_PROGRESS_FINISH");
+		updateWorkerState(99, "UI_PROGRESS_FINISH");
 	}
 
 }

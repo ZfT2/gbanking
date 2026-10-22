@@ -5,12 +5,14 @@ import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.BaseMessagesDb;
+import de.zft2.gbanking.concurrent.ProgressCalculation;
 import de.zft2.gbanking.concurrent.ProgressReporter;
 import de.zft2.gbanking.concurrent.ProgressReporters;
 import de.zft2.gbanking.db.dao.BankAccount;
@@ -20,6 +22,11 @@ import de.zft2.gbanking.util.AppPaths;
 public abstract class FileExportBean implements BaseMessagesDb {
 
 	private static final Logger log = LogManager.getLogger(FileExportBean.class);
+
+	private static final int PROGRESS_ACCOUNTS_START = 0;
+	private static final int PROGRESS_ACCOUNTS_END = 10;
+	private static final int PROGRESS_BOOKINGS_START = PROGRESS_ACCOUNTS_END;
+	private static final int PROGRESS_BOOKINGS_END = 90;
 
 	protected static final String TAG_KONTO = "KONTO";
 	protected static final String TAG_IBAN = "IBAN";
@@ -111,43 +118,59 @@ public abstract class FileExportBean implements BaseMessagesDb {
 	protected long totalBookings = 0L;
 
 	protected final ProgressReporter progressReporter;
-	private double currentProgress = 0.0;
+	private int currentProgress = 0;
+	private long exportedBookings = 0L;
 
 	protected FileExportBean(ProgressReporter progressReporter) {
 		this.progressReporter = ProgressReporters.orNone(progressReporter);
 	}
 
-	protected void updateWorkerStateAccounts(long importedCount, String messageKey, Object... param) {
-		updateWorkerState(importedCount, totalAccounts, 0, 10, messageKey, param);
-	}
-
-	protected void updateWorkerStateBookings(long importedCount, String messageKey, Object... param) {
-		updateWorkerState(importedCount, totalBookings, 10, 90, messageKey, param);
-	}
-
-	private void updateWorkerState(long importedCount, long totalCount, int percentageStart, int percentageStop, String messageKey, Object... param) {
-		int progress;
-		if (totalCount <= 0) {
-			progress = percentageStart;
-		} else {
-			progress = (int) (importedCount / (double) totalCount * 100 * (percentageStop * 0.1));
-			progress = progress > percentageStop ? percentageStop : progress;
-			progress = progress < percentageStart ? progress + percentageStart : progress;
-		}
-
-		currentProgress = progress;
+	/**
+	 * Reports the state message of the export without changing the progress.
+	 *
+	 * @param messageKey the key of the message
+	 * @param param      the parameters of the message
+	 */
+	protected void updateState(String messageKey, Object... param) {
 		progressReporter.reportState(getText(messageKey, param));
-		progressReporter.reportProgress(progress);
 	}
 
-	protected void updateWorkerState(int progress, boolean updateProgress, String messageKey, Object... param) {
-		progressReporter.reportState(getText(messageKey, param));
-		currentProgress = updateProgress ? currentProgress + progress : progress;
-		if (currentProgress < 0) {
-			currentProgress = 0;
-		} else if (currentProgress > 100) {
-			currentProgress = 100;
+	/**
+	 * Reports the progress of the account phase. The progress is only reported when the percentage
+	 * changes, because a phase can contain many items.
+	 *
+	 * @param processedAccounts the number of already processed accounts
+	 */
+	protected void reportAccountProgress(long processedAccounts) {
+		reportPhaseProgress(processedAccounts, totalAccounts, PROGRESS_ACCOUNTS_START, PROGRESS_ACCOUNTS_END);
+	}
+
+	/**
+	 * Counts an exported booking and reports the progress of the booking phase. The progress is only
+	 * reported when the percentage changes, because the phase can contain many bookings.
+	 */
+	protected void countExportedBooking() {
+		reportPhaseProgress(++exportedBookings, totalBookings, PROGRESS_BOOKINGS_START, PROGRESS_BOOKINGS_END);
+	}
+
+	private void reportPhaseProgress(long processedCount, long totalCount, int percentageStart, int percentageStop) {
+		int progress = ProgressCalculation.calculate(processedCount, totalCount, percentageStart, percentageStop);
+		if (progress != currentProgress) {
+			currentProgress = progress;
+			progressReporter.reportProgress(progress);
 		}
+	}
+
+	/**
+	 * Reports the state message and the given absolute progress of the export.
+	 *
+	 * @param progress   the progress in percent, it is limited to the range from 0 to 100
+	 * @param messageKey the key of the message
+	 * @param param      the parameters of the message
+	 */
+	protected void updateWorkerState(int progress, String messageKey, Object... param) {
+		progressReporter.reportState(getText(messageKey, param));
+		currentProgress = Math.max(0, Math.min(progress, 100));
 		progressReporter.reportProgress(currentProgress);
 	}
 
@@ -177,6 +200,27 @@ public abstract class FileExportBean implements BaseMessagesDb {
 		return dbController.getAllByParentFull(Booking.class, account.getId());
 	}
 
+	/**
+	 * Loads the bookings of all given accounts and remembers their total number for the progress
+	 * calculation of the booking phase.
+	 *
+	 * @param accountList the accounts to export
+	 * @return the accounts with their bookings in the order of the given account list
+	 */
+	protected List<AccountExportData> loadAccountExportData(List<BankAccount> accountList) {
+		List<AccountExportData> exportData = new ArrayList<>();
+		long bookingCount = 0L;
+		int processedAccounts = 0;
+		for (BankAccount account : accountList) {
+			List<Booking> bookings = getBookings(account);
+			exportData.add(new AccountExportData(account, bookings));
+			bookingCount += bookings.size();
+			reportAccountProgress(++processedAccounts);
+		}
+		totalBookings = bookingCount;
+		return exportData;
+	}
+
 	protected BigDecimal endBalance(BankAccount account, List<Booking> bookings) {
 		if (account.getBalance() != null) {
 			return account.getBalance();
@@ -196,4 +240,13 @@ public abstract class FileExportBean implements BaseMessagesDb {
 	}
 
 	public abstract boolean exportFileFromDatatbase(List<BankAccount> accountList, String fileName);
+
+	/**
+	 * An account with the bookings that have to be exported for it.
+	 *
+	 * @param account  the exported account
+	 * @param bookings the bookings of the account
+	 */
+	protected record AccountExportData(BankAccount account, List<Booking> bookings) {
+	}
 }

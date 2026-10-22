@@ -15,6 +15,7 @@ import org.apache.logging.log4j.Logger;
 import de.zft2.core.dto.Booking.Typ;
 import de.zft2.core.dto.Counterpart;
 import de.zft2.gbanking.BaseMessagesDb;
+import de.zft2.gbanking.concurrent.ProgressCalculation;
 import de.zft2.gbanking.concurrent.ProgressReporter;
 import de.zft2.gbanking.concurrent.ProgressReporters;
 import de.zft2.gbanking.db.dao.BankAccount;
@@ -39,6 +40,8 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 	protected static final int PROGRESS_RECIPIENTS_START = PROGRESS_BOOKINGS_END;
 	protected static final int PROGRESS_CATEGORIES_START = 98;
 	protected static final int PROGRESS_FINISHED = 100;
+	protected static final int PROGRESS_RECORDS_START = 10;
+	protected static final int PROGRESS_RECORDS_END = 90;
 
 	private final ProgressReporter progressReporter;
 	private final BankAccount contextAccount;
@@ -210,9 +213,9 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 
 	protected int progress(int current, int total) {
 		if (total <= 0) {
-			return 10;
+			return PROGRESS_RECORDS_START;
 		}
-		return 10 + (int) (current / (double) total * 80);
+		return ProgressCalculation.calculate(current, total, PROGRESS_RECORDS_START, PROGRESS_RECORDS_END);
 	}
 
 	protected void updateWorkerState(int progress, String messageKey, Object... param) {

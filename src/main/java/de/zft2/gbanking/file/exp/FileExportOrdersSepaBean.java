@@ -62,7 +62,7 @@ public class FileExportOrdersSepaBean extends FileExportBean {
 			}
 			writeDocument(createDocument(exportData.groups()), prepareExportPath(fileName));
 			String finalMessage = exportData.skippedCount() > 0 ? "UI_MONEYTRANSFER_SEPA_EXPORT_SKIPPED" : "UI_PROGRESS_FINISH";
-			updateWorkerState(99, false, finalMessage, exportData.skippedCount());
+			updateWorkerState(99, finalMessage, exportData.skippedCount());
 			if (log.isInfoEnabled()) {
 				log.info("Finished SEPA PAIN export. file={}, records={}, skippedUnsupported={}", fileNameOnly(fileName),
 						exportData.exportedCount(), exportData.skippedCount());

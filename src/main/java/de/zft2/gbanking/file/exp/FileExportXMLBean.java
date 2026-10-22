@@ -65,12 +65,13 @@ public class FileExportXMLBean extends FileExportBean {
 		doc.appendChild(rootElement);
 
 		totalAccounts = accountList.size();
-		int exportedAccountsCount = 0;
-		updateWorkerState(1, true, "UI_PROGRESS_EXPORT_ACCOUNTS", totalAccounts);
+		updateState("UI_PROGRESS_EXPORT_ACCOUNTS", totalAccounts);
 
-		for (BankAccount account : accountList) {
+		List<AccountExportData> exportData = loadAccountExportData(accountList);
+		for (AccountExportData data : exportData) {
+			BankAccount account = data.account();
 
-			updateWorkerState(1, true, "UI_PROGRESS_EXPORT_ACCOUNT", account.getAccountName());
+			updateState("UI_PROGRESS_EXPORT_ACCOUNT", account.getAccountName());
 
 			Element accountNode = doc.createElement(TAG_KONTO);
 
@@ -89,12 +90,9 @@ public class FileExportXMLBean extends FileExportBean {
 			Element accountBook = doc.createElement("KONTOBUCH");
 			accountNode.appendChild(accountBook);
 
-			long exportedBookingsCount = 0;
+			updateState("UI_PROGRESS_EXPORT_BOOKINGS_ACCOUNT_COUNT", account.getAccountName(), data.bookings().size());
 
-			List<Booking> bookingList = getBookings(account);
-			updateWorkerStateBookings(exportedBookingsCount, "UI_PROGRESS_EXPORT_BOOKINGS_ACCOUNT_COUNT", account.getAccountName(), bookingList.size());
-
-			for (Booking booking : bookingList) {
+			for (Booking booking : data.bookings()) {
 				Element bookingNode = doc.createElement("BUCHUNG");
 
 				addElementTextNode(doc, bookingNode, "DATUM", TypeConverter.toDateStringShort(booking.getDateBooking()));
@@ -122,13 +120,12 @@ public class FileExportXMLBean extends FileExportBean {
 
 				accountBook.appendChild(bookingNode);
 
-				exportedBookingsCount++;
+				countExportedBooking();
 			}
 
 			rootElement.appendChild(accountNode);
-			exportedAccountsCount++;
 		}
-		log.debug("Prepared XML export document. accounts={}", exportedAccountsCount);
+		log.debug("Prepared XML export document. accounts={}", exportData.size());
 
 		return doc;
 	}
@@ -182,7 +179,7 @@ public class FileExportXMLBean extends FileExportBean {
 		log.info("Finished XML booking export. file={}", exportPath.getFileName());
 		log.debug("XML export path: {}", exportPath);
 
-		updateWorkerState(99, false, "UI_PROGRESS_FINISH");
+		updateWorkerState(99, "UI_PROGRESS_FINISH");
 	}
 
 }
