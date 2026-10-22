@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 import de.zft2.gbanking.BaseMessages;
+import de.zft2.gbanking.gui.util.FormStyleUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -88,10 +89,7 @@ public final class DialogWindowSupport implements BaseMessages {
 	}
 
 	public static HBox createButtonBar(Button... buttons) {
-		HBox buttonBar = new HBox(10);
-		buttonBar.setAlignment(Pos.CENTER_RIGHT);
-		buttonBar.getChildren().addAll(buttons);
-		return buttonBar;
+		return FormStyleUtils.createButtonBar(Pos.CENTER_RIGHT, buttons);
 	}
 
 	public static Scene createScene(Parent root, double width, double height) {

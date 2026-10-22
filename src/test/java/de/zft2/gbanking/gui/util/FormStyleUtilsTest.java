@@ -113,13 +113,4 @@ class FormStyleUtilsTest {
 		assertTrue(FormStyleUtils.isUserEditable(Source.MANUELL_NEW));
 		assertFalse(FormStyleUtils.isUserEditable(Source.ONLINE_NEW));
 	}
-
-	@Test
-	void controlsShouldReturnListInSameOrder() {
-		TextField first = JavaFxTestSupport.callFx(TextField::new);
-		TextField second = JavaFxTestSupport.callFx(TextField::new);
-
-		assertEquals(first, FormStyleUtils.controls(first, second).get(0));
-		assertEquals(second, FormStyleUtils.controls(first, second).get(1));
-	}
 }

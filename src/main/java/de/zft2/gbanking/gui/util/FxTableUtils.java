@@ -99,6 +99,22 @@ public final class FxTableUtils {
 	 * @return the cell factory for boolean symbol columns
 	 */
 	public static <S> Callback<TableColumn<S, Boolean>, TableCell<S, Boolean>> createBooleanSymbolCellFactory() {
+		return createBooleanSymbolCellFactory(StatusSymbols.STYLE_CLASS, StatusSymbols.STYLE_CLASS_VALID,
+				StatusSymbols.STYLE_CLASS_INVALID);
+	}
+
+	/**
+	 * Creates a cell factory that renders a boolean state as a green check mark or a red cross with
+	 * the given style classes.
+	 *
+	 * @param <S>             the row type
+	 * @param styleClass      the style class of the symbol
+	 * @param validStyleClass the style class of the check mark
+	 * @param invalidStyleClass the style class of the cross
+	 * @return the cell factory for boolean symbol columns
+	 */
+	public static <S> Callback<TableColumn<S, Boolean>, TableCell<S, Boolean>> createBooleanSymbolCellFactory(String styleClass,
+			String validStyleClass, String invalidStyleClass) {
 		return column -> new TableCell<>() {
 
 			private final Label indicator = new Label();
@@ -115,7 +131,8 @@ public final class FxTableUtils {
 					setGraphic(null);
 					return;
 				}
-				StatusSymbols.applyTo(indicator, item);
+				indicator.setText(StatusSymbols.text(item));
+				indicator.getStyleClass().setAll(styleClass, item ? validStyleClass : invalidStyleClass);
 				setGraphic(indicator);
 			}
 		};
@@ -170,6 +187,17 @@ public final class FxTableUtils {
 	}
 
 	public static <S> Callback<TableColumn<S, String>, TableCell<S, String>> createWrappedTextCellFactory() {
+		return createWrappedTextCellFactory(Pos.CENTER_LEFT);
+	}
+
+	/**
+	 * Creates a cell factory for a text that is wrapped into the cell.
+	 *
+	 * @param <S>       the row type
+	 * @param alignment the alignment of the text within the cell
+	 * @return the cell factory for wrapped text columns
+	 */
+	public static <S> Callback<TableColumn<S, String>, TableCell<S, String>> createWrappedTextCellFactory(Pos alignment) {
 		return column -> new TableCell<>() {
 
 			private final Label label = new Label();
@@ -181,7 +209,7 @@ public final class FxTableUtils {
 				label.maxWidthProperty().bind(column.widthProperty().subtract(16));
 				setGraphic(label);
 				setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
-				setAlignment(Pos.CENTER_LEFT);
+				setAlignment(alignment);
 			}
 
 			@Override

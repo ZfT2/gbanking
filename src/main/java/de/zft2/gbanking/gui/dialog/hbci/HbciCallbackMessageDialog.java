@@ -90,10 +90,7 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 		FxThreadSupport.run(() -> {
 			Stage stage = getOrCreateDialog();
 			durationLabel.start();
-			if (!stage.isShowing()) {
-				stage.show();
-			}
-			stage.toFront();
+			showInFront(stage);
 		});
 	}
 
@@ -105,9 +102,7 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 			Stage stage = getOrCreateDialog();
 			appendText(messageArea, message);
 			statusLabel.setText(getLastLine(message));
-			if (!stage.isShowing()) {
-				stage.show();
-			}
+			showIfHidden(stage);
 		});
 	}
 
@@ -118,9 +113,7 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 		FxThreadSupport.run(() -> {
 			Stage stage = getOrCreateDialog();
 			appendText(detailsArea, details);
-			if (!stage.isShowing()) {
-				stage.show();
-			}
+			showIfHidden(stage);
 		});
 	}
 
@@ -155,9 +148,7 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 					: "UI_DIALOG_HBCI_FEEDBACK_STATUS_FINISHED_WITH_ERRORS"));
 			closeButton.setDisable(false);
 			closeButton.requestFocus();
-			if (!stage.isShowing()) {
-				stage.show();
-			}
+			showIfHidden(stage);
 		});
 	}
 
@@ -190,15 +181,29 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 			Stage stage = getOrCreateDialog();
 			interactionActive = true;
 			showRecipientCheck(request, confirmLabel, cancelLabel, result, latch);
-			if (!stage.isShowing()) {
-				stage.show();
-			}
-			stage.toFront();
+			showInFront(stage);
 			dialog.sizeToScene();
 		});
 
 		awaitLatch(latch);
 		return result.get();
+	}
+
+	/**
+	 * Shows the dialog if it is not visible yet.
+	 */
+	private void showIfHidden(Stage stage) {
+		if (!stage.isShowing()) {
+			stage.show();
+		}
+	}
+
+	/**
+	 * Shows the dialog if it is not visible yet and brings it to the front.
+	 */
+	private void showInFront(Stage stage) {
+		showIfHidden(stage);
+		stage.toFront();
 	}
 
 	private Stage getOrCreateDialog() {
@@ -338,10 +343,7 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 
 			FxNodeSupport.setVisibleManaged(interactionBox, true);
 			FxNodeSupport.setVisibleManaged(recipientCheckBox, false);
-			if (!stage.isShowing()) {
-				stage.show();
-			}
-			stage.toFront();
+			showInFront(stage);
 			dialog.sizeToScene();
 		});
 

@@ -40,6 +40,7 @@ import de.zft2.gbanking.service.booking.BookingService;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.settings.SettingDefinition;
 import de.zft2.gbanking.service.settings.SettingsStore;
+import de.zft2.gbanking.util.AccountDisplay;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -833,12 +834,6 @@ public class AnalysisOverviewPanel extends OverviewBasePanel {
 	}
 
 	private String formatAccountName(BankAccount account) {
-		if (account.getAccountName() != null && !account.getAccountName().isBlank()) {
-			return account.getAccountName();
-		}
-		if (account.getIban() != null && !account.getIban().isBlank()) {
-			return account.getIban();
-		}
-		return account.getNumber() != null && !account.getNumber().isBlank() ? account.getNumber() : "?";
+		return AccountDisplay.displayName(account, "?");
 	}
 }

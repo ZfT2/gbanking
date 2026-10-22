@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -22,6 +23,7 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -74,6 +76,7 @@ import de.zft2.gbanking.service.moneytransfer.MoneyTransferService;
 import de.zft2.gbanking.service.stock.StockPortfolioFinTsRetrievalResult;
 import de.zft2.gbanking.service.stock.StockPortfolioFinTsService;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
+import de.zft2.gbanking.util.AccountDisplay;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -371,35 +374,40 @@ public class GBankingGui extends Application implements BaseGui {
 	}
 
 	private boolean validateSupportedAccountUpdates(List<BankAccount> checkedAccounts) {
-		List<BankAccount> unsupportedAccounts = checkedAccounts.stream()
-				.filter(account -> !bankingCapabilityService.supportsAccountUpdate(account)).toList();
-		if (unsupportedAccounts.isEmpty()) {
-			return true;
-		}
-
-		showWarning(primaryStage, getText("ALERT_ACCOUNT_UPDATE_UNSUPPORTED", formatAccountNames(unsupportedAccounts)));
-		return false;
+		return validateAccounts(checkedAccounts, account -> !bankingCapabilityService.supportsAccountUpdate(account),
+				"ALERT_ACCOUNT_UPDATE_UNSUPPORTED");
 	}
 
 	private boolean validateConfiguredBankAccess(List<BankAccount> checkedAccounts) {
-		List<BankAccount> accountsWithoutBankAccess = checkedAccounts.stream()
-				.filter(account -> !bankAccessService.hasConfiguredBankAccess(account)).toList();
-		if (accountsWithoutBankAccess.isEmpty()) {
-			return true;
-		}
-
-		showWarning(primaryStage, getText("ALERT_ACCOUNT_BANK_ACCESS_MISSING", formatAccountNames(accountsWithoutBankAccess)));
-		return false;
+		return validateAccounts(checkedAccounts, account -> !bankAccessService.hasConfiguredBankAccess(account),
+				"ALERT_ACCOUNT_BANK_ACCESS_MISSING");
 	}
 
 	private boolean validateSupportedAccountTransactions(List<BankAccount> checkedAccounts) {
-		List<BankAccount> unsupportedAccounts = checkedAccounts.stream().filter(account -> !bankingCapabilityService.supportsAccountTransactions(account))
-				.toList();
+		return validateAccounts(checkedAccounts, account -> !bankingCapabilityService.supportsAccountTransactions(account),
+				"ALERT_ACCOUNT_TRANSACTIONS_UNSUPPORTED");
+	}
+
+	/**
+	 * Shows a warning if some of the given accounts are not supported. The names of the unsupported
+	 * accounts are appended to the parameters of the warning message.
+	 *
+	 * @param accounts          the accounts to check
+	 * @param unsupported       selects the accounts that are not supported
+	 * @param messageKey        the key of the warning message
+	 * @param messageParameters the additional parameters of the warning message
+	 * @return true if all accounts are supported
+	 */
+	private boolean validateAccounts(List<BankAccount> accounts, Predicate<BankAccount> unsupported, String messageKey,
+			Object... messageParameters) {
+		List<BankAccount> unsupportedAccounts = accounts.stream().filter(unsupported).toList();
 		if (unsupportedAccounts.isEmpty()) {
 			return true;
 		}
 
-		showWarning(primaryStage, getText("ALERT_ACCOUNT_TRANSACTIONS_UNSUPPORTED", formatAccountNames(unsupportedAccounts)));
+		Object[] parameters = Arrays.copyOf(messageParameters, messageParameters.length + 1);
+		parameters[messageParameters.length] = formatAccountNames(unsupportedAccounts);
+		showWarning(primaryStage, getText(messageKey, parameters));
 		return false;
 	}
 
@@ -556,16 +564,14 @@ public class GBankingGui extends Application implements BaseGui {
 			return;
 		}
 
-		List<BankAccount> accountsWithoutBankAccess = selectedAccounts.stream().filter(account -> !bankAccessService.hasConfiguredBankAccess(account)).toList();
-		if (!accountsWithoutBankAccess.isEmpty()) {
-			showWarning(primaryStage, getText("ALERT_ACCOUNT_BANK_ACCESS_MISSING_ORDERS", formatAccountNames(accountsWithoutBankAccess)));
+		if (!validateAccounts(selectedAccounts, account -> !bankAccessService.hasConfiguredBankAccess(account),
+				"ALERT_ACCOUNT_BANK_ACCESS_MISSING_ORDERS")) {
 			return;
 		}
 
-		List<BankAccount> unsupportedAccounts = selectedAccounts.stream()
-				.filter(account -> !bankingCapabilityService.supportsOrderInventory(account, orderType)).toList();
-		if (!unsupportedAccounts.isEmpty()) {
-			showWarning(primaryStage, getText("ALERT_ACCOUNT_ORDER_INVENTORY_UNSUPPORTED", orderType.getPlural(), formatAccountNames(unsupportedAccounts)));
+		if (!validateAccounts(selectedAccounts,
+				account -> !bankingCapabilityService.supportsOrderInventory(account, orderType),
+				"ALERT_ACCOUNT_ORDER_INVENTORY_UNSUPPORTED", orderType.getPlural())) {
 			return;
 		}
 
@@ -1165,13 +1171,7 @@ public class GBankingGui extends Application implements BaseGui {
 	}
 
 	private String formatAccountName(BankAccount bankAccount) {
-		if (bankAccount.getAccountName() != null && !bankAccount.getAccountName().isBlank()) {
-			return bankAccount.getAccountName();
-		}
-		if (bankAccount.getIban() != null && !bankAccount.getIban().isBlank()) {
-			return bankAccount.getIban();
-		}
-		return bankAccount.getNumber() != null && !bankAccount.getNumber().isBlank() ? bankAccount.getNumber() : "?";
+		return AccountDisplay.displayName(bankAccount, "?");
 	}
 
 	private String formatBankLabel(BankAccount bankAccount) {

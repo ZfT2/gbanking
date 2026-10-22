@@ -51,6 +51,17 @@ abstract class BaseFileProgressBarPanel implements BaseMessages {
 		return dialogStage;
 	}
 
+	/**
+	 * Creates the progress window, starts the background task and shows the window.
+	 *
+	 * @param startAction starts the background task of the panel
+	 */
+	public void showProgressWindow(Runnable startAction) {
+		Stage progressWindow = createNewFileImportProgressBarWindow();
+		startAction.run();
+		progressWindow.show();
+	}
+
 	protected String getWindowTitle() {
 		return "Import";
 	}

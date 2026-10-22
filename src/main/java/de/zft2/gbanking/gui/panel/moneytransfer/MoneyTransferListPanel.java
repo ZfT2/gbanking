@@ -26,7 +26,7 @@ import de.zft2.gbanking.gui.enu.FileType;
 import de.zft2.gbanking.gui.panel.AbstractFilterableTablePanel;
 import de.zft2.gbanking.gui.panel.action.PinAskDialog;
 import de.zft2.gbanking.gui.progress.MoneyTransferImportProgressBarPanel;
-import de.zft2.gbanking.gui.util.FileChooserDirectorySupport;
+import de.zft2.gbanking.gui.util.FileChooserSupport;
 import de.zft2.gbanking.gui.util.FxTableUtils;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
 import de.zft2.gbanking.service.ServiceRegistry;
@@ -38,7 +38,6 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableColumn;
-import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTransfer> {
@@ -253,9 +252,7 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 		try {
 			MoneyTransferImportProgressBarPanel progressPanel = new MoneyTransferImportProgressBarPanel(getTableWindow(),
 					parentPanel::reloadListPanels, ExportType.MONEYTRANSFERS_CSV, importStatus.get());
-			var progressWindow = progressPanel.createNewFileImportProgressBarWindow();
-			progressPanel.startTasks(importFiles, null);
-			progressWindow.show();
+			progressPanel.showProgressWindow(() -> progressPanel.startTasks(importFiles, null));
 		} catch (Exception e) {
 			log.error("Money transfer CSV import failed", e);
 			showWarning(e.getMessage());
@@ -263,11 +260,7 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 	}
 
 	private List<Path> chooseCsvImportFiles() {
-		FileChooser fileChooser = new FileChooser();
-		FileChooserDirectorySupport.configure(fileChooser, EnvironmentOptions.DEFAULT_DIR_IMPORT);
-		fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(FileType.CSV.getDescription(), "*" + FileType.CSV.getSuffix()));
-		return FileChooserDirectorySupport.remember(fileChooser.showOpenMultipleDialog(getTableWindow()),
-				EnvironmentOptions.DEFAULT_DIR_IMPORT);
+		return FileChooserSupport.chooseFiles(getTableWindow(), FileType.CSV, EnvironmentOptions.DEFAULT_DIR_IMPORT);
 	}
 
 	private void showWarning(String text) {

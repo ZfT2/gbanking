@@ -17,7 +17,6 @@ import de.zft2.gbanking.gui.panel.account.AccountListPanel;
 import de.zft2.gbanking.gui.progress.FileExportProgressBarPanel;
 import de.zft2.gbanking.gui.progress.FileImportProgressBarPanel;
 import javafx.scene.control.Alert;
-import javafx.stage.FileChooser;
 import javafx.stage.Window;
 
 public final class BookingFileActionSupport {
@@ -37,9 +36,7 @@ public final class BookingFileActionSupport {
 		}
 		try {
 			FileExportProgressBarPanel progressPanel = new FileExportProgressBarPanel(owner, List.of(account));
-			var progressWindow = progressPanel.createNewFileImportProgressBarWindow();
-			progressPanel.startTask(exportFile.toString(), exportType, accountListPanel);
-			progressWindow.show();
+			progressPanel.showProgressWindow(() -> progressPanel.startTask(exportFile.toString(), exportType, accountListPanel));
 		} catch (Exception e) {
 			log.error("Booking export failed", e);
 			showWarning(owner, e.getMessage());
@@ -65,9 +62,7 @@ public final class BookingFileActionSupport {
 			}
 			FileImportProgressBarPanel progressPanel = new FileImportProgressBarPanel(owner, selection.account(), successCallback,
 					selection.definitionName());
-			var progressWindow = progressPanel.createNewFileImportProgressBarWindow();
-			progressPanel.startTask(importFile.toString(), importType, accountListPanel);
-			progressWindow.show();
+			progressPanel.showProgressWindow(() -> progressPanel.startTask(importFile.toString(), importType, accountListPanel));
 		} catch (Exception e) {
 			log.error("Booking import failed", e);
 			showWarning(owner, e.getMessage());
@@ -75,12 +70,8 @@ public final class BookingFileActionSupport {
 	}
 
 	private static Path chooseFile(Window owner, FileType fileType, boolean saveDialog) {
-		FileChooser chooser = new FileChooser();
 		String optionKey = saveDialog ? EnvironmentOptions.DEFAULT_DIR_EXPORT : EnvironmentOptions.DEFAULT_DIR_IMPORT;
-		FileChooserDirectorySupport.configure(chooser, optionKey);
-		chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(fileType.getDescription(), fileType.getExtensionPatterns()));
-		var selectedFile = saveDialog ? chooser.showSaveDialog(owner) : chooser.showOpenDialog(owner);
-		return FileChooserDirectorySupport.remember(selectedFile, optionKey);
+		return FileChooserSupport.chooseFile(owner, fileType, optionKey, saveDialog);
 	}
 
 	private static void showWarning(Window owner, String text) {

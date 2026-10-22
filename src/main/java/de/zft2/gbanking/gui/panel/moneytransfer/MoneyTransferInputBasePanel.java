@@ -238,7 +238,7 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 	private void configureIbanValidationStatus() {
 		ibanFieldHolder.setAlignment(Pos.CENTER_LEFT);
 		HBox.setHgrow(tfIBAN, Priority.ALWAYS);
-		ibanValidationStatus.getStyleClass().add("iban-validation-status");
+		ibanValidationStatus.getStyleClass().add(StatusSymbols.VALIDATION_STYLE_CLASS);
 		ibanValidationStatus.setMinWidth(20);
 		ibanValidationStatus.setPrefWidth(20);
 		ibanValidationStatus.setVisible(false);
@@ -256,7 +256,8 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 		Tooltip tooltip = new Tooltip(getText(valid ? "TOOLTIP_IBAN_VALID" : "TOOLTIP_IBAN_INVALID"));
 		tooltip.setFont(Font.getDefault());
 		ibanValidationStatus.setTooltip(tooltip);
-		ibanValidationStatus.getStyleClass().setAll("iban-validation-status", valid ? "iban-valid" : "iban-invalid");
+		ibanValidationStatus.getStyleClass().setAll(StatusSymbols.VALIDATION_STYLE_CLASS,
+				valid ? StatusSymbols.VALIDATION_STYLE_CLASS_VALID : StatusSymbols.VALIDATION_STYLE_CLASS_INVALID);
 		ibanValidationStatus.setVisible(true);
 	}
 

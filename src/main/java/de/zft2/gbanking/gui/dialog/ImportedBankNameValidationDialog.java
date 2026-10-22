@@ -1,7 +1,5 @@
 package de.zft2.gbanking.gui.dialog;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -9,7 +7,6 @@ import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import de.zft2.gbanking.BaseMessages;
@@ -17,11 +14,9 @@ import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.file.imp.ImportedBankNameCorrectionHandler;
 import de.zft2.gbanking.file.imp.ImportedBankNameFinding;
 import de.zft2.gbanking.gui.GuiLayoutState;
-import de.zft2.gbanking.gui.util.FxTableUtils;
+import de.zft2.gbanking.gui.util.TableColumnFactory;
 import javafx.application.Platform;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyObjectWrapper;
-import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.geometry.Pos;
@@ -110,44 +105,18 @@ public final class ImportedBankNameValidationDialog implements BaseMessages, Imp
 		TableView<DialogRow> table = new TableView<>(FXCollections.observableArrayList(rows));
 		table.setPlaceholder(new Label(getText("UI_DIALOG_IMPORT_BANK_NAME_EMPTY")));
 		table.getColumns().setAll(List.<TableColumn<DialogRow, ?>>of(
-				createDateColumn(), createTextColumn("UI_TABLE_ACCOUNT", row -> row.finding().accountName(), 150, false),
-				createTextColumn("UI_DIALOG_IMPORT_BANK_NAME_PURPOSE", row -> row.finding().purpose(), 230, true),
-				createAmountColumn(),
-				createTextColumn("UI_DIALOG_IMPORT_BANK_NAME_RECIPIENT", row -> row.finding().recipientName(), 180, false),
-				createTextColumn("UI_DIALOG_IMPORT_BANK_NAME_ACCOUNT", row -> row.finding().accountIdentifier(), 190, false),
-				createTextColumn("UI_DIALOG_IMPORT_BANK_NAME_BANK_CODE", row -> row.finding().bankIdentifier(), 120, false),
-				createTextColumn("UI_DIALOG_IMPORT_BANK_NAME_CURRENT", row -> row.finding().currentBankName(), 220, false),
+				TableColumnFactory.createDateColumn(getText("UI_DIALOG_IMPORT_BANK_NAME_DATE"), row -> row.finding().date(), 95),
+				TableColumnFactory.createTextColumn(getText("UI_TABLE_ACCOUNT"), row -> row.finding().accountName(), 150),
+				TableColumnFactory.createWrappedTextColumn(getText("UI_DIALOG_IMPORT_BANK_NAME_PURPOSE"), row -> row.finding().purpose(), 230),
+				TableColumnFactory.createAmountColumn(getText("UI_DIALOG_IMPORT_BANK_NAME_AMOUNT"), row -> row.finding().amount(), 100),
+				TableColumnFactory.createTextColumn(getText("UI_DIALOG_IMPORT_BANK_NAME_RECIPIENT"), row -> row.finding().recipientName(), 180),
+				TableColumnFactory.createTextColumn(getText("UI_DIALOG_IMPORT_BANK_NAME_ACCOUNT"), row -> row.finding().accountIdentifier(), 190),
+				TableColumnFactory.createTextColumn(getText("UI_DIALOG_IMPORT_BANK_NAME_BANK_CODE"), row -> row.finding().bankIdentifier(), 120),
+				TableColumnFactory.createTextColumn(getText("UI_DIALOG_IMPORT_BANK_NAME_CURRENT"), row -> row.finding().currentBankName(), 220),
 				createCorrectionColumn()));
 		table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
 		GuiLayoutState.configureTable(table, "dialog.importedBankNameValidation");
 		return table;
-	}
-
-	private TableColumn<DialogRow, LocalDate> createDateColumn() {
-		TableColumn<DialogRow, LocalDate> column = new TableColumn<>(getText("UI_DIALOG_IMPORT_BANK_NAME_DATE"));
-		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().finding().date()));
-		column.setCellFactory(FxTableUtils.createLocalDateCellFactory());
-		column.setPrefWidth(95);
-		return column;
-	}
-
-	private TableColumn<DialogRow, BigDecimal> createAmountColumn() {
-		TableColumn<DialogRow, BigDecimal> column = new TableColumn<>(getText("UI_DIALOG_IMPORT_BANK_NAME_AMOUNT"));
-		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().finding().amount()));
-		column.setCellFactory(FxTableUtils.createBigDecimalAmountCellFactory());
-		column.setPrefWidth(100);
-		return column;
-	}
-
-	private TableColumn<DialogRow, String> createTextColumn(String titleKey, Function<DialogRow, String> valueProvider, double width,
-			boolean wrapText) {
-		TableColumn<DialogRow, String> column = new TableColumn<>(getText(titleKey));
-		column.setCellValueFactory(data -> new ReadOnlyStringWrapper(valueProvider.apply(data.getValue())));
-		if (wrapText) {
-			column.setCellFactory(FxTableUtils.createWrappedTextCellFactory());
-		}
-		column.setPrefWidth(width);
-		return column;
 	}
 
 	private TableColumn<DialogRow, BankNameChoice> createCorrectionColumn() {

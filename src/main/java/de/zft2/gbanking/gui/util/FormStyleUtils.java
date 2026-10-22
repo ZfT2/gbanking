@@ -1,9 +1,6 @@
 // src/main/java/de/gbanking/gui/fx/util/FormStyleUtils.java
 package de.zft2.gbanking.gui.util;
 
-import java.util.Arrays;
-import java.util.List;
-
 import de.zft2.gbanking.db.dao.enu.Source;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -61,9 +58,21 @@ public final class FormStyleUtils {
 
 	public static HBox createButtonBar(Button... buttons) {
 		styleButtons(buttons);
-		HBox buttonBar = new HBox(10, buttons);
-		buttonBar.setAlignment(Pos.CENTER_LEFT);
+		HBox buttonBar = createButtonBar(Pos.CENTER_LEFT, buttons);
 		buttonBar.getStyleClass().add("gbanking-button-bar");
+		return buttonBar;
+	}
+
+	/**
+	 * Creates a button bar with the given alignment of the buttons.
+	 *
+	 * @param alignment the alignment of the buttons
+	 * @param buttons   the buttons of the button bar
+	 * @return the created button bar
+	 */
+	public static HBox createButtonBar(Pos alignment, Button... buttons) {
+		HBox buttonBar = new HBox(10, buttons);
+		buttonBar.setAlignment(alignment);
 		return buttonBar;
 	}
 
@@ -110,9 +119,5 @@ public final class FormStyleUtils {
 		case ONLINE, ONLINE_PRENO, AUTO_ADJUSTING, AUTO_PRENO -> false;
 		default -> false;
 		};
-	}
-
-	public static List<Control> controls(Control... controls) {
-		return Arrays.asList(controls);
 	}
 }

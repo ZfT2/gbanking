@@ -8,7 +8,6 @@ import de.zft2.gbanking.gui.JavaFxTestSupport;
 import de.zft2.gbanking.gui.util.FormStyleUtils.FieldWidth;
 import javafx.collections.FXCollections;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 
 class FormFieldsTest {
@@ -20,15 +19,6 @@ class FormFieldsTest {
 
 		assertEquals(FieldWidth.XS.getPrefWidth(), xs.getPrefWidth());
 		assertEquals(FieldWidth.L.getPrefWidth(), l.getPrefWidth());
-	}
-
-	@Test
-	void textAreaLargeShouldUseDefaultAndCustomRowCount() {
-		TextArea defaultArea = JavaFxTestSupport.callFx(FormFields::textAreaLarge);
-		TextArea customArea = JavaFxTestSupport.callFx(() -> FormFields.textAreaLarge(6));
-
-		assertEquals(3, defaultArea.getPrefRowCount());
-		assertEquals(6, customArea.getPrefRowCount());
 	}
 
 	@Test

@@ -6,6 +6,7 @@ import java.util.List;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.gui.util.FormGridHelper;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
+import de.zft2.gbanking.util.AccountDisplay;
 import javafx.collections.FXCollections;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
@@ -67,15 +68,7 @@ public final class StockSettlementAccountDialog extends AbstractStockDialog {
 		return new StringConverter<>() {
 			@Override
 			public String toString(BankAccount account) {
-				if (account == null) {
-					return "";
-				}
-				String name = account.getAccountName();
-				String number = account.getIban() != null && !account.getIban().isBlank()
-						? account.getIban() : account.getNumber();
-				return name != null && !name.isBlank()
-						? name + (number != null && !number.isBlank() ? " (" + number + ')' : "")
-						: number != null ? number : "";
+				return AccountDisplay.label(account);
 			}
 
 			@Override

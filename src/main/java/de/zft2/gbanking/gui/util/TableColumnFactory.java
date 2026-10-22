@@ -23,6 +23,40 @@ public final class TableColumnFactory {
 		return column;
 	}
 
+	/**
+	 * Creates a text column with the given preferred width. The minimum width of the column stays
+	 * unchanged, therefore the user can still resize the column.
+	 *
+	 * @param <S>           the row type
+	 * @param title         the column title
+	 * @param valueProvider supplies the text of a row
+	 * @param prefWidth     the preferred column width
+	 * @return the configured column
+	 */
+	public static <S> TableColumn<S, String> createTextColumn(String title, Function<S, String> valueProvider, double prefWidth) {
+		TableColumn<S, String> column = new TableColumn<>(title);
+		column.setCellValueFactory(data -> new SimpleStringProperty(safe(valueProvider.apply(data.getValue()))));
+		column.setPrefWidth(prefWidth);
+		return column;
+	}
+
+	/**
+	 * Creates a column for an arbitrary value with the given preferred width.
+	 *
+	 * @param <S>           the row type
+	 * @param <T>           the value type of the column
+	 * @param title         the column title
+	 * @param valueProvider supplies the value of a row
+	 * @param prefWidth     the preferred column width
+	 * @return the configured column
+	 */
+	public static <S, T> TableColumn<S, T> createValueColumn(String title, Function<S, T> valueProvider, double prefWidth) {
+		TableColumn<S, T> column = new TableColumn<>(title);
+		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(valueProvider.apply(data.getValue())));
+		column.setPrefWidth(prefWidth);
+		return column;
+	}
+
 	public static <S> TableColumn<S, String> createFixedTextColumn(String title, Function<S, String> valueProvider, double width) {
 		TableColumn<S, String> column = new TableColumn<>(title);
 		column.setCellValueFactory(data -> new SimpleStringProperty(safe(valueProvider.apply(data.getValue()))));
@@ -32,6 +66,21 @@ public final class TableColumnFactory {
 
 	public static <S> TableColumn<S, String> createWrappedTextColumn(String title, Function<S, String> valueProvider, double minWidth, double prefWidth) {
 		TableColumn<S, String> column = createTextColumn(title, valueProvider, minWidth, prefWidth);
+		column.setCellFactory(FxTableUtils.createWrappedTextCellFactory());
+		return column;
+	}
+
+	/**
+	 * Creates a wrapped text column with the given preferred width.
+	 *
+	 * @param <S>           the row type
+	 * @param title         the column title
+	 * @param valueProvider supplies the text of a row
+	 * @param prefWidth     the preferred column width
+	 * @return the configured column
+	 */
+	public static <S> TableColumn<S, String> createWrappedTextColumn(String title, Function<S, String> valueProvider, double prefWidth) {
+		TableColumn<S, String> column = createTextColumn(title, valueProvider, prefWidth);
 		column.setCellFactory(FxTableUtils.createWrappedTextCellFactory());
 		return column;
 	}
@@ -47,11 +96,41 @@ public final class TableColumnFactory {
 		return column;
 	}
 
+	/**
+	 * Creates an amount column with the given preferred width.
+	 *
+	 * @param <S>           the row type
+	 * @param title         the column title
+	 * @param valueProvider supplies the amount of a row
+	 * @param prefWidth     the preferred column width
+	 * @return the configured column
+	 */
+	public static <S> TableColumn<S, BigDecimal> createAmountColumn(String title, Function<S, BigDecimal> valueProvider, double prefWidth) {
+		TableColumn<S, BigDecimal> column = createAmountColumn(title, valueProvider);
+		column.setPrefWidth(prefWidth);
+		return column;
+	}
+
 	public static <S> TableColumn<S, LocalDate> createCalendarDateColumn(String title, Function<S, LocalDate> valueProvider, double width) {
+		TableColumn<S, LocalDate> column = createDateColumn(title, valueProvider, width);
+		FxTableUtils.setFixedWidth(column, width);
+		return column;
+	}
+
+	/**
+	 * Creates a date column with the given preferred width.
+	 *
+	 * @param <S>           the row type
+	 * @param title         the column title
+	 * @param valueProvider supplies the date of a row
+	 * @param prefWidth     the preferred column width
+	 * @return the configured column
+	 */
+	public static <S> TableColumn<S, LocalDate> createDateColumn(String title, Function<S, LocalDate> valueProvider, double prefWidth) {
 		TableColumn<S, LocalDate> column = new TableColumn<>(title);
 		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(valueProvider.apply(data.getValue())));
 		column.setCellFactory(FxTableUtils.createLocalDateCellFactory());
-		FxTableUtils.setFixedWidth(column, width);
+		column.setPrefWidth(prefWidth);
 		return column;
 	}
 
@@ -101,6 +180,28 @@ public final class TableColumnFactory {
 		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(valueProvider.test(data.getValue())));
 		column.setCellFactory(FxTableUtils.createBooleanSymbolCellFactory());
 		FxTableUtils.setFixedWidth(column, width);
+		return column;
+	}
+
+	/**
+	 * Creates a column that renders a boolean state as a symbol with the given style classes and
+	 * the given preferred width.
+	 *
+	 * @param <S>              the row type
+	 * @param title            the column title
+	 * @param valueProvider    supplies the boolean state of a row
+	 * @param prefWidth        the preferred column width
+	 * @param styleClass       the style class of the symbol
+	 * @param validStyleClass  the style class of the check mark
+	 * @param invalidStyleClass the style class of the cross
+	 * @return the configured column
+	 */
+	public static <S> TableColumn<S, Boolean> createBooleanSymbolColumn(String title, Predicate<S> valueProvider, double prefWidth,
+			String styleClass, String validStyleClass, String invalidStyleClass) {
+		TableColumn<S, Boolean> column = new TableColumn<>(title);
+		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(valueProvider.test(data.getValue())));
+		column.setCellFactory(FxTableUtils.createBooleanSymbolCellFactory(styleClass, validStyleClass, invalidStyleClass));
+		column.setPrefWidth(prefWidth);
 		return column;
 	}
 

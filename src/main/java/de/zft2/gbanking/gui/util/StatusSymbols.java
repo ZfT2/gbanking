@@ -26,6 +26,15 @@ public final class StatusSymbols {
 	/** Style class for the negative (cross) variant. */
 	public static final String STYLE_CLASS_INVALID = "status-symbol-invalid";
 
+	/** Style class for the validation status symbols. */
+	public static final String VALIDATION_STYLE_CLASS = "iban-validation-status";
+
+	/** Style class for the positive (check mark) validation variant. */
+	public static final String VALIDATION_STYLE_CLASS_VALID = "iban-valid";
+
+	/** Style class for the negative (cross) validation variant. */
+	public static final String VALIDATION_STYLE_CLASS_INVALID = "iban-invalid";
+
 	private StatusSymbols() {
 	}
 

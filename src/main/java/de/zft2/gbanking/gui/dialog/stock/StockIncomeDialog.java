@@ -1,6 +1,5 @@
 package de.zft2.gbanking.gui.dialog.stock;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.function.Consumer;
 
@@ -16,7 +15,6 @@ import javafx.scene.control.DatePicker;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Window;
-import javafx.util.StringConverter;
 
 public final class StockIncomeDialog extends AbstractStockDialog {
 
@@ -46,7 +44,7 @@ public final class StockIncomeDialog extends AbstractStockDialog {
 
 	private void initialize() {
 		typeField.setValue(StockTransactionType.DIVIDEND);
-		typeField.setConverter(transactionTypeConverter());
+		typeField.setConverter(StockDialogSupport.createTransactionTypeConverter(StockTransactionType.DIVIDEND));
 		currencyField.valueProperty().addListener((observable, previous, currency) -> updateExchangeRate(currency));
 		updateExchangeRate(currencyField.getValue());
 
@@ -64,43 +62,19 @@ public final class StockIncomeDialog extends AbstractStockDialog {
 	}
 
 	private void updateExchangeRate(Currency currency) {
-		Currency settlementCurrency = portfolio.settlementCurrency();
-		boolean required = currency != settlementCurrency;
-		exchangeRateField.setDisable(!required);
-		if (!required) {
-			exchangeRateField.setText("1");
-		} else if ("1".equals(exchangeRateField.getText())) {
-			exchangeRateField.clear();
-		}
+		StockDialogSupport.updateExchangeRateField(exchangeRateField, currency != portfolio.settlementCurrency());
 	}
 
 	private void save() {
 		applyAndClose(() -> {
-			BigDecimal exchangeRate = exchangeRateField.isDisabled() ? BigDecimal.ONE
-					: StockDialogSupport.parseRequiredDecimal(exchangeRateField, getText("UI_STOCK_FIELD_EXCHANGE_RATE"));
 			IncomeRequest request = new IncomeRequest(typeField.getValue(), dateField.getValue(),
 					StockDialogSupport.parseRequiredDecimal(amountField, getText("UI_STOCK_FIELD_GROSS_AMOUNT")),
 					StockDialogSupport.parseOptionalDecimal(taxesField, getText("UI_STOCK_FIELD_TAXES")),
-					currencyField.getValue(), exchangeRate);
+					currencyField.getValue(), StockDialogSupport.parseExchangeRate(exchangeRateField,
+							getText("UI_STOCK_FIELD_EXCHANGE_RATE")));
 			saveAction.accept(request);
 			savedHandler.run();
 			return true;
 		});
-	}
-
-	private StringConverter<StockTransactionType> transactionTypeConverter() {
-		return new StringConverter<>() {
-			@Override
-			public String toString(StockTransactionType type) {
-				return type == StockTransactionType.INTEREST ? getText("UI_STOCK_TRANSACTION_INTEREST")
-						: getText("UI_STOCK_TRANSACTION_DIVIDEND");
-			}
-
-			@Override
-			public StockTransactionType fromString(String value) {
-				return getText("UI_STOCK_TRANSACTION_INTEREST").equals(value)
-						? StockTransactionType.INTEREST : StockTransactionType.DIVIDEND;
-			}
-		};
 	}
 }

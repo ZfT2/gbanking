@@ -29,7 +29,7 @@ import de.zft2.gbanking.gui.progress.FileExportProgressBarPanel;
 import de.zft2.gbanking.gui.progress.FileImportProgressBarPanel;
 import de.zft2.gbanking.gui.progress.MoneyTransferImportProgressBarPanel;
 import de.zft2.gbanking.gui.progress.PortfolioPerformanceFileProgressBarPanel;
-import de.zft2.gbanking.gui.util.FileChooserDirectorySupport;
+import de.zft2.gbanking.gui.util.FileChooserSupport;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService;
@@ -37,7 +37,6 @@ import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService.XmlImpor
 import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService.XmlImportAssignments;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
-import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 final class FileTransferCoordinator implements BaseGui {
@@ -45,7 +44,6 @@ final class FileTransferCoordinator implements BaseGui {
 	private static final Logger log = LogManager.getLogger(FileTransferCoordinator.class);
 
 	private final Stage owner;
-	private final FileChooser fileChooser = new FileChooser();
 
 	FileTransferCoordinator(Stage owner) {
 		this.owner = owner;
@@ -246,31 +244,22 @@ final class FileTransferCoordinator implements BaseGui {
 	}
 
 	private Path chooseImportFile(FileType fileType) {
-		configureFileChooser(fileType, EnvironmentOptions.DEFAULT_DIR_IMPORT);
-		return FileChooserDirectorySupport.remember(fileChooser.showOpenDialog(owner), EnvironmentOptions.DEFAULT_DIR_IMPORT);
+		return FileChooserSupport.chooseFile(owner, fileType, EnvironmentOptions.DEFAULT_DIR_IMPORT, false);
 	}
 
 	private List<Path> chooseImportFiles(FileType fileType) {
-		configureFileChooser(fileType, EnvironmentOptions.DEFAULT_DIR_IMPORT);
-		return FileChooserDirectorySupport.remember(fileChooser.showOpenMultipleDialog(owner), EnvironmentOptions.DEFAULT_DIR_IMPORT);
+		return FileChooserSupport.chooseFiles(owner, fileType, EnvironmentOptions.DEFAULT_DIR_IMPORT);
 	}
 
 	private Path chooseExportFile(FileType fileType) {
-		configureFileChooser(fileType, EnvironmentOptions.DEFAULT_DIR_EXPORT);
-		return FileChooserDirectorySupport.remember(fileChooser.showSaveDialog(owner), EnvironmentOptions.DEFAULT_DIR_EXPORT);
-	}
-
-	private void configureFileChooser(FileType fileType, String directoryOption) {
-		FileChooserDirectorySupport.configure(fileChooser, directoryOption);
-		fileChooser.getExtensionFilters().setAll(new FileChooser.ExtensionFilter(fileType.getDescription(), fileType.getExtensionPatterns()));
+		return FileChooserSupport.chooseFile(owner, fileType, EnvironmentOptions.DEFAULT_DIR_EXPORT, true);
 	}
 
 	private void startBookingImport(Path importFile, ExportType importType, BookingImportSelection selection) {
 		FileImportProgressBarPanel progressPanel = new FileImportProgressBarPanel(owner, selection.account(), null, selection.csvDefinitionName());
-		Stage progressWindow = progressPanel.createNewFileImportProgressBarWindow();
 		AccountsTransactionsOverviewPanel overviewPanel = accountsOverview();
-		progressPanel.startTask(importFile.toString(), importType, overviewPanel != null ? overviewPanel.getAccountListPanel() : null);
-		progressWindow.show();
+		progressPanel.showProgressWindow(() -> progressPanel.startTask(importFile.toString(), importType,
+				overviewPanel != null ? overviewPanel.getAccountListPanel() : null));
 	}
 
 	private void startMoneyTransferImport(List<Path> importFiles, ExportType importType, MoneyTransferStatus importStatus) {
@@ -281,18 +270,16 @@ final class FileTransferCoordinator implements BaseGui {
 				moneyTransferPanel.refreshOnShow();
 			}
 		}, importType, importStatus);
-		Stage progressWindow = progressPanel.createNewFileImportProgressBarWindow();
 		AccountsTransactionsOverviewPanel overviewPanel = accountsOverview();
-		progressPanel.startTasks(importFiles, overviewPanel != null ? overviewPanel.getAccountListPanel() : null);
-		progressWindow.show();
+		progressPanel.showProgressWindow(() -> progressPanel.startTasks(importFiles,
+				overviewPanel != null ? overviewPanel.getAccountListPanel() : null));
 	}
 
 	private void startExport(Path exportFile, List<BankAccount> accounts, ExportType exportType,
 			AccountsTransactionsOverviewPanel overviewPanel) {
 		FileExportProgressBarPanel progressPanel = new FileExportProgressBarPanel(owner, accounts);
-		Stage progressWindow = progressPanel.createNewFileImportProgressBarWindow();
-		progressPanel.startTask(exportFile.toString(), exportType, overviewPanel.getAccountListPanel());
-		progressWindow.show();
+		progressPanel.showProgressWindow(() -> progressPanel.startTask(exportFile.toString(), exportType,
+				overviewPanel.getAccountListPanel()));
 	}
 
 	private void startStockFileOperation(Path file, ExportType type, PortfolioSummary portfolio,
@@ -301,9 +288,7 @@ final class FileTransferCoordinator implements BaseGui {
 		PortfolioPerformanceFileProgressBarPanel progressPanel = new PortfolioPerformanceFileProgressBarPanel(owner,
 				portfolio, importOperation, assignments, csvDefinitionName,
 				importOperation ? () -> refreshStockImportViews(overviewPanel) : null);
-		Stage progressWindow = progressPanel.createNewFileImportProgressBarWindow();
-		progressPanel.startTask(file.toString(), type, null);
-		progressWindow.show();
+		progressPanel.showProgressWindow(() -> progressPanel.startTask(file.toString(), type, null));
 	}
 
 	private static void refreshStockImportViews(StockPortfolioOverviewPanel overviewPanel) {

@@ -57,22 +57,15 @@ public final class StockPortfolioTransferDialog extends AbstractStockDialog {
 	}
 
 	private void updateExchangeRate(PortfolioSummary target) {
-		Currency sourceCurrency = source.settlementCurrency();
 		Currency targetCurrency = target != null ? target.settlementCurrency() : null;
-		boolean required = sourceCurrency != targetCurrency;
-		exchangeRateField.setDisable(!required);
-		if (!required) {
-			exchangeRateField.setText("1");
-		} else if ("1".equals(exchangeRateField.getText())) {
-			exchangeRateField.clear();
-		}
+		StockDialogSupport.updateExchangeRateField(exchangeRateField, source.settlementCurrency() != targetCurrency);
 	}
 
 	private void transfer() {
 		applyAndClose(() -> {
 			PortfolioSummary target = targetField.getValue();
-			BigDecimal exchangeRate = exchangeRateField.isDisabled() ? BigDecimal.ONE
-					: StockDialogSupport.parseRequiredDecimal(exchangeRateField, getText("UI_STOCK_FIELD_TRANSFER_EXCHANGE_RATE"));
+			BigDecimal exchangeRate = StockDialogSupport.parseExchangeRate(exchangeRateField,
+					getText("UI_STOCK_FIELD_TRANSFER_EXCHANGE_RATE"));
 			boolean confirmed = DialogWindowSupport.showConfirmation(dialog(), Alert.AlertType.WARNING,
 					getText("UI_STOCK_PORTFOLIO_TRANSFER_CONFIRM_TITLE"),
 					getText("UI_STOCK_PORTFOLIO_TRANSFER_CONFIRM_HEADER"),

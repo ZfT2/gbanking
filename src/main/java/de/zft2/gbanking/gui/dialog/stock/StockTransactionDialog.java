@@ -22,7 +22,6 @@ import javafx.scene.control.DatePicker;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Window;
-import javafx.util.StringConverter;
 
 public final class StockTransactionDialog extends AbstractStockDialog {
 
@@ -61,7 +60,7 @@ public final class StockTransactionDialog extends AbstractStockDialog {
 	}
 
 	private void initialize() {
-		typeField.setConverter(transactionTypeConverter());
+		typeField.setConverter(StockDialogSupport.createTransactionTypeConverter(StockTransactionType.BUY));
 		securityField.setMaxWidth(Double.MAX_VALUE);
 		securityField.valueProperty().addListener((observable, previous, security) -> applySecurityDefaults(security));
 		currencyField.valueProperty().addListener((observable, previous, currency) -> updateExchangeRateState());
@@ -167,13 +166,14 @@ public final class StockTransactionDialog extends AbstractStockDialog {
 	}
 
 	private void updateExchangeRateState() {
-		boolean sameCurrency = currencyField.getValue() != null
+		boolean settlementCurrency = currencyField.getValue() != null
 				&& currencyField.getValue() == portfolio.settlementCurrency();
-		boolean editable = editData == null || editData.isEditable(StockTransactionEditField.EXCHANGE_RATE);
-		exchangeRateField.setDisable(sameCurrency || !editable);
-		if (sameCurrency) {
-			exchangeRateField.setText("1");
+		if (settlementCurrency) {
+			StockDialogSupport.updateExchangeRateField(exchangeRateField, false);
+			return;
 		}
+		boolean editable = editData == null || editData.isEditable(StockTransactionEditField.EXCHANGE_RATE);
+		exchangeRateField.setDisable(!editable);
 	}
 
 	private void save() {
@@ -206,24 +206,5 @@ public final class StockTransactionDialog extends AbstractStockDialog {
 
 	private static void setDecimal(TextField field, BigDecimal value) {
 		field.setText(value != null ? StockDialogSupport.formatDecimal(value) : null);
-	}
-
-	private StringConverter<StockTransactionType> transactionTypeConverter() {
-		return new StringConverter<>() {
-			@Override
-			public String toString(StockTransactionType type) {
-				if (type == null) {
-					return "";
-				}
-				return type == StockTransactionType.SELL ? getText("UI_STOCK_TRANSACTION_SELL")
-						: getText("UI_STOCK_TRANSACTION_BUY");
-			}
-
-			@Override
-			public StockTransactionType fromString(String value) {
-				return getText("UI_STOCK_TRANSACTION_SELL").equals(value)
-						? StockTransactionType.SELL : StockTransactionType.BUY;
-			}
-		};
 	}
 }

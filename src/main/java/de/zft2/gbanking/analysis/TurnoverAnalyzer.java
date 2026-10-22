@@ -22,6 +22,7 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Category;
 import de.zft2.gbanking.db.dao.enu.AccountState;
+import de.zft2.gbanking.util.AccountDisplay;
 
 public final class TurnoverAnalyzer {
 
@@ -366,16 +367,7 @@ public final class TurnoverAnalyzer {
 	}
 
 	private String accountDisplayName(BankAccount account) {
-		if (account == null) {
-			return "";
-		}
-		if (account.getAccountName() != null && !account.getAccountName().isBlank()) {
-			return account.getAccountName();
-		}
-		if (account.getIban() != null && !account.getIban().isBlank()) {
-			return account.getIban();
-		}
-		return account.getNumber() != null ? account.getNumber() : "";
+		return AccountDisplay.displayName(account);
 	}
 
 	private String pairKey(Booking booking) {

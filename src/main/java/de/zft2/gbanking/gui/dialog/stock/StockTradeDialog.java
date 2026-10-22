@@ -1,6 +1,5 @@
 package de.zft2.gbanking.gui.dialog.stock;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.function.Consumer;
 
@@ -18,7 +17,6 @@ import javafx.scene.control.DatePicker;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Window;
-import javafx.util.StringConverter;
 
 public final class StockTradeDialog extends AbstractStockDialog {
 
@@ -53,7 +51,7 @@ public final class StockTradeDialog extends AbstractStockDialog {
 
 	private void initialize() {
 		typeField.setValue(prefill != null ? prefill.transactionType() : StockTransactionType.BUY);
-		typeField.setConverter(transactionTypeConverter());
+		typeField.setConverter(StockDialogSupport.createTransactionTypeConverter(StockTransactionType.BUY));
 		quantityField.setText(StockDialogSupport.formatDecimal(prefill != null ? prefill.quantity() : position.quantity()));
 		configureExchangeRate();
 		tradeDateField.valueProperty().addListener((observable, previous, date) -> {
@@ -85,14 +83,7 @@ public final class StockTradeDialog extends AbstractStockDialog {
 	}
 
 	private void updateExchangeRate(Currency currency) {
-		Currency settlementCurrency = portfolio.settlementCurrency();
-		boolean required = currency != settlementCurrency;
-		exchangeRateField.setDisable(!required);
-		if (!required) {
-			exchangeRateField.setText("1");
-		} else if ("1".equals(exchangeRateField.getText())) {
-			exchangeRateField.clear();
-		}
+		StockDialogSupport.updateExchangeRateField(exchangeRateField, currency != portfolio.settlementCurrency());
 	}
 
 	private void save() {
@@ -100,7 +91,8 @@ public final class StockTradeDialog extends AbstractStockDialog {
 			TradeRequest request = new TradeRequest(typeField.getValue(), tradeDateField.getValue(), settlementDateField.getValue(),
 					StockDialogSupport.parseRequiredDecimal(quantityField, getText("UI_STOCK_FIELD_QUANTITY")),
 					StockDialogSupport.parseRequiredDecimal(priceField, getText("UI_STOCK_FIELD_UNIT_PRICE")),
-					currencyField.getValue(), parseExchangeRate(),
+					currencyField.getValue(), StockDialogSupport.parseExchangeRate(exchangeRateField,
+							getText("UI_STOCK_FIELD_EXCHANGE_RATE")),
 					StockDialogSupport.parseOptionalDecimal(feesField, getText("UI_STOCK_FIELD_FEES")),
 					StockDialogSupport.parseOptionalDecimal(taxesField, getText("UI_STOCK_FIELD_TAXES")),
 					StockDialogSupport.parseOptionalDecimal(accruedInterestField, getText("UI_STOCK_FIELD_ACCRUED_INTEREST")));
@@ -108,25 +100,5 @@ public final class StockTradeDialog extends AbstractStockDialog {
 			savedHandler.run();
 			return true;
 		});
-	}
-
-	private BigDecimal parseExchangeRate() {
-		return exchangeRateField.isDisabled() ? BigDecimal.ONE
-				: StockDialogSupport.parseRequiredDecimal(exchangeRateField, getText("UI_STOCK_FIELD_EXCHANGE_RATE"));
-	}
-
-	private StringConverter<StockTransactionType> transactionTypeConverter() {
-		return new StringConverter<>() {
-			@Override
-			public String toString(StockTransactionType type) {
-				return type == StockTransactionType.SELL ? getText("UI_STOCK_TRANSACTION_SELL")
-						: getText("UI_STOCK_TRANSACTION_BUY");
-			}
-
-			@Override
-			public StockTransactionType fromString(String value) {
-				return getText("UI_STOCK_TRANSACTION_SELL").equals(value) ? StockTransactionType.SELL : StockTransactionType.BUY;
-			}
-		};
 	}
 }

@@ -52,122 +52,88 @@ final class GBankingMenuBar extends MenuBar implements BaseGui {
 
 		Menu fileImportMenu = new Menu(getText("UI_MENU_FILE_IMPORT"));
 		Menu fileImportBookingsMenu = new Menu(getText("UI_MENU_FILE_BOOKINGS"));
-		MenuItem fileImportBookingsCsv = new MenuItem(getText("UI_MENU_FILE_CSV_FORMATS"));
-		fileImportBookingsCsv.setOnAction(e -> gui.processBookingImport(ExportType.BOOKINGS_CSV));
-		MenuItem fileImportBookingsFp3 = new MenuItem(getText("UI_MENU_FILE_FP3"));
-		fileImportBookingsFp3.setOnAction(e -> gui.processBookingImport(ExportType.BOOKINGS_FP3));
-		MenuItem fileImportBookingsMt940 = new MenuItem(getText("UI_MENU_FILE_MT940"));
-		fileImportBookingsMt940.setOnAction(e -> gui.processBookingImport(ExportType.BOOKINGS_MT940));
-		MenuItem fileImportBookingsXml = new MenuItem(getText("UI_MENU_FILE_XML"));
-		fileImportBookingsXml.setOnAction(e -> gui.processBookingImport(ExportType.BOOKINGS_XML));
+		MenuItem fileImportBookingsCsv = createMenuItem("UI_MENU_FILE_CSV_FORMATS", () -> gui.processBookingImport(ExportType.BOOKINGS_CSV));
+		MenuItem fileImportBookingsFp3 = createMenuItem("UI_MENU_FILE_FP3", () -> gui.processBookingImport(ExportType.BOOKINGS_FP3));
+		MenuItem fileImportBookingsMt940 = createMenuItem("UI_MENU_FILE_MT940", () -> gui.processBookingImport(ExportType.BOOKINGS_MT940));
+		MenuItem fileImportBookingsXml = createMenuItem("UI_MENU_FILE_XML", () -> gui.processBookingImport(ExportType.BOOKINGS_XML));
 		fileImportBookingsMenu.getItems().addAll(fileImportBookingsCsv, fileImportBookingsFp3, fileImportBookingsMt940, fileImportBookingsXml);
 		Menu fileImportOrdersMenu = new Menu(getText("UI_MENU_FILE_ORDERS"));
-		MenuItem fileImportCsvOrders = new MenuItem(getText("UI_MENU_FILE_CSV_MONEYPLEX"));
-		fileImportCsvOrders.setOnAction(e -> gui.processMoneyTransferImport(ExportType.MONEYTRANSFERS_CSV));
-		MenuItem fileImportSepaOrders = new MenuItem(getText("UI_MENU_FILE_XML_SEPA"));
-		fileImportSepaOrders.setOnAction(e -> gui.processMoneyTransferImport(ExportType.MONEYTRANSFERS_SEPA_XML));
+		MenuItem fileImportCsvOrders = createMenuItem("UI_MENU_FILE_CSV_MONEYPLEX", () -> gui.processMoneyTransferImport(ExportType.MONEYTRANSFERS_CSV));
+		MenuItem fileImportSepaOrders = createMenuItem("UI_MENU_FILE_XML_SEPA", () -> gui.processMoneyTransferImport(ExportType.MONEYTRANSFERS_SEPA_XML));
 		fileImportOrdersMenu.getItems().addAll(fileImportCsvOrders, fileImportSepaOrders);
 		Menu fileImportStockMenu = new Menu(getText("UI_MENU_FILE_STOCK_PORTFOLIOS"));
-		MenuItem fileImportStockCsv = new MenuItem(getText("UI_MENU_FILE_CSV_FORMATS"));
-		fileImportStockCsv.setOnAction(e -> gui.processStockCsvImport());
-		MenuItem fileImportStockXml = new MenuItem(getText("UI_MENU_FILE_PP_XML"));
-		fileImportStockXml.setOnAction(e -> gui.processStockImport(ExportType.STOCK_PP_XML));
+		MenuItem fileImportStockCsv = createMenuItem("UI_MENU_FILE_CSV_FORMATS", () -> gui.processStockCsvImport());
+		MenuItem fileImportStockXml = createMenuItem("UI_MENU_FILE_PP_XML", () -> gui.processStockImport(ExportType.STOCK_PP_XML));
 		fileImportStockMenu.getItems().addAll(fileImportStockCsv, fileImportStockXml);
 		fileImportMenu.getItems().addAll(fileImportBookingsMenu, fileImportOrdersMenu, fileImportStockMenu);
 
 		Menu fileExportMenu = new Menu(getText("UI_MENU_FILE_EXPORT"));
 		Menu fileExportBookingsMenu = new Menu(getText("UI_MENU_FILE_BOOKINGS"));
-		MenuItem fileExportCSV = new MenuItem(getText(UI_MENU_FILE_CSV));
-		fileExportCSV.setOnAction(e -> gui.processExport(ExportType.BOOKINGS_CSV));
-		MenuItem fileExportFP3 = new MenuItem(getText("UI_MENU_FILE_FP3"));
-		fileExportFP3.setOnAction(e -> gui.processExport(ExportType.BOOKINGS_FP3));
-		MenuItem fileExportMT940 = new MenuItem(getText("UI_MENU_FILE_MT940"));
-		fileExportMT940.setOnAction(e -> gui.processExport(ExportType.BOOKINGS_MT940));
-		MenuItem fileExportXML = new MenuItem(getText("UI_MENU_FILE_XML"));
-		fileExportXML.setOnAction(e -> gui.processExport(ExportType.BOOKINGS_XML));
+		MenuItem fileExportCSV = createMenuItem(UI_MENU_FILE_CSV, () -> gui.processExport(ExportType.BOOKINGS_CSV));
+		MenuItem fileExportFP3 = createMenuItem("UI_MENU_FILE_FP3", () -> gui.processExport(ExportType.BOOKINGS_FP3));
+		MenuItem fileExportMT940 = createMenuItem("UI_MENU_FILE_MT940", () -> gui.processExport(ExportType.BOOKINGS_MT940));
+		MenuItem fileExportXML = createMenuItem("UI_MENU_FILE_XML", () -> gui.processExport(ExportType.BOOKINGS_XML));
 		fileExportBookingsMenu.getItems().addAll(fileExportCSV, fileExportFP3, fileExportMT940, fileExportXML);
 		Menu fileExportOrdersMenu = new Menu(getText("UI_MENU_FILE_ORDERS"));
-		MenuItem fileExportCSVOrders = new MenuItem(getText("UI_MENU_FILE_CSV_MONEYPLEX"));
-		fileExportCSVOrders.setOnAction(e -> gui.processExport(ExportType.MONEYTRANSFERS_CSV));
-		MenuItem fileExportSepaOrders = new MenuItem(getText("UI_MENU_FILE_XML_SEPA"));
-		fileExportSepaOrders.setOnAction(e -> gui.processExport(ExportType.MONEYTRANSFERS_SEPA_XML));
+		MenuItem fileExportCSVOrders = createMenuItem("UI_MENU_FILE_CSV_MONEYPLEX", () -> gui.processExport(ExportType.MONEYTRANSFERS_CSV));
+		MenuItem fileExportSepaOrders = createMenuItem("UI_MENU_FILE_XML_SEPA", () -> gui.processExport(ExportType.MONEYTRANSFERS_SEPA_XML));
 		fileExportOrdersMenu.getItems().addAll(fileExportCSVOrders, fileExportSepaOrders);
 		Menu fileExportStockMenu = new Menu(getText("UI_MENU_FILE_STOCK_PORTFOLIOS"));
 		Menu fileExportPortfolioPerformanceMenu = new Menu(getText("UI_MENU_FILE_PORTFOLIO_PERFORMANCE"));
-		MenuItem fileExportStockTransactions = new MenuItem(getText("UI_MENU_FILE_PP_PORTFOLIO_TRANSACTIONS"));
-		fileExportStockTransactions.setOnAction(e -> gui.processStockExport(ExportType.STOCK_PP_TRANSACTIONS_CSV));
-		MenuItem fileExportStockAccountTransactions = new MenuItem(getText("UI_MENU_FILE_PP_ACCOUNT_TRANSACTIONS"));
-		fileExportStockAccountTransactions.setOnAction(e -> gui.processStockExport(ExportType.STOCK_PP_ACCOUNT_TRANSACTIONS_CSV));
-		MenuItem fileExportStockSecurities = new MenuItem(getText("UI_MENU_FILE_PP_SECURITIES"));
-		fileExportStockSecurities.setOnAction(e -> gui.processStockExport(ExportType.STOCK_PP_SECURITIES_CSV));
-		MenuItem fileExportStockPrices = new MenuItem(getText("UI_MENU_FILE_PP_PRICES"));
-		fileExportStockPrices.setOnAction(e -> gui.processStockExport(ExportType.STOCK_PP_PRICES_CSV));
+		MenuItem fileExportStockTransactions = createMenuItem("UI_MENU_FILE_PP_PORTFOLIO_TRANSACTIONS", () -> gui.processStockExport(ExportType.STOCK_PP_TRANSACTIONS_CSV));
+		MenuItem fileExportStockAccountTransactions = createMenuItem("UI_MENU_FILE_PP_ACCOUNT_TRANSACTIONS", () -> gui.processStockExport(ExportType.STOCK_PP_ACCOUNT_TRANSACTIONS_CSV));
+		MenuItem fileExportStockSecurities = createMenuItem("UI_MENU_FILE_PP_SECURITIES", () -> gui.processStockExport(ExportType.STOCK_PP_SECURITIES_CSV));
+		MenuItem fileExportStockPrices = createMenuItem("UI_MENU_FILE_PP_PRICES", () -> gui.processStockExport(ExportType.STOCK_PP_PRICES_CSV));
 		fileExportPortfolioPerformanceMenu.getItems().addAll(fileExportStockTransactions,
 				fileExportStockAccountTransactions, fileExportStockSecurities, fileExportStockPrices);
 		fileExportStockMenu.getItems().add(fileExportPortfolioPerformanceMenu);
 		fileExportMenu.getItems().addAll(fileExportBookingsMenu, fileExportOrdersMenu, fileExportStockMenu);
 
-		MenuItem createBackupMenuItem = new MenuItem(getText("UI_MENU_FILE_CREATE_BACKUP"));
-		createBackupMenuItem.setOnAction(event -> gui.createTenantBackup());
-		MenuItem restoreBackupMenuItem = new MenuItem(getText("UI_MENU_FILE_RESTORE_BACKUP"));
-		restoreBackupMenuItem.setOnAction(event -> gui.restoreTenantBackup());
+		MenuItem createBackupMenuItem = createMenuItem("UI_MENU_FILE_CREATE_BACKUP", () -> gui.createTenantBackup());
+		MenuItem restoreBackupMenuItem = createMenuItem("UI_MENU_FILE_RESTORE_BACKUP", () -> gui.restoreTenantBackup());
 
-		MenuItem fileExitMenuItem = new MenuItem(getText("UI_MENU_FILE_EXIT"));
-		fileExitMenuItem.setOnAction(e -> gui.shutdownApplication());
+		MenuItem fileExitMenuItem = createMenuItem("UI_MENU_FILE_EXIT", () -> gui.shutdownApplication());
 		fileExitMenuItem.setAccelerator(KeyboardShortcuts.EXIT);
 
-		MenuItem switchTenantMenuItem = new MenuItem(getText("UI_MENU_FILE_SWITCH_TENANT"));
-		switchTenantMenuItem.setOnAction(e -> gui.switchTenant());
+		MenuItem switchTenantMenuItem = createMenuItem("UI_MENU_FILE_SWITCH_TENANT", () -> gui.switchTenant());
 
 		fileMenu.getItems().addAll(fileImportMenu, fileExportMenu, new SeparatorMenuItem(), createBackupMenuItem, restoreBackupMenuItem,
 				new SeparatorMenuItem(), switchTenantMenuItem, fileExitMenuItem);
 
-		MenuItem editBankAccessMenuItem = new MenuItem(getText("UI_MENU_EDIT_BANKACCESS"));
-		editBankAccessMenuItem.setOnAction(e -> gui.activateOverview(PageContext.BANKACCESS));
+		MenuItem editBankAccessMenuItem = createMenuItem("UI_MENU_EDIT_BANKACCESS", () -> gui.activateOverview(PageContext.BANKACCESS));
 
-		MenuItem editOpenActionsMenuItem = new MenuItem(getText("UI_MENU_EDIT_OPEN_ACTIONS"));
-		editOpenActionsMenuItem.setOnAction(e -> gui.activateOverview(PageContext.OPEN_ACTIONS));
+		MenuItem editOpenActionsMenuItem = createMenuItem("UI_MENU_EDIT_OPEN_ACTIONS", () -> gui.activateOverview(PageContext.OPEN_ACTIONS));
 
-		MenuItem editAccountsMenuItem = new MenuItem(getText("UI_MENU_EDIT_ACCOUNTS"));
+		MenuItem editAccountsMenuItem = createMenuItem("UI_MENU_EDIT_ACCOUNTS",
+				() -> gui.activateOverview(PageContext.ACCOUNTS_TRANSACTIONS));
 		editAccountsMenuItem.getStyleClass().add("gbanking-emphasized-menu-item");
-		editAccountsMenuItem.setOnAction(e -> gui.activateOverview(PageContext.ACCOUNTS_TRANSACTIONS));
 
-		MenuItem editStockPortfoliosMenuItem = new MenuItem(getText("UI_MENU_EDIT_STOCK_PORTFOLIOS"));
-		editStockPortfoliosMenuItem.setOnAction(e -> gui.activateOverview(PageContext.STOCK_PORTFOLIOS));
+		MenuItem editStockPortfoliosMenuItem = createMenuItem("UI_MENU_EDIT_STOCK_PORTFOLIOS", () -> gui.activateOverview(PageContext.STOCK_PORTFOLIOS));
 
-		MenuItem editOrdersMenuItem = new MenuItem(getText("UI_MENU_EDIT_ORDERS"));
-		editOrdersMenuItem.setOnAction(e -> gui.activateOverview(PageContext.ACCOUNTS_MONEYTRANSFERS));
+		MenuItem editOrdersMenuItem = createMenuItem("UI_MENU_EDIT_ORDERS", () -> gui.activateOverview(PageContext.ACCOUNTS_MONEYTRANSFERS));
 
-		MenuItem editCategoriesMenuItem = new MenuItem(getText("UI_MENU_EDIT_CATEGORIES"));
-		editCategoriesMenuItem.setOnAction(e -> gui.activateOverview(PageContext.CATEGORIES));
+		MenuItem editCategoriesMenuItem = createMenuItem("UI_MENU_EDIT_CATEGORIES", () -> gui.activateOverview(PageContext.CATEGORIES));
 
-		MenuItem editRecipientsMenuItem = new MenuItem(getText("UI_MENU_EDIT_RECIPIENTS"));
-		editRecipientsMenuItem.setOnAction(e -> gui.activateOverview(PageContext.RECIPIENTS));
+		MenuItem editRecipientsMenuItem = createMenuItem("UI_MENU_EDIT_RECIPIENTS", () -> gui.activateOverview(PageContext.RECIPIENTS));
 
-		MenuItem editAllAccountsMenuItem = new MenuItem(getText("UI_MENU_EDIT_ALL_ACCOUNTS"));
-		editAllAccountsMenuItem.setOnAction(e -> gui.activateOverview(PageContext.ALL_ACCOUNTS));
+		MenuItem editAllAccountsMenuItem = createMenuItem("UI_MENU_EDIT_ALL_ACCOUNTS", () -> gui.activateOverview(PageContext.ALL_ACCOUNTS));
 
-		MenuItem editAllStockPortfoliosMenuItem = new MenuItem(getText("UI_MENU_EDIT_ALL_STOCK_PORTFOLIOS"));
-		editAllStockPortfoliosMenuItem.setOnAction(e -> gui.activateOverview(PageContext.ALL_STOCK_PORTFOLIOS));
+		MenuItem editAllStockPortfoliosMenuItem = createMenuItem("UI_MENU_EDIT_ALL_STOCK_PORTFOLIOS", () -> gui.activateOverview(PageContext.ALL_STOCK_PORTFOLIOS));
 
-		MenuItem editAllSecuritiesMenuItem = new MenuItem(getText("UI_MENU_EDIT_ALL_SECURITIES"));
-		editAllSecuritiesMenuItem.setOnAction(e -> gui.activateOverview(PageContext.ALL_SECURITIES));
+		MenuItem editAllSecuritiesMenuItem = createMenuItem("UI_MENU_EDIT_ALL_SECURITIES", () -> gui.activateOverview(PageContext.ALL_SECURITIES));
 
-		MenuItem editAllTransactionsMenuItem = new MenuItem(getText("UI_MENU_EDIT_ALL_TRANSACTIONS"));
-		editAllTransactionsMenuItem.setOnAction(e -> gui.activateOverview(PageContext.ALL_TRANSACTIONS));
+		MenuItem editAllTransactionsMenuItem = createMenuItem("UI_MENU_EDIT_ALL_TRANSACTIONS", () -> gui.activateOverview(PageContext.ALL_TRANSACTIONS));
 		Menu administrationMenu = new Menu(getText("UI_MENU_EDIT_ADMINISTRATION"));
 		administrationMenu.getItems().addAll(editAllAccountsMenuItem, editAllStockPortfoliosMenuItem,
 				editAllSecuritiesMenuItem, editAllTransactionsMenuItem);
 
-		MenuItem instituteDirectoryMenuItem = new MenuItem(getText("UI_MENU_EDIT_INSTITUTES"));
-		instituteDirectoryMenuItem.setOnAction(e -> gui.activateOverview(PageContext.INSTITUTES));
+		MenuItem instituteDirectoryMenuItem = createMenuItem("UI_MENU_EDIT_INSTITUTES", () -> gui.activateOverview(PageContext.INSTITUTES));
 
 		editMenu.getItems().addAll(editOpenActionsMenuItem, editBankAccessMenuItem, editAccountsMenuItem, editStockPortfoliosMenuItem,
 				editOrdersMenuItem, editCategoriesMenuItem,
 				editRecipientsMenuItem, administrationMenu, instituteDirectoryMenuItem);
 
-		MenuItem refreshMenuItem = new MenuItem(getText("UI_MENU_VIEW_REFRESH"));
-		refreshMenuItem.setOnAction(event -> gui.handleShortcut(Action.REFRESH));
+		MenuItem refreshMenuItem = createMenuItem("UI_MENU_VIEW_REFRESH", () -> gui.handleShortcut(Action.REFRESH));
 		refreshMenuItem.setAccelerator(KeyboardShortcuts.REFRESH);
 		CheckMenuItem onlyOnlineAccountsMenuItem = new CheckMenuItem(getText("UI_MENU_VIEW_ONLY_ONLINE_ACCOUNTS"));
 		onlyOnlineAccountsMenuItem.setSelected(gui.isOnlyOnlineAccountsVisible());
@@ -182,28 +148,21 @@ final class GBankingMenuBar extends MenuBar implements BaseGui {
 
 		PinAskDialog pinWindow = new PinAskDialog(stage);
 
-		MenuItem updateAccountsMenuItem = new MenuItem(getText("UI_MENU_EXECUTE_UPDATE_ACCOUNTS"));
-		updateAccountsMenuItem.setOnAction(e -> gui.updateAccounts(pinWindow));
+		MenuItem updateAccountsMenuItem = createMenuItem("UI_MENU_EXECUTE_UPDATE_ACCOUNTS", () -> gui.updateAccounts(pinWindow));
 
-		MenuItem executeTransfersMenuItem = new MenuItem(getText("UI_MENU_EXECUTE_TRANSFERS"));
-		executeTransfersMenuItem.setOnAction(e -> gui.executeTransfers(pinWindow));
-		MenuItem executeSelectedActionsMenuItem = new MenuItem(getText("UI_MENU_EXECUTE_SELECTED_ACTIONS"));
-		executeSelectedActionsMenuItem.setOnAction(e -> gui.executeSelectedOpenActions(pinWindow));
+		MenuItem executeTransfersMenuItem = createMenuItem("UI_MENU_EXECUTE_TRANSFERS", () -> gui.executeTransfers(pinWindow));
+		MenuItem executeSelectedActionsMenuItem = createMenuItem("UI_MENU_EXECUTE_SELECTED_ACTIONS", () -> gui.executeSelectedOpenActions(pinWindow));
 		executeSelectedActionsMenuItem.setVisible(false);
 
 		Menu orderInventoryMenu = new Menu(getText("UI_MENU_EXECUTE_ORDER_INVENTORY"));
-		MenuItem retrieveStandingOrdersMenuItem = new MenuItem(getText("UI_MENU_EXECUTE_RETRIEVE_STANDING_ORDERS"));
-		retrieveStandingOrdersMenuItem.setOnAction(e -> gui.retrieveOrderInventory(pinWindow, OrderType.STANDING_ORDER));
-		MenuItem retrieveScheduledTransfersMenuItem = new MenuItem(getText("UI_MENU_EXECUTE_RETRIEVE_SCHEDULED_TRANSFERS"));
-		retrieveScheduledTransfersMenuItem.setOnAction(e -> gui.retrieveOrderInventory(pinWindow, OrderType.SCHEDULED_TRANSFER));
+		MenuItem retrieveStandingOrdersMenuItem = createMenuItem("UI_MENU_EXECUTE_RETRIEVE_STANDING_ORDERS", () -> gui.retrieveOrderInventory(pinWindow, OrderType.STANDING_ORDER));
+		MenuItem retrieveScheduledTransfersMenuItem = createMenuItem("UI_MENU_EXECUTE_RETRIEVE_SCHEDULED_TRANSFERS", () -> gui.retrieveOrderInventory(pinWindow, OrderType.SCHEDULED_TRANSFER));
 		orderInventoryMenu.getItems().addAll(retrieveStandingOrdersMenuItem, retrieveScheduledTransfersMenuItem);
-		MenuItem assignRebookingsMenuItem = new MenuItem(getText("UI_MENU_EXECUTE_ASSIGN_REBOOKINGS"));
-		assignRebookingsMenuItem.setOnAction(e -> {
+		MenuItem assignRebookingsMenuItem = createMenuItem("UI_MENU_EXECUTE_ASSIGN_REBOOKINGS", () -> {
 			new RebookingToolDialog(stage, gui.getSelectedAccountsForRebooking()).assignRebookings();
 			gui.refreshTransactionOverviews();
 		});
-		MenuItem createRebookingsMenuItem = new MenuItem(getText("UI_MENU_EXECUTE_CREATE_REBOOKINGS"));
-		createRebookingsMenuItem.setOnAction(e -> {
+		MenuItem createRebookingsMenuItem = createMenuItem("UI_MENU_EXECUTE_CREATE_REBOOKINGS", () -> {
 			new RebookingToolDialog(stage, gui.getSelectedAccountsForRebooking()).createRebookings();
 			gui.refreshTransactionOverviews();
 		});
@@ -231,32 +190,37 @@ final class GBankingMenuBar extends MenuBar implements BaseGui {
 		executeMenu.getItems().add(executeSelectedActionsMenuItem);
 		executeMenu.getItems().addAll(standardExecuteItems);
 
-		MenuItem balanceAnalysisMenuItem = new MenuItem(getText("UI_MENU_ANALYSIS_BALANCES"));
-		balanceAnalysisMenuItem.setOnAction(e -> gui.activateOverview(PageContext.ANALYSIS));
-		MenuItem categoryAnalysisMenuItem = new MenuItem(getText("UI_MENU_ANALYSIS_CATEGORIES"));
-		categoryAnalysisMenuItem.setOnAction(e -> gui.activateOverview(PageContext.CATEGORY_ANALYSIS));
+		MenuItem balanceAnalysisMenuItem = createMenuItem("UI_MENU_ANALYSIS_BALANCES", () -> gui.activateOverview(PageContext.ANALYSIS));
+		MenuItem categoryAnalysisMenuItem = createMenuItem("UI_MENU_ANALYSIS_CATEGORIES", () -> gui.activateOverview(PageContext.CATEGORY_ANALYSIS));
 		analysisMenu.getItems().addAll(balanceAnalysisMenuItem, categoryAnalysisMenuItem);
 
-		MenuItem settingsMenuItem = new MenuItem(getText("UI_MENU_SETTINGS_OPEN"));
-		settingsMenuItem.setOnAction(e -> gui.showSettingsWindow());
+		MenuItem settingsMenuItem = createMenuItem("UI_MENU_SETTINGS_OPEN", () -> gui.showSettingsWindow());
 		settingsMenuItem.setAccelerator(KeyboardShortcuts.SETTINGS);
 		settingsMenu.getItems().add(settingsMenuItem);
 
-		MenuItem manualMenuItem = new MenuItem(getText("UI_MENU_ABOUT_MANUAL"));
-		manualMenuItem.setOnAction(e -> gui.showManual());
+		MenuItem manualMenuItem = createMenuItem("UI_MENU_ABOUT_MANUAL", () -> gui.showManual());
 		manualMenuItem.setAccelerator(KeyboardShortcuts.HELP);
-		MenuItem checkUpdateMenuItem = new MenuItem(getText("UI_MENU_UPDATE_CHECK"));
-		checkUpdateMenuItem.setOnAction(e -> gui.checkForApplicationUpdates());
-		MenuItem openLogDirectoryMenuItem = new MenuItem(getText("UI_MENU_ABOUT_OPEN_LOG_DIRECTORY"));
-		openLogDirectoryMenuItem.setOnAction(e -> gui.openLogDirectory());
-		MenuItem createDiagnosticPackageMenuItem = new MenuItem(getText("UI_MENU_ABOUT_CREATE_DIAGNOSTIC_PACKAGE"));
-		createDiagnosticPackageMenuItem.setOnAction(e -> gui.createDiagnosticPackage());
-		MenuItem aboutMenuItem = new MenuItem(getText("UI_MENU_ABOUT_OPEN"));
-		aboutMenuItem.setOnAction(e -> gui.showAboutWindow());
+		MenuItem checkUpdateMenuItem = createMenuItem("UI_MENU_UPDATE_CHECK", () -> gui.checkForApplicationUpdates());
+		MenuItem openLogDirectoryMenuItem = createMenuItem("UI_MENU_ABOUT_OPEN_LOG_DIRECTORY", () -> gui.openLogDirectory());
+		MenuItem createDiagnosticPackageMenuItem = createMenuItem("UI_MENU_ABOUT_CREATE_DIAGNOSTIC_PACKAGE", () -> gui.createDiagnosticPackage());
+		MenuItem aboutMenuItem = createMenuItem("UI_MENU_ABOUT_OPEN", () -> gui.showAboutWindow());
 		aboutMenu.getItems().addAll(manualMenuItem, new SeparatorMenuItem(), checkUpdateMenuItem, new SeparatorMenuItem(), openLogDirectoryMenuItem,
 				createDiagnosticPackageMenuItem, new SeparatorMenuItem(), aboutMenuItem);
 
 		this.getMenus().addAll(fileMenu, editMenu, viewMenu, executeMenu, analysisMenu, settingsMenu, aboutMenu);
+	}
+
+	/**
+	 * Creates a menu item with the given text and action.
+	 *
+	 * @param textKey the key of the text of the menu item
+	 * @param action  the action executed when the menu item is selected
+	 * @return the created menu item
+	 */
+	private MenuItem createMenuItem(String textKey, Runnable action) {
+		MenuItem menuItem = new MenuItem(getText(textKey));
+		menuItem.setOnAction(event -> action.run());
+		return menuItem;
 	}
 
 }

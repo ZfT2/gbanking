@@ -4,7 +4,6 @@ import de.zft2.gbanking.gui.util.FormStyleUtils.FieldWidth;
 import javafx.collections.ObservableList;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 
 public final class FormFields {
@@ -30,14 +29,6 @@ public final class FormFields {
 
 	public static TextField textL() {
 		return text(FieldWidth.L);
-	}
-
-	public static TextArea textAreaLarge() {
-		return FormStyleUtils.prepareLargeTextArea(new TextArea(), 3);
-	}
-
-	public static TextArea textAreaLarge(int rowCount) {
-		return FormStyleUtils.prepareLargeTextArea(new TextArea(), rowCount);
 	}
 
 	public static CheckBox checkBox() {

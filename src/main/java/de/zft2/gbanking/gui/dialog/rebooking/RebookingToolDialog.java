@@ -3,7 +3,6 @@ package de.zft2.gbanking.gui.dialog.rebooking;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,6 +13,7 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.gui.BaseGui;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.GuiLayoutState;
+import de.zft2.gbanking.gui.util.TableColumnFactory;
 import de.zft2.gbanking.rebooking.MissingRebookingCreationSummary;
 import de.zft2.gbanking.rebooking.MissingRebookingRouteSummary;
 import de.zft2.gbanking.rebooking.RebookingAccountSummary;
@@ -21,7 +21,6 @@ import de.zft2.gbanking.rebooking.RebookingAssignmentSummary;
 import de.zft2.gbanking.service.account.AccountTransactionService;
 import de.zft2.gbanking.service.GBankingService;
 import de.zft2.gbanking.service.ServiceRegistry;
-import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
@@ -195,13 +194,11 @@ public class RebookingToolDialog implements BaseGui {
 		summaryLabel.setWrapText(true);
 
 		TableView<RebookingAccountSummary> summaryTable = new TableView<>(FXCollections.observableArrayList(summary.accountSummaries()));
-		TableColumn<RebookingAccountSummary, String> accountColumn = new TableColumn<>(getText("UI_TABLE_ACCOUNT"));
-		accountColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().accountName()));
-		accountColumn.setPrefWidth(280);
-		TableColumn<RebookingAccountSummary, Integer> foundColumn = new TableColumn<>(getText("UI_TABLE_REBOOKING_FOUND"));
-		foundColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().foundRebookings()));
-		foundColumn.setPrefWidth(150);
-		summaryTable.getColumns().addAll(Arrays.asList(accountColumn, foundColumn));
+		TableColumn<RebookingAccountSummary, String> accountColumn = TableColumnFactory.createValueColumn(
+				getText("UI_TABLE_ACCOUNT"), RebookingAccountSummary::accountName, 280);
+		TableColumn<RebookingAccountSummary, Integer> foundColumn = TableColumnFactory.createValueColumn(
+				getText("UI_TABLE_REBOOKING_FOUND"), RebookingAccountSummary::foundRebookings, 150);
+		summaryTable.getColumns().addAll(accountColumn, foundColumn);
 		GuiLayoutState.configureTable(summaryTable, "dialog.rebookingAssignment");
 		summaryTable.setPrefWidth(450);
 		summaryTable.setPrefHeight(Math.min(280, 48 + summary.accountSummaries().size() * 30));
@@ -219,19 +216,16 @@ public class RebookingToolDialog implements BaseGui {
 
 		TableView<MissingRebookingSummaryRow> summaryTable = new TableView<>(
 				FXCollections.observableArrayList(createMissingRebookingSummaryRows(summary.routeSummaries())));
-		TableColumn<MissingRebookingSummaryRow, String> sourceColumn = new TableColumn<>(getText("UI_TABLE_SOURCE_ACCOUNT"));
-		sourceColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().sourceAccountName()));
-		sourceColumn.setPrefWidth(190);
+		TableColumn<MissingRebookingSummaryRow, String> sourceColumn = TableColumnFactory.createValueColumn(
+				getText("UI_TABLE_SOURCE_ACCOUNT"), MissingRebookingSummaryRow::sourceAccountName, 190);
 		sourceColumn.setSortable(false);
-		TableColumn<MissingRebookingSummaryRow, String> targetColumn = new TableColumn<>(getText("UI_TABLE_TARGET_ACCOUNT"));
-		targetColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().targetAccountName()));
-		targetColumn.setPrefWidth(190);
+		TableColumn<MissingRebookingSummaryRow, String> targetColumn = TableColumnFactory.createValueColumn(
+				getText("UI_TABLE_TARGET_ACCOUNT"), MissingRebookingSummaryRow::targetAccountName, 190);
 		targetColumn.setSortable(false);
-		TableColumn<MissingRebookingSummaryRow, Integer> missingColumn = new TableColumn<>(getText("UI_TABLE_REBOOKING_MISSING"));
-		missingColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().missingRebookings()));
-		missingColumn.setPrefWidth(140);
+		TableColumn<MissingRebookingSummaryRow, Integer> missingColumn = TableColumnFactory.createValueColumn(
+				getText("UI_TABLE_REBOOKING_MISSING"), MissingRebookingSummaryRow::missingRebookings, 140);
 		missingColumn.setSortable(false);
-		summaryTable.getColumns().addAll(Arrays.asList(sourceColumn, targetColumn, missingColumn));
+		summaryTable.getColumns().addAll(sourceColumn, targetColumn, missingColumn);
 		GuiLayoutState.configureTable(summaryTable, "dialog.missingRebookings");
 		summaryTable.setPrefWidth(540);
 		summaryTable.setPrefHeight(Math.min(320, 48 + summary.routeSummaries().size() * 30));
