@@ -1,15 +1,14 @@
 package de.zft2.gbanking.service.stock;
 
+import static de.zft2.gbanking.util.TextValues.hasText;
+import static de.zft2.gbanking.util.TextValues.trimToNull;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
-import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -77,6 +76,7 @@ import de.zft2.gbanking.service.HbciSessionRunner;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
+import de.zft2.gbanking.util.Hashes;
 
 public class StockPortfolioFinTsService extends AbstractDbService {
 
@@ -191,7 +191,7 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 		if (konto == null) {
 			throw new GBankingException("Das Depotkonto konnte im FinTS-Zugang nicht gefunden werden.");
 		}
-		konto.bic = firstNonBlank(account.getBic(), konto.bic);
+		konto.bic = hasText(account.getBic()) ? account.getBic() : konto.bic;
 		logHandler.logRetrievedAccountInfo(konto);
 
 		HBCIJob<GVRWPDepotList> job = bankAccessService().newHbciJob(session.handler(), PORTFOLIO_JOB);
@@ -878,12 +878,7 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 				append(canonical, subSaldo.comment);
 			}
 		}
-		try {
-			byte[] hash = MessageDigest.getInstance("SHA-256").digest(canonical.toString().getBytes(StandardCharsets.UTF_8));
-			return HexFormat.of().formatHex(hash);
-		} catch (NoSuchAlgorithmException exception) {
-			throw new IllegalStateException("SHA-256 is not available", exception);
-		}
+		return Hashes.sha256Hex(canonical.toString());
 	}
 
 	private static void append(StringBuilder target, Object value) {
@@ -916,14 +911,6 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 	private static String normalizeMic(String value) {
 		String normalized = trimToNull(value);
 		return normalized != null && normalized.length() == 4 ? normalized.toUpperCase(Locale.ROOT) : null;
-	}
-
-	private static String firstNonBlank(String first, String second) {
-		return trimToNull(first) != null ? first : second;
-	}
-
-	private static String trimToNull(String value) {
-		return value == null || value.isBlank() ? null : value.trim();
 	}
 
 	private static String requireText(String value, String message) {

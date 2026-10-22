@@ -1,21 +1,17 @@
 package de.zft2.gbanking.service.bankaccess;
 
+import static de.zft2.gbanking.util.TextValues.trimToBlank;
 import static de.zft2.gbanking.util.TextValues.trimToNull;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Properties;
 
 import org.apache.logging.log4j.LogManager;
@@ -36,6 +32,7 @@ import de.zft2.gbanking.logging.GBankingLoggingHandler;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.HbciSessionRunner;
 import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.util.Hashes;
 import de.zft2.gbanking.util.TypeConverter;
 
 public class BankMessageService extends AbstractDbService {
@@ -301,7 +298,7 @@ public class BankMessageService extends AbstractDbService {
 				if (normalizedText == null) {
 					continue;
 				}
-				String messageKey = sha256("KIMSG|" + normalizeForMessageKey(normalizedText));
+				String messageKey = Hashes.sha256Base64Url("KIMSG|" + normalizeForMessageKey(normalizedText));
 				BankMessage bankMessage = toInstitutionMessage(bankAccess, normalizedText, messageKey, retrievedAt,
 						existingMessages.get(messageKey));
 				BankMessage savedMessage = dbController.insertOrUpdate(bankMessage);
@@ -387,22 +384,12 @@ public class BankMessageService extends AbstractDbService {
 				normalizeForMessageKey(entry != null ? entry.description : null),
 				normalizeForMessageKey(entry != null ? entry.type : null),
 				normalizeForMessageKey(entry != null ? entry.format : null));
-		return sha256(keyMaterial);
+		return Hashes.sha256Base64Url(keyMaterial);
 	}
 
 	private static String normalizeForMessageKey(String value) {
 		String trimmedValue = trimToNull(value);
 		return trimmedValue != null ? trimmedValue.replaceAll("\\s+", " ").toUpperCase(Locale.ROOT) : "";
-	}
-
-	private static String sha256(String value) {
-		try {
-			MessageDigest digest = MessageDigest.getInstance("SHA-256");
-			byte[] hash = digest.digest(Objects.toString(value, "").getBytes(StandardCharsets.UTF_8));
-			return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
-		} catch (NoSuchAlgorithmException e) {
-			throw new IllegalStateException("SHA-256 is not available.", e);
-		}
 	}
 
 	private String joinComments(String[] comments) {
@@ -430,11 +417,6 @@ public class BankMessageService extends AbstractDbService {
 
 	private boolean isSupported(Properties supportedJobs, String jobName) {
 		return supportedJobs != null && supportedJobs.containsKey(jobName);
-	}
-
-	private static String trimToBlank(String value) {
-		String trimmedValue = trimToNull(value);
-		return trimmedValue != null ? trimmedValue : "";
 	}
 
 	private record BankMessageOverviewResult(boolean successful, boolean wrongPin, List<GVRInfoList.Info> entries) {

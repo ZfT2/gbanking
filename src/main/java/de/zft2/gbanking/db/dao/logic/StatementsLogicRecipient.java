@@ -1,5 +1,6 @@
 package de.zft2.gbanking.db.dao.logic;
 
+import static de.zft2.gbanking.util.TextValues.hasText;
 import static de.zft2.gbanking.util.TextValues.isMoreReadable;
 
 import java.util.List;
@@ -127,10 +128,6 @@ public class StatementsLogicRecipient extends StatementsLogicDefault<Recipient> 
 
 	private boolean canUseIndexedAccountIdentifierLookup(Recipient recipient) {
 		return hasText(recipient.getAccountNumber()) || hasAsciiText(recipient.getIban());
-	}
-
-	private boolean hasText(String value) {
-		return value != null && !value.isBlank();
 	}
 
 	private boolean hasAsciiText(String value) {

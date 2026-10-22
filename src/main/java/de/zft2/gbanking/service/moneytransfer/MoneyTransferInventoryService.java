@@ -1,6 +1,8 @@
 package de.zft2.gbanking.service.moneytransfer;
 
+import static de.zft2.gbanking.util.TextValues.equalsIgnoreCase;
 import static de.zft2.gbanking.util.TextValues.firstNonBlank;
+import static de.zft2.gbanking.util.TextValues.isBlank;
 import static de.zft2.gbanking.util.TextValues.trimToNull;
 
 import java.math.BigDecimal;
@@ -459,14 +461,6 @@ public class MoneyTransferInventoryService extends AbstractDbService {
 
 	private String normalizeText(String value) {
 		return value == null ? null : value.trim();
-	}
-
-	private boolean equalsIgnoreCase(String left, String right) {
-		return left == null && right == null || left != null && right != null && left.equalsIgnoreCase(right);
-	}
-
-	private boolean isBlank(String value) {
-		return value == null || value.isBlank();
 	}
 
 	private record InventoryMappingResult(List<MoneyTransfer> transfers, boolean complete) {

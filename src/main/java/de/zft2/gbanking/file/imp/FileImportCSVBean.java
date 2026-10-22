@@ -43,6 +43,7 @@ import de.zft2.gbanking.file.imp.csv.CsvImportTarget;
 import de.zft2.gbanking.file.imp.dto.ImportBankAccount;
 import de.zft2.gbanking.file.imp.dto.ImportBooking;
 import de.zft2.gbanking.mapper.ImportDaoMapper;
+import de.zft2.gbanking.util.DecimalText;
 import de.zft2.gbanking.util.TypeConverter;
 
 public class FileImportCSVBean extends AbstractBookingImportBean {
@@ -338,12 +339,7 @@ public class FileImportCSVBean extends AbstractBookingImportBean {
 
 	private String normalizeDecimal(String value) {
 		String normalized = value.trim().replace("\u00A0", "").replace(" ", "");
-		if (normalized.contains(",") && normalized.contains(".")) {
-			return normalized.lastIndexOf(',') > normalized.lastIndexOf('.')
-					? normalized.replace(".", "").replace(',', '.')
-					: normalized.replace(",", "");
-		}
-		return normalized.replace(',', '.');
+		return DecimalText.toGermanDecimal(normalized);
 	}
 
 	private LocalDate parseDate(CsvImportData.Row row, CsvImportDefinition definition, CsvImportTarget target, String dateOrder) {

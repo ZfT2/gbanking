@@ -1,5 +1,8 @@
 package de.zft2.gbanking.file.imp.institute;
 
+import static de.zft2.gbanking.util.TextValues.equalsIgnoreCase;
+import static de.zft2.gbanking.util.TextValues.hasText;
+
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -191,14 +194,6 @@ public class InstituteFileImportAdditional extends InstituteFileImport {
 		}
 		String value = csvRecord.get(column).trim();
 		return value.isEmpty() ? null : value;
-	}
-
-	private static boolean equalsIgnoreCase(String first, String second) {
-		return first == null ? second == null : second != null && first.equalsIgnoreCase(second);
-	}
-
-	private static boolean hasText(String value) {
-		return value != null && !value.isBlank();
 	}
 
 	static Charset getCharset(Charset charset) {

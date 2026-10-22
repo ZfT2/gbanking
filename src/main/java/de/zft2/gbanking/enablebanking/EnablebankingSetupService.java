@@ -1,9 +1,10 @@
 package de.zft2.gbanking.enablebanking;
 
 import static de.zft2.gbanking.enablebanking.EnablebankingJson.firstText;
-import static de.zft2.gbanking.enablebanking.EnablebankingJson.hasText;
-import static de.zft2.gbanking.enablebanking.EnablebankingJson.trimToNull;
 import static de.zft2.gbanking.enablebanking.EnablebankingJson.upper;
+import static de.zft2.gbanking.util.TextValues.equalsIgnoreCaseNonNull;
+import static de.zft2.gbanking.util.TextValues.hasText;
+import static de.zft2.gbanking.util.TextValues.trimToNull;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -178,7 +179,7 @@ public class EnablebankingSetupService extends AbstractDbService {
 	private boolean sameAccount(BankAccount existing, EnablebankingRemoteAccount remote) {
 		boolean sameProviderId = hasText(remote.identificationHash())
 				&& remote.identificationHash().equals(existing.getProviderAccountId());
-		boolean sameIban = hasText(remote.iban()) && equalsIgnoreCase(remote.iban(), existing.getIban());
+		boolean sameIban = hasText(remote.iban()) && equalsIgnoreCaseNonNull(remote.iban(), existing.getIban());
 		return sameProviderId || sameIban;
 	}
 
@@ -320,10 +321,6 @@ public class EnablebankingSetupService extends AbstractDbService {
 
 	private boolean containsPaypal(String value) {
 		return value != null && value.toLowerCase(Locale.ROOT).contains("paypal");
-	}
-
-	private boolean equalsIgnoreCase(String left, String right) {
-		return left != null && right != null && left.equalsIgnoreCase(right);
 	}
 
 }

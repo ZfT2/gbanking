@@ -1,5 +1,8 @@
 package de.zft2.gbanking.service.stock;
 
+import static de.zft2.gbanking.util.TextValues.firstWithTextOrDefault;
+import static de.zft2.gbanking.util.TextValues.nullToEmpty;
+
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Path;
@@ -212,7 +215,8 @@ public class PortfolioPerformanceExportService extends AbstractDbService {
 		Set<String> used = new LinkedHashSet<>();
 		for (StockSecurity security : securities) {
 			SecurityIdentifiers values = identifiers.getOrDefault(security.getId(), SecurityIdentifiers.EMPTY);
-			String base = firstNonBlank(values.isin(), stripTickerSuffix(values.ticker()), values.wkn(), security.getName());
+			String base = firstWithTextOrDefault("Wertpapier", values.isin(), stripTickerSuffix(values.ticker()), values.wkn(),
+					security.getName());
 			String unique = base;
 			if (!used.add(unique)) {
 				unique = base + "_" + security.getId();
@@ -273,19 +277,6 @@ public class PortfolioPerformanceExportService extends AbstractDbService {
 	private static String stripTickerSuffix(String value) {
 		int separator = value != null ? value.indexOf('.') : -1;
 		return separator > 0 ? value.substring(0, separator) : value;
-	}
-
-	private static String firstNonBlank(String... values) {
-		for (String value : values) {
-			if (value != null && !value.isBlank()) {
-				return value;
-			}
-		}
-		return "Wertpapier";
-	}
-
-	private static String nullToEmpty(String value) {
-		return value != null ? value : "";
 	}
 
 	private static void requirePortfolio(PortfolioSummary portfolio) {

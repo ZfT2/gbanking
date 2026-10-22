@@ -1,5 +1,7 @@
 package de.zft2.gbanking.file.imp.institute;
 
+import static de.zft2.gbanking.util.TextValues.hasText;
+
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -128,10 +130,6 @@ public class InstituteFileImportEpc extends InstituteFileImport {
 
 	static Charset getCharset(Charset charset) {
 		return charset != null ? charset : StandardCharsets.UTF_8;
-	}
-
-	private static boolean hasText(String value) {
-		return value != null && !value.isBlank();
 	}
 
 	private static LocalDate parseDate(String value) {

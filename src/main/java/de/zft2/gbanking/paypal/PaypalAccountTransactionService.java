@@ -1,5 +1,9 @@
 package de.zft2.gbanking.paypal;
 
+import static de.zft2.gbanking.util.TextValues.firstWithText;
+import static de.zft2.gbanking.util.TextValues.hasText;
+import static de.zft2.gbanking.util.TextValues.trimToNull;
+
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
@@ -186,8 +190,8 @@ public class PaypalAccountTransactionService extends AbstractDbService {
 			return null;
 		}
 		Recipient recipient = new Recipient();
-		recipient.setName(firstText(transaction.payerDisplayName(), transaction.payerEmail()));
-		recipient.setAccountNumber(emptyToNull(transaction.payerEmail()));
+		recipient.setName(firstWithText(transaction.payerDisplayName(), trimToNull(transaction.payerEmail())));
+		recipient.setAccountNumber(trimToNull(transaction.payerEmail()));
 		recipient.setBank(PaypalSupport.DISPLAY_NAME);
 		recipient.setSource(Source.ONLINE);
 		return recipient;
@@ -195,7 +199,7 @@ public class PaypalAccountTransactionService extends AbstractDbService {
 
 	private String purpose(PaypalTransaction transaction) {
 		return Arrays.stream(new String[] { transaction.type(), transaction.payerDisplayName(), transaction.payerEmail() })
-				.filter(this::hasText)
+				.filter(value -> hasText(value))
 				.distinct()
 				.reduce((left, right) -> left + " - " + right)
 				.orElse(PaypalSupport.DISPLAY_NAME);
@@ -204,18 +208,6 @@ public class PaypalAccountTransactionService extends AbstractDbService {
 	private String stableReference(PaypalTransaction transaction) {
 		return String.join(":", PaypalSupport.BANK_CODE, transaction.transactionId(), transaction.type(), transaction.currency(),
 				transaction.timestamp().toString(), transaction.netAmount().toPlainString());
-	}
-
-	private String firstText(String first, String second) {
-		return hasText(first) ? first : emptyToNull(second);
-	}
-
-	private String emptyToNull(String value) {
-		return hasText(value) ? value.trim() : null;
-	}
-
-	private boolean hasText(String value) {
-		return value != null && !value.isBlank();
 	}
 
 	private BigDecimal signedAmount(BigDecimal amount, int sign) {

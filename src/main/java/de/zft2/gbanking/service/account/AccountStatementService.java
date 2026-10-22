@@ -1,17 +1,16 @@
 package de.zft2.gbanking.service.account;
 
+import static de.zft2.gbanking.util.TextValues.firstWithText;
+
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -48,6 +47,7 @@ import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
 import de.zft2.gbanking.service.account.AccountStatementRequestPlanner.StatementOverviewEntry;
 import de.zft2.gbanking.service.account.AccountStatementRequestPlanner.StatementRequest;
+import de.zft2.gbanking.util.Hashes;
 import de.zft2.gbanking.util.TypeConverter;
 
 public class AccountStatementService extends AbstractDbService {
@@ -152,7 +152,7 @@ public class AccountStatementService extends AbstractDbService {
 		if (konto == null) {
 			throw new GBankingException("Kein passendes HBCI-Konto fuer Konto " + getNullableBankAccountId(bankAccount) + " gefunden.");
 		}
-		konto.bic = firstText(bankAccount.getBic(), konto.bic);
+		konto.bic = firstWithText(bankAccount.getBic(), konto.bic);
 		logHandler.logRetrievedAccountInfo(konto);
 
 		String statementJobName = resolveStatementJobName(session.handler());
@@ -292,15 +292,15 @@ public class AccountStatementService extends AbstractDbService {
 	}
 
 	private void setInternationalOverviewAccountParams(HBCIJob<?> job, Konto konto, BankAccount bankAccount) {
-		setParamIfPresent(job, "my.iban", firstText(konto != null ? konto.iban : null, bankAccount != null ? bankAccount.getIban() : null));
-		setParamIfPresent(job, "my.bic", firstText(konto != null ? konto.bic : null, bankAccount != null ? bankAccount.getBic() : null));
+		setParamIfPresent(job, "my.iban", firstWithText(konto != null ? konto.iban : null, bankAccount != null ? bankAccount.getIban() : null));
+		setParamIfPresent(job, "my.bic", firstWithText(konto != null ? konto.bic : null, bankAccount != null ? bankAccount.getBic() : null));
 	}
 
 	private void setNationalOverviewAccountParams(HBCIJob<?> job, Konto konto, BankAccount bankAccount) {
-		setParamIfPresent(job, "my.number", firstText(konto != null ? konto.number : null, bankAccount != null ? bankAccount.getNumber() : null));
-		setParamIfPresent(job, "my.subnumber", firstText(konto != null ? konto.subnumber : null, bankAccount != null ? bankAccount.getSubnumber() : null));
-		setParamIfPresent(job, "my.country", firstText(konto != null ? konto.country : null, bankAccount != null ? bankAccount.getCountry() : null, "DE"));
-		setParamIfPresent(job, "my.blz", firstText(konto != null ? konto.blz : null, bankAccount != null ? bankAccount.getBlz() : null));
+		setParamIfPresent(job, "my.number", firstWithText(konto != null ? konto.number : null, bankAccount != null ? bankAccount.getNumber() : null));
+		setParamIfPresent(job, "my.subnumber", firstWithText(konto != null ? konto.subnumber : null, bankAccount != null ? bankAccount.getSubnumber() : null));
+		setParamIfPresent(job, "my.country", firstWithText(konto != null ? konto.country : null, bankAccount != null ? bankAccount.getCountry() : null, "DE"));
+		setParamIfPresent(job, "my.blz", firstWithText(konto != null ? konto.blz : null, bankAccount != null ? bankAccount.getBlz() : null));
 	}
 
 	private StatementRetrievalBatchResult redownloadAcknowledgedAccountStatements(BankAccount bankAccount, HbciSessionRunner.HbciSession session,
@@ -603,8 +603,8 @@ public class AccountStatementService extends AbstractDbService {
 		statement.setYear(entry.getYear());
 		statement.setNumber(entry.getNumber());
 		statement.setSize(entry.getData().length);
-		statement.setIban(firstText(entry.getIBAN(), bankAccount.getIban()));
-		statement.setBic(firstText(entry.getBIC(), bankAccount.getBic()));
+		statement.setIban(firstWithText(entry.getIBAN(), bankAccount.getIban()));
+		statement.setBic(firstWithText(entry.getBIC(), bankAccount.getBic()));
 		statement.setSourceJob(Objects.toString(sourceJob, ""));
 		statement.setReceiptAvailable(entry.getReceipt() != null && entry.getReceipt().length > 0);
 		statement.setReceipt(entry.getReceipt());
@@ -650,16 +650,7 @@ public class AccountStatementService extends AbstractDbService {
 	}
 
 	private String statementDataKey(int accountId, byte[] data) {
-		return accountId + ":data:" + sha256(data);
-	}
-
-	private String sha256(byte[] data) {
-		try {
-			MessageDigest digest = MessageDigest.getInstance("SHA-256");
-			return Base64.getEncoder().encodeToString(digest.digest(data));
-		} catch (NoSuchAlgorithmException e) {
-			throw new IllegalStateException("SHA-256 is not available.", e);
-		}
+		return accountId + ":data:" + Hashes.sha256Base64(data);
 	}
 
 	private BankAccountStatement findMatchingStoredStatement(BankAccount bankAccount, GVRKontoauszugEntry entry,
@@ -923,15 +914,6 @@ public class AccountStatementService extends AbstractDbService {
 
 	private String formatName(Format format) {
 		return format != null ? format.name() : "UNKNOWN";
-	}
-
-	private String firstText(String... values) {
-		for (String value : values) {
-			if (value != null && !value.isBlank()) {
-				return value;
-			}
-		}
-		return null;
 	}
 
 	private void setParamIfPresent(HBCIJob<?> job, String parameterName, String value) {

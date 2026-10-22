@@ -1,5 +1,8 @@
 package de.zft2.gbanking.service.account;
 
+import static de.zft2.gbanking.util.TextValues.firstWithText;
+import static de.zft2.gbanking.util.TextValues.nullToEmpty;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -211,7 +214,7 @@ class AccountStatementFileManager {
 	}
 
 	private String accountIdentifier(BankAccount bankAccount, GVRKontoauszugEntry entry) {
-		String identifier = firstText(bankAccount.getIban(), entry.getIBAN(), bankAccount.getNumber(), Integer.toString(bankAccount.getId()));
+		String identifier = nullToEmpty(firstWithText(bankAccount.getIban(), entry.getIBAN(), bankAccount.getNumber(), Integer.toString(bankAccount.getId())));
 		return sanitizeFileNamePart(identifier);
 	}
 
@@ -236,7 +239,7 @@ class AccountStatementFileManager {
 
 	private String statementFileName(GVRKontoauszugEntry entry) {
 		String bankFileName = removeFileExtension(fileNameOnly(entry.getFilename()));
-		return sanitizeFileNamePart(firstText(bankFileName, "statement"));
+		return sanitizeFileNamePart(nullToEmpty(firstWithText(bankFileName, "statement")));
 	}
 
 	private String fileNameOnly(String value) {
@@ -276,14 +279,5 @@ class AccountStatementFileManager {
 			return "bin";
 		}
 		return format.getExtention().toLowerCase(Locale.ROOT);
-	}
-
-	private String firstText(String... values) {
-		for (String value : values) {
-			if (value != null && !value.isBlank()) {
-				return value;
-			}
-		}
-		return "";
 	}
 }

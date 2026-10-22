@@ -1,5 +1,7 @@
 package de.zft2.gbanking.gui.panel.institute;
 
+import static de.zft2.gbanking.util.TextValues.firstWithText;
+
 import java.awt.Desktop;
 import java.io.IOException;
 import java.net.URI;
@@ -69,10 +71,10 @@ public class InstituteDetailPanel extends VBox implements BaseMessagesBean {
 	private GridPane createGeneralGrid(Institute institute) {
 		GridPane grid = createGrid();
 		add(grid, "UI_LABEL_BANK", institute.getBankName(), 0, 0);
-		add(grid, "UI_LABEL_BANK_NAME_SHORT", firstNonBlank(institute.getBankNameShort(), institute.getAdditionalBankNameShort()), 1, 0);
+		add(grid, "UI_LABEL_BANK_NAME_SHORT", firstWithText(institute.getBankNameShort(), institute.getAdditionalBankNameShort()), 1, 0);
 		add(grid, "UI_LABEL_PLACE", institute.getPlace(), 2, 0);
 		add(grid, "UI_LABEL_COUNTRY", displayCountry(institute), 3, 0);
-		add(grid, "UI_LABEL_POSTCODE", firstNonBlank(institute.getPostcode(), institute.getAdditionalPostcode()), 0, 1);
+		add(grid, "UI_LABEL_POSTCODE", firstWithText(institute.getPostcode(), institute.getAdditionalPostcode()), 0, 1);
 		add(grid, "UI_LABEL_BLZ", institute.getBlz(), 1, 1);
 		add(grid, "UI_LABEL_BIC", institute.getBic(), 2, 1);
 		add(grid, "UI_LABEL_INSTITUTE_STATUS", institute.getStateType(), 3, 1);
@@ -230,10 +232,6 @@ public class InstituteDetailPanel extends VBox implements BaseMessagesBean {
 
 	private static String text(Object value) {
 		return value == null || value.toString().isBlank() ? EMPTY_VALUE : value.toString();
-	}
-
-	private static String firstNonBlank(String preferred, String fallback) {
-		return preferred == null || preferred.isBlank() ? fallback : preferred;
 	}
 
 	private static String formatRdh(Institute institute, int fromIndex, int toIndex) {

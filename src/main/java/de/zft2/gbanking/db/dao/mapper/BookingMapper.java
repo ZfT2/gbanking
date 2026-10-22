@@ -1,5 +1,7 @@
 package de.zft2.gbanking.db.dao.mapper;
 
+import static de.zft2.gbanking.util.TextValues.hasText;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.PreparedStatement;

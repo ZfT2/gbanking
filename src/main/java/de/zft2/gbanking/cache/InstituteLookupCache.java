@@ -1,5 +1,7 @@
 package de.zft2.gbanking.cache;
 
+import static de.zft2.gbanking.util.TextValues.trimToNull;
+
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -136,7 +138,7 @@ public final class InstituteLookupCache {
 	private static Optional<String> findBankNameForBankCode(String bankCode) {
 		return getEntriesForBankCode(bankCode).stream()
 				.map(InstituteLookupEntry::bankName)
-				.map(InstituteLookupCache::trimToNull)
+				.map(value -> trimToNull(value))
 				.filter(Objects::nonNull)
 				.findFirst();
 	}
@@ -158,13 +160,5 @@ public final class InstituteLookupCache {
 		}
 		normalizedIban = normalizedIban.replace(" ", "").toUpperCase(Locale.ROOT);
 		return normalizedIban.matches("DE\\d{20}") ? normalizedIban : null;
-	}
-
-	private static String trimToNull(String value) {
-		if (value == null) {
-			return null;
-		}
-		String trimmed = value.trim();
-		return trimmed.isEmpty() ? null : trimmed;
 	}
 }

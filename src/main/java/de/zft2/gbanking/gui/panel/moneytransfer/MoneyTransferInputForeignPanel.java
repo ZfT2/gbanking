@@ -1,5 +1,7 @@
 package de.zft2.gbanking.gui.panel.moneytransfer;
 
+import static de.zft2.gbanking.util.TextValues.trimToNull;
+
 import java.util.List;
 import java.util.Locale;
 

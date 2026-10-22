@@ -1,5 +1,8 @@
 package de.zft2.gbanking.hbci;
 
+import static de.zft2.gbanking.util.TextValues.firstNonBlankOrEmpty;
+import static de.zft2.gbanking.util.TextValues.trimToBlank;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.math.BigDecimal;
@@ -96,7 +99,7 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 		case NEED_BLZ -> retDataBuilder.replace(0, retDataBuilder.length(), bankAccess.getFints().getBlz());
 		case NEED_USERID -> retDataBuilder.replace(0, retDataBuilder.length(), trimToBlank(bankAccess.getFints().getUserId()));
 		case NEED_CUSTOMERID -> retDataBuilder.replace(0, retDataBuilder.length(),
-				firstNonBlank(bankAccess.getFints().getCustomerId(), bankAccess.getFints().getUserId()));
+				firstNonBlankOrEmpty(bankAccess.getFints().getCustomerId(), bankAccess.getFints().getUserId()));
 		case HAVE_VOP_RESULT -> handleVoPResult(passport, msg, retDataBuilder);
 		case NEED_PT_PHOTOTAN, NEED_PT_QRTAN, NEED_PT_TAN -> {
 			confirmRecipientCheckIfNeeded();
@@ -567,17 +570,17 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 
 	private RecipientCheckRequest createRecipientCheckRequest(VoPResult voPResult, VoPStatus status, String details) {
 		VoPResultItem item = resolvePrimaryVoPItem(voPResult);
-		String originalName = firstNonBlank(item != null ? item.getOriginal() : null, getCurrentRecipientName());
+		String originalName = firstNonBlankOrEmpty(item != null ? item.getOriginal() : null, getCurrentRecipientName());
 		String bankName = trimToBlank(item != null ? item.getName() : null);
 		boolean closeMatch = status == VoPStatus.CLOSE_MATCH;
 		boolean noMatch = status == VoPStatus.NO_MATCH;
 		List<HbciCallbackMessageDialog.DialogOption> nameOptions = closeMatch ? createRecipientNameOptions(originalName, bankName) : List.of();
-		String initialRecipientName = firstNonBlank(originalName, bankName);
+		String initialRecipientName = firstNonBlankOrEmpty(originalName, bankName);
 
 		return new RecipientCheckRequest(getVoPPrompt(status), details, getOrderTypeText(), getCurrentAmount(item),
-				firstNonBlank(getCurrentRecipientName(), originalName),
-				firstNonBlank(item != null ? item.getIban() : null, getCurrentRecipientIban()), getCurrentRecipientBic(), getCurrentRecipientBank(),
-				firstNonBlank(getCurrentPurpose(), item != null ? item.getUsage() : null), getVoPStatusText(status), originalName, bankName,
+				firstNonBlankOrEmpty(getCurrentRecipientName(), originalName),
+				firstNonBlankOrEmpty(item != null ? item.getIban() : null, getCurrentRecipientIban()), getCurrentRecipientBic(), getCurrentRecipientBank(),
+				firstNonBlankOrEmpty(getCurrentPurpose(), item != null ? item.getUsage() : null), getVoPStatusText(status), originalName, bankName,
 				initialRecipientName, noMatch, nameOptions);
 	}
 
@@ -669,7 +672,7 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 	}
 
 	private String getCurrentCurrency() {
-		return currentMoneyTransfer != null ? firstNonBlank(currentMoneyTransfer.getCurrency(), "EUR") : "EUR";
+		return currentMoneyTransfer != null ? firstNonBlankOrEmpty(currentMoneyTransfer.getCurrency(), "EUR") : "EUR";
 	}
 
 	private String formatAmount(BigDecimal amount, String currency) {
@@ -711,13 +714,4 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 		return label + ": " + value.trim();
 	}
 
-	private String trimToBlank(String value) {
-		String trimmedValue = TextValues.trimToNull(value);
-		return trimmedValue != null ? trimmedValue : "";
-	}
-
-	private String firstNonBlank(String preferredValue, String fallbackValue) {
-		String trimmedValue = TextValues.trimToNull(preferredValue);
-		return trimmedValue != null ? trimmedValue : trimToBlank(fallbackValue);
-	}
 }

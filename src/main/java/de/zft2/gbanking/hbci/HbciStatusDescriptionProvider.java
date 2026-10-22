@@ -1,5 +1,7 @@
 package de.zft2.gbanking.hbci;
 
+import static de.zft2.gbanking.util.TextValues.firstNonBlankOrEmpty;
+
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,7 +59,7 @@ final class HbciStatusDescriptionProvider implements BaseMessages {
 		if (bankAccount == null) {
 			return getText(UI_SELECTED_ACCOUNT);
 		}
-		return firstText(bankAccount.getAccountName(), bankAccount.getIban(), bankAccount.getNumber(),
+		return firstNonBlankOrEmpty(bankAccount.getAccountName(), bankAccount.getIban(), bankAccount.getNumber(),
 				getText(UI_SELECTED_ACCOUNT));
 	}
 
@@ -116,7 +118,7 @@ final class HbciStatusDescriptionProvider implements BaseMessages {
 		if (account == null) {
 			return getText(UI_SELECTED_ACCOUNT);
 		}
-		return firstText(account.name, account.iban, account.number, getText(UI_SELECTED_ACCOUNT));
+		return firstNonBlankOrEmpty(account.name, account.iban, account.number, getText(UI_SELECTED_ACCOUNT));
 	}
 
 	private String normalizeJobName(String jobName) {
@@ -145,14 +147,5 @@ final class HbciStatusDescriptionProvider implements BaseMessages {
 
 	private String formatError(String message) {
 		return getText("UI_DIALOG_HBCI_STATUS_ERROR", message);
-	}
-
-	private String firstText(String... values) {
-		for (String value : values) {
-			if (value != null && !value.isBlank()) {
-				return value.trim();
-			}
-		}
-		return "";
 	}
 }

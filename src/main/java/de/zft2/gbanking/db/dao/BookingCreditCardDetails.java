@@ -1,5 +1,7 @@
 package de.zft2.gbanking.db.dao;
 
+import static de.zft2.gbanking.util.TextValues.hasText;
+
 import java.io.Serializable;
 import java.time.LocalDate;
 
@@ -59,9 +61,5 @@ public class BookingCreditCardDetails implements Serializable {
 
 	public void setMerchantCategory(String merchantCategory) {
 		this.merchantCategory = merchantCategory;
-	}
-
-	private boolean hasText(String value) {
-		return value != null && !value.isBlank();
 	}
 }

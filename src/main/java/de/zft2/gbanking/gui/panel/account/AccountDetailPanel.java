@@ -1,5 +1,7 @@
 package de.zft2.gbanking.gui.panel.account;
 
+import static de.zft2.gbanking.util.TextValues.trimToNull;
+
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.util.ArrayList;

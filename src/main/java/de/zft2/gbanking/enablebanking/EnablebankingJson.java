@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import de.zft2.gbanking.util.TextValues;
+
 final class EnablebankingJson {
 
 	private EnablebankingJson() {
@@ -22,7 +24,7 @@ final class EnablebankingJson {
 	static String firstText(Map<String, Object> values, String... keys) {
 		for (String key : keys) {
 			String value = string(values.get(key));
-			if (hasText(value) && !"{}".equals(value)) {
+			if (TextValues.hasText(value) && !"{}".equals(value)) {
 				return value;
 			}
 		}
@@ -30,16 +32,7 @@ final class EnablebankingJson {
 	}
 
 	static String firstText(String... values) {
-		for (String value : values) {
-			if (hasText(value)) {
-				return value;
-			}
-		}
-		return null;
-	}
-
-	static boolean hasText(String value) {
-		return value != null && !value.isBlank();
+		return TextValues.firstWithText(values);
 	}
 
 	static List<Object> list(Object value) {
@@ -71,10 +64,6 @@ final class EnablebankingJson {
 			return text;
 		}
 		return value != null && !(value instanceof Map<?, ?>) ? value.toString() : null;
-	}
-
-	static String trimToNull(String value) {
-		return hasText(value) ? value.trim() : null;
 	}
 
 	static String upper(String value) {

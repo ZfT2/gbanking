@@ -1,22 +1,20 @@
 package de.zft2.gbanking.db;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import java.util.HexFormat;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.LongSupplier;
+
+import de.zft2.gbanking.util.Hashes;
 
 final class DatabaseValidationRegistry {
 
@@ -163,17 +161,7 @@ final class DatabaseValidationRegistry {
 		}
 
 		private static String contentMarker(Path file) throws IOException {
-			try {
-				MessageDigest digest = MessageDigest.getInstance("SHA-256");
-				byte[] buffer = new byte[CONTENT_MARKER_SIZE];
-				try (InputStream inputStream = Files.newInputStream(file)) {
-					int bytesRead = inputStream.readNBytes(buffer, 0, buffer.length);
-					digest.update(buffer, 0, bytesRead);
-				}
-				return HexFormat.of().formatHex(digest.digest());
-			} catch (NoSuchAlgorithmException exception) {
-				throw new IllegalStateException("SHA-256 is unavailable", exception);
-			}
+			return Hashes.sha256HexOfFilePrefix(file, CONTENT_MARKER_SIZE);
 		}
 	}
 }

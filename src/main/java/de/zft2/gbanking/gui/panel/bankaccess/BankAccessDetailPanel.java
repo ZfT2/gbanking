@@ -1,5 +1,8 @@
 package de.zft2.gbanking.gui.panel.bankaccess;
 
+import static de.zft2.gbanking.util.TextValues.isBlank;
+import static de.zft2.gbanking.util.TextValues.trimToNull;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;

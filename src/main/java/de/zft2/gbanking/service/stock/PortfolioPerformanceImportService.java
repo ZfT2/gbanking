@@ -1,5 +1,8 @@
 package de.zft2.gbanking.service.stock;
 
+import static de.zft2.gbanking.util.TextValues.firstWithTextOrDefault;
+import static de.zft2.gbanking.util.TextValues.nullToEmpty;
+
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -7,7 +10,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.DateTimeException;
@@ -75,6 +77,7 @@ import de.zft2.gbanking.service.stock.PortfolioPerformanceData.Portfolio;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceData.Security;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceData.Transaction;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
+import de.zft2.gbanking.util.Hashes;
 
 public class PortfolioPerformanceImportService extends AbstractDbService {
 
@@ -741,7 +744,8 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 			throw new GBankingException("Für die Transaktion am " + data.date().toLocalDate() + " fehlt das Wertpapier");
 		}
 		Security securityData = new Security(null,
-				data.securityName() != null ? data.securityName() : firstNonBlank(data.isin(), data.wkn(), data.ticker()),
+				data.securityName() != null ? data.securityName()
+						: firstWithTextOrDefault("Unbekanntes Wertpapier", data.isin(), data.wkn(), data.ticker()),
 				data.grossCurrency() != null ? data.grossCurrency() : data.bookingCurrency(), data.isin(), data.wkn(),
 				data.ticker(), null, List.of());
 		return ensureSecurity(securityData, source, counters);
@@ -1190,45 +1194,28 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		return nullToEmpty(value).trim().toUpperCase(Locale.ROOT);
 	}
 
-	private static String nullToEmpty(String value) {
-		return value != null ? value : "";
-	}
-
-	private static String firstNonBlank(String... values) {
-		for (String value : values) {
-			if (value != null && !value.isBlank()) {
-				return value;
-			}
-		}
-		return "Unbekanntes Wertpapier";
-	}
-
 	private static String hash(byte[] content, int portfolioId) {
 		return hash(content, portfolioId, false, null, null);
 	}
 
 	private static String hash(byte[] content, int portfolioId, boolean importAdditionalAccounts,
 			XmlImportAssignments assignments, String discriminator) {
-		try {
-			MessageDigest digest = MessageDigest.getInstance("SHA-256");
-			digest.update(content);
-			if (portfolioId > 0) {
-				digest.update((byte) ':');
-				digest.update(Integer.toString(portfolioId).getBytes(StandardCharsets.UTF_8));
-			}
-			if (importAdditionalAccounts) {
-				digest.update(":ADDITIONAL_ACCOUNTS".getBytes(StandardCharsets.UTF_8));
-			}
-			if (assignments != null) {
-				digest.update(assignments.fingerprint().getBytes(StandardCharsets.UTF_8));
-			}
-			if (discriminator != null) {
-				digest.update(discriminator.getBytes(StandardCharsets.UTF_8));
-			}
-			return java.util.HexFormat.of().formatHex(digest.digest());
-		} catch (NoSuchAlgorithmException exception) {
-			throw new IllegalStateException("SHA-256 ist nicht verfügbar", exception);
+		MessageDigest digest = Hashes.newSha256Digest();
+		digest.update(content);
+		if (portfolioId > 0) {
+			digest.update((byte) ':');
+			digest.update(Integer.toString(portfolioId).getBytes(StandardCharsets.UTF_8));
 		}
+		if (importAdditionalAccounts) {
+			digest.update(":ADDITIONAL_ACCOUNTS".getBytes(StandardCharsets.UTF_8));
+		}
+		if (assignments != null) {
+			digest.update(assignments.fingerprint().getBytes(StandardCharsets.UTF_8));
+		}
+		if (discriminator != null) {
+			digest.update(discriminator.getBytes(StandardCharsets.UTF_8));
+		}
+		return Hashes.toHex(digest.digest());
 	}
 
 	public record ImportResult(int securities, int transactions, int bookings, int prices, int portfolios, int accounts,

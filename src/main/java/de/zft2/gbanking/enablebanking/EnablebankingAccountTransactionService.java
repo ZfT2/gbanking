@@ -7,9 +7,6 @@ import static de.zft2.gbanking.enablebanking.EnablebankingJson.string;
 import static de.zft2.gbanking.enablebanking.EnablebankingJson.upper;
 
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -48,6 +45,7 @@ import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.account.AccountTransactionRetrievalResult;
 import de.zft2.gbanking.service.account.AccountTransactionService;
 import de.zft2.gbanking.service.account.PendingBookingSnapshot;
+import de.zft2.gbanking.util.Hashes;
 
 public class EnablebankingAccountTransactionService extends AbstractDbService {
 
@@ -538,12 +536,7 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 				booking.getAmount().toPlainString(),
 				Optional.ofNullable(firstText(object(transaction.get("transaction_amount")), CURRENCY, CURRENCY_CODE)).orElse(""),
 				Optional.ofNullable(booking.getPurpose()).orElse(""));
-		try {
-			byte[] hash = MessageDigest.getInstance("SHA-256").digest(source.getBytes(StandardCharsets.UTF_8));
-			return java.util.HexFormat.of().formatHex(hash);
-		} catch (NoSuchAlgorithmException exception) {
-			throw new IllegalStateException("SHA-256 is not available", exception);
-		}
+		return Hashes.sha256Hex(source);
 	}
 
 	private AccountTransactionRetrievalResult persist(BankAccount account, AccountTransactionRetrievalResult result) {

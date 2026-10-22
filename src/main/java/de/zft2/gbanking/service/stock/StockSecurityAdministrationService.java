@@ -1,5 +1,6 @@
 package de.zft2.gbanking.service.stock;
 
+import static de.zft2.gbanking.util.TextValues.equalsIgnoreCase;
 import static de.zft2.gbanking.util.TextValues.trimToNull;
 
 import java.time.LocalDate;
@@ -117,7 +118,7 @@ public class StockSecurityAdministrationService extends AbstractDbService {
 				.filter(identifier -> identifier.getIdentifierType() == type)
 				.filter(identifier -> value.equalsIgnoreCase(identifier.getIdentifierValue()))
 				.anyMatch(identifier -> type != StockIdentifierType.TICKER
-						|| equalIgnoreCase(marketIdentifierCode, identifier.getMarketIdentifierCode()));
+						|| equalsIgnoreCase(trimToNull(marketIdentifierCode), trimToNull(identifier.getMarketIdentifierCode())));
 		if (duplicate) {
 			throw new GBankingException(type + " " + value + " ist bereits einem anderen Wertpapier zugeordnet");
 		}
@@ -195,12 +196,6 @@ public class StockSecurityAdministrationService extends AbstractDbService {
 	private static String upper(String value) {
 		String normalized = trimToNull(value);
 		return normalized != null ? normalized.toUpperCase(Locale.ROOT) : null;
-	}
-
-	private static boolean equalIgnoreCase(String first, String second) {
-		String left = trimToNull(first);
-		String right = trimToNull(second);
-		return left == null ? right == null : right != null && left.equalsIgnoreCase(right);
 	}
 
 	private static String value(String value) {

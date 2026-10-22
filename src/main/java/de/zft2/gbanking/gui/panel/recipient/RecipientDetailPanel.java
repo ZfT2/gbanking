@@ -1,5 +1,8 @@
 package de.zft2.gbanking.gui.panel.recipient;
 
+import static de.zft2.gbanking.util.TextValues.isBlank;
+import static de.zft2.gbanking.util.TextValues.trimToNull;
+
 import java.util.List;
 
 import org.apache.logging.log4j.Level;

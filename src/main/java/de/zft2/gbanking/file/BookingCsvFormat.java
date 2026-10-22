@@ -10,6 +10,7 @@ import java.util.Locale;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
 
+import de.zft2.gbanking.util.DecimalText;
 import de.zft2.gbanking.util.TypeConverter;
 
 public final class BookingCsvFormat {
@@ -128,9 +129,6 @@ public final class BookingCsvFormat {
 	}
 
 	private static String normalizeAmount(String value) {
-		if (value.contains(",") && value.contains(".")) {
-			return value.lastIndexOf(',') > value.lastIndexOf('.') ? value.replace(".", "").replace(',', '.') : value.replace(",", "");
-		}
-		return value.contains(",") ? value.replace(',', '.') : value;
+		return DecimalText.toGermanDecimal(value);
 	}
 }

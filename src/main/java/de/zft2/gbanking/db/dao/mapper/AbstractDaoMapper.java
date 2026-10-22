@@ -213,8 +213,4 @@ public abstract class AbstractDaoMapper<T extends Dao, V> {
 		dao.setUpdatedAt((TypeConverter.toLocalDateFromSqlDate(rs.getDate(SqlFields.DAO_UPDATEDAT))));
 	}
 
-	protected boolean hasText(String value) {
-		return value != null && !value.isBlank();
-	}
-
 }

@@ -1,5 +1,7 @@
 package de.zft2.gbanking.db.dao;
 
+import static de.zft2.gbanking.util.TextValues.hasText;
+
 import java.io.Serializable;
 
 import de.zft2.gbanking.db.dao.enu.SepaType;
@@ -93,9 +95,5 @@ public class BookingSepaDetails implements Serializable {
 
 	public void setType(SepaType type) {
 		this.type = type;
-	}
-
-	private boolean hasText(String value) {
-		return value != null && !value.isBlank();
 	}
 }

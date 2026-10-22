@@ -35,6 +35,7 @@ import de.zft2.gbanking.db.dao.enu.VopResult;
 import de.zft2.gbanking.enu.LocalizedEnumValue;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.file.exp.FileExportBean.ExportConstants;
+import de.zft2.gbanking.util.DecimalText;
 
 public class MoneyTransferCsvImportBean extends MoneyTransferImportBean {
 
@@ -318,12 +319,7 @@ public class MoneyTransferCsvImportBean extends MoneyTransferImportBean {
 
 	private String normalizeAmount(String value) {
 		String normalized = value.replace("\u00A0", "").replace(" ", "");
-		int commaIndex = normalized.lastIndexOf(',');
-		int dotIndex = normalized.lastIndexOf('.');
-		if (commaIndex >= 0 && dotIndex >= 0) {
-			return commaIndex > dotIndex ? normalized.replace(".", "").replace(',', '.') : normalized.replace(",", "");
-		}
-		return commaIndex >= 0 ? normalized.replace(',', '.') : normalized;
+		return DecimalText.toGermanDecimal(normalized);
 	}
 
 	private record CsvHeaders(String senderIban, String recipientName, String recipientIban, String recipientBic, String amount, String purpose,

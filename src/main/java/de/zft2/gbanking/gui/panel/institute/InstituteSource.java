@@ -1,5 +1,7 @@
 package de.zft2.gbanking.gui.panel.institute;
 
+import static de.zft2.gbanking.util.TextValues.hasText;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -96,10 +98,6 @@ public enum InstituteSource {
 				|| hasText(institute.getAdditionalPostcode()) || hasText(institute.getAdditionalDeletionMarker())
 				|| hasText(institute.getAdditionalBlzSuccession()) || hasText(institute.getAdditionalIbanRule())
 				|| hasText(institute.getAdditionalIbanRuleVersion());
-	}
-
-	private static boolean hasText(String value) {
-		return value != null && !value.isBlank();
 	}
 
 	private static String reachableCountryCode(Institute institute) {

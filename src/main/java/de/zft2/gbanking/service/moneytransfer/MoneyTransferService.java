@@ -1,5 +1,7 @@
 package de.zft2.gbanking.service.moneytransfer;
 
+import static de.zft2.gbanking.util.TextValues.equalsIgnoreCaseNonNull;
+
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
@@ -122,11 +124,8 @@ public class MoneyTransferService extends AbstractDbService {
 	}
 
 	private boolean matchesSenderAccount(BankAccount bankAccount, Konto konto) {
-		return equalsIgnoreCase(bankAccount.getIban(), konto.iban) || equalsIgnoreCase(bankAccount.getNumber(), konto.number);
-	}
-
-	private boolean equalsIgnoreCase(String left, String right) {
-		return left != null && left.equalsIgnoreCase(right);
+		return equalsIgnoreCaseNonNull(bankAccount.getIban(), konto.iban)
+				|| equalsIgnoreCaseNonNull(bankAccount.getNumber(), konto.number);
 	}
 
 	private MoneyTransfer saveMoneyTransferToDBInTransaction(MoneyTransferForm mtf, MoneyTransfer existingMoneyTransfer) {

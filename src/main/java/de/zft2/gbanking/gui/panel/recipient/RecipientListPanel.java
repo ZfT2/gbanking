@@ -1,5 +1,7 @@
 package de.zft2.gbanking.gui.panel.recipient;
 
+import static de.zft2.gbanking.util.TextValues.firstWithText;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -69,20 +71,11 @@ public class RecipientListPanel extends AbstractFilterableTablePanel<Recipient> 
 	}
 
 	static String recipientAccountIdentifier(Recipient recipient) {
-		return firstNonBlank(recipient.getIban(), recipient.getAccountNumber());
+		return firstWithText(recipient.getIban(), recipient.getAccountNumber());
 	}
 
 	static String recipientBankCode(Recipient recipient) {
-		return firstNonBlank(recipient.getBic(), recipient.getBlz());
-	}
-
-	private static String firstNonBlank(String... values) {
-		for (String value : values) {
-			if (value != null && !value.isBlank()) {
-				return value;
-			}
-		}
-		return null;
+		return firstWithText(recipient.getBic(), recipient.getBlz());
 	}
 
 	@Override

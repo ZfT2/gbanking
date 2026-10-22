@@ -1,5 +1,8 @@
 package de.zft2.gbanking.gui.panel.moneytransfer;
 
+import static de.zft2.gbanking.util.TextValues.isBlank;
+import static de.zft2.gbanking.util.TextValues.trimToNull;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
@@ -34,6 +37,7 @@ import de.zft2.gbanking.service.BankingCapabilityService;
 import de.zft2.gbanking.service.moneytransfer.BankOrderOperation;
 import de.zft2.gbanking.service.moneytransfer.MoneyTransferService;
 import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.util.DecimalText;
 import de.zft2.gbanking.util.IbanCalculator;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
@@ -550,7 +554,7 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 	}
 
 	private static String toDecimalAmount(String amountText) {
-		String decimalAmount = amountText.replace(',', '.');
+		String decimalAmount = DecimalText.toDotDecimal(amountText);
 		return decimalAmount.endsWith(".") ? decimalAmount + "00" : decimalAmount;
 	}
 

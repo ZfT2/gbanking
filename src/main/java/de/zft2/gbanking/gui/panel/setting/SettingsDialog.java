@@ -37,6 +37,7 @@ import de.zft2.gbanking.service.stock.quote.GenericQuoteFeed;
 import de.zft2.gbanking.service.stock.quote.GenericQuoteFeedFormat;
 import de.zft2.gbanking.service.stock.quote.QuoteProviderSettings;
 import de.zft2.gbanking.service.stock.quote.StockQuoteRetrievalService;
+import de.zft2.gbanking.util.DecimalText;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
@@ -770,9 +771,9 @@ public class SettingsDialog implements BaseMessages {
 		try {
 			switch (setting.getDataType()) {
 			case INT -> Integer.parseInt(value);
-			case FLOAT -> Float.parseFloat(normalizeDecimal(value));
-			case DOUBLE -> Double.parseDouble(normalizeDecimal(value));
-			case BIGDECIMAL -> new BigDecimal(normalizeDecimal(value));
+			case FLOAT -> Float.parseFloat(DecimalText.toDotDecimal(value));
+			case DOUBLE -> Double.parseDouble(DecimalText.toDotDecimal(value));
+			case BIGDECIMAL -> new BigDecimal(DecimalText.toDotDecimal(value));
 			case CALENDAR -> LocalDate.parse(value);
 			case CHAR -> {
 				if (value.length() > 1) {
@@ -787,10 +788,6 @@ public class SettingsDialog implements BaseMessages {
 		} catch (Exception e) {
 			return false;
 		}
-	}
-
-	private String normalizeDecimal(String value) {
-		return value.replace(',', '.');
 	}
 
 	private static final class GenericFeedEditor {

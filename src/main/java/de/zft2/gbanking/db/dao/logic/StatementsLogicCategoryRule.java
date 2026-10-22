@@ -1,5 +1,7 @@
 package de.zft2.gbanking.db.dao.logic;
 
+import static de.zft2.gbanking.util.TextValues.hasText;
+
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
@@ -130,9 +132,5 @@ public class StatementsLogicCategoryRule extends StatementsLogicDefault<Category
 			return value.substring(0, maxLength);
 		}
 		return value.substring(0, maxLength - 3) + "...";
-	}
-
-	private boolean hasText(String value) {
-		return value != null && !value.isBlank();
 	}
 }

@@ -1,5 +1,8 @@
 package de.zft2.gbanking.gui.panel.bankaccess;
 
+import static de.zft2.gbanking.util.TextValues.hasText;
+import static de.zft2.gbanking.util.TextValues.nullToEmpty;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -249,10 +252,6 @@ final class BankAccessDialogHolder extends BasePanel {
 		return hasText(bank) && hasText(user) && hasText(password) && (!paypal || hasText(apiUsername) && hasText(apiSignature));
 	}
 
-	private boolean hasText(String value) {
-		return value != null && !value.isBlank();
-	}
-
 	private VBox createStep2(Stage dialog, BankAccess bankAccess) {
 		Label accountsLabel = new Label(getText("UI_BANK_ACCESS_DIALOG_ACCOUNTS_LABEL"));
 
@@ -393,9 +392,5 @@ final class BankAccessDialogHolder extends BasePanel {
 			return List.of();
 		}
 		return bankAccess.getAccounts();
-	}
-
-	private String nullToEmpty(String value) {
-		return value == null ? "" : value;
 	}
 }

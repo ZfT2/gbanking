@@ -1,5 +1,7 @@
 package de.zft2.gbanking.db.dao;
 
+import static de.zft2.gbanking.util.TextValues.hasText;
+
 import java.io.Serializable;
 import java.math.BigDecimal;
 
@@ -125,9 +127,5 @@ public class BookingAdditionalDetails implements Serializable {
 
 	public void setBankSaldo(BigDecimal bankSaldo) {
 		this.bankSaldo = bankSaldo;
-	}
-
-	private boolean hasText(String value) {
-		return value != null && !value.isBlank();
 	}
 }

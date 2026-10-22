@@ -1,5 +1,7 @@
 package de.zft2.gbanking.db.dao.mapper;
 
+import static de.zft2.gbanking.util.TextValues.hasText;
+
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;

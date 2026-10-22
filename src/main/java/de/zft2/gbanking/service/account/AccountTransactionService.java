@@ -1,5 +1,8 @@
 package de.zft2.gbanking.service.account;
 
+import static de.zft2.gbanking.util.TextValues.firstWithText;
+import static de.zft2.gbanking.util.TextValues.hasText;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -398,10 +401,6 @@ public class AccountTransactionService extends AbstractDbService {
 		return rebookingService.persistDetectedRebookingLinks(summary);
 	}
 
-	private boolean hasText(String value) {
-		return value != null && !value.isBlank();
-	}
-
 	private List<Booking> getAccountBookingsForDuplicateCheck(int accountId) {
 		List<Booking> bookings = dbController.getAllByParentFull(Booking.class, accountId);
 		return bookings != null ? new ArrayList<>(bookings) : new ArrayList<>();
@@ -430,10 +429,10 @@ public class AccountTransactionService extends AbstractDbService {
 			return Optional.empty();
 		}
 
-		String number = firstText(konto != null ? konto.number : null, bankAccount != null ? bankAccount.getNumber() : null);
-		String subnumber = firstText(konto != null ? konto.subnumber : null, bankAccount != null ? bankAccount.getSubnumber() : null);
-		String country = firstText(konto != null ? konto.country : null, bankAccount != null ? bankAccount.getCountry() : null, "DE");
-		String blz = firstText(konto != null ? konto.blz : null, bankAccount != null ? bankAccount.getBlz() : null);
+		String number = firstWithText(konto != null ? konto.number : null, bankAccount != null ? bankAccount.getNumber() : null);
+		String subnumber = firstWithText(konto != null ? konto.subnumber : null, bankAccount != null ? bankAccount.getSubnumber() : null);
+		String country = firstWithText(konto != null ? konto.country : null, bankAccount != null ? bankAccount.getCountry() : null, "DE");
+		String blz = firstWithText(konto != null ? konto.blz : null, bankAccount != null ? bankAccount.getBlz() : null);
 		if (!hasText(number) || !hasText(country) || !hasText(blz)) {
 			log.warn("Skipping lowlevel HBCI job {} because national account data is incomplete for account id {}.", VORMERKPOSTEN_JOB,
 					bankAccount != null ? bankAccount.getId() : null);
@@ -455,15 +454,6 @@ public class AccountTransactionService extends AbstractDbService {
 	private boolean isVormerkpostenJobSupported(HBCIHandler handle) {
 		Properties supportedLowlevelJobs = handle.getSupportedLowlevelJobs();
 		return supportedLowlevelJobs != null && supportedLowlevelJobs.containsKey(VORMERKPOSTEN_JOB);
-	}
-
-	private String firstText(String... values) {
-		for (String value : values) {
-			if (hasText(value)) {
-				return value;
-			}
-		}
-		return null;
 	}
 
 	private void setParamIfPresent(HBCIJob<?> job, String parameterName, String value) {
@@ -689,7 +679,7 @@ public class AccountTransactionService extends AbstractDbService {
 				.filter(this::isMt942ResultKey)
 				.sorted()
 				.map(resultData::getProperty)
-				.filter(this::hasText)
+				.filter(value -> hasText(value))
 				.toList();
 	}
 

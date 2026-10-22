@@ -10,6 +10,7 @@ import java.util.Locale;
 import java.util.Set;
 
 import de.zft2.gbanking.file.BookingCsvFormat;
+import de.zft2.gbanking.util.DecimalText;
 import de.zft2.gbanking.util.TypeConverter;
 
 public final class CsvImportValueParser {
@@ -23,7 +24,7 @@ public final class CsvImportValueParser {
 		}
 		String normalized = value.trim().replace("\u00A0", "").replace(" ", "");
 		if ("auto".equalsIgnoreCase(definition.getDecimalSeparator())) {
-			return new BigDecimal(normalizeDecimal(normalized));
+			return new BigDecimal(DecimalText.toGermanDecimal(normalized));
 		}
 		String decimalSeparator = definition.getDecimalSeparator();
 		String thousandSeparator = definition.getThousandSeparator();
@@ -58,14 +59,6 @@ public final class CsvImportValueParser {
 			throw new DateTimeException("Unsupported date format");
 		}
 		return parseOrderedDate(value, dateOrder);
-	}
-
-	private static String normalizeDecimal(String value) {
-		if (value.contains(",") && value.contains(".")) {
-			return value.lastIndexOf(',') > value.lastIndexOf('.')
-					? value.replace(".", "").replace(',', '.') : value.replace(",", "");
-		}
-		return value.replace(',', '.');
 	}
 
 	private static LocalDate parseOrderedDate(String value, String dateOrder) {

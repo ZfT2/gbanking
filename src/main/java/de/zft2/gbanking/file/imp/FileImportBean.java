@@ -1,5 +1,7 @@
 package de.zft2.gbanking.file.imp;
 
+import static de.zft2.gbanking.util.TextValues.trimToNull;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -305,9 +307,9 @@ public class FileImportBean implements BaseMessagesDb {
 			return;
 		}
 
-		bankAccount.setAccountName(normalizeText(bankAccount.getAccountName()));
-		bankAccount.setIban(normalizeText(bankAccount.getIban()));
-		bankAccount.setNumber(normalizeText(bankAccount.getNumber()));
+		bankAccount.setAccountName(trimToNull(bankAccount.getAccountName()));
+		bankAccount.setIban(trimToNull(bankAccount.getIban()));
+		bankAccount.setNumber(trimToNull(bankAccount.getNumber()));
 	}
 
 	private Integer resolveExistingAccountId(BankAccount bankAccount, Map<String, Integer> accountIdsByIdentifier, Map<String, Integer> accountIdsByName) {
@@ -337,7 +339,7 @@ public class FileImportBean implements BaseMessagesDb {
 	}
 
 	private Integer lookupAccountId(Map<String, Integer> accountIds, String key) {
-		String normalizedKey = normalizeText(key);
+		String normalizedKey = trimToNull(key);
 		if (accountIds == null || normalizedKey == null) {
 			return null;
 		}
@@ -357,19 +359,10 @@ public class FileImportBean implements BaseMessagesDb {
 	}
 
 	private void putIfPresent(Map<String, Integer> accountIds, String key, Integer id) {
-		String normalizedKey = normalizeText(key);
+		String normalizedKey = trimToNull(key);
 		if (accountIds != null && normalizedKey != null && id != null) {
 			accountIds.put(normalizedKey, id);
 		}
-	}
-
-	private String normalizeText(String value) {
-		if (value == null) {
-			return null;
-		}
-
-		String normalizedValue = value.trim();
-		return normalizedValue.isEmpty() ? null : normalizedValue;
 	}
 
 	boolean writeBookingsToDB(Collection<de.zft2.fp3xmlextract.data.Fp3XmlBankAccount> bankAccountList) {

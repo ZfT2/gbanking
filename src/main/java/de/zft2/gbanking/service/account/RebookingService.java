@@ -1,5 +1,7 @@
 package de.zft2.gbanking.service.account;
 
+import static de.zft2.gbanking.util.TextValues.hasText;
+
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -725,10 +727,6 @@ final class RebookingService extends AbstractDbService {
 		int left = Math.min(booking.getId(), crossBooking.getId());
 		int right = Math.max(booking.getId(), crossBooking.getId());
 		return left + ":" + right;
-	}
-
-	private static boolean hasText(String value) {
-		return value != null && !value.isBlank();
 	}
 
 	private static List<TransferPropertiesFileSnapshot> snapshotTransferPropertiesFiles() {

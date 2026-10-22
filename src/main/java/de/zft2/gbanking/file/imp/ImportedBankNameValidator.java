@@ -1,5 +1,6 @@
 package de.zft2.gbanking.file.imp;
 
+import static de.zft2.gbanking.util.TextValues.firstNonBlank;
 import static de.zft2.gbanking.util.TextValues.isMoreReadable;
 import static de.zft2.gbanking.util.TextValues.trimToNull;
 
@@ -163,11 +164,6 @@ final class ImportedBankNameValidator {
 
 	private static long dateDistance(LocalDate first, LocalDate second) {
 		return first != null && second != null ? Math.abs(ChronoUnit.DAYS.between(first, second)) : Long.MAX_VALUE;
-	}
-
-	private static String firstNonBlank(String first, String second) {
-		String firstValue = trimToNull(first);
-		return firstValue != null ? firstValue : trimToNull(second);
 	}
 
 	private enum EvidenceSource {
