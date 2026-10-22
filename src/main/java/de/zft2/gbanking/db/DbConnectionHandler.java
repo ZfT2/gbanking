@@ -695,6 +695,8 @@ abstract class DbConnectionHandler {
 
 	private static void closeCurrentConnection() {
 		DbSession sessionToClose = currentSession;
+		// The cached capability data belongs to the database of the closed session.
+		BankCapabilityCache.clear();
 		if (sessionToClose == null) {
 			connection = null;
 			return;

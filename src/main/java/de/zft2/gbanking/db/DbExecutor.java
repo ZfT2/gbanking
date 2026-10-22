@@ -23,6 +23,8 @@ import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.db.StatementsConfig.ResultType;
 import de.zft2.gbanking.db.StatementsConfig.StatementType;
 import de.zft2.gbanking.db.dao.Dao;
+import de.zft2.gbanking.db.dao.BankAccess;
+import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.logic.StatementsLogic;
 import de.zft2.gbanking.db.dao.mapper.AbstractDaoMapper;
 import de.zft2.gbanking.db.enu.StateType;
@@ -109,16 +111,18 @@ public abstract class DbExecutor extends DbConnectionHandler implements BaseMess
 
 	public <T extends Dao> T insertOrUpdate(T entity) {
 		int originalId = entity.getId();
-		return withDbTransaction(() -> {
+		T result = withDbTransaction(() -> {
 			DbTransactionManager.onRollback(() -> entity.setId(originalId));
 			StatementsLogic<T> logic = StatementsConfig.getLogicForDaoType(entity.getClass());
 			return logic.insertOrUpdateSingle(entity);
 		});
+		invalidateCapabilityCache(entity);
+		return result;
 	}
 
 	public boolean delete(Dao entity, StatementType statementType) {
 
-		return withDbTransaction(() -> {
+		boolean deleted = withDbTransaction(() -> {
 			if (entity == null) {
 				log.error("Entity to delete is null (StatementType: {})", statementType);
 				return false;
@@ -131,6 +135,20 @@ public abstract class DbExecutor extends DbConnectionHandler implements BaseMess
 				throw new GBankingException(message, exception);
 			}
 		});
+		invalidateCapabilityCache(entity);
+		return deleted;
+	}
+
+	/**
+	 * Drops the cached capability data of the given entity, because the write may have changed the
+	 * data that decides which banking operations are supported.
+	 */
+	private static void invalidateCapabilityCache(Dao entity) {
+		if (entity instanceof BankAccount bankAccount) {
+			BankCapabilityCache.invalidateAccount(bankAccount.getId());
+		} else if (entity instanceof BankAccess bankAccess) {
+			BankCapabilityCache.invalidateBankAccess(bankAccess.getId());
+		}
 	}
 
 	public int executeSimpleUpdate(List<? extends Dao> daoList, StatementType statementType, Class<? extends Dao> typeToUpdate) {

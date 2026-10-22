@@ -1,5 +1,6 @@
 package de.zft2.gbanking.service;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -9,6 +10,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import de.zft2.gbanking.db.BankCapabilityCache;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Bpd;
@@ -53,6 +55,14 @@ public class BankingCapabilityService extends AbstractDbService {
 		private static Set<String> normalizeCodes(Set<String> codes) {
 			return codes.stream().map(code -> normalizeToken(code)).collect(Collectors.toUnmodifiableSet());
 		}
+
+		private Set<String> codes() {
+			return codes;
+		}
+
+		private Set<String> bpdKeyTokens() {
+			return bpdKeyTokens;
+		}
 	}
 
 	public boolean supportsTransferOrderType(BankAccount bankAccount, OrderType orderType) {
@@ -85,7 +95,7 @@ public class BankingCapabilityService extends AbstractDbService {
 	}
 
 	public boolean supportsAccountTransactions(BankAccount bankAccount) {
-		BankAccount resolvedAccount = resolveFullAccount(bankAccount);
+		BankAccount resolvedAccount = resolveAccount(bankAccount);
 		if (hasUsableBankAccess(resolvedAccount)) {
 			BankAccess bankAccess = dbController.getBankAccessById(resolvedAccount.getBankAccessId());
 			if (PaypalSupport.isPaypal(bankAccess) || bankAccess.getAccessType() == BankAccessType.ENABLEBANKING) {
@@ -120,7 +130,7 @@ public class BankingCapabilityService extends AbstractDbService {
 	}
 
 	public boolean requiresInteractiveCredential(BankAccount bankAccount) {
-		BankAccount resolvedAccount = resolveFullAccount(bankAccount);
+		BankAccount resolvedAccount = resolveAccount(bankAccount);
 		if (!hasUsableBankAccess(resolvedAccount)) {
 			return true;
 		}
@@ -129,26 +139,75 @@ public class BankingCapabilityService extends AbstractDbService {
 	}
 
 	private boolean isAvailable(BankAccount bankAccount, Capability capability) {
-		BankAccount resolvedAccount = resolveFullAccount(bankAccount);
-		if (!hasUsableBankAccess(resolvedAccount)) {
-			return false;
-		}
-
-		int bankAccessId = resolvedAccount.getBankAccessId();
-		if (!bankSupports(bankAccessId, capability)) {
-			return false;
-		}
-
-		Set<String> accountOrUserCodes = new HashSet<>(collectAccountBusinessCases(resolvedAccount));
-		accountOrUserCodes.addAll(collectUpdCodes(bankAccessId, resolvedAccount));
-		return matches(accountOrUserCodes, capability);
+		return supportedCapabilities(bankAccount).contains(capability.name());
 	}
 
-	private BankAccount resolveFullAccount(BankAccount bankAccount) {
+	/**
+	 * Returns the names of the banking capabilities that are supported for the given account.
+	 * <p>
+	 * The capabilities are determined once per account and cached afterwards, because they are
+	 * evaluated for every single capability check of the user interface.
+	 */
+	private Set<String> supportedCapabilities(BankAccount bankAccount) {
+		if (bankAccount == null) {
+			return Set.of();
+		}
+		if (bankAccount.getId() <= 0) {
+			return computeSupportedCapabilities(bankAccount, accountCodes(bankAccount, bankAccount.getAllowedBusinessCases()));
+		}
+
+		BankCapabilityCache.AccountData accountData = BankCapabilityCache.getAccountData(bankAccount.getId(),
+				() -> loadAccountData(bankAccount.getId()));
+		BankAccount account = accountData != null ? accountData.account() : null;
+		if (account == null) {
+			// The account has been removed in the meantime, fall back to the given instance.
+			return computeSupportedCapabilities(bankAccount, accountCodes(bankAccount, bankAccount.getAllowedBusinessCases()));
+		}
+		return accountData.supportedCapabilities();
+	}
+
+	private Set<String> computeSupportedCapabilities(BankAccount account, Set<String> accountCodes) {
+		if (!hasUsableBankAccess(account)) {
+			return Set.of();
+		}
+
+		Set<String> supported = new HashSet<>();
+		for (Capability capability : Capability.values()) {
+			if (bankSupports(account.getBankAccessId(), capability) && matches(accountCodes, capability)) {
+				supported.add(capability.name());
+			}
+		}
+		return Set.copyOf(supported);
+	}
+
+	private Set<String> accountCodes(BankAccount account, List<BusinessCase> allowedBusinessCases) {
+		Set<String> codes = new HashSet<>(businessCaseCodes(allowedBusinessCases));
+		codes.addAll(collectUpdCodes(account));
+		return codes;
+	}
+
+	private BankCapabilityCache.AccountData loadAccountData(int accountId) {
+		// The bookings of the account are not required here, therefore only the account itself
+		// and its business cases are loaded.
+		BankAccount account = dbController.getById(BankAccount.class, accountId);
+		if (account == null) {
+			return new BankCapabilityCache.AccountData(null, Set.of());
+		}
+		List<BusinessCase> businessCases = dbController.getAllByParent(BusinessCase.class, accountId);
+		Set<String> codes = accountCodes(account, businessCases);
+		return new BankCapabilityCache.AccountData(account, computeSupportedCapabilities(account, codes));
+	}
+
+	/**
+	 * Returns the account with the current data of the database.
+	 */
+	private BankAccount resolveAccount(BankAccount bankAccount) {
 		if (bankAccount != null && bankAccount.getId() > 0) {
-			BankAccount accountFromDb = dbController.getByIdFull(BankAccount.class, bankAccount.getId());
-			if (accountFromDb != null) {
-				return accountFromDb;
+			BankCapabilityCache.AccountData accountData = BankCapabilityCache.getAccountData(bankAccount.getId(),
+					() -> loadAccountData(bankAccount.getId()));
+			BankAccount account = accountData != null ? accountData.account() : null;
+			if (account != null) {
+				return account;
 			}
 		}
 		return bankAccount;
@@ -176,8 +235,7 @@ public class BankingCapabilityService extends AbstractDbService {
 		return bankAccess != null && bankAccess.getId() > 0 && bankAccess.isActive();
 	}
 
-	private Set<String> collectAccountBusinessCases(BankAccount bankAccount) {
-		List<BusinessCase> allowedBusinessCases = bankAccount.getAllowedBusinessCases();
+	private Set<String> businessCaseCodes(List<BusinessCase> allowedBusinessCases) {
 		if (allowedBusinessCases == null || allowedBusinessCases.isEmpty()) {
 			return Set.of();
 		}
@@ -188,8 +246,11 @@ public class BankingCapabilityService extends AbstractDbService {
 				.collect(Collectors.toSet());
 	}
 
-	private Set<String> collectUpdCodes(int bankAccessId, BankAccount bankAccount) {
-		List<Upd> updEntries = dbController.getAllByParent(Upd.class, bankAccessId);
+	private Set<String> collectUpdCodes(BankAccount bankAccount) {
+		List<Upd> updEntries = updEntries(bankAccount.getBankAccessId());
+		if (updEntries.isEmpty()) {
+			return Set.of();
+		}
 		Set<String> matchingUpdGroups = findMatchingUpdGroups(updEntries, bankAccount);
 		Predicate<Upd> accountScope = matchingUpdGroups.isEmpty() ? upd -> true : upd -> matchingUpdGroups.contains(getUpdGroup(upd.getPdKey()));
 
@@ -326,25 +387,47 @@ public class BankingCapabilityService extends AbstractDbService {
 		return normalizedKey.contains("ALLOWEDGV") && normalizedKey.endsWith("CODE");
 	}
 
-	private boolean bankSupports(int bankAccessId, Capability capability) {
-		List<Bpd> bpdEntries = dbController.getAllByParent(Bpd.class, bankAccessId);
-		if (bpdEntries == null || bpdEntries.isEmpty()) {
+	private boolean bankSupports(Integer bankAccessId, Capability capability) {
+		BankCapabilityCache.BankAccessData bankAccessData = bankAccessData(bankAccessId);
+		if (bankAccessData == null) {
 			return false;
 		}
 
-		for (Bpd bpd : bpdEntries) {
-			Set<String> valueCodes = normalizedCaseStream(bpd.getPdValue()).collect(Collectors.toSet());
-			if (matches(valueCodes, capability)) {
-				return true;
-			}
+		if (bankAccessData.bpdValueCodes().stream().anyMatch(capability.codes()::contains)) {
+			return true;
+		}
 
-			String normalizedKey = normalizeToken(bpd.getPdKey());
-			if (capability.bpdKeyTokens.stream().anyMatch(normalizedKey::contains)) {
+		for (String bpdKeyName : bankAccessData.bpdKeyNames()) {
+			if (capability.bpdKeyTokens().stream().anyMatch(bpdKeyName::contains)) {
 				return true;
 			}
 		}
 
 		return false;
+	}
+
+	private BankCapabilityCache.BankAccessData bankAccessData(Integer bankAccessId) {
+		if (bankAccessId == null || bankAccessId <= 0) {
+			return null;
+		}
+		return BankCapabilityCache.getBankAccessData(bankAccessId, () -> loadBankAccessData(bankAccessId));
+	}
+
+	private List<Upd> updEntries(Integer bankAccessId) {
+		BankCapabilityCache.BankAccessData bankAccessData = bankAccessData(bankAccessId);
+		return bankAccessData != null ? bankAccessData.updEntries() : List.of();
+	}
+
+	private BankCapabilityCache.BankAccessData loadBankAccessData(int bankAccessId) {
+		List<Bpd> bpdEntries = dbController.getAllByParent(Bpd.class, bankAccessId);
+		List<Upd> updEntries = dbController.getAllByParent(Upd.class, bankAccessId);
+		Set<String> bpdValueCodes = new HashSet<>();
+		List<String> bpdKeyNames = new ArrayList<>(bpdEntries.size());
+		for (Bpd bpd : bpdEntries) {
+			bpdValueCodes.addAll(normalizedCaseStream(bpd.getPdValue()).collect(Collectors.toSet()));
+			bpdKeyNames.add(normalizeToken(bpd.getPdKey()));
+		}
+		return new BankCapabilityCache.BankAccessData(updEntries, Set.copyOf(bpdValueCodes), List.copyOf(bpdKeyNames));
 	}
 
 	private boolean matches(Set<String> values, Capability capability) {

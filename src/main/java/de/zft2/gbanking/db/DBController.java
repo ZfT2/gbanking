@@ -448,13 +448,18 @@ public class DBController extends DbExecutor {
 			StatementsLogic<BankAccess> logic = StatementsConfig.getLogicForDaoType(BankAccess.class);
 			logic.updateSpecific(bankAccess);
 		});
+		// The parameter data decides which banking operations the bank access supports.
+		BankCapabilityCache.invalidateBankAccess(bankAccess.getId());
 	}
-	
+
 	public boolean insertBusinessCases(BankAccount bankAccount) {
-		return withDbTransaction(() -> {
+		boolean result = withDbTransaction(() -> {
 			StatementsLogic<BankAccount> logic = StatementsConfig.getLogicForDaoType(bankAccount.getClass());
 			return logic.insertSpecific(bankAccount);
 		});
+		// The business cases of the account decide which banking operations are supported.
+		BankCapabilityCache.invalidateAccount(bankAccount.getId());
+		return result;
 	}
 	
 	public boolean insertAccountBookings(Collection<Booking> bookingList) {
