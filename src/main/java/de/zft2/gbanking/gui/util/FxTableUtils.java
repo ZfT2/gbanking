@@ -92,6 +92,35 @@ public final class FxTableUtils {
 		};
 	}
 
+	/**
+	 * Creates a cell factory that renders a boolean state as a green check mark or a red cross.
+	 *
+	 * @param <S> the row type
+	 * @return the cell factory for boolean symbol columns
+	 */
+	public static <S> Callback<TableColumn<S, Boolean>, TableCell<S, Boolean>> createBooleanSymbolCellFactory() {
+		return column -> new TableCell<>() {
+
+			private final Label indicator = new Label();
+
+			{
+				setAlignment(Pos.CENTER);
+				setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+			}
+
+			@Override
+			protected void updateItem(Boolean item, boolean empty) {
+				super.updateItem(item, empty);
+				if (empty || item == null) {
+					setGraphic(null);
+					return;
+				}
+				StatusSymbols.applyTo(indicator, item);
+				setGraphic(indicator);
+			}
+		};
+	}
+
 	public static <S> Callback<TableColumn<S, String>, TableCell<S, String>> createAmountCellFactory() {
 		return column -> new TableCell<>() {
 

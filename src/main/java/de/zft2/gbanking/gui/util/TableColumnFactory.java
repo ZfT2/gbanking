@@ -87,9 +87,19 @@ public final class TableColumnFactory {
 		return createFixedTextColumn(title, valueProvider, width);
 	}
 
-	public static <S> TableColumn<S, String> createBooleanAsTextColumn(String title, Predicate<S> valueProvider, double width) {
-		TableColumn<S, String> column = new TableColumn<>(title);
-		column.setCellValueFactory(data -> new SimpleStringProperty(Boolean.TRUE.equals(valueProvider.test(data.getValue())) ? "true" : "false"));
+	/**
+	 * Creates a column that renders a boolean state as a green check mark or a red cross.
+	 *
+	 * @param <S> the row type
+	 * @param title the column title
+	 * @param valueProvider supplies the boolean state of a row
+	 * @param width the fixed column width
+	 * @return the configured column
+	 */
+	public static <S> TableColumn<S, Boolean> createBooleanSymbolColumn(String title, Predicate<S> valueProvider, double width) {
+		TableColumn<S, Boolean> column = new TableColumn<>(title);
+		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(valueProvider.test(data.getValue())));
+		column.setCellFactory(FxTableUtils.createBooleanSymbolCellFactory());
 		FxTableUtils.setFixedWidth(column, width);
 		return column;
 	}

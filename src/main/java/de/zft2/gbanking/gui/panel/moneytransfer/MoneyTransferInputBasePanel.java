@@ -29,6 +29,7 @@ import de.zft2.gbanking.gui.panel.AbstractTitledFormPanel;
 import de.zft2.gbanking.gui.util.FormControlUtils;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.gui.util.FormStyleUtils.FieldWidth;
+import de.zft2.gbanking.gui.util.StatusSymbols;
 import de.zft2.gbanking.service.BankingCapabilityService;
 import de.zft2.gbanking.service.moneytransfer.BankOrderOperation;
 import de.zft2.gbanking.service.moneytransfer.MoneyTransferService;
@@ -57,8 +58,8 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 	private static final String UI_LABEL_AMOUNT = "UI_LABEL_AMOUNT";
 	private static final String UI_BUTTON_YES = "UI_BUTTON_YES";
 	private static final String UI_BUTTON_NO = "UI_BUTTON_NO";
-	private static final String IBAN_VALID_SYMBOL = "\u2713";
-	private static final String IBAN_INVALID_SYMBOL = "\u2717";
+	private static final String IBAN_VALID_SYMBOL = StatusSymbols.CHECK;
+	private static final String IBAN_INVALID_SYMBOL = StatusSymbols.CROSS;
 	private static final String AMOUNT_POSITIVE = "amount-positive";
 	private static final String AMOUNT_NEGATIVE = "amount-negative";
 	private static final String AMOUNT_NEUTRAL = "amount-neutral";

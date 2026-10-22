@@ -46,7 +46,7 @@ public class BankAccessListPanel extends AbstractFilterableTablePanel<BankAccess
 				access -> access.getFints().getTanProcedure() != null ? access.getFints().getTanProcedure().toString() : "", 160);
 		TableColumn<BankAccess, String> urlCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_FINTS_URL"),
 				access -> access.getFints().getHbciURL(), 200, 260);
-		TableColumn<BankAccess, String> activeCol = TableColumnFactory.createBooleanAsTextColumn(getText("UI_TABLE_ACTIVE"), BankAccess::isActive, 70);
+		TableColumn<BankAccess, Boolean> activeCol = TableColumnFactory.createBooleanSymbolColumn(getText("UI_TABLE_ACTIVE"), BankAccess::isActive, 70);
 		TableColumn<BankAccess, LocalDate> updatedCol = TableColumnFactory.createUpdatedAtColumn(getText("UI_TABLE_UPDATED_AT"),
 				BankAccess::getUpdatedAt, 90);
 

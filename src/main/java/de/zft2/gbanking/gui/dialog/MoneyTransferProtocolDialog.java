@@ -9,6 +9,7 @@ import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.enu.VopResult;
 import de.zft2.gbanking.gui.GuiLayoutState;
+import de.zft2.gbanking.gui.util.StatusSymbols;
 import javafx.beans.property.ReadOnlyBooleanWrapper;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
@@ -103,7 +104,7 @@ public class MoneyTransferProtocolDialog implements BaseMessages {
 					setGraphic(null);
 					return;
 				}
-				indicator.setText(item ? "\u2713" : "\u2717");
+				indicator.setText(StatusSymbols.text(item));
 				indicator.getStyleClass().setAll("iban-validation-status", item ? "iban-valid" : "iban-invalid");
 				setGraphic(indicator);
 			}

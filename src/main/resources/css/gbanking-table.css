@@ -251,10 +251,19 @@
     -fx-alignment: center;
 }
 
-.iban-validation-status.iban-valid {
+/* Status symbols (check mark / cross) */
+.status-symbol {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-alignment: center;
+}
+
+.iban-validation-status.iban-valid,
+.status-symbol.status-symbol-valid {
     -fx-text-fill: -gb-amount-positive;
 }
 
-.iban-validation-status.iban-invalid {
+.iban-validation-status.iban-invalid,
+.status-symbol.status-symbol-invalid {
     -fx-text-fill: -gb-amount-negative;
 }

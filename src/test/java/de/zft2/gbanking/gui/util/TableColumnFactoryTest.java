@@ -10,7 +10,10 @@ import java.time.Month;
 import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.gui.JavaFxTestSupport;
+import de.zft2.gbanking.gui.component.GBankingTableView;
 import javafx.beans.value.ObservableValue;
+import javafx.scene.control.Label;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 
@@ -49,12 +52,32 @@ class TableColumnFactoryTest {
 	}
 
 	@Test
-	void booleanAsTextColumnShouldMapTrueAndFalse() {
-		TableColumn<Row, String> column = JavaFxTestSupport.callFx(
-				() -> TableColumnFactory.createBooleanAsTextColumn("Active", Row::active, 70));
+	void booleanSymbolColumnShouldMapTrueAndFalse() {
+		TableColumn<Row, Boolean> column = JavaFxTestSupport.callFx(
+				() -> TableColumnFactory.createBooleanSymbolColumn("Active", Row::active, 70));
 
-		assertEquals("true", readValue(column, new Row("A", null, null, true)).getValue());
-		assertEquals("false", readValue(column, new Row("B", null, null, false)).getValue());
+		assertEquals(Boolean.TRUE, readValue(column, new Row("A", null, null, true)).getValue());
+		assertEquals(Boolean.FALSE, readValue(column, new Row("B", null, null, false)).getValue());
+		assertNotNull(column.getCellFactory());
+	}
+
+	@Test
+	void booleanSymbolColumnShouldRenderCheckAndCrossInCells() {
+		JavaFxTestSupport.runFx(() -> {
+			TableColumn<Row, Boolean> column = JavaFxTestSupport.callFx(
+					() -> TableColumnFactory.createBooleanSymbolColumn("Active", Row::active, 70));
+			GBankingTableView<Row> table = new GBankingTableView<>();
+			table.getColumns().add(column);
+			table.getItems().setAll(new Row("A", null, null, true), new Row("B", null, null, false));
+			TableCell<Row, Boolean> cell = column.getCellFactory().call(column);
+			cell.updateTableView(table);
+			cell.updateTableColumn(column);
+
+			cell.updateIndex(0);
+			assertEquals(StatusSymbols.CHECK, ((Label) cell.getGraphic()).getText());
+			cell.updateIndex(1);
+			assertEquals(StatusSymbols.CROSS, ((Label) cell.getGraphic()).getText());
+		});
 	}
 
 	private static <T> ObservableValue<T> readValue(TableColumn<Row, T> column, Row row) {
