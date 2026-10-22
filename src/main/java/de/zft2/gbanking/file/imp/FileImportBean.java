@@ -20,30 +20,20 @@ import org.xml.sax.SAXException;
 
 import de.zft2.fp3xmlextract.convert.Converter;
 import de.zft2.fp3xmlextract.convert.Fp3XmlBookingProcessor;
-import de.zft2.gbanking.BaseMessagesDb;
 import de.zft2.gbanking.concurrent.ProgressReporter;
-import de.zft2.gbanking.concurrent.ProgressReporters;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.mapper.ImportDaoMapper;
-import de.zft2.gbanking.rebooking.RebookingRules;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.importproperties.ImportPropertiesSynchronizationService;
 import de.zft2.gbanking.util.AppPaths;
 
-public class FileImportBean implements BaseMessagesDb {
+public class FileImportBean extends AbstractBookingImportBean {
 
 	private static final Logger log = LogManager.getLogger(FileImportBean.class);
-	private static final int PROGRESS_ACCOUNTS_START = 0;
-	private static final int PROGRESS_ACCOUNTS_END = 5;
-	private static final int PROGRESS_BOOKINGS_START = PROGRESS_ACCOUNTS_END;
-	private static final int PROGRESS_BOOKINGS_END = 90;
-	private static final int PROGRESS_RECIPIENTS_START = PROGRESS_BOOKINGS_END;
-	private static final int PROGRESS_CATEGORIES_START = 98;
-	private static final int PROGRESS_FINISHED = 100;
 
 	private Collection<de.zft2.fp3xmlextract.data.Fp3XmlBankAccount> xml2CsvKontoList;
 	private Collection<de.zft2.fp3xmlextract.data.Fp3XmlBooking> fp32CsvBookingList;
@@ -55,14 +45,7 @@ public class FileImportBean implements BaseMessagesDb {
 	private int totalAccounts = 0;
 	private long totalBookings = 0L;
 
-	private final ProgressReporter progressReporter;
-	private final BankAccount contextAccount;
 	private final boolean forceFp3Import;
-	private final ImportedBankNameCorrectionHandler bankNameCorrectionHandler;
-	private final ImportedBookingReferenceWriter bookingReferenceWriter;
-	private final ImportedBookingPersistence bookingPersistence = new ImportedBookingPersistence(dbController);
-	private final ImportStatisticsCollector importStatistics = new ImportStatisticsCollector();
-	private int currentProgress = -1;
 
 	public FileImportBean(ProgressReporter progressReporter) {
 		this(progressReporter, null, false);
@@ -74,11 +57,8 @@ public class FileImportBean implements BaseMessagesDb {
 
 	FileImportBean(ProgressReporter progressReporter, BankAccount contextAccount, boolean forceFp3Import,
 			ImportedBankNameCorrectionHandler bankNameCorrectionHandler) {
-		this.progressReporter = ProgressReporters.orNone(progressReporter);
-		this.contextAccount = contextAccount;
+		super(progressReporter, contextAccount, bankNameCorrectionHandler);
 		this.forceFp3Import = forceFp3Import;
-		this.bankNameCorrectionHandler = bankNameCorrectionHandler;
-		this.bookingReferenceWriter = new ImportedBookingReferenceWriter(dbController);
 	}
 
 	private void updateWorkerStateAccounts(long importedCount, String messageKey, Object... param) {
@@ -102,19 +82,6 @@ public class FileImportBean implements BaseMessagesDb {
 		return percentageStart + (int) Math.round((percentageStop - percentageStart) * completedFraction);
 	}
 
-	private void updateWorkerState(int progress, String messageKey, Object... param) {
-		progressReporter.reportState(getText(messageKey, param));
-		updateWorkerProgress(progress);
-	}
-
-	private void updateWorkerProgress(int progress) {
-		int boundedProgress = Math.max(0, Math.min(progress, PROGRESS_FINISHED));
-		if (boundedProgress != currentProgress) {
-			currentProgress = boundedProgress;
-			progressReporter.reportProgress(boundedProgress);
-		}
-	}
-
 	private void updateAccountProgress(long importedCount) {
 		updateWorkerProgress(calculateProgress(importedCount, totalAccounts, PROGRESS_ACCOUNTS_START, PROGRESS_ACCOUNTS_END));
 	}
@@ -136,8 +103,8 @@ public class FileImportBean implements BaseMessagesDb {
 
 	public void importFileToDatatbase(String importFile) throws ParserConfigurationException, SAXException, IOException {
 
-		importStatistics.clear();
-		currentProgress = -1;
+		clearImportStatistics();
+		resetProgress();
 		updateWorkerState(PROGRESS_ACCOUNTS_START, "UI_PROGRESS_IMPORT_CONVERT_FILE", importFile);
 
 		long timeStart = System.currentTimeMillis();
@@ -174,7 +141,7 @@ public class FileImportBean implements BaseMessagesDb {
 
 		dbController.executeInTransaction(() -> loadIntoDatabase());
 		log.info("Finished XML/FP3 booking import. file={}, durationSeconds={}, {}", importPath::getFileName,
-				() -> (System.currentTimeMillis() - timeStart) / 1000, importStatistics::summary);
+				() -> (System.currentTimeMillis() - timeStart) / 1000, this::importStatisticsSummary);
 	}
 
 	private boolean isFp3Import(String importFilePath) {
@@ -186,6 +153,7 @@ public class FileImportBean implements BaseMessagesDb {
 		for (BankAccount account : dbController.getAll(BankAccount.class)) {
 			currencies.put(account.getId(), account.getBaseCurrency());
 		}
+		BankAccount contextAccount = getContextAccount();
 		if (contextAccount != null && contextAccount.getId() > 0) {
 			currencies.put(contextAccount.getId(), contextAccount.getBaseCurrency());
 		}
@@ -206,8 +174,8 @@ public class FileImportBean implements BaseMessagesDb {
 			addContextAccountToLookupMaps();
 			loadBaseCurrencies();
 			String fallbackAccountName = resolveFallbackAccountName(fp32CsvBookingList);
-			if (fallbackAccountName == null && contextAccount != null) {
-				fallbackAccountName = contextAccount.getAccountName();
+			if (fallbackAccountName == null && getContextAccount() != null) {
+				fallbackAccountName = getContextAccount().getAccountName();
 			}
 			Collection<Booking> bookingDaoList = ImportDaoMapper.maptoBookingDaoList(fallbackAccountName, fp32CsvBookingList, accountIdMapByAccountname,
 					crossAccountIdMapByIdentifier, baseCurrencyByAccountId, Source.IMPORT_INITIAL);
@@ -219,6 +187,7 @@ public class FileImportBean implements BaseMessagesDb {
 	}
 
 	private void addContextAccountToLookupMaps() {
+		BankAccount contextAccount = getContextAccount();
 		if (contextAccount == null) {
 			return;
 		}
@@ -371,8 +340,8 @@ public class FileImportBean implements BaseMessagesDb {
 
 	private boolean writeBookingsToDB(Collection<de.zft2.fp3xmlextract.data.Fp3XmlBankAccount> bankAccountList, long bookingCount) {
 
-		importStatistics.clear();
-		bookingPersistence.reset();
+		clearImportStatistics();
+		getBookingPersistence().reset();
 
 		Map<de.zft2.core.dto.Booking, Integer> crossBookingMap = new HashMap<>();
 
@@ -387,8 +356,8 @@ public class FileImportBean implements BaseMessagesDb {
 			List<de.zft2.fp3xmlextract.data.Fp3XmlBooking> bookingsList = bankAccountXml.getBookings();
 			List<Booking> bookingDaoList = new ArrayList<>();
 			Integer accountId = accountIdMapByAccountname.get(accountName);
-			int existingBookingCount = accountId == null ? 0 : bookingPersistence.existingBookingCount(accountId);
-			ImportAccountStatistics accountStatistics = importStatistics.forAccount(accountName, existingBookingCount);
+			int existingBookingCount = accountId == null ? 0 : getBookingPersistence().existingBookingCount(accountId);
+			ImportAccountStatistics accountStatistics = statisticsFor(accountName, existingBookingCount);
 
 			updateWorkerStateBookings(importedBookingsCount, "UI_PROGRESS_IMPORT_BOOKINGS_ACCOUNT_COUNT", accountName, bookingsList.size());
 
@@ -427,7 +396,7 @@ public class FileImportBean implements BaseMessagesDb {
 				crossAccountIdMapByIdentifier);
 		Booking bookingDao = ImportDaoMapper.maptoBookingDao(xmlBooking, accountId, crossAccountId, Source.IMPORT_INITIAL,
 				baseCurrencyByAccountId.getOrDefault(accountId, Currency.EUR));
-		ImportedBookingPersistence.Result persistenceResult = bookingPersistence.persist(bookingDao);
+		ImportedBookingPersistence.Result persistenceResult = getBookingPersistence().persist(bookingDao);
 		boolean existing = persistenceResult.existing();
 		Booking resolvedBooking = persistenceResult.booking();
 
@@ -478,20 +447,15 @@ public class FileImportBean implements BaseMessagesDb {
 	private record ImportedBookingResult(boolean existing, boolean updated, boolean skipped, Booking resolvedBooking) {
 	}
 
-	private boolean canLinkCrossBooking(Booking booking, Booking crossBooking) {
-		return !RebookingRules.isForbiddenSameAccountRebooking(booking.getAccountId(), crossBooking.getAccountId(),
-				RebookingRules.hasCancellationSignal(booking) || RebookingRules.hasCancellationSignal(crossBooking));
-	}
-
 	private Collection<Booking> persistImportedBookings(Collection<Booking> bookingDaoList) {
 		Collection<Booking> persistedBookings = new ArrayList<>();
-		bookingPersistence.reset();
+		getBookingPersistence().reset();
 		totalBookings = bookingDaoList.size();
 		long importedBookingsCount = 0L;
 		updateWorkerStateBookings(importedBookingsCount, "UI_PROGRESS_IMPORT_BOOKINGS");
 
 		for (Booking booking : bookingDaoList) {
-			ImportedBookingPersistence.Result persistenceResult = bookingPersistence.persist(booking);
+			ImportedBookingPersistence.Result persistenceResult = getBookingPersistence().persist(booking);
 			if (persistenceResult.existing() || persistenceResult.skipped()) {
 				updateBookingProgress(++importedBookingsCount);
 				continue;
@@ -506,44 +470,20 @@ public class FileImportBean implements BaseMessagesDb {
 		return persistedBookings;
 	}
 
-	private void postProcessImportedBookings(Collection<Booking> importedBookings) {
-		if (importedBookings == null || importedBookings.isEmpty()) {
-			return;
-		}
-
-		updateWorkerState(PROGRESS_RECIPIENTS_START, "UI_PROGRESS_IMPORT_CONTACTS");
-		bookingReferenceWriter.writeRecipients(importedBookings, bankNameCorrectionHandler);
-
-		updateWorkerState(PROGRESS_CATEGORIES_START, "UI_PROGRESS_IMPORT_CATEGORIES");
-		bookingReferenceWriter.writeCategories(importedBookings);
-	}
-
 	String getImportSummaryText() {
+		List<ImportAccountStatistics> importStatistics = getImportStatistics();
 		if (importStatistics.isEmpty()) {
 			return "";
 		}
 
 		StringBuilder summary = new StringBuilder(getText("UI_IMPORT_SUMMARY_HEADER"));
-		for (ImportAccountStatistics statistics : importStatistics.asList()) {
+		for (ImportAccountStatistics statistics : importStatistics) {
 			summary.append(System.lineSeparator())
 					.append(getText("UI_IMPORT_SUMMARY_ACCOUNT", statistics.getAccountName(), Integer.toString(statistics.getExistingBookings()),
 							Integer.toString(statistics.getAddedBookings()), Integer.toString(statistics.getUpdatedBookings()),
 							Integer.toString(statistics.getSkippedBookings()), Integer.toString(statistics.getTotalBookings())));
 		}
 		return summary.toString();
-	}
-
-	List<ImportAccountStatistics> getImportStatistics() {
-		return importStatistics.asList();
-	}
-
-	private String fileName(String fileName) {
-		if (fileName == null) {
-			return null;
-		}
-		Path path = Path.of(fileName);
-		Path pathFileName = path.getFileName();
-		return pathFileName != null ? pathFileName.toString() : fileName;
 	}
 
 	public static final class ImportAccountStatistics {

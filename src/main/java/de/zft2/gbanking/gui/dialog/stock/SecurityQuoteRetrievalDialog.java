@@ -2,7 +2,6 @@ package de.zft2.gbanking.gui.dialog.stock;
 
 import java.util.List;
 
-import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.BackgroundActionCoordinator;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
@@ -19,41 +18,31 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
 import javafx.stage.Window;
 
-final class SecurityQuoteRetrievalDialog implements BaseMessages {
+final class SecurityQuoteRetrievalDialog extends AbstractStockDialog {
 
 	private final int securityId;
 	private final String securityName;
 	private final Runnable changedHandler;
 	private final StockQuoteRetrievalService service;
-	private final Stage dialog;
 	private final ComboBox<QuoteSource> providerField = new ComboBox<>();
 	private final TextField symbolField = new TextField();
 	private final Label statusLabel = new Label();
-	private final Button retrieveButton = new Button(getText("UI_STOCK_QUOTE_RETRIEVE"));
-	private final Button closeButton = new Button(getText("UI_BUTTON_CLOSE"));
+	private final Button retrieveButton = createButton("UI_STOCK_QUOTE_RETRIEVE", () -> retrieve());
+	private final Button closeButton = createCloseButton("UI_BUTTON_CLOSE");
 	private boolean retrieving;
 
 	SecurityQuoteRetrievalDialog(Window owner, int securityId, String securityName, Runnable changedHandler) {
+		super(owner, "UI_STOCK_QUOTE_DIALOG_TITLE");
 		this.securityId = securityId;
 		this.securityName = securityName;
 		this.changedHandler = changedHandler;
 		service = ServiceRegistry.getService(StockQuoteRetrievalService.class);
-		dialog = DialogWindowSupport.createModalStage(owner, "UI_STOCK_QUOTE_DIALOG_TITLE");
 		initialize();
 	}
 
-	void show() {
-		dialog.showAndWait();
-	}
-
 	private void initialize() {
-		Label header = new Label(getText("UI_STOCK_QUOTE_DIALOG_HEADER", securityName));
-		header.getStyleClass().add("gbanking-form-section-title");
-
 		List<QuoteSource> providers = service.getConfiguredSources();
 		providerField.setItems(FXCollections.observableArrayList(providers));
 		providerField.setMaxWidth(Double.MAX_VALUE);
@@ -66,9 +55,7 @@ final class SecurityQuoteRetrievalDialog implements BaseMessages {
 		FormGridHelper.addFieldAbove(form, getText("UI_STOCK_QUOTE_SYMBOL"), symbolField, 1, 0);
 
 		providerField.valueProperty().addListener((observable, previous, selected) -> updateSuggestedSymbol(selected));
-		retrieveButton.setOnAction(event -> retrieve());
-		closeButton.setOnAction(event -> dialog.close());
-		dialog.setOnCloseRequest(event -> {
+		dialog().setOnCloseRequest(event -> {
 			if (retrieving) {
 				event.consume();
 			}
@@ -81,9 +68,8 @@ final class SecurityQuoteRetrievalDialog implements BaseMessages {
 			providerField.setValue(providers.get(0));
 		}
 
-		VBox root = DialogWindowSupport.createDialogRoot(header, form, statusLabel,
-				DialogWindowSupport.createButtonBar(retrieveButton, closeButton));
-		dialog.setScene(DialogWindowSupport.createScene(root, 620, 240));
+		buildScene(getText("UI_STOCK_QUOTE_DIALOG_HEADER", securityName), List.of(form, statusLabel),
+				List.of(retrieveButton, closeButton), 620, 240);
 	}
 
 	private void updateSuggestedSymbol(QuoteSource provider) {
@@ -125,7 +111,7 @@ final class SecurityQuoteRetrievalDialog implements BaseMessages {
 		Exception cause = failure instanceof Exception exception ? exception : new Exception(failure);
 		RuntimeException exception = failure instanceof RuntimeException runtimeException
 				? runtimeException : new GBankingException("Der Kursabruf ist fehlgeschlagen", cause);
-		DialogWindowSupport.showAlert(dialog, Alert.AlertType.ERROR, exception.getMessage());
+		DialogWindowSupport.showAlert(dialog(), Alert.AlertType.ERROR, exception.getMessage());
 		statusLabel.setText(getText("UI_STOCK_QUOTE_FAILED"));
 	}
 

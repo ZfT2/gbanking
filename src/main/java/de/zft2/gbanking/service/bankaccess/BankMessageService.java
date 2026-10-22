@@ -12,7 +12,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Properties;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -21,12 +20,12 @@ import org.kapott.hbci.GV.GVInfoOrder;
 import org.kapott.hbci.GV.HBCIJob;
 import org.kapott.hbci.GV_Result.GVRInfoList;
 import org.kapott.hbci.GV_Result.GVRInfoOrder;
-import org.kapott.hbci.exceptions.HBCI_Exception;
 import org.kapott.hbci.manager.HBCIHandler;
 import org.kapott.hbci.status.HBCIExecStatus;
 
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankMessage;
+import de.zft2.gbanking.hbci.HbciJobSupport;
 import de.zft2.gbanking.hbci.HbciStatusMessageExtractor;
 import de.zft2.gbanking.logging.GBankingLoggingHandler;
 import de.zft2.gbanking.service.AbstractDbService;
@@ -64,24 +63,16 @@ public class BankMessageService extends AbstractDbService {
 			return BankMessageRetrievalResult.failure();
 		}
 
-		try {
-			BankMessageRetrievalResult result = hbciSessionRunner.run(retrievalAccess, pin,
-					session -> retrieveBankMessages(retrievalAccess, session));
-			log.info("Finished HBCI bank message retrieval for bank access id {}, success={}, messages={}", retrievalAccess.getId(),
-					result.successful(), result.messages().size());
-			return result;
-		} catch (InterruptedException e) {
-			log.error("Error handling HBCI bank message retrieval for bank access id {}", retrievalAccess.getId(), e);
-			Thread.currentThread().interrupt();
-			return BankMessageRetrievalResult.failure();
-		} catch (HBCI_Exception e) {
-			if (HbciStatusMessageExtractor.containsWrongPinFeedback(e)) {
-				log.warn("Stopping HBCI bank message retrieval for bank access id {} because the bank reported invalid PIN credentials.",
-						retrievalAccess.getId());
-				return BankMessageRetrievalResult.wrongPinFailure();
-			}
-			throw e;
-		}
+		return hbciSessionRunner.runGuarded("bank message retrieval for bank access id", retrievalAccess.getId(),
+				retrievalAccess, pin,
+				session -> {
+					BankMessageRetrievalResult result = retrieveBankMessages(retrievalAccess, session);
+					log.info("Finished HBCI bank message retrieval for bank access id {}, success={}, messages={}", retrievalAccess.getId(),
+							result.successful(), result.messages().size());
+					return result;
+				},
+				exception -> BankMessageRetrievalResult.wrongPinFailure(),
+				() -> BankMessageRetrievalResult.failure());
 	}
 
 	private BankAccess initBankAccess(BankAccess bankAccess, char[] pin) {
@@ -98,7 +89,7 @@ public class BankMessageService extends AbstractDbService {
 
 	private BankMessageRetrievalResult retrieveBankMessages(BankAccess bankAccess, HbciSessionRunner.HbciSession session) {
 		logHandler.logRetrivedBankAccessInfo(session.passport(), false);
-		if (!isSupported(session.handler().getSupportedLowlevelJobs(), INFO_LIST_JOB)) {
+		if (!HbciJobSupport.isSupported(session.handler(), INFO_LIST_JOB)) {
 			log.info("Bank access id {} does not advertise HBCI job {}; retrieving institution messages through an empty dialog.",
 					bankAccess.getId(), INFO_LIST_JOB);
 			return retrieveInstitutionMessages(bankAccess, session);
@@ -169,7 +160,7 @@ public class BankMessageService extends AbstractDbService {
 		if (freeTextCodes.isEmpty()) {
 			return BankMessageDetailsResult.success(Map.of());
 		}
-		if (!isSupported(session.handler().getSupportedLowlevelJobs(), INFO_DETAILS_JOB)) {
+		if (!HbciJobSupport.isSupported(session.handler(), INFO_DETAILS_JOB)) {
 			log.warn("Bank returned {} free-text bank message(s), but HBCI job {} is not advertised.", freeTextCodes.size(), INFO_DETAILS_JOB);
 			return BankMessageDetailsResult.success(Map.of());
 		}
@@ -413,10 +404,6 @@ public class BankMessageService extends AbstractDbService {
 
 	private String formatDate(LocalDate date) {
 		return date != null ? date.toString() : "";
-	}
-
-	private boolean isSupported(Properties supportedJobs, String jobName) {
-		return supportedJobs != null && supportedJobs.containsKey(jobName);
 	}
 
 	private record BankMessageOverviewResult(boolean successful, boolean wrongPin, List<GVRInfoList.Info> entries) {

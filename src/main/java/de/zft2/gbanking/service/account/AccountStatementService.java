@@ -27,7 +27,6 @@ import org.kapott.hbci.GV_Result.GVRKontoauszug.Format;
 import org.kapott.hbci.GV_Result.GVRKontoauszug.GVRKontoauszugEntry;
 import org.kapott.hbci.GV_Result.GVRKontoauszug;
 import org.kapott.hbci.GV_Result.HBCIJobResult;
-import org.kapott.hbci.exceptions.HBCI_Exception;
 import org.kapott.hbci.manager.HBCIHandler;
 import org.kapott.hbci.passport.HBCIPassport;
 import org.kapott.hbci.status.HBCIExecStatus;
@@ -39,6 +38,7 @@ import de.zft2.gbanking.db.dao.BankAccountStatement;
 import de.zft2.gbanking.db.dao.BusinessCase;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
+import de.zft2.gbanking.hbci.HbciJobSupport;
 import de.zft2.gbanking.hbci.HbciStatusMessageExtractor;
 import de.zft2.gbanking.logging.GBankingLoggingHandler;
 import de.zft2.gbanking.service.AbstractDbService;
@@ -97,22 +97,15 @@ public class AccountStatementService extends AbstractDbService {
 		}
 
 		String bankAccountId = getNullableBankAccountId(bankAccount);
-		try {
-			AccountStatementRetrievalResult result = hbciSessionRunner.run(bankAccess, pin, session -> retrieveAccountStatements(bankAccount, session));
-			log.info("Finished HBCI account statement retrieval for account id {}, success={}, statements={}", bankAccountId, result.successful(),
-					result.statements().size());
-			return result;
-		} catch (InterruptedException e) {
-			log.error("Error handling HBCI account statement retrieval for account id {}", bankAccountId, e);
-			Thread.currentThread().interrupt();
-			return AccountStatementRetrievalResult.failure();
-		} catch (HBCI_Exception e) {
-			if (HbciStatusMessageExtractor.containsWrongPinFeedback(e)) {
-				log.warn("Stopping HBCI account statement retrieval for account id {} because the bank reported invalid PIN credentials.", bankAccountId);
-				return AccountStatementRetrievalResult.wrongPinFailure();
-			}
-			throw e;
-		}
+		return hbciSessionRunner.runGuarded("account statement retrieval for account id", bankAccountId, bankAccess, pin,
+				session -> {
+					AccountStatementRetrievalResult result = retrieveAccountStatements(bankAccount, session);
+					log.info("Finished HBCI account statement retrieval for account id {}, success={}, statements={}", bankAccountId,
+							result.successful(), result.statements().size());
+					return result;
+				},
+				exception -> AccountStatementRetrievalResult.wrongPinFailure(),
+				() -> AccountStatementRetrievalResult.failure());
 	}
 
 	public AccountStatementAcknowledgementResult acknowledgeAccountStatementsWithResult(BankAccount bankAccount, char[] pin) {
@@ -125,24 +118,16 @@ public class AccountStatementService extends AbstractDbService {
 		}
 
 		String bankAccountId = getNullableBankAccountId(bankAccount);
-		try {
-			AccountStatementAcknowledgementResult result = hbciSessionRunner.run(bankAccess, pin,
-					session -> acknowledgeAccountStatements(bankAccount, session));
-			log.info("Finished HBCI account statement receipt acknowledgement for account id {}, success={}, acknowledged={}", bankAccountId,
-					result.successful(), result.acknowledgedCount());
-			return result;
-		} catch (InterruptedException e) {
-			log.error("Error handling HBCI account statement receipt acknowledgement for account id {}", bankAccountId, e);
-			Thread.currentThread().interrupt();
-			return AccountStatementAcknowledgementResult.failure();
-		} catch (HBCI_Exception e) {
-			if (HbciStatusMessageExtractor.containsWrongPinFeedback(e)) {
-				log.warn("Stopping HBCI account statement receipt acknowledgement for account id {} because the bank reported invalid PIN credentials.",
-						bankAccountId);
-				return AccountStatementAcknowledgementResult.wrongPinFailure();
-			}
-			throw e;
-		}
+		return hbciSessionRunner.runGuarded("account statement receipt acknowledgement for account id", bankAccountId,
+				bankAccess, pin,
+				session -> {
+					AccountStatementAcknowledgementResult result = acknowledgeAccountStatements(bankAccount, session);
+					log.info("Finished HBCI account statement receipt acknowledgement for account id {}, success={}, acknowledged={}", bankAccountId,
+							result.successful(), result.acknowledgedCount());
+					return result;
+				},
+				exception -> AccountStatementAcknowledgementResult.wrongPinFailure(),
+				() -> AccountStatementAcknowledgementResult.failure());
 	}
 
 	private AccountStatementRetrievalResult retrieveAccountStatements(BankAccount bankAccount, HbciSessionRunner.HbciSession session) {
@@ -415,7 +400,7 @@ public class AccountStatementService extends AbstractDbService {
 	}
 
 	private boolean isStatementOverviewSupported(HBCIHandler handler, BankAccount bankAccount) {
-		if (isSupported(handler.getSupportedLowlevelJobs(), STATEMENT_OVERVIEW_JOB)) {
+		if (HbciJobSupport.isSupported(handler, STATEMENT_OVERVIEW_JOB)) {
 			return true;
 		}
 		return hasBusinessCase(bankAccount, OVERVIEW_BUSINESS_CASE);
@@ -491,17 +476,13 @@ public class AccountStatementService extends AbstractDbService {
 
 	private String resolveStatementJobName(HBCIHandler handler) {
 		Properties supportedJobs = handler.getSupportedLowlevelJobs();
-		if (isSupported(supportedJobs, STATEMENT_JOB_PDF)) {
+		if (HbciJobSupport.isSupported(supportedJobs, STATEMENT_JOB_PDF)) {
 			return STATEMENT_JOB_PDF;
 		}
-		if (isSupported(supportedJobs, STATEMENT_JOB)) {
+		if (HbciJobSupport.isSupported(supportedJobs, STATEMENT_JOB)) {
 			return STATEMENT_JOB;
 		}
 		throw new GBankingException("Kontoauszuege werden von diesem Bankzugang nicht unterstuetzt.");
-	}
-
-	private boolean isSupported(Properties supportedJobs, String jobName) {
-		return supportedJobs != null && supportedJobs.containsKey(jobName);
 	}
 
 	private List<GVRKontoauszug> readStatementResults(List<HBCIJob<GVRKontoauszug>> statementJobs) {
@@ -856,7 +837,7 @@ public class AccountStatementService extends AbstractDbService {
 		if (receipts.isEmpty()) {
 			return true;
 		}
-		if (!isSupported(handler.getSupportedLowlevelJobs(), RECEIPT_JOB)) {
+		if (!HbciJobSupport.isSupported(handler, RECEIPT_JOB)) {
 			log.warn("Bank returned {} account statement receipt(s), but HBCI job {} is not supported.", receipts.size(), RECEIPT_JOB);
 			return false;
 		}

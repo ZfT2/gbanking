@@ -5,7 +5,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.function.Supplier;
 
-import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.gui.component.GBankingTableView;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
@@ -19,15 +18,13 @@ import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
-import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
 import javafx.stage.Window;
 
-public final class SecurityPriceDialog implements BaseMessages {
+public final class SecurityPriceDialog extends AbstractStockDialog {
 
 	private final int securityId;
 	private final String securityName;
@@ -36,17 +33,17 @@ public final class SecurityPriceDialog implements BaseMessages {
 	private final PriceSaveHandler saveHandler;
 	private final PriceDeleteHandler deleteHandler;
 	private final Runnable changedHandler;
-	private final Stage dialog;
 	private final GBankingTableView<PriceSummary> table = new GBankingTableView<>();
 	private final DatePicker dateField = new DatePicker(LocalDate.now());
 	private final TextField priceField = new TextField();
 	private final ComboBox<Currency> currencyField;
-	private final Button deleteButton = new Button(getText("UI_BUTTON_DELETE"));
+	private final Button deleteButton = createButton("UI_BUTTON_DELETE", () -> delete());
 	private PriceSummary selectedPrice;
 
 	public SecurityPriceDialog(Window owner, int securityId, String securityName, Currency defaultCurrency,
 			Supplier<List<PriceSummary>> priceLoader, PriceSaveHandler saveHandler,
 			PriceDeleteHandler deleteHandler, Runnable changedHandler) {
+		super(owner, "UI_STOCK_PRICE_DIALOG_TITLE");
 		this.securityId = securityId;
 		this.securityName = securityName;
 		this.defaultCurrency = defaultCurrency != null ? defaultCurrency : Currency.EUR;
@@ -55,18 +52,16 @@ public final class SecurityPriceDialog implements BaseMessages {
 		this.deleteHandler = deleteHandler;
 		this.changedHandler = changedHandler;
 		currencyField = StockDialogSupport.createCurrencyCombo(this.defaultCurrency);
-		dialog = DialogWindowSupport.createModalStage(owner, "UI_STOCK_PRICE_DIALOG_TITLE");
 		initialize();
 	}
 
+	@Override
 	public void show() {
 		reload();
-		dialog.showAndWait();
+		super.show();
 	}
 
 	private void initialize() {
-		Label header = new Label(getText("UI_STOCK_PRICE_DIALOG_HEADER", securityName));
-		header.getStyleClass().add("gbanking-form-section-title");
 		configureTable();
 
 		GridPane form = FormGridHelper.createDefaultGrid();
@@ -75,25 +70,16 @@ public final class SecurityPriceDialog implements BaseMessages {
 		FormGridHelper.addFieldAbove(form, getText("UI_STOCK_FIELD_PRICE"), priceField, 1, 0);
 		FormGridHelper.addFieldAbove(form, getText("UI_STOCK_FIELD_CURRENCY"), currencyField, 2, 0);
 
-		Button newButton = new Button(getText("UI_BUTTON_NEW"));
-		Button saveButton = new Button(getText("UI_BUTTON_SAVE"));
-		Button retrieveButton = new Button(getText("UI_STOCK_QUOTE_RETRIEVE"));
-		Button closeButton = new Button(getText("UI_BUTTON_CLOSE"));
 		deleteButton.setDisable(true);
-		newButton.setOnAction(event -> clearSelection());
-		saveButton.setOnAction(event -> save());
-		retrieveButton.setOnAction(event -> retrieve());
-		deleteButton.setOnAction(event -> delete());
-		closeButton.setOnAction(event -> dialog.close());
-
-		VBox root = DialogWindowSupport.createDialogRoot(header, table, form,
-				DialogWindowSupport.createButtonBar(newButton, saveButton, deleteButton, retrieveButton, closeButton));
+		List<Button> buttons = List.of(createButton("UI_BUTTON_NEW", () -> clearSelection()),
+				createActionButton("UI_BUTTON_SAVE", () -> save()), deleteButton,
+				createButton("UI_STOCK_QUOTE_RETRIEVE", () -> retrieve()), createCloseButton("UI_BUTTON_CLOSE"));
+		buildScene(getText("UI_STOCK_PRICE_DIALOG_HEADER", securityName), List.of(table, form), buttons, 720, 480);
 		VBox.setVgrow(table, Priority.ALWAYS);
-		dialog.setScene(DialogWindowSupport.createScene(root, 720, 480));
 	}
 
 	private void retrieve() {
-		new SecurityQuoteRetrievalDialog(dialog, securityId, securityName, () -> {
+		new SecurityQuoteRetrievalDialog(dialog(), securityId, securityName, () -> {
 			reload();
 			changedHandler.run();
 		}).show();
@@ -137,7 +123,7 @@ public final class SecurityPriceDialog implements BaseMessages {
 	}
 
 	private void save() {
-		try {
+		runAction(() -> {
 			BigDecimal price = StockDialogSupport.parseRequiredDecimal(priceField, getText("UI_STOCK_FIELD_PRICE"));
 			boolean protectedChangeConfirmed = confirmProtectedChange("UI_STOCK_PRICE_CHANGE_CONFIRM_TITLE",
 					"UI_STOCK_PRICE_CHANGE_CONFIRM_HEADER", "UI_STOCK_PRICE_CHANGE_CONFIRM_TEXT", "UI_BUTTON_EDIT");
@@ -149,9 +135,7 @@ public final class SecurityPriceDialog implements BaseMessages {
 			clearSelection();
 			reload();
 			changedHandler.run();
-		} catch (RuntimeException exception) {
-			StockDialogSupport.showError(dialog, exception);
-		}
+		});
 	}
 
 	private void delete() {
@@ -161,19 +145,17 @@ public final class SecurityPriceDialog implements BaseMessages {
 		boolean protectedPrice = selectedPrice.requiresExplicitConfirmation();
 		String textKey = protectedPrice ? "UI_STOCK_PRICE_DELETE_IMPORTED_TEXT" : "UI_STOCK_PRICE_DELETE_MANUAL_TEXT";
 		ButtonType delete = new ButtonType(getText("UI_BUTTON_DELETE"), ButtonBar.ButtonData.OK_DONE);
-		if (!DialogWindowSupport.showConfirmation(dialog, Alert.AlertType.CONFIRMATION,
+		if (!DialogWindowSupport.showConfirmation(dialog(), Alert.AlertType.CONFIRMATION,
 				getText("UI_STOCK_PRICE_DELETE_CONFIRM_TITLE"), getText("UI_STOCK_PRICE_DELETE_CONFIRM_HEADER"),
 				getText(textKey, selectedPrice.sourceName()), delete, ButtonType.CANCEL)) {
 			return;
 		}
-		try {
+		runAction(() -> {
 			deleteHandler.delete(selectedPrice.priceId(), protectedPrice);
 			clearSelection();
 			reload();
 			changedHandler.run();
-		} catch (RuntimeException exception) {
-			StockDialogSupport.showError(dialog, exception);
-		}
+		});
 	}
 
 	private boolean confirmProtectedChange(String titleKey, String headerKey, String textKey, String confirmButtonKey) {
@@ -181,7 +163,7 @@ public final class SecurityPriceDialog implements BaseMessages {
 			return false;
 		}
 		ButtonType confirm = new ButtonType(getText(confirmButtonKey), ButtonBar.ButtonData.OK_DONE);
-		return DialogWindowSupport.showConfirmation(dialog, Alert.AlertType.CONFIRMATION,
+		return DialogWindowSupport.showConfirmation(dialog(), Alert.AlertType.CONFIRMATION,
 				getText(titleKey), getText(headerKey), getText(textKey, selectedPrice.sourceName()),
 				confirm, ButtonType.CANCEL);
 	}

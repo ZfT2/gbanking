@@ -44,6 +44,7 @@ import de.zft2.gbanking.service.HbciSessionRunner;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.util.TypeConverter;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
+import de.zft2.gbanking.util.Amounts;
 
 public class MoneyTransferInventoryService extends AbstractDbService {
 
@@ -421,7 +422,7 @@ public class MoneyTransferInventoryService extends AbstractDbService {
 	}
 
 	private boolean sameAmount(BigDecimal left, BigDecimal right) {
-		return left == null && right == null || left != null && right != null && left.compareTo(right) == 0;
+		return Amounts.sameAmountIncludingMissing(left, right);
 	}
 
 	private boolean isSameRecipient(Recipient existing, Recipient candidate) {

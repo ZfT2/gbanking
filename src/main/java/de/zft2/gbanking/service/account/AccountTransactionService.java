@@ -49,6 +49,8 @@ import de.zft2.gbanking.db.dao.enu.BankAccessType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.enablebanking.EnablebankingAccountTransactionService;
 import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.hbci.HbciJobSupport;
+import de.zft2.gbanking.util.Amounts;
 import de.zft2.gbanking.hbci.HbciStatusMessageExtractor;
 import de.zft2.gbanking.logging.GBankingLoggingHandler;
 import de.zft2.gbanking.logging.SensitiveDataMasker;
@@ -129,28 +131,23 @@ public class AccountTransactionService extends AbstractDbService {
 			log.debug("Using booking retrieval start date {} derived from last booking date {} for HBCI retrieval on account id {}",
 					bookingRetrievalStartDate, lastBookingDate, bankAccountId);
 
-			AccountTransactionRetrievalResult result = hbciSessionRunner.run(bankAccess, pin,
-					session -> retrieveAccountTransactions(bankAccount, bookingRetrievalStartDate, session));
+			AccountTransactionRetrievalResult result = hbciSessionRunner.runGuarded("account transaction retrieval for account id",
+					bankAccountId, bankAccess, pin,
+					session -> {
+						AccountTransactionRetrievalResult retrieval = retrieveAccountTransactions(bankAccount,
+								bookingRetrievalStartDate, session);
+						log.info("Finished HBCI account transaction retrieval for account id {}, success={}", bankAccountId,
+								retrieval.successful());
+						return retrieval;
+					},
+					exception -> AccountTransactionRetrievalResult.wrongPinFailure(
+							toStoredError(exception.getMessage(), "ERROR_ACCOUNT_TRANSACTION_RETRIEVAL_WRONG_PIN")),
+					() -> AccountTransactionRetrievalResult.cancelled(getText("ERROR_ACCOUNT_TRANSACTION_RETRIEVAL_CANCELLED")));
 			if (!result.successful()) {
 				persistRetrievalStatus(bankAccount, result);
 			}
-			log.info("Finished HBCI account transaction retrieval for account id {}, success={}", bankAccountId, result.successful());
-			return result;
-		} catch (InterruptedException e) {
-			log.error("Error handling HBCI account transaction retrieval for account id {}", bankAccountId, e);
-			Thread.currentThread().interrupt();
-			AccountTransactionRetrievalResult result = AccountTransactionRetrievalResult.cancelled(
-					getText("ERROR_ACCOUNT_TRANSACTION_RETRIEVAL_CANCELLED"));
-			persistRetrievalStatus(bankAccount, result);
 			return result;
 		} catch (HBCI_Exception e) {
-			if (HbciStatusMessageExtractor.containsWrongPinFeedback(e)) {
-				log.warn("Stopping HBCI account transaction retrieval for account id {} because the bank reported invalid PIN credentials.", bankAccountId);
-				AccountTransactionRetrievalResult result = AccountTransactionRetrievalResult.wrongPinFailure(
-						toStoredError(e.getMessage(), "ERROR_ACCOUNT_TRANSACTION_RETRIEVAL_WRONG_PIN"));
-				persistRetrievalStatus(bankAccount, result);
-				return result;
-			}
 			persistRetrievalStatusSafely(bankAccount,
 					AccountTransactionRetrievalResult.failure(toStoredError(e.getMessage(), ERROR_RETRIEVAL_FAILED)), e);
 			throw e;
@@ -452,8 +449,7 @@ public class AccountTransactionService extends AbstractDbService {
 	}
 
 	private boolean isVormerkpostenJobSupported(HBCIHandler handle) {
-		Properties supportedLowlevelJobs = handle.getSupportedLowlevelJobs();
-		return supportedLowlevelJobs != null && supportedLowlevelJobs.containsKey(VORMERKPOSTEN_JOB);
+		return HbciJobSupport.isSupported(handle, VORMERKPOSTEN_JOB);
 	}
 
 	private void setParamIfPresent(HBCIJob<?> job, String parameterName, String value) {
@@ -531,13 +527,13 @@ public class AccountTransactionService extends AbstractDbService {
 	void reconcileAccountBalance(BankAccount bankAccount, BigDecimal accountBalance) {
 		List<Booking> bookings = getAccountBookings(bankAccount.getId());
 		BigDecimal bookingBalance = calculateBookingBalance(bookings);
-		BigDecimal difference = normalizeAmount(accountBalance).subtract(bookingBalance);
+		BigDecimal difference = Amounts.normalizeAmount(accountBalance).subtract(bookingBalance);
 		if (isZero(difference)) {
 			return;
 		}
 
 		Optional<Booking> lastAdjustment = findLastAutomaticAdjustment(bookings);
-		if (lastAdjustment.isPresent() && sameAmount(difference.negate(), lastAdjustment.get().getAmount())) {
+		if (lastAdjustment.isPresent() && Amounts.sameRoundedAmount(difference.negate(), lastAdjustment.get().getAmount())) {
 			dbController.delete(lastAdjustment.get(), null);
 			log.info("Removed automatic adjustment booking {} for bank account id {}", lastAdjustment.get().getId(), bankAccount.getId());
 			return;
@@ -583,16 +579,8 @@ public class AccountTransactionService extends AbstractDbService {
 		return booking;
 	}
 
-	private BigDecimal normalizeAmount(BigDecimal amount) {
-		return amount == null ? BigDecimal.ZERO : amount.setScale(2, RoundingMode.HALF_UP);
-	}
-
-	private boolean sameAmount(BigDecimal left, BigDecimal right) {
-		return normalizeAmount(left).compareTo(normalizeAmount(right)) == 0;
-	}
-
 	private boolean isZero(BigDecimal amount) {
-		return sameAmount(amount, BigDecimal.ZERO);
+		return Amounts.sameRoundedAmount(amount, BigDecimal.ZERO);
 	}
 
 	private boolean isPrenotification(Booking booking) {
@@ -733,7 +721,7 @@ public class AccountTransactionService extends AbstractDbService {
 			return "";
 		}
 		BigDecimal amount = value.getBigDecimalValue();
-		String formattedAmount = amount != null ? normalizeAmount(amount).toPlainString() : "";
+		String formattedAmount = amount != null ? Amounts.normalizeAmount(amount).toPlainString() : "";
 		return formattedAmount + " " + Objects.toString(BookingDuplicateChecker.normalizeText(value.getCurr()), "");
 	}
 

@@ -6,7 +6,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Objects;
-import java.util.Properties;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -21,7 +20,7 @@ import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
-import de.zft2.gbanking.logging.HbciLogMessageSanitizer;
+import de.zft2.gbanking.hbci.HbciJobSupport;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
@@ -30,6 +29,8 @@ class FinTsStatusProtocolService extends AbstractDbService {
 
 	static final String JOB_NAME = "Status";
 	private static final Logger log = LogManager.getLogger(FinTsStatusProtocolService.class);
+
+	private final MoneyTransferProtocolWriter protocolWriter = new MoneyTransferProtocolWriter(dbController, log, "FinTS status");
 
 	MoneyTransferStatusResolution retrieveStatus(HBCIHandler handler, GBankingHBCICallback callback, MoneyTransfer moneyTransfer,
 			String hbciJobId) {
@@ -58,8 +59,7 @@ class FinTsStatusProtocolService extends AbstractDbService {
 	}
 
 	private boolean supportsStatusProtocol(HBCIHandler handler) {
-		Properties jobs = handler != null ? handler.getSupportedLowlevelJobs() : null;
-		boolean supported = jobs != null && jobs.containsKey(JOB_NAME);
+		boolean supported = HbciJobSupport.isSupported(handler, JOB_NAME);
 		if (!supported) {
 			log.debug("Lowlevel HBCI job {} is not supported by this bank access.", JOB_NAME);
 		}
@@ -106,7 +106,7 @@ class FinTsStatusProtocolService extends AbstractDbService {
 		MoneyTransferProtocol protocol = new MoneyTransferProtocol(moneyTransfer.getId(), protocolStatus, start, finish);
 		protocol.setHbciJobId(hbciJobId);
 		String technicalProtocol = createProtocolText(executionStatus, result, entry);
-		logTechnicalProtocol(moneyTransfer, technicalProtocol);
+		protocolWriter.logTechnicalProtocol(moneyTransfer, technicalProtocol);
 		if (resolvedStatus == null) {
 			MoneyTransferProtocolEvaluator.evaluateUncertain(technicalProtocol, false, null, false).applyTo(protocol);
 		} else {
@@ -123,30 +123,15 @@ class FinTsStatusProtocolService extends AbstractDbService {
 	}
 
 	private void persistFailureProtocol(MoneyTransfer moneyTransfer, String hbciJobId, LocalDateTime start, RuntimeException exception) {
-		MoneyTransferProtocol protocol = new MoneyTransferProtocol(moneyTransfer.getId(), moneyTransfer.getMoneytransferStatus(), start,
-				LocalDateTime.now(ZoneId.systemDefault()));
-		protocol.setHbciJobId(hbciJobId);
-		String technicalProtocol = exception.getClass().getName() + ": " + exception.getMessage();
-		logTechnicalProtocol(moneyTransfer, technicalProtocol);
-		MoneyTransferProtocolEvaluator.evaluateUncertain(technicalProtocol, false, null, false).applyTo(protocol);
-		dbController.insertOrUpdate(protocol);
+		MoneyTransferProtocolData data = new MoneyTransferProtocolData(null, hbciJobId, null, null);
+		protocolWriter.persistFailureProtocol(moneyTransfer, start, exception, data,
+				technicalProtocol -> MoneyTransferProtocolEvaluator.evaluateUncertain(technicalProtocol, false, null, false));
 	}
 
 	private String createProtocolText(HBCIExecStatus executionStatus, GVRStatus result, GVRStatus.Entry entry) {
-		StringBuilder text = new StringBuilder("HBCI status protocol execution status: ").append(executionStatus);
-		if (result != null && result.getJobStatus() != null) {
-			text.append(System.lineSeparator()).append("HBCI status protocol job status: ").append(result.getJobStatus());
-		}
-		if (entry != null && entry.retval != null) {
-			text.append(System.lineSeparator()).append("Referenced order status: ").append(entry.retval);
-		}
-		return text.toString();
-	}
-
-	private void logTechnicalProtocol(MoneyTransfer moneyTransfer, String technicalProtocol) {
-		if (log.isDebugEnabled()) {
-			log.debug("Technical FinTS status protocol. transferId={}{}{}", moneyTransfer.getId(), System.lineSeparator(),
-					HbciLogMessageSanitizer.sanitize(technicalProtocol));
-		}
+		return MoneyTransferProtocolText.of("HBCI status protocol execution status", executionStatus)
+				.appendNonNull("HBCI status protocol job status", result != null ? result.getJobStatus() : null)
+				.appendNonNull("Referenced order status", entry != null ? entry.retval : null)
+				.build();
 	}
 }

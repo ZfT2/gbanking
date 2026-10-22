@@ -36,7 +36,6 @@ import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
 import de.zft2.gbanking.db.dao.enu.StandingorderMode;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
-import de.zft2.gbanking.logging.HbciLogMessageSanitizer;
 import de.zft2.gbanking.logging.SensitiveDataMasker;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.BankingCapabilityService;
@@ -51,6 +50,7 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 	private final HbciSessionRunner hbciSessionRunner;
 	private final InstantPaymentStatusService instantPaymentStatusService;
 	private final FinTsStatusProtocolService statusProtocolService;
+	private final MoneyTransferProtocolWriter protocolWriter = new MoneyTransferProtocolWriter(dbController, log, "money transfer");
 
 	public MoneyTransferExecutionService() {
 		this.hbciSessionRunner = new HbciSessionRunner();
@@ -699,29 +699,17 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 	}
 
 	private void logTechnicalProtocol(MoneyTransfer moneyTransfer, String technicalProtocol) {
-		if (log.isDebugEnabled()) {
-			log.debug("Technical money transfer protocol. transferId={}{}{}", moneyTransfer.getId(), System.lineSeparator(),
-					HbciLogMessageSanitizer.sanitize(technicalProtocol));
-		}
+		protocolWriter.logTechnicalProtocol(moneyTransfer, technicalProtocol);
 	}
 
 	private String createProtocolText(HBCIExecStatus status, HBCIJobResult jobResult, Exception exception) {
-		StringBuilder protocol = new StringBuilder();
-		appendProtocolLine(protocol, "HBCI execution status", status);
-		appendProtocolLine(protocol, "HBCI error text", status != null ? status.getErrorString() : null);
-		appendProtocolLine(protocol, "HBCI job status", jobResult != null ? jobResult.getJobStatus() : null);
-		appendProtocolLine(protocol, "HBCI job result", jobResult);
-		if (exception != null) {
-			appendProtocolLine(protocol, "Exception", exception.getClass().getName() + ": " + exception.getMessage());
-		}
-		return protocol.toString().trim();
-	}
-
-	private void appendProtocolLine(StringBuilder protocol, String label, Object value) {
-		if (value == null || value.toString().isBlank()) {
-			return;
-		}
-		protocol.append(label).append(": ").append(value).append(System.lineSeparator());
+		return MoneyTransferProtocolText.empty()
+				.appendNonBlank("HBCI execution status", status)
+				.appendNonBlank("HBCI error text", status != null ? status.getErrorString() : null)
+				.appendNonBlank("HBCI job status", jobResult != null ? jobResult.getJobStatus() : null)
+				.appendNonBlank("HBCI job result", jobResult)
+				.appendNonBlank("Exception", exception != null ? exception.getClass().getName() + ": " + exception.getMessage() : null)
+				.build();
 	}
 
 	private void logDebug(MoneyTransfer moneyTransfer) {

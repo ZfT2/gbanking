@@ -5,12 +5,10 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.function.Consumer;
 
-import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.StockTransactionEditField;
 import de.zft2.gbanking.db.dao.enu.StockTransactionType;
 import de.zft2.gbanking.exception.GBankingException;
-import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.util.FormGridHelper;
 import de.zft2.gbanking.service.stock.StockPortfolioService;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
@@ -19,18 +17,14 @@ import de.zft2.gbanking.service.stock.StockPortfolioService.TransactionEditData;
 import de.zft2.gbanking.service.stock.StockPortfolioService.TransactionEditRequest;
 import de.zft2.gbanking.service.stock.StockPortfolioService.TransactionPrefill;
 import javafx.collections.FXCollections;
-import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
-import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.StringConverter;
 
-public final class StockTransactionDialog implements BaseMessages {
+public final class StockTransactionDialog extends AbstractStockDialog {
 
 	private final PortfolioSummary portfolio;
 	private final TransactionEditData editData;
@@ -38,7 +32,6 @@ public final class StockTransactionDialog implements BaseMessages {
 	private final Integer preferredSecurityId;
 	private final Consumer<TransactionEditRequest> saveAction;
 	private final Runnable savedHandler;
-	private final Stage dialog;
 	private final ComboBox<StockTransactionType> typeField = new ComboBox<>(
 			FXCollections.observableArrayList(StockTransactionType.BUY, StockTransactionType.SELL));
 	private final DatePicker tradeDateField = new DatePicker();
@@ -56,6 +49,7 @@ public final class StockTransactionDialog implements BaseMessages {
 	public StockTransactionDialog(Window owner, PortfolioSummary portfolio, List<SecuritySummary> securities,
 			TransactionEditData editData, List<TransactionPrefill> prefills, Integer preferredSecurityId,
 			Consumer<TransactionEditRequest> saveAction, Runnable savedHandler) {
+		super(owner, editData == null ? "UI_STOCK_TRANSACTION_DIALOG_NEW_TITLE" : "UI_STOCK_TRANSACTION_DIALOG_EDIT_TITLE");
 		this.portfolio = portfolio;
 		this.editData = editData;
 		this.prefills = List.copyOf(prefills);
@@ -63,13 +57,7 @@ public final class StockTransactionDialog implements BaseMessages {
 		this.saveAction = saveAction;
 		this.savedHandler = savedHandler;
 		securityField = new ComboBox<>(FXCollections.observableArrayList(securities));
-		dialog = DialogWindowSupport.createModalStage(owner,
-				editData == null ? "UI_STOCK_TRANSACTION_DIALOG_NEW_TITLE" : "UI_STOCK_TRANSACTION_DIALOG_EDIT_TITLE");
 		initialize();
-	}
-
-	public void show() {
-		dialog.showAndWait();
 	}
 
 	private void initialize() {
@@ -86,19 +74,9 @@ public final class StockTransactionDialog implements BaseMessages {
 		}
 		updateExchangeRateState();
 
-		Label header = new Label(getText(editData == null
-				? "UI_STOCK_TRANSACTION_DIALOG_NEW_HEADER" : "UI_STOCK_TRANSACTION_DIALOG_EDIT_HEADER"));
-		header.getStyleClass().add("gbanking-form-section-title");
-		GridPane form = createForm();
-		Button saveButton = new Button(getText("UI_BUTTON_SAVE"));
-		Button cancelButton = new Button(getText("UI_BUTTON_CANCEL"));
-		saveButton.setDefaultButton(true);
-		cancelButton.setCancelButton(true);
-		saveButton.setOnAction(event -> save());
-		cancelButton.setOnAction(event -> dialog.close());
-		VBox root = DialogWindowSupport.createDialogRoot(header, form,
-				DialogWindowSupport.createButtonBar(saveButton, cancelButton));
-		dialog.setScene(DialogWindowSupport.createScene(root, 820, 480));
+		buildScene(getText(editData == null
+				? "UI_STOCK_TRANSACTION_DIALOG_NEW_HEADER" : "UI_STOCK_TRANSACTION_DIALOG_EDIT_HEADER"), createForm(),
+				createActionButton("UI_BUTTON_SAVE", () -> save()), createCancelButton(), 820, 480);
 	}
 
 	private GridPane createForm() {
@@ -199,7 +177,7 @@ public final class StockTransactionDialog implements BaseMessages {
 	}
 
 	private void save() {
-		try {
+		applyAndClose(() -> {
 			SecuritySummary security = securityField.getValue();
 			if (typeField.getValue() == null || tradeDateField.getValue() == null
 					|| settlementDateField.getValue() == null || security == null || currencyField.getValue() == null) {
@@ -216,10 +194,8 @@ public final class StockTransactionDialog implements BaseMessages {
 							getText("UI_STOCK_FIELD_ACCRUED_INTEREST")), noteField.getText());
 			saveAction.accept(request);
 			savedHandler.run();
-			dialog.close();
-		} catch (RuntimeException exception) {
-			StockDialogSupport.showError(dialog, exception);
-		}
+			return true;
+		});
 	}
 
 	private BigDecimal parseExchangeRate() {

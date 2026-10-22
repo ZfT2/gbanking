@@ -27,6 +27,7 @@ import de.zft2.gbanking.db.dao.stock.StockSecurityPrice;
 import de.zft2.gbanking.db.dao.stock.StockSecurityPriceSource;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.service.AbstractDbService;
+import de.zft2.gbanking.service.stock.StockSources;
 import de.zft2.gbanking.service.stock.quote.MarketDataClient.MarketQuote;
 import de.zft2.gbanking.service.stock.quote.MarketDataClient.QuoteRequest;
 import de.zft2.gbanking.service.stock.quote.QuoteProviderSettings.Configuration;
@@ -224,37 +225,31 @@ public class StockQuoteRetrievalService extends AbstractDbService {
 
 	private StockDataSource getOrCreateSource(QuoteSource quoteSource) {
 		StockDataSource source = findSource(quoteSource);
-		if (source != null) {
-			if (!source.getSourceName().equals(quoteSource.toString())) {
-				source.setSourceName(quoteSource.toString());
-				dbController.insertOrUpdate(source);
-			}
-			return source;
+		if (source == null) {
+			return StockSources.createDataSource(dbController, quoteSource.sourceCode(), quoteSource.toString(),
+					StockDataSourceType.MARKET_DATA, MARKET_DATA_PRIORITY);
 		}
-		StockDataSource created = new StockDataSource();
-		created.setSourceCode(quoteSource.sourceCode());
-		created.setSourceName(quoteSource.toString());
-		created.setSourceType(StockDataSourceType.MARKET_DATA);
-		created.setDefaultPriority(MARKET_DATA_PRIORITY);
-		return dbController.insertOrUpdate(created);
+		if (!quoteSource.toString().equals(source.getSourceName())) {
+			source.setSourceName(quoteSource.toString());
+			dbController.insertOrUpdate(source);
+		}
+		return source;
 	}
 
 	private StockDataSource findSource(QuoteSource quoteSource) {
 		if (quoteSource == null) {
 			return null;
 		}
-		return dbController.getAll(StockDataSource.class).stream()
-				.filter(source -> quoteSource.sourceCode().equalsIgnoreCase(source.getSourceCode()))
-				.findFirst().orElse(null);
+		return StockSources.findDataSource(dbController.getAll(StockDataSource.class), quoteSource.sourceCode())
+				.orElse(null);
 	}
 
 	private StockSecurityPriceSource getOrCreatePriceSource(int securityId, StockDataSource source, String symbol) {
 		List<StockSecurityPriceSource> providerSources = dbController
 				.getAllByParent(StockSecurityPriceSource.class, securityId).stream()
 				.filter(priceSource -> priceSource.getSourceId() == source.getId()).toList();
-		StockSecurityPriceSource selected = providerSources.stream()
-				.filter(priceSource -> symbol.equalsIgnoreCase(priceSource.getProviderSymbol()))
-				.findFirst().orElse(null);
+		StockSecurityPriceSource selected = StockSources
+				.findPriceSource(providerSources, source.getId(), symbol, null).orElse(null);
 		for (StockSecurityPriceSource priceSource : providerSources) {
 			boolean enabled = priceSource == selected;
 			if (priceSource.isEnabled() != enabled) {
@@ -265,12 +260,7 @@ public class StockQuoteRetrievalService extends AbstractDbService {
 		if (selected != null) {
 			return selected;
 		}
-		StockSecurityPriceSource created = new StockSecurityPriceSource();
-		created.setSecurityId(securityId);
-		created.setSourceId(source.getId());
-		created.setProviderSymbol(symbol);
-		created.setPriority(MARKET_DATA_PRIORITY);
-		return dbController.insertOrUpdate(created);
+		return StockSources.createPriceSource(dbController, securityId, source.getId(), symbol, null, MARKET_DATA_PRIORITY);
 	}
 
 	private Identifiers identifiers(int securityId) {

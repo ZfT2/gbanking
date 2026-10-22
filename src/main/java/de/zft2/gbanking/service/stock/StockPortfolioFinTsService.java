@@ -24,7 +24,6 @@ import org.kapott.hbci.GV_Result.GVRWPDepotList;
 import org.kapott.hbci.GV_Result.GVRWPDepotList.Entry;
 import org.kapott.hbci.GV_Result.GVRWPDepotList.Entry.Gattung;
 import org.kapott.hbci.GV_Result.GVRWPDepotList.Entry.Gattung.SubSaldo;
-import org.kapott.hbci.exceptions.HBCI_Exception;
 import org.kapott.hbci.passport.HBCIPassport;
 import org.kapott.hbci.status.HBCIExecStatus;
 import org.kapott.hbci.structures.BigDecimalValue;
@@ -169,16 +168,10 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 		}
 
 		try {
-			return hbciSessionRunner.run(bankAccess, pin,
-					session -> retrievePortfolio(portfolioSummary.portfolioId(), account, session));
-		} catch (InterruptedException exception) {
-			Thread.currentThread().interrupt();
-			return StockPortfolioFinTsRetrievalResult.failure("Der FinTS-Depotabruf wurde abgebrochen.");
-		} catch (HBCI_Exception exception) {
-			if (HbciStatusMessageExtractor.containsWrongPinFeedback(exception)) {
-				return StockPortfolioFinTsRetrievalResult.wrongPinFailure(exception.getMessage());
-			}
-			throw exception;
+			return hbciSessionRunner.runGuarded("FinTS portfolio retrieval for account id", account.getId(), bankAccess, pin,
+					session -> retrievePortfolio(portfolioSummary.portfolioId(), account, session),
+					exception -> StockPortfolioFinTsRetrievalResult.wrongPinFailure(exception.getMessage()),
+					() -> StockPortfolioFinTsRetrievalResult.failure("Der FinTS-Depotabruf wurde abgebrochen."));
 		} finally {
 			HbciSessionRunner.clearSecret(pin);
 		}
@@ -581,18 +574,8 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 
 	private StockSecurityPriceSource getOrCreatePriceSource(StockDataSource source, StockSecurity security,
 			String marketIdentifierCode) {
-		return dbController.getAllByParent(StockSecurityPriceSource.class, security.getId()).stream()
-				.filter(candidate -> candidate.getSourceId() == source.getId())
-				.filter(candidate -> Objects.equals(candidate.getMarketIdentifierCode(), marketIdentifierCode))
-				.filter(candidate -> candidate.getProviderSymbol() == null)
-				.findFirst().orElseGet(() -> {
-					StockSecurityPriceSource result = new StockSecurityPriceSource();
-					result.setSecurityId(security.getId());
-					result.setSourceId(source.getId());
-					result.setMarketIdentifierCode(marketIdentifierCode);
-					result.setPriority(source.getDefaultPriority());
-					return dbController.insertOrUpdate(result);
-				});
+		return StockSources.getOrCreatePriceSource(dbController, security.getId(), source.getId(), null,
+				marketIdentifierCode, source.getDefaultPriority());
 	}
 
 	private void saveExchangeRate(StockDataSource source, StockImportRecord record, Gattung gattung,
@@ -635,16 +618,8 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 	}
 
 	private StockDataSource getOrCreateFinTsSource() {
-		return dbController.getAll(StockDataSource.class).stream()
-				.filter(source -> FINTS_SOURCE_CODE.equalsIgnoreCase(source.getSourceCode()))
-				.findFirst().orElseGet(() -> {
-					StockDataSource source = new StockDataSource();
-					source.setSourceCode(FINTS_SOURCE_CODE);
-					source.setSourceName("FinTS");
-					source.setSourceType(StockDataSourceType.FINTS);
-					source.setDefaultPriority(100);
-					return dbController.insertOrUpdate(source);
-				});
+		return StockSources.getOrCreateDataSource(dbController, FINTS_SOURCE_CODE, "FinTS", StockDataSourceType.FINTS,
+				100);
 	}
 
 	private BankAccessService bankAccessService() {

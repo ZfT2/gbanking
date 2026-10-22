@@ -1,5 +1,8 @@
 package de.zft2.gbanking.service.stock;
 
+import static de.zft2.gbanking.service.stock.StockNumericValues.fromScaled;
+import static de.zft2.gbanking.service.stock.StockNumericValues.toMinorUnits;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DayOfWeek;
@@ -600,7 +603,7 @@ public class StockPortfolioService extends AbstractDbService {
 			cashLeg.setAccountId(account.getId());
 			cashLeg.setLegRole(role);
 		}
-		cashLeg.setAmountMinor(toMinor(amount.abs().multiply(factor), requireCurrency(account)));
+		cashLeg.setAmountMinor(toMinorUnits(amount.abs().multiply(factor), requireCurrency(account)));
 		cashLeg.setCurrency(requireCurrency(account));
 		cashLeg.setExchangeRateId(exchangeRateId);
 		cashLeg.setValueAt(valueDate.atStartOfDay());
@@ -934,30 +937,13 @@ public class StockPortfolioService extends AbstractDbService {
 	}
 
 	private StockDataSource getOrCreateManualSource() {
-		return dbController.getAll(StockDataSource.class).stream()
-				.filter(source -> MANUAL_SOURCE_CODE.equalsIgnoreCase(source.getSourceCode()))
-				.findFirst().orElseGet(() -> {
-					StockDataSource source = new StockDataSource();
-					source.setSourceCode(MANUAL_SOURCE_CODE);
-					source.setSourceName("Manuelle Eingabe");
-					source.setSourceType(StockDataSourceType.MANUAL);
-					source.setDefaultPriority(0);
-					return dbController.insertOrUpdate(source);
-				});
+		return StockSources.getOrCreateDataSource(dbController, MANUAL_SOURCE_CODE, "Manuelle Eingabe",
+				StockDataSourceType.MANUAL, 0);
 	}
 
 	private StockSecurityPriceSource getOrCreateManualPriceSource(int securityId) {
 		StockDataSource source = getOrCreateManualSource();
-		return dbController.getAllByParent(StockSecurityPriceSource.class, securityId).stream()
-				.filter(priceSource -> priceSource.getSourceId() == source.getId()
-						&& priceSource.getProviderSymbol() == null && priceSource.getMarketIdentifierCode() == null)
-				.findFirst().orElseGet(() -> {
-					StockSecurityPriceSource priceSource = new StockSecurityPriceSource();
-					priceSource.setSecurityId(securityId);
-					priceSource.setSourceId(source.getId());
-					priceSource.setPriority(0);
-					return dbController.insertOrUpdate(priceSource);
-				});
+		return StockSources.getOrCreatePriceSource(dbController, securityId, source.getId(), null, null, 0);
 	}
 
 	private StockTransaction createPendingTransaction(int portfolioId, StockTransactionType type,
@@ -1002,7 +988,7 @@ public class StockPortfolioService extends AbstractDbService {
 		Booking booking = netAmount.signum() != 0 ? createBooking(account, date, purpose, netAmount) : null;
 		int legNumber = 1;
 		for (CashComponent component : cashComponents) {
-			long amountMinor = toMinor(component.amount(), currency);
+			long amountMinor = toMinorUnits(component.amount(), currency);
 			if (amountMinor == 0) {
 				continue;
 			}
@@ -1208,16 +1194,8 @@ public class StockPortfolioService extends AbstractDbService {
 	}
 
 	private StockDataSource getOrCreateReconciliationSource() {
-		return dbController.getAll(StockDataSource.class).stream()
-				.filter(source -> RECONCILIATION_SOURCE_CODE.equalsIgnoreCase(source.getSourceCode()))
-				.findFirst().orElseGet(() -> {
-					StockDataSource source = new StockDataSource();
-					source.setSourceCode(RECONCILIATION_SOURCE_CODE);
-					source.setSourceName("Bestandsabgleich");
-					source.setSourceType(StockDataSourceType.MANUAL);
-					source.setDefaultPriority(100);
-					return dbController.insertOrUpdate(source);
-				});
+		return StockSources.getOrCreateDataSource(dbController, RECONCILIATION_SOURCE_CODE, "Bestandsabgleich",
+				StockDataSourceType.MANUAL, 100);
 	}
 
 	private void rebalanceReconciliationAdjustment(int portfolioId, PositionKey key) {
@@ -1337,19 +1315,10 @@ public class StockPortfolioService extends AbstractDbService {
 
 	private static long toScaledLong(BigDecimal value, int scale, String fieldName) {
 		try {
-			return value.setScale(scale, RoundingMode.UNNECESSARY).movePointRight(scale).longValueExact();
+			return StockNumericValues.toScaledLong(value, scale, RoundingMode.UNNECESSARY);
 		} catch (ArithmeticException exception) {
 			throw new GBankingException(fieldName + " hat zu viele Nachkommastellen oder ist zu groß", exception);
 		}
-	}
-
-	private static long toMinor(BigDecimal value, Currency currency) {
-		return value.setScale(currency.getMinorUnitDigits(), RoundingMode.HALF_UP)
-				.movePointRight(currency.getMinorUnitDigits()).longValueExact();
-	}
-
-	private static BigDecimal fromScaled(long value, int scale) {
-		return BigDecimal.valueOf(value, scale).stripTrailingZeros();
 	}
 
 	private static StockQuantityType defaultQuantityType(StockSecurity security) {

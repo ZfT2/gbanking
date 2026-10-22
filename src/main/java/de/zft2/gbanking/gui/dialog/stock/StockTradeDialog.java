@@ -4,10 +4,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.function.Consumer;
 
-import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.StockTransactionType;
-import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.util.FormGridHelper;
 import de.zft2.gbanking.service.stock.StockPortfolioService;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
@@ -15,25 +13,20 @@ import de.zft2.gbanking.service.stock.StockPortfolioService.PositionSummary;
 import de.zft2.gbanking.service.stock.StockPortfolioService.TradeRequest;
 import de.zft2.gbanking.service.stock.StockPortfolioService.TransactionPrefill;
 import javafx.collections.FXCollections;
-import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
-import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.StringConverter;
 
-public final class StockTradeDialog implements BaseMessages {
+public final class StockTradeDialog extends AbstractStockDialog {
 
 	private final PortfolioSummary portfolio;
 	private final PositionSummary position;
 	private final TransactionPrefill prefill;
 	private final Consumer<TradeRequest> saveAction;
 	private final Runnable savedHandler;
-	private final Stage dialog;
 	private final ComboBox<StockTransactionType> typeField = new ComboBox<>(
 			FXCollections.observableArrayList(StockTransactionType.BUY, StockTransactionType.SELL));
 	private final DatePicker tradeDateField = new DatePicker(LocalDate.now());
@@ -48,23 +41,17 @@ public final class StockTradeDialog implements BaseMessages {
 
 	public StockTradeDialog(Window owner, PortfolioSummary portfolio, PositionSummary position,
 			TransactionPrefill prefill, Consumer<TradeRequest> saveAction, Runnable savedHandler) {
+		super(owner, "UI_STOCK_TRADE_DIALOG_TITLE");
 		this.portfolio = portfolio;
 		this.position = position;
 		this.prefill = prefill;
 		this.saveAction = saveAction;
 		this.savedHandler = savedHandler;
 		currencyField = StockDialogSupport.createCurrencyCombo(position.currency());
-		dialog = DialogWindowSupport.createModalStage(owner, "UI_STOCK_TRADE_DIALOG_TITLE");
 		initialize();
 	}
 
-	public void show() {
-		dialog.showAndWait();
-	}
-
 	private void initialize() {
-		Label header = new Label(getText("UI_STOCK_TRADE_DIALOG_HEADER", position.securityName()));
-		header.getStyleClass().add("gbanking-form-section-title");
 		typeField.setValue(prefill != null ? prefill.transactionType() : StockTransactionType.BUY);
 		typeField.setConverter(transactionTypeConverter());
 		quantityField.setText(StockDialogSupport.formatDecimal(prefill != null ? prefill.quantity() : position.quantity()));
@@ -88,15 +75,8 @@ public final class StockTradeDialog implements BaseMessages {
 		FormGridHelper.addFieldAbove(form, getText("UI_STOCK_FIELD_TAXES"), taxesField, 2, 2);
 		FormGridHelper.addFieldAbove(form, getText("UI_STOCK_FIELD_ACCRUED_INTEREST"), accruedInterestField, 0, 3);
 
-		Button saveButton = new Button(getText("UI_BUTTON_SAVE"));
-		Button cancelButton = new Button(getText("UI_BUTTON_CANCEL"));
-		saveButton.setDefaultButton(true);
-		cancelButton.setCancelButton(true);
-		saveButton.setOnAction(event -> save());
-		cancelButton.setOnAction(event -> dialog.close());
-		VBox root = DialogWindowSupport.createDialogRoot(header, form,
-				DialogWindowSupport.createButtonBar(saveButton, cancelButton));
-		dialog.setScene(DialogWindowSupport.createScene(root, 720, 390));
+		buildScene(getText("UI_STOCK_TRADE_DIALOG_HEADER", position.securityName()), form,
+				createActionButton("UI_BUTTON_SAVE", () -> save()), createCancelButton(), 720, 390);
 	}
 
 	private void configureExchangeRate() {
@@ -116,7 +96,7 @@ public final class StockTradeDialog implements BaseMessages {
 	}
 
 	private void save() {
-		try {
+		applyAndClose(() -> {
 			TradeRequest request = new TradeRequest(typeField.getValue(), tradeDateField.getValue(), settlementDateField.getValue(),
 					StockDialogSupport.parseRequiredDecimal(quantityField, getText("UI_STOCK_FIELD_QUANTITY")),
 					StockDialogSupport.parseRequiredDecimal(priceField, getText("UI_STOCK_FIELD_UNIT_PRICE")),
@@ -126,10 +106,8 @@ public final class StockTradeDialog implements BaseMessages {
 					StockDialogSupport.parseOptionalDecimal(accruedInterestField, getText("UI_STOCK_FIELD_ACCRUED_INTEREST")));
 			saveAction.accept(request);
 			savedHandler.run();
-			dialog.close();
-		} catch (RuntimeException exception) {
-			StockDialogSupport.showError(dialog, exception);
-		}
+			return true;
+		});
 	}
 
 	private BigDecimal parseExchangeRate() {

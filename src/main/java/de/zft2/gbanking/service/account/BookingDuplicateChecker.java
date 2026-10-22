@@ -1,7 +1,5 @@
 package de.zft2.gbanking.service.account;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.EnumSet;
@@ -14,6 +12,7 @@ import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingAdditionalDetails;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.util.Amounts;
 
 public final class BookingDuplicateChecker {
 
@@ -93,7 +92,7 @@ public final class BookingDuplicateChecker {
 	}
 
 	private boolean hasSameStableReference(Booking newBooking, Booking existingBooking) {
-		return sameAmount(newBooking.getAmount(), existingBooking.getAmount())
+		return Amounts.sameRoundedAmount(newBooking.getAmount(), existingBooking.getAmount())
 				&& hasCompatibleBookingDate(newBooking, existingBooking)
 				&& (sameMeaningfulReference(getInstituteReference(newBooking), getInstituteReference(existingBooking))
 						|| sameMeaningfulReference(newBooking.getSepaEndToEnd(), existingBooking.getSepaEndToEnd()));
@@ -106,7 +105,7 @@ public final class BookingDuplicateChecker {
 
 	private boolean hasSameBookingFingerprint(Booking newBooking, Booking existingBooking) {
 		return newBooking.getAccountId() == existingBooking.getAccountId()
-				&& sameAmount(newBooking.getAmount(), existingBooking.getAmount())
+				&& Amounts.sameRoundedAmount(newBooking.getAmount(), existingBooking.getAmount())
 				&& sameDate(newBooking.getDateBooking(), existingBooking.getDateBooking())
 				&& sameOptionalDate(newBooking.getDateValue(), existingBooking.getDateValue())
 				&& samePurpose(newBooking.getPurpose(), existingBooking.getPurpose())
@@ -209,11 +208,4 @@ public final class BookingDuplicateChecker {
 		return normalizedPurpose.isEmpty() ? null : normalizedPurpose;
 	}
 
-	private boolean sameAmount(BigDecimal left, BigDecimal right) {
-		return normalizeAmount(left).compareTo(normalizeAmount(right)) == 0;
-	}
-
-	private BigDecimal normalizeAmount(BigDecimal amount) {
-		return amount == null ? BigDecimal.ZERO : amount.setScale(2, RoundingMode.HALF_UP);
-	}
 }

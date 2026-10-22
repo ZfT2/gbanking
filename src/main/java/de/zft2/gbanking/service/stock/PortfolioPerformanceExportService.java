@@ -1,5 +1,6 @@
 package de.zft2.gbanking.service.stock;
 
+import static de.zft2.gbanking.service.stock.StockNumericValues.fromScaled;
 import static de.zft2.gbanking.util.TextValues.firstWithTextOrDefault;
 import static de.zft2.gbanking.util.TextValues.nullToEmpty;
 
@@ -144,7 +145,7 @@ public class PortfolioPerformanceExportService extends AbstractDbService {
 				row.add(PortfolioPerformanceCsvSupport.formatDate(dateEntry.getKey()));
 				for (StockSecurity security : securities) {
 					StockSecurityPrice price = dateEntry.getValue().get(security.getId());
-					row.add(price != null ? PortfolioPerformanceCsvSupport.formatDecimal(scaled(price.getPriceE8(), PRICE_SCALE)) : "");
+					row.add(price != null ? PortfolioPerformanceCsvSupport.formatDecimal(fromScaled(price.getPriceE8(), PRICE_SCALE)) : "");
 				}
 				printer.printRecord(row);
 			}
@@ -263,11 +264,7 @@ public class PortfolioPerformanceExportService extends AbstractDbService {
 	}
 
 	private static BigDecimal quantity(StockTransactionSecurityLeg leg) {
-		return scaled(Math.abs(leg.getQuantityE9()), QUANTITY_SCALE);
-	}
-
-	private static BigDecimal scaled(long value, int scale) {
-		return BigDecimal.valueOf(value, scale).stripTrailingZeros();
+		return fromScaled(Math.abs(leg.getQuantityE9()), QUANTITY_SCALE);
 	}
 
 	private static String currencyCode(Currency currency) {

@@ -25,7 +25,7 @@ import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.SepaCancellationCode;
 import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
-import de.zft2.gbanking.logging.HbciLogMessageSanitizer;
+import de.zft2.gbanking.hbci.HbciJobSupport;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
@@ -37,6 +37,9 @@ class InstantPaymentStatusService extends AbstractDbService {
 	private static final String RETRY_CODE = "3045";
 	private static final int MAX_REQUESTS = 3;
 	private static final Logger log = LogManager.getLogger(InstantPaymentStatusService.class);
+
+	private final MoneyTransferProtocolWriter protocolWriter = new MoneyTransferProtocolWriter(dbController, log,
+			"instant payment status");
 
 	void retrieveStatusIfNecessary(HBCIHandler handler, GBankingHBCICallback callback, MoneyTransfer moneyTransfer, Konto senderAccount,
 			SepaOrderStatus initialStatus, HBCIJobResult initialResult) {
@@ -103,8 +106,7 @@ class InstantPaymentStatusService extends AbstractDbService {
 	}
 
 	private boolean supportsStatusRequest(HBCIHandler handler) {
-		Properties jobs = handler != null ? handler.getSupportedLowlevelJobs() : null;
-		boolean supported = jobs != null && jobs.containsKey(JOB_NAME);
+		boolean supported = HbciJobSupport.isSupported(handler, JOB_NAME);
 		if (!supported) {
 			log.debug("Lowlevel HBCI job {} is not supported by this bank access.", JOB_NAME);
 		}
@@ -262,7 +264,7 @@ class InstantPaymentStatusService extends AbstractDbService {
 				? resolvedStatus : moneyTransfer.getMoneytransferStatus();
 		MoneyTransferProtocol protocol = createProtocol(moneyTransfer, status, start, finish, response);
 		String technicalProtocol = createProtocolText(executionStatus, result, response);
-		logTechnicalProtocol(moneyTransfer, technicalProtocol);
+		protocolWriter.logTechnicalProtocol(moneyTransfer, technicalProtocol);
 		protocolEvaluation(successful, resolvedStatus, technicalProtocol).applyTo(protocol);
 		dbController.executeInTransaction(() -> {
 			if (status != moneyTransfer.getMoneytransferStatus()) {
@@ -283,28 +285,19 @@ class InstantPaymentStatusService extends AbstractDbService {
 	}
 
 	private void persistFailureProtocol(MoneyTransfer moneyTransfer, LocalDateTime start, RuntimeException exception) {
-		MoneyTransferProtocol protocol = createProtocol(moneyTransfer, moneyTransfer.getMoneytransferStatus(), start,
-				LocalDateTime.now(ZoneId.systemDefault()),
-				new StatusResponse(moneyTransfer.getBankOrderId(), null, null, false, false));
-		String technicalProtocol = exception.getClass().getName() + ": " + exception.getMessage();
-		logTechnicalProtocol(moneyTransfer, technicalProtocol);
-		MoneyTransferProtocolEvaluator.evaluate(false, technicalProtocol, false, null, false).applyTo(protocol);
-		dbController.insertOrUpdate(protocol);
-	}
-
-	private void logTechnicalProtocol(MoneyTransfer moneyTransfer, String technicalProtocol) {
-		if (log.isDebugEnabled()) {
-			log.debug("Technical instant payment status protocol. transferId={}{}{}", moneyTransfer.getId(), System.lineSeparator(),
-					HbciLogMessageSanitizer.sanitize(technicalProtocol));
-		}
+		StatusResponse response = new StatusResponse(moneyTransfer.getBankOrderId(), null, null, false, false);
+		MoneyTransferProtocolData data = new MoneyTransferProtocolData(response.bankOrderId(), null, response.sepaOrderStatus(),
+				response.sepaCancellationCode());
+		protocolWriter.persistFailureProtocol(moneyTransfer, start, exception, data,
+				technicalProtocol -> MoneyTransferProtocolEvaluator.evaluate(false, technicalProtocol, false, null, false));
 	}
 
 	private MoneyTransferProtocol createProtocol(MoneyTransfer moneyTransfer, MoneyTransferStatus status, LocalDateTime start,
 			LocalDateTime finish, StatusResponse response) {
 		MoneyTransferProtocol protocol = new MoneyTransferProtocol(moneyTransfer.getId(), status, start, finish);
-		protocol.setBankOrderId(response.bankOrderId());
-		protocol.setSepaOrderStatus(response.sepaOrderStatus());
-		protocol.setSepaCancellationCode(response.sepaCancellationCode());
+		MoneyTransferProtocolData data = new MoneyTransferProtocolData(response.bankOrderId(), null, response.sepaOrderStatus(),
+				response.sepaCancellationCode());
+		data.applyTo(protocol);
 		return protocol;
 	}
 
@@ -314,14 +307,11 @@ class InstantPaymentStatusService extends AbstractDbService {
 	}
 
 	private String createProtocolText(HBCIExecStatus executionStatus, HBCIJobResult result, StatusResponse response) {
-		StringBuilder text = new StringBuilder("HBCI execution status: ").append(executionStatus);
-		if (result != null && result.getJobStatus() != null) {
-			text.append(System.lineSeparator()).append("HBCI job status: ").append(result.getJobStatus());
-		}
-		if (response.sepaOrderStatus() != null) {
-			text.append(System.lineSeparator()).append("SEPA order status: ").append(response.sepaOrderStatus().getDbStateId());
-		}
-		return text.toString();
+		return MoneyTransferProtocolText.of("HBCI execution status", executionStatus)
+				.appendNonNull("HBCI job status", result != null ? result.getJobStatus() : null)
+				.appendNonNull("SEPA order status",
+						response.sepaOrderStatus() != null ? response.sepaOrderStatus().getDbStateId() : null)
+				.build();
 	}
 
 	private record StatusResponse(String bankOrderId, SepaOrderStatus sepaOrderStatus, SepaCancellationCode sepaCancellationCode,

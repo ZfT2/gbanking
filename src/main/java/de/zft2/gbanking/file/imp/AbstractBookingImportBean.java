@@ -32,6 +32,14 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 
 	private static final Logger log = LogManager.getLogger(AbstractBookingImportBean.class);
 
+	protected static final int PROGRESS_ACCOUNTS_START = 0;
+	protected static final int PROGRESS_ACCOUNTS_END = 5;
+	protected static final int PROGRESS_BOOKINGS_START = PROGRESS_ACCOUNTS_END;
+	protected static final int PROGRESS_BOOKINGS_END = 90;
+	protected static final int PROGRESS_RECIPIENTS_START = PROGRESS_BOOKINGS_END;
+	protected static final int PROGRESS_CATEGORIES_START = 98;
+	protected static final int PROGRESS_FINISHED = 100;
+
 	private final ProgressReporter progressReporter;
 	private final BankAccount contextAccount;
 	private final ImportedBankNameCorrectionHandler bankNameCorrectionHandler;
@@ -42,6 +50,7 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 	private final Map<String, BankAccount> accountsByNumber = new HashMap<>();
 	private final Map<String, BankAccount> accountsByName = new HashMap<>();
 	private final Map<String, BankAccount> accountsByBlzAndNumber = new HashMap<>();
+	private int currentProgress = -1;
 
 	protected AbstractBookingImportBean(ProgressReporter progressReporter, BankAccount contextAccount) {
 		this(progressReporter, contextAccount, null);
@@ -56,8 +65,9 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 	}
 
 	protected Path prepareImportFile(String importFile, String messageKey) {
-		importStatistics.clear();
+		clearImportStatistics();
 		bookingPersistence.reset();
+		resetProgress();
 		updateWorkerState(1, messageKey, importFile);
 
 		Path importPath = AppPaths.resolveInApplicationDirectory(importFile);
@@ -155,7 +165,7 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 			if (account == null) {
 				throw new GBankingException("No database account resolved for imported account " + importAccount.getAccountName() + ".");
 			}
-			FileImportBean.ImportAccountStatistics statistics = importStatistics.forAccount(account.getAccountName(),
+			FileImportBean.ImportAccountStatistics statistics = statisticsFor(account.getAccountName(),
 					bookingPersistence.existingBookingCount(account.getId()));
 
 			for (ImportBooking importBooking : importAccount.getBookings()) {
@@ -188,11 +198,13 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 		return importAccount;
 	}
 
-	protected void postProcessImportedBookings(List<Booking> importedBookings) {
+	protected void postProcessImportedBookings(Collection<Booking> importedBookings) {
 		if (importedBookings == null || importedBookings.isEmpty()) {
 			return;
 		}
+		updateWorkerState(PROGRESS_RECIPIENTS_START, "UI_PROGRESS_IMPORT_CONTACTS");
 		bookingReferenceWriter.writeRecipients(importedBookings, bankNameCorrectionHandler);
+		updateWorkerState(PROGRESS_CATEGORIES_START, "UI_PROGRESS_IMPORT_CATEGORIES");
 		bookingReferenceWriter.writeCategories(importedBookings);
 	}
 
@@ -205,7 +217,58 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 
 	protected void updateWorkerState(int progress, String messageKey, Object... param) {
 		progressReporter.reportState(getText(messageKey, param));
-		progressReporter.reportProgress(progress);
+		updateWorkerProgress(progress);
+	}
+
+	/**
+	 * Resets the reported progress, the next report starts again at the beginning.
+	 */
+	protected void resetProgress() {
+		currentProgress = -1;
+	}
+
+	/**
+	 * Removes the collected import statistics of a previous import.
+	 */
+	protected void clearImportStatistics() {
+		importStatistics.clear();
+	}
+
+	/**
+	 * Returns the summary of the collected import statistics.
+	 *
+	 * @return the summary of the import statistics
+	 */
+	protected String importStatisticsSummary() {
+		return importStatistics.summary();
+	}
+
+	/**
+	 * Returns the statistics of the given account, the statistics are created if they do not exist yet.
+	 *
+	 * @param accountName      the name of the account
+	 * @param existingBookings the number of bookings that were already stored for the account
+	 * @return the statistics of the account
+	 */
+	protected FileImportBean.ImportAccountStatistics statisticsFor(String accountName, int existingBookings) {
+		return importStatistics.forAccount(accountName, existingBookings);
+	}
+
+	/**
+	 * Returns the persistence of the imported bookings.
+	 *
+	 * @return the booking persistence
+	 */
+	protected ImportedBookingPersistence getBookingPersistence() {
+		return bookingPersistence;
+	}
+
+	protected void updateWorkerProgress(int progress) {
+		int boundedProgress = Math.max(0, Math.min(progress, PROGRESS_FINISHED));
+		if (boundedProgress != currentProgress) {
+			currentProgress = boundedProgress;
+			progressReporter.reportProgress(boundedProgress);
+		}
 	}
 
 	protected String normalizeKey(String value) {
@@ -298,7 +361,7 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 		}
 	}
 
-	private boolean canLinkCrossBooking(Booking booking, Booking crossBooking) {
+	protected boolean canLinkCrossBooking(Booking booking, Booking crossBooking) {
 		return !RebookingRules.isForbiddenSameAccountRebooking(booking.getAccountId(), crossBooking.getAccountId(),
 				RebookingRules.hasCancellationSignal(booking) || RebookingRules.hasCancellationSignal(crossBooking));
 	}

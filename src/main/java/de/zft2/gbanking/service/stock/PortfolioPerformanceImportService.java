@@ -77,6 +77,7 @@ import de.zft2.gbanking.service.stock.PortfolioPerformanceData.Portfolio;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceData.Security;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceData.Transaction;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
+import de.zft2.gbanking.util.Amounts;
 import de.zft2.gbanking.util.Hashes;
 
 public class PortfolioPerformanceImportService extends AbstractDbService {
@@ -865,14 +866,8 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 	private StockSecurityPriceSource getOrCreatePriceSource(StockSecurity security, StockDataSource source,
 			PriceImportCache cache) {
 		PriceSourceKey key = new PriceSourceKey(security.getId(), source.getId(), null);
-		return cache.priceSources.computeIfAbsent(key, ignored -> {
-					StockSecurityPriceSource created = new StockSecurityPriceSource();
-					created.setSecurityId(security.getId());
-					created.setSourceId(source.getId());
-					created.setProviderSymbol(null);
-					created.setPriority(source.getDefaultPriority());
-					return dbController.insertOrUpdate(created);
-				});
+		return cache.priceSources.computeIfAbsent(key, ignored -> StockSources.createPriceSource(dbController,
+				security.getId(), source.getId(), null, null, source.getDefaultPriority()));
 	}
 
 	private boolean saveStockTransaction(PortfolioSummary portfolio, Transaction data, ImportedType importedType,
@@ -977,7 +972,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 			leg.setAccountId(portfolio.settlementAccountId());
 			leg.setBookingId(booking != null ? booking.getId() : null);
 			leg.setLegRole(value.role());
-			leg.setAmountMinor(toMinor(value.amount(), data.bookingCurrency()));
+			leg.setAmountMinor(StockNumericValues.toMinorUnits(value.amount(), data.bookingCurrency()));
 			leg.setCurrency(data.bookingCurrency());
 			leg.setValueAt(data.date());
 			dbController.insertOrUpdate(leg);
@@ -997,7 +992,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		boolean exists = dbController.getAllByParent(Booking.class, accountId).stream()
 				.filter(booking -> booking.getSource() != null && booking.getSource().getGroup() == Source.IMPORT.getGroup())
 				.anyMatch(booking -> Objects.equals(booking.getDate(), data.date().toLocalDate())
-						&& sameAmount(booking.getAmount(), amount) && Objects.equals(booking.getPurpose(), purpose));
+						&& Amounts.sameAmount(booking.getAmount(), amount) && Objects.equals(booking.getPurpose(), purpose));
 		if (exists) {
 			return false;
 		}
@@ -1158,15 +1153,10 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 
 	private static long scaled(BigDecimal value, int scale, String field) {
 		try {
-			return value.setScale(scale, RoundingMode.HALF_UP).movePointRight(scale).longValueExact();
+			return StockNumericValues.toScaledLong(value, scale, RoundingMode.HALF_UP);
 		} catch (ArithmeticException exception) {
 			throw new GBankingException(field + " ist zu groß", exception);
 		}
-	}
-
-	private static long toMinor(BigDecimal value, Currency currency) {
-		return value.setScale(currency.getMinorUnitDigits(), RoundingMode.HALF_UP)
-				.movePointRight(currency.getMinorUnitDigits()).longValueExact();
 	}
 
 	private static String normalizedDecimal(BigDecimal value) {
@@ -1179,10 +1169,6 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 
 	private static BigDecimal nonNegative(BigDecimal value) {
 		return value != null ? value.abs() : BigDecimal.ZERO;
-	}
-
-	private static boolean sameAmount(BigDecimal left, BigDecimal right) {
-		return left != null && right != null && left.compareTo(right) == 0;
 	}
 
 	private static String stripTickerSuffix(String value) {
