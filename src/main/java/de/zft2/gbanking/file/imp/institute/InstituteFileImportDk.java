@@ -19,6 +19,9 @@ public class InstituteFileImportDk extends InstituteFileImport {
 
 	public static final String DEFAULT_FILENAME = "fints_institute NEU mit BIC Master.csv";
 
+	/** Marker of the DK file for institutes that do not have a BIC yet. */
+	private static final String BIC_NOT_AVAILABLE = "#NV";
+
 	protected InstituteFileImportDk(String basePath, String fileName, Charset charset, ProgressReporter progressReporter) {
 		super(basePath, fileName, charset, progressReporter);
 	}
@@ -102,7 +105,7 @@ public class InstituteFileImportDk extends InstituteFileImport {
 
 		institute.setImportNumber(Integer.parseInt(nr));
 		institute.setBlz(csvRecord.get("BLZ"));
-		institute.setBic(csvRecord.get("BIC"));
+		institute.setBic(toBic(csvRecord.get("BIC")));
 		institute.setBankName(csvRecord.get("Institut"));
 		institute.setPlace(csvRecord.get("Ort"));
 		institute.setDataCenter(csvRecord.get("RZ"));
@@ -153,8 +156,31 @@ public class InstituteFileImportDk extends InstituteFileImport {
 
 	@Override
 	protected boolean isSameInstituteIdentity(Institute a, Institute b) {
-		return Objects.equals(a.getBlz(), b.getBlz()) && Objects.equals(a.getBic(), b.getBic()) && Objects.equals(a.getBankName(), b.getBankName())
-				&& Objects.equals(a.getPlace(), b.getPlace());
+		return Objects.equals(a.getBlz(), b.getBlz()) && Objects.equals(a.getBankName(), b.getBankName())
+				&& Objects.equals(a.getPlace(), b.getPlace()) && isSameBic(a, b);
+	}
+
+	/**
+	 * A BIC that only becomes known later enriches the existing institute instead of creating a
+	 * new version. Only a BIC that changes from one known value to another is a content change
+	 * of the institute. Archived versions keep their history and are never enriched.
+	 */
+	private static boolean isSameBic(Institute existing, Institute imported) {
+		String existingBic = toBic(existing.getBic());
+		String importedBic = toBic(imported.getBic());
+		if (existingBic == null || importedBic == null) {
+			return existing.getStateType() != InstituteStatus.ARCHIVED;
+		}
+		return existingBic.equals(importedBic);
+	}
+
+	/**
+	 * Converts the BIC of the DK file into the value that is stored. Institutes without a BIC are
+	 * marked with '#NV' in the file and are stored with an empty BIC.
+	 */
+	private static String toBic(String bic) {
+		String trimmedBic = bic == null ? "" : bic.trim();
+		return trimmedBic.isEmpty() || BIC_NOT_AVAILABLE.equalsIgnoreCase(trimmedBic) ? null : trimmedBic;
 	}
 
 	private Long getTime(LocalDate cal) {

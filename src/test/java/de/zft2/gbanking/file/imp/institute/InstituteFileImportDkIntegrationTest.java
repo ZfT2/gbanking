@@ -536,6 +536,91 @@ class InstituteFileImportDkIntegrationTest extends BaseInstituteFileImportTest {
 		}
 	}
 
+	@Test
+	void testBicPlaceholderIsStoredAsEmptyBic() throws Exception {
+		Path importBasePath = tempDir.resolve("bic-placeholder-import");
+		Path importDir = importBasePath.resolve("import");
+		Files.createDirectories(importDir);
+
+		String fileName = "fints_institute NEU mit BIC Master.csv";
+		Files.writeString(importDir.resolve(fileName), instituteCsv(List.of(
+				instituteCsvRow(1, "10010010", "#NV", "Test Bank", "Berlin"),
+				instituteCsvRow(2, "20030000", "HYVEDEMM300", "Other Bank", "Hamburg"))), StandardCharsets.UTF_8);
+
+		InstituteFileImport importer = InstituteFileImport.getInstance(InstituteFileImportDk.class, importBasePath.toString(), fileName,
+				StandardCharsets.UTF_8, null);
+
+		importer.runImport();
+
+		List<Institute> all = dbController.getAll(Institute.class);
+		assertEquals(2, all.size());
+		assertNull(findByBlz(all, "10010010").getBic(), "A BIC of '#NV' must be stored as an empty BIC");
+		assertEquals("HYVEDEMM300", findByBlz(all, "20030000").getBic());
+	}
+
+	@Test
+	void testLaterKnownBicEnrichesExistingInstituteWithoutNewVersion() throws Exception {
+		Path importBasePath = tempDir.resolve("bic-enrichment-import");
+		Path importDir = importBasePath.resolve("import");
+		Files.createDirectories(importDir);
+
+		String baseFileName = "fints_institute NEU mit BIC Master";
+		Files.writeString(importDir.resolve(baseFileName + "_20260101.csv"),
+				instituteCsv(List.of(instituteCsvRow(1, "10010010", "", "Test Bank", "Berlin"))), StandardCharsets.UTF_8);
+
+		InstituteFileImport importer = InstituteFileImport.getInstance(InstituteFileImportDk.class, importBasePath.toString(), baseFileName,
+				StandardCharsets.UTF_8, null);
+		importer.runImport();
+
+		List<Institute> initial = dbController.getAll(Institute.class);
+		assertEquals(1, initial.size());
+		assertNull(initial.get(0).getBic(), "A missing BIC must be stored as an empty BIC");
+
+		Files.writeString(importDir.resolve(baseFileName + "_20260102.csv"),
+				instituteCsv(List.of(instituteCsvRow(1, "10010010", "PBNKDEFFXXX", "Test Bank", "Berlin"))), StandardCharsets.UTF_8);
+		importer.runImport();
+
+		List<Institute> updated = dbController.getAll(Institute.class);
+		assertEquals(1, updated.size(), "A BIC that becomes known later must not create a new version of the institute");
+		assertEquals(initial.get(0).getId(), updated.get(0).getId(), "The existing institute row must be enriched");
+		assertEquals("PBNKDEFFXXX", updated.get(0).getBic());
+		assertEquals(InstituteStatus.ACTIVE, updated.get(0).getStateType());
+		assertEquals(0, updated.stream().filter(institute -> institute.getStateType() == InstituteStatus.ARCHIVED).count(),
+				"A BIC that becomes known later must not archive the existing institute");
+	}
+
+	@Test
+	void testBicRemovedBySourceClearsTheStoredBicWithoutNewVersion() throws Exception {
+		Path importBasePath = tempDir.resolve("bic-removal-import");
+		Path importDir = importBasePath.resolve("import");
+		Files.createDirectories(importDir);
+
+		String baseFileName = "fints_institute NEU mit BIC Master";
+		Files.writeString(importDir.resolve(baseFileName + "_20260101.csv"),
+				instituteCsv(List.of(instituteCsvRow(1, "10010010", "PBNKDEFFXXX", "Test Bank", "Berlin"))), StandardCharsets.UTF_8);
+
+		InstituteFileImport importer = InstituteFileImport.getInstance(InstituteFileImportDk.class, importBasePath.toString(), baseFileName,
+				StandardCharsets.UTF_8, null);
+		importer.runImport();
+
+		List<Institute> initial = dbController.getAll(Institute.class);
+		assertEquals(1, initial.size());
+		assertEquals("PBNKDEFFXXX", initial.get(0).getBic());
+
+		Files.writeString(importDir.resolve(baseFileName + "_20260102.csv"),
+				instituteCsv(List.of(instituteCsvRow(1, "10010010", "#NV", "Test Bank", "Berlin"))), StandardCharsets.UTF_8);
+		importer.runImport();
+
+		List<Institute> updated = dbController.getAll(Institute.class);
+		assertEquals(1, updated.size(), "A BIC that is no longer provided must not create a new version of the institute");
+		assertEquals(initial.get(0).getId(), updated.get(0).getId());
+		assertNull(updated.get(0).getBic(), "A BIC of '#NV' must clear the stored BIC");
+	}
+
+	private Institute findByBlz(List<Institute> institutes, String blz) {
+		return institutes.stream().filter(institute -> blz.equals(institute.getBlz())).findFirst().orElseThrow();
+	}
+
 	private String singleInstituteCsv(String bic) {
 		return instituteCsv(List.of(instituteCsvRow(1, "10010010", bic, "Test Bank", "Berlin")));
 	}
