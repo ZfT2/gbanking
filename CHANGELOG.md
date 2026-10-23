@@ -4,6 +4,39 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-23
+
+### Added
+- Bank access list: show active flag as check mark or cross
+- Booking table: show the number of booking in selected bank account
+- Standing order list: show first- and next execution dates
+- Enablebanking setup: allow correction of account type in overview
+- Rebooking-detection also for matching bookings without recipient
+
+### Fixed
+- Export progress: bounded formula and exported booking count
+- Detect imported bookings duplicated by online bookings
+- DK import: store BIC, '#NV' as empty value without new versions
+- Keep transaction count visible when the window is narrowed
+- EnableBanking locale-related tests
+- Skip saving of bookings without booking- AND value date
+- Enablebanking iban and account number assignment in account table
+
+### Changed
+- Share GUI helpers for file chooser, tables and dialogs
+- Share HBCI, protocol, numeric and stock dialog helpers
+- Centralize text, hash and decimal helpers
+- Optimize context menu template functions by reducing db queries
+- SQL keywords
+
+### Maintenance
+- Agents hints
+- Institute database: import DK file of 2026-10-16
+- Contributing hints
+- external libraries minor updates
+- add plugin to check for new dependency versions
+- release: prepare next development version 0.9.2-SNAPSHOT
+
 ## [0.9.1] - 2026-09-22
 
 ### Added
@@ -389,23 +422,6 @@ All notable changes to this project will be documented in this file.
 ### Maintenance
 - institute import cleanup
 - release: prepare next development version 0.10.1-SNAPSHOT
-
-## [0.10.0] - 2026-06-26
-
-### Added
-- add third institute import source for EPC data
-
-### Fixed
-- commented out JUnit Test
-- Fallback to MT940 call if CAMT booking call fails
-- Avoid database exception if parameterList is empty
-
-### Changed
-- Package refactoring BankAccessService methods
-- Package refactoring
-
-### Maintenance
-- release: prepare next development version 0.9.2-SNAPSHOT
 
 ## [0.7.1] - 2026-06-03
 
