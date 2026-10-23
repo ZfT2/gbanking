@@ -92,6 +92,16 @@ class BookingDuplicateCheckerTest {
 	}
 
 	@Test
+	void shouldDetectDuplicateWhenPurposeDiffersOnlyByLineBreaks_02() {
+		Booking onlineBooking = createBooking(Source.ONLINE_NEW,
+				"Rechnung VG260400524 1x Werkzeug TAN1:Auftrag nicht TAN-pflichtig IBAN: DE70760200700049183526 BIC: HYVE\r\n" + "DEMM460");
+		Booking importedBooking = createBooking(Source.IMPORT_INITIAL,
+				"Rechnung VG260400524 1x Werkzeug TAN1:Auftrag nicht TAN-pflichtig IBAN: DE70760200700049183526 BIC: HYVEDEMM460");
+
+		assertTrue(checker.isDuplicate(onlineBooking, List.of(importedBooking), List.of()));
+	}
+
+	@Test
 	void shouldNotDetectDuplicateForDifferentPurposes() {
 		Booking onlineBooking = createBooking(Source.ONLINE_NEW, "Abschluss per 30.06.2026\nSollzinsen: - 0,25");
 		Booking importedBooking = createBooking(Source.IMPORT_INITIAL, "ABSCHLUSS PER 31.05.2026");

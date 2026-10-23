@@ -27,6 +27,7 @@ public final class BookingDuplicateChecker {
 	private static final Pattern MONEYPLEX_PURPOSE_LINE_SUFFIX = Pattern.compile("(?:[ \\t]{2,}|\\A)V\\d{5}$",
 			Pattern.CASE_INSENSITIVE);
 	private static final Pattern WHITESPACE_RUN = Pattern.compile("\\s+");
+	private static final String NORMALIZED_PURPOSE_SEPARATOR = " ";
 
 	boolean isDuplicate(Booking newBooking, List<Booking> existingBookings, List<Booking> processedIncomingBookings) {
 		return findDuplicate(newBooking, existingBookings, processedIncomingBookings) != null;
@@ -187,8 +188,13 @@ public final class BookingDuplicateChecker {
 	 * @return true if both purposes describe the same text
 	 */
 	private static boolean hasEqualPurpose(String left, String right) {
-		String flattenedLeft = flattenPurpose(left);
-		String flattenedRight = flattenPurpose(right);
+		return hasEqualFlattenedPurpose(left, right, NORMALIZED_PURPOSE_SEPARATOR)
+				|| hasEqualFlattenedPurpose(left, right, "");
+	}
+
+	private static boolean hasEqualFlattenedPurpose(String left, String right, String lineSeparator) {
+		String flattenedLeft = flattenPurpose(left, lineSeparator);
+		String flattenedRight = flattenPurpose(right, lineSeparator);
 		if (flattenedLeft.isEmpty() || flattenedRight.isEmpty()) {
 			return flattenedLeft.isEmpty() && flattenedRight.isEmpty();
 		}
@@ -206,8 +212,13 @@ public final class BookingDuplicateChecker {
 	 * @return true if both purposes describe the same transaction
 	 */
 	private static boolean hasSamePurposeIncludingDetails(String left, String right) {
-		String flattenedLeft = flattenPurpose(left);
-		String flattenedRight = flattenPurpose(right);
+		return hasSameFlattenedPurposeIncludingDetails(left, right, NORMALIZED_PURPOSE_SEPARATOR)
+				|| hasSameFlattenedPurposeIncludingDetails(left, right, "");
+	}
+
+	private static boolean hasSameFlattenedPurposeIncludingDetails(String left, String right, String lineSeparator) {
+		String flattenedLeft = flattenPurpose(left, lineSeparator);
+		String flattenedRight = flattenPurpose(right, lineSeparator);
 		if (flattenedLeft.isEmpty() || flattenedRight.isEmpty()) {
 			return flattenedLeft.isEmpty() && flattenedRight.isEmpty();
 		}
@@ -219,12 +230,13 @@ public final class BookingDuplicateChecker {
 
 	/**
 	 * Returns the purpose as a single line without line breaks, without repeated whitespace and without
-	 * the moneyplex reference suffix of the single lines.
+	 * the moneyplex reference suffix of the single lines. The given separator replaces a line break.
 	 *
-	 * @param purpose the purpose of a booking
+	 * @param purpose       the purpose of a booking
+	 * @param lineSeparator the replacement for line breaks
 	 * @return the flattened purpose, empty if there is no purpose
 	 */
-	private static String flattenPurpose(String purpose) {
+	private static String flattenPurpose(String purpose, String lineSeparator) {
 		String normalized = normalizeText(purpose);
 		if (normalized == null) {
 			return "";
@@ -232,12 +244,12 @@ public final class BookingDuplicateChecker {
 		StringBuilder flattened = new StringBuilder();
 		for (String line : normalized.split("\n")) {
 			String cleanedLine = MONEYPLEX_PURPOSE_LINE_SUFFIX.matcher(line.trim()).replaceFirst("").trim();
-			cleanedLine = WHITESPACE_RUN.matcher(cleanedLine).replaceAll(" ").trim();
+			cleanedLine = WHITESPACE_RUN.matcher(cleanedLine).replaceAll(NORMALIZED_PURPOSE_SEPARATOR).trim();
 			if (cleanedLine.isEmpty()) {
 				continue;
 			}
 			if (flattened.length() > 0) {
-				flattened.append(' ');
+				flattened.append(lineSeparator);
 			}
 			flattened.append(cleanedLine);
 		}
