@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-10-28
+
+### Fixed
+- Fill missing BICs when discovering FinTS accounts
+- Booking duplicate checker:compare wrapped purpose text consistently
+
+### Maintenance
+- release: prepare next development version 0.10.1-SNAPSHOT
+
 ## [0.10.0] - 2026-10-23
 
 ### Added
@@ -412,16 +421,6 @@ All notable changes to this project will be documented in this file.
 ### Maintenance
 - fix DB Controller singletons
 - release: prepare next development version 0.10.2-SNAPSHOT
-
-## [0.10.1] - 2026-07-01
-
-### Fixed
-- institute dk import: avoid database trigger raise when update
-- wording about dialog
-
-### Maintenance
-- institute import cleanup
-- release: prepare next development version 0.10.1-SNAPSHOT
 
 ## [0.7.1] - 2026-06-03
 
