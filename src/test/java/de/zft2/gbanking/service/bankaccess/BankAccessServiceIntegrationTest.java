@@ -13,11 +13,14 @@ import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Properties;
 
@@ -27,6 +30,10 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.kapott.hbci.GV.HBCIJob;
 import org.kapott.hbci.GV_Result.GVRAccInfo;
 import org.kapott.hbci.GV_Result.GVRAccInfo.AccInfo;
@@ -37,13 +44,17 @@ import org.kapott.hbci.structures.Konto;
 import org.mockito.MockedConstruction;
 
 import de.zft2.gbanking.BaseMessagesDb;
+import de.zft2.gbanking.cache.InstituteLookupCache;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Bpd;
 import de.zft2.gbanking.db.dao.BusinessCase;
+import de.zft2.gbanking.db.dao.ImportHistory;
+import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.enu.AccountState;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.HbciEncodingFilterType;
+import de.zft2.gbanking.db.dao.enu.InstituteStatus;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.Upd;
 import de.zft2.gbanking.db.DBController;
@@ -71,11 +82,13 @@ class BankAccessServiceIntegrationTest {
 	@BeforeEach
 	void clearDatabase() {
 		DBControllerTestUtil.clearAllTables(DBController.getConnection());
+		InstituteLookupCache.clear();
 		ServiceRegistry.setService(PaypalAccountService.class, mock(PaypalAccountService.class));
 	}
 
 	@AfterEach
 	void resetServices() {
+		InstituteLookupCache.clear();
 		ServiceRegistry.removeService(BankAccessService.class);
 		ServiceRegistry.removeService(PaypalAccountService.class);
 	}
@@ -309,6 +322,183 @@ class BankAccessServiceIntegrationTest {
 		assertEquals(HbciMapper.accountReferenceKey(settlementAccount), mappedPortfolio.getProviderReferenceAccountKey());
 		verify(accountInfoJob).setParam("my", portfolioAccount);
 		verify(accountInfoJob).addToQueue();
+	}
+
+	@ParameterizedTest
+	@CsvSource(value = {
+			"false, NULL, LOCLDEFFXXX, LOCLDEFFXXX",
+			"true, '', LOCLDEFFXXX, LOCLDEFFXXX",
+			"false, '  ', LOCLDEFFXXX, LOCLDEFFXXX",
+			"true, BANKDEFFXXX, LOCLDEFFXXX, BANKDEFFXXX",
+			"false, NULL, NULL, NULL"
+	}, nullValues = "NULL")
+	void addNewBankAccess_shouldPersistBankBicOrFallbackWithoutExtraRequest(boolean existingAccess,
+			String bankBic, String localBic, String expectedBic) {
+		storeInstitute("10020030", localBic);
+		Konto konto = createKonto("DE44100200301234567890", "10020030", "1234567890");
+		konto.bic = bankBic;
+		AccessSetup setup = prepareAccess(existingAccess, konto);
+
+		saveRetrievedAccounts(setup, false);
+
+		BankAccount stored = dbController.getAllByParent(BankAccount.class, setup.access().getId()).get(0);
+		assertEquals(expectedBic, stored.getBic());
+		assertEquals(expectedBic, konto.bic);
+		assertEquals(expectedBic != null, stored.isSEPAAccount());
+		assertTrue(setup.passport().getUPD().isEmpty());
+	}
+
+	@ParameterizedTest
+	@CsvSource(value = {
+			"NULL, DE44100200301234567890, DE, LOCLDEFFXXX",
+			"10020030, NULL, DE, LOCLDEFFXXX",
+			"10020030, DE44200300401234567890, DE, NULL",
+			"10020030, FR7630006000011234567890189, FR, NULL",
+			"NULL, NULL, DE, NULL"
+	}, nullValues = "NULL")
+	void addNewBankAccess_shouldUseOnlyUnambiguousGermanAccountBankCodes(String blz, String iban,
+			String country, String expectedBic) {
+		storeInstitute("10020030", "LOCLDEFFXXX");
+		Konto konto = createKonto(iban, blz, "1234567890");
+		konto.country = country;
+		konto.bic = null;
+		AccessSetup setup = prepareAccess(false, konto);
+
+		saveRetrievedAccounts(setup, false);
+
+		BankAccount stored = dbController.getAllByParent(BankAccount.class, setup.access().getId()).get(0);
+		assertEquals(expectedBic, stored.getBic());
+		assertEquals(expectedBic != null && iban != null, stored.isSEPAAccount());
+	}
+
+	@Test
+	void addNewBankAccess_shouldUseEachAccountsBankInsteadOfAccessBank() {
+		storeInstitute("10020030", "FRSTDEFFXXX");
+		storeInstitute("20030040", "NEXTDEFFXXX");
+		Konto first = createKonto("DE44100200300000000001", "10020030", "1");
+		Konto second = createKonto("DE44200300400000000002", "20030040", "2");
+		first.bic = null;
+		second.bic = null;
+		AccessSetup setup = prepareAccess(false, first, second);
+
+		saveRetrievedAccounts(setup, false);
+
+		assertEquals(List.of("FRSTDEFFXXX", "NEXTDEFFXXX"),
+				setup.access().getAccounts().stream().map(account -> account.getBic()).toList());
+	}
+
+	@ParameterizedTest
+	@NullAndEmptySource
+	@ValueSource(strings = { "STORDEFFXXX" })
+	void refreshBankAccessParameterData_shouldPreserveExistingBicWithoutUsingItForNewAccounts(String storedBic) {
+		storeInstitute("10020030", "LOCLDEFFXXX");
+		Konto konto = createKonto(null, "10020030", "1234567890");
+		konto.subnumber = "01";
+		Konto newAccount = createKonto("DE44100200300000000002", "10020030", "2");
+		newAccount.bic = null;
+		AccessSetup setup = prepareAccess(true, konto, newAccount);
+		BankAccount existing = HbciMapper.mapKontoToBankAccount("Test Bank", konto);
+		existing.setBankAccessId(setup.access().getId());
+		existing.setAccountState(AccountState.ACTIVE);
+		existing.setBic(storedBic);
+		dbController.insertOrUpdate(existing);
+		konto.number = "001234567890";
+		konto.bic = null;
+
+		saveRetrievedAccounts(setup, true);
+
+		List<BankAccount> stored = dbController.getAllByParent(BankAccount.class, setup.access().getId());
+		assertEquals(2, stored.size());
+		assertEquals(existing.getId(), stored.get(0).getId());
+		assertEquals(storedBic == null || storedBic.isBlank() ? null : storedBic, stored.get(0).getBic());
+		assertEquals("LOCLDEFFXXX", stored.get(1).getBic());
+	}
+
+	@ParameterizedTest
+	@CsvSource(value = {
+			"false, BANKDEFFXXX, BANKDEFFXXX, 10020030, DE, BANKDEFFXXX",
+			"true, BANKDEFFXXX, ' bankdeff ', 10020030, DE, BANKDEFFXXX",
+			"true, BANKDEFFXXX, BANKDEFF123, 10020030, DE, LOCLDEFFXXX",
+			"false, NULL, BANKDEFFXXX, 10020030, DE, BANKDEFFXXX",
+			"false, NULL, BANKDEFFXXX, 20030040, DE, LOCLDEFFXXX",
+			"false, NULL, BANKFRPPXXX, 10020030, FR, LOCLDEFFXXX",
+			"true, NULL, invalid, 10020030, DE, LOCLDEFFXXX"
+	}, nullValues = "NULL")
+	void existingAccess_shouldUseOnlyUnambiguousCurrentBicsFromTheSameBank(boolean refresh,
+			String firstBic, String secondBic, String secondBlz, String secondCountry, String expectedBic) {
+		storeInstitute("10020030", "LOCLDEFFXXX");
+		Konto missing = createKonto("DE44100200300000000001", "10020030", "1");
+		Konto first = createKonto(null, "10020030", "2");
+		Konto second = createKonto(null, secondBlz, "3");
+		missing.bic = null;
+		first.bic = firstBic;
+		second.bic = secondBic;
+		second.country = secondCountry;
+		AccessSetup setup = prepareAccess(true, missing, first, second);
+
+		saveRetrievedAccounts(setup, refresh);
+
+		BankAccount stored = dbController.getAllByParent(BankAccount.class, setup.access().getId()).stream()
+				.filter(account -> missing.iban.equals(account.getIban())).findFirst().orElseThrow();
+		assertEquals(expectedBic, stored.getBic());
+		assertEquals(expectedBic, missing.bic);
+		assertTrue(stored.isSEPAAccount());
+		assertEquals(secondBic, second.bic);
+		assertTrue(setup.passport().getUPD().isEmpty());
+	}
+
+	private AccessSetup prepareAccess(boolean existing, Konto... accounts) {
+		BankAccessService service = ServiceStubbingUtil.spyService(BankAccessService.class);
+		BankAccess access = TestDataFactory.createSampleBankAccess("10020030");
+		if (existing) {
+			access = dbController.insertOrUpdate(access);
+		}
+		access.setPin("1234".toCharArray());
+		HBCIPassport passport = mock(HBCIPassport.class);
+		HBCIHandler handler = mock(HBCIHandler.class);
+		when(passport.getAccounts()).thenReturn(accounts);
+		when(passport.getBLZ()).thenReturn("10020030");
+		when(passport.getCountry()).thenReturn("DE");
+		when(passport.getInstName()).thenReturn("Test Bank");
+		when(passport.getBPD()).thenReturn(new Properties());
+		when(passport.getUPD()).thenReturn(new Properties());
+		Properties supportedJobs = new Properties();
+		supportedJobs.setProperty("SEPAInfo", "1");
+		when(handler.getSupportedLowlevelJobs()).thenReturn(supportedJobs);
+		HBCIExecStatus status = mock(HBCIExecStatus.class);
+		when(status.isOK()).thenReturn(true);
+		when(handler.execute()).thenReturn(status);
+		doReturn(passport).when(service).initBankConnection(any(BankAccess.class), any(GBankingHBCICallback.class));
+		doReturn(handler).when(service).createHBCIHandler(any(String.class), same(passport));
+		return new AccessSetup(service, access, passport, handler);
+	}
+
+	private void saveRetrievedAccounts(AccessSetup setup, boolean refresh) {
+		try (MockedConstruction<GBankingHBCICallback> ignored = mockConstruction(GBankingHBCICallback.class)) {
+			if (refresh) {
+				assertTrue(setup.service().refreshBankAccessParameterData(setup.access(), "1234".toCharArray()));
+			} else {
+				assertTrue(setup.service().addNewBankAccess(setup.access()));
+				assertTrue(setup.service().saveBankAccessAccountsToDB(setup.access()));
+			}
+		}
+		verify(setup.service(), never()).newHbciJob(setup.handler(), "SEPAInfo");
+		verify(setup.handler(), times(refresh ? 0 : 1)).execute();
+	}
+
+	private void storeInstitute(String blz, String bic) {
+		Institute institute = new Institute();
+		institute.setBlz(blz);
+		institute.setBankName("Bank " + blz);
+		institute.setBic(bic);
+		institute.setImportNumber(1);
+		institute.setLastChanged(LocalDate.of(2026, 1, 1));
+		institute.setImportFile(dbController.insertOrUpdate(new ImportHistory("bic-" + blz + ".csv")).getId());
+		institute.setStateType(InstituteStatus.ACTIVE);
+		dbController.insertOrUpdate(institute);
+	}
+
+	private record AccessSetup(BankAccessService service, BankAccess access, HBCIPassport passport, HBCIHandler handler) {
 	}
 
 	private static Konto createKonto(String iban, String blz, String number) {

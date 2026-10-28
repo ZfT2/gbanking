@@ -99,6 +99,8 @@
 						<li><strong>Show BPD/UPD:</strong> Displays the technical data supplied by the bank.</li>
 						<li><strong>Bank messages:</strong> Retrieves messages for a FinTS access and shows text, type, date and other details.</li>
 					</ul>
+					<p><strong>BICs for new accounts:</strong> The BIC supplied by the bank for an account takes precedence. If it is missing, GBanking uses an unambiguous BIC from the currently supplied data of other accounts with the same German bank code. Otherwise, it looks up the BIC in the local bank directory <code>institute.db</code> using the account's bank code (or the code extracted from its German IBAN) and adds it before saving. This does not require an additional bank request.</p>
+					<p>If no unambiguous BIC can be found, a warning is logged and the account is still created. Banks that require a BIC may then reject transaction retrieval. Transaction retrieval does not automatically fill in missing BICs on previously saved accounts.</p>
 					<p>PIN and TAN are requested in dialogs when needed. The procedure offered depends on the bank data, such as app approval, pushTAN, photoTAN or chipTAN USB. A chipTAN USB reader can be selected in Settings.</p>
 					<div class="warning"><strong>Review before approval:</strong> Compare the amount, recipient and the display in your TAN device or banking app. GBanking also shows any recipient verification requested by the bank before payment approval.</div>
 

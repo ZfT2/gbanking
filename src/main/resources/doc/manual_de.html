@@ -100,6 +100,8 @@
 						<li><strong>BPD/UPD anzeigen:</strong> Zeigt die von der Bank gelieferten technischen Angaben.</li>
 						<li><strong>Banknachrichten:</strong> Ruft Nachrichten eines FinTS-Zugangs ab und zeigt Text, Typ, Datum und weitere Angaben.</li>
 					</ul>
+					<p><strong>BIC neuer Konten:</strong> Die von der Bank für ein Konto gelieferte BIC hat Vorrang. Fehlt sie, übernimmt GBanking eine eindeutige BIC aus den aktuell gelieferten Daten anderer Konten derselben deutschen BLZ. Andernfalls wird sie über die Konto-BLZ (ersatzweise aus einer deutschen IBAN) im lokalen Bankverzeichnis <code>institute.db</code> gesucht und vor dem Speichern ergänzt. Diese Ergänzung benötigt keinen zusätzlichen Bankabruf.</p>
+					<p>Kann keine eindeutige BIC ermittelt werden, wird eine Warnung protokolliert und das Konto trotzdem angelegt. Banken, die eine BIC verlangen, können den Umsatzabruf dann ablehnen. Beim Umsatzabruf erfolgt keine automatische Ergänzung fehlender BICs bereits gespeicherter Konten.</p>
 					<p>PIN und TAN werden bei Bedarf in Dialogen abgefragt. Das angebotene Verfahren hängt von den Bankdaten ab, zum Beispiel App-Freigabe, pushTAN, photoTAN oder chipTAN USB. Ein Kartenleser für chipTAN USB kann in den Einstellungen gewählt werden.</p>
 					<div class="warning"><strong>Vor Freigabe prüfen:</strong> Vergleichen Sie Betrag, Empfänger und die Anzeige Ihres TAN-Geräts oder Ihrer Banking-App. GBanking zeigt auch eine von der Bank verlangte Empfängerprüfung vor der Zahlungsfreigabe an.</div>
 

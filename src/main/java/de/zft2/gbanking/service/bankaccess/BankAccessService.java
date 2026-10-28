@@ -1,6 +1,8 @@
 package de.zft2.gbanking.service.bankaccess;
 
 import static de.zft2.gbanking.util.TextValues.firstNonBlank;
+import static de.zft2.gbanking.util.TextValues.hasText;
+import static de.zft2.gbanking.util.TextValues.trimToNull;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -27,6 +29,7 @@ import org.kapott.hbci.status.HBCIDialogStatus;
 import org.kapott.hbci.status.HBCIExecStatus;
 import org.kapott.hbci.structures.Konto;
 
+import de.zft2.gbanking.cache.InstituteLookupCache;
 import de.zft2.gbanking.db.StatementsConfig;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccessFints;
@@ -172,15 +175,16 @@ public class BankAccessService extends AbstractDbService {
 	private boolean addNewBankAccess(BankAccess bankAccess, HbciSessionRunner.HbciSession session) {
 		HBCIPassport passport = session.passport();
 		logHandler.logRetrivedBankAccessInfo(passport, false);
-		List<BankAccount> bankAccountList = mapPassportAccounts(passport);
+		BankAccess bankAccessDb = dbController.getBankAccessByBlz(
+				firstNonBlank(passport.getBLZ(), bankAccess.getFints().getBlz()));
+		RetrievedAccounts retrieved = mapPassportAccounts(passport, bankAccessDb);
+		List<BankAccount> bankAccountList = retrieved.accounts();
 		applyPassportData(bankAccess, passport, bankAccountList);
 		List<PortfolioReferenceRequest> portfolioReferences = queuePortfolioReferenceRequests(
-				session.handler(), passport.getAccounts(), bankAccountList);
+				session.handler(), retrieved.providerAccounts(), bankAccountList);
 
-		BankAccess bankAccessDb = dbController.getBankAccessByBlz(bankAccess.getFints().getBlz());
 		if (bankAccessDb != null) {
 			bankAccess.setId(bankAccessDb.getId());
-			attachExistingAccountIds(bankAccessDb.getId(), bankAccountList);
 		}
 
 		HBCIExecStatus status = session.handler().execute();
@@ -235,10 +239,10 @@ public class BankAccessService extends AbstractDbService {
 		}
 		session.passport().saveChanges();
 
-		List<BankAccount> bankAccountList = mapPassportAccounts(session.passport());
-		attachExistingAccountIds(refreshAccess.getId(), bankAccountList);
+		RetrievedAccounts retrieved = mapPassportAccounts(session.passport(), refreshAccess);
+		List<BankAccount> bankAccountList = retrieved.accounts();
 		List<PortfolioReferenceRequest> portfolioReferences = queuePortfolioReferenceRequests(
-				session.handler(), session.passport().getAccounts(), bankAccountList);
+				session.handler(), retrieved.providerAccounts(), bankAccountList);
 		if (!portfolioReferences.isEmpty()) {
 			HBCIExecStatus accountInfoStatus = session.handler().execute();
 			if (accountInfoStatus != null && accountInfoStatus.isOK()) {
@@ -263,12 +267,69 @@ public class BankAccessService extends AbstractDbService {
 		return accountsSaved;
 	}
 
-	private List<BankAccount> mapPassportAccounts(HBCIPassport passport) {
+	private void completeMissingBics(RetrievedAccounts retrieved, List<BankAccount> existingAccounts) {
+		// Exclude values restored from storage or filled in below from the bank-supplied candidates.
+		List<BankAccount> bankBicAccounts = retrieved.accounts().stream()
+				.filter(account -> hasText(account.getBic())).toList();
+		for (int index = 0; index < retrieved.accounts().size(); index++) {
+			BankAccount account = retrieved.accounts().get(index);
+			if (!hasText(account.getBic())) {
+				String bic = account.getId() > 0
+						? existingAccounts.stream().filter(existing -> existing.getId() == account.getId())
+								.map(existing -> existing.getBic()).filter(value -> hasText(value)).findFirst().orElse(null)
+						: findNewAccountBic(bicLookupBlz(account), bankBicAccounts);
+				account.setBic(bic);
+				if (bic == null) {
+					log.warn("No BIC available for account id {}, IBAN {}, number {}; the account can still be saved.",
+							account.getId(), SensitiveDataMasker.maskIban(account.getIban()),
+							SensitiveDataMasker.maskAccountNumber(account.getNumber()));
+				}
+			}
+			retrieved.providerAccounts()[index].bic = account.getBic();
+			account.setSEPAAccount(hasText(account.getBic()) && hasText(account.getIban()));
+		}
+	}
+
+	private static String findNewAccountBic(String blz, List<BankAccount> bankBicAccounts) {
+		if (blz == null) {
+			return null;
+		}
+		List<String> bics = bankBicAccounts.stream()
+				.filter(account -> blz.equals(bicLookupBlz(account)))
+				.map(account -> InstituteLookupCache.normalizeBicCandidate(account.getBic()))
+				.filter(bic -> bic != null)
+				.map(bic -> bic.length() == 8 ? bic + "XXX" : bic)
+				.distinct().limit(2).toList();
+		return bics.size() == 1 ? bics.get(0) : InstituteLookupCache.findBicForBlz(blz)
+				.map(value -> InstituteLookupCache.normalizeBicCandidate(value)).orElse(null);
+	}
+
+	private static String bicLookupBlz(BankAccount account) {
+		String country = trimToNull(account.getCountry());
+		String ibanBlz = InstituteLookupCache.extractGermanBlzFromIban(account.getIban());
+		String blz = InstituteLookupCache.normalizeBlzCandidate(account.getBlz());
+		boolean germanCountry = "DE".equalsIgnoreCase(country);
+		if (country != null && !germanCountry) {
+			return null;
+		}
+		if (ibanBlz == null && (hasText(account.getIban()) || !germanCountry)) {
+			return null;
+		}
+		if (hasText(account.getBlz()) && blz == null) {
+			return null;
+		}
+		if (blz != null && ibanBlz != null && !blz.equals(ibanBlz)) {
+			return null;
+		}
+		return firstNonBlank(blz, ibanBlz);
+	}
+
+	private RetrievedAccounts mapPassportAccounts(HBCIPassport passport, BankAccess existingAccess) {
 		List<BankAccount> bankAccountList = new ArrayList<>();
 		Konto[] konten = passport.getAccounts();
 		if (konten == null || konten.length == 0) {
 			log.error("Keine Konten ermittelbar");
-			return bankAccountList;
+			return new RetrievedAccounts(new Konto[0], bankAccountList);
 		}
 
 		log.info("Retrieved {} accounts for bank access.", konten.length);
@@ -284,11 +345,15 @@ public class BankAccessService extends AbstractDbService {
 			}
 			bankAccountList.add(HbciMapper.mapKontoToBankAccount(passport.getInstName(), konto));
 		}
-		return bankAccountList;
+		List<BankAccount> existingAccounts = existingAccess != null
+				? dbController.getAllByParent(BankAccount.class, existingAccess.getId()) : List.of();
+		attachExistingAccountIds(existingAccounts, bankAccountList);
+		RetrievedAccounts retrieved = new RetrievedAccounts(konten, bankAccountList);
+		completeMissingBics(retrieved, existingAccounts);
+		return retrieved;
 	}
 
-	private void attachExistingAccountIds(int bankAccessId, List<BankAccount> mappedAccounts) {
-		List<BankAccount> existingAccounts = dbController.getAllByParent(BankAccount.class, bankAccessId);
+	private void attachExistingAccountIds(List<BankAccount> existingAccounts, List<BankAccount> mappedAccounts) {
 		Set<Integer> assignedIds = new HashSet<>();
 		for (BankAccount mappedAccount : mappedAccounts) {
 			List<BankAccount> matches = existingAccounts.stream()
@@ -485,6 +550,9 @@ public class BankAccessService extends AbstractDbService {
 	}
 
 	private record PortfolioReferenceRequest(BankAccount portfolioAccount, HBCIJob<GVRAccInfo> job) {
+	}
+
+	private record RetrievedAccounts(Konto[] providerAccounts, List<BankAccount> accounts) {
 	}
 
 	public List<BankAccount> getLinkablePaypalAccounts() {
