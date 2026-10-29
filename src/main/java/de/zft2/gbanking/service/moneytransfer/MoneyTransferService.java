@@ -1,7 +1,5 @@
 package de.zft2.gbanking.service.moneytransfer;
 
-import static de.zft2.gbanking.util.TextValues.equalsIgnoreCaseNonNull;
-
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
@@ -18,6 +16,7 @@ import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.dto.MoneyTransferForm;
+import de.zft2.gbanking.hbci.HbciAccountMatcher;
 import de.zft2.gbanking.logging.SensitiveDataMasker;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.ServiceRegistry;
@@ -107,25 +106,14 @@ public class MoneyTransferService extends AbstractDbService {
 	}
 
 	Konto getSenderAccount(HBCIPassport passport, BankAccount bankAccount) throws GBankingException {
-
-		for (Konto konto : passport.getAccounts()) {
-			if (konto.iban == null || konto.iban.isBlank()) {
-				log.debug("Received HBCI account without IBAN while resolving sender account. accountId={}, accountNumber={}, bankCode={}", bankAccount::getId,
-						() -> SensitiveDataMasker.maskAccountNumber(konto.number), () -> SensitiveDataMasker.maskIdentifier(konto.blz));
-			}
-			if (matchesSenderAccount(bankAccount, konto)) {
-				log.debug("Resolved HBCI sender account for account id {}", bankAccount.getId());
-				return konto;
-			}
+		Konto konto = HbciAccountMatcher.findAccount(passport.getAccounts(), bankAccount);
+		if (konto != null) {
+			log.debug("Resolved HBCI sender account for account id {}", bankAccount.getId());
+			return konto;
 		}
 		log.warn("No HBCI sender account found for account id {}, IBAN: {} / Nr.: {}", bankAccount::getId,
 				() -> SensitiveDataMasker.maskIban(bankAccount.getIban()), () -> SensitiveDataMasker.maskAccountNumber(bankAccount.getNumber()));
 		throw new GBankingException(getText("EXCEPTION_MONEYTRANSFER_SENDING_ACCOUNT_NOT_FOUND", SensitiveDataMasker.maskIban(bankAccount.getIban())));
-	}
-
-	private boolean matchesSenderAccount(BankAccount bankAccount, Konto konto) {
-		return equalsIgnoreCaseNonNull(bankAccount.getIban(), konto.iban)
-				|| equalsIgnoreCaseNonNull(bankAccount.getNumber(), konto.number);
 	}
 
 	private MoneyTransfer saveMoneyTransferToDBInTransaction(MoneyTransferForm mtf, MoneyTransfer existingMoneyTransfer) {

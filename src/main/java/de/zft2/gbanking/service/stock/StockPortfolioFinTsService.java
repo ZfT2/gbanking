@@ -24,7 +24,6 @@ import org.kapott.hbci.GV_Result.GVRWPDepotList;
 import org.kapott.hbci.GV_Result.GVRWPDepotList.Entry;
 import org.kapott.hbci.GV_Result.GVRWPDepotList.Entry.Gattung;
 import org.kapott.hbci.GV_Result.GVRWPDepotList.Entry.Gattung.SubSaldo;
-import org.kapott.hbci.passport.HBCIPassport;
 import org.kapott.hbci.status.HBCIExecStatus;
 import org.kapott.hbci.structures.BigDecimalValue;
 import org.kapott.hbci.structures.Konto;
@@ -68,6 +67,7 @@ import de.zft2.gbanking.db.dao.stock.StockSecurityPriceSource;
 import de.zft2.gbanking.db.dao.stock.StockTransaction;
 import de.zft2.gbanking.db.dao.stock.StockTransactionSecurityLeg;
 import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.hbci.HbciAccountMatcher;
 import de.zft2.gbanking.logging.GBankingLoggingHandler;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.HbciSessionRunner;
@@ -179,7 +179,7 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 	private StockPortfolioFinTsRetrievalResult retrievePortfolio(int portfolioId, BankAccount account,
 			HbciSessionRunner.HbciSession session) {
 		logHandler.logRetrivedBankAccessInfo(session.passport(), false);
-		Konto konto = findMatchingAccount(session.passport(), account);
+		Konto konto = HbciAccountMatcher.findAccount(session.passport().getAccounts(), account);
 		if (konto == null) {
 			throw new GBankingException("Das Depotkonto konnte im FinTS-Zugang nicht gefunden werden.");
 		}
@@ -651,50 +651,17 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 		return stored;
 	}
 
-	private static Konto findMatchingAccount(HBCIPassport passport, BankAccount account) {
-		Konto[] accounts = passport.getAccounts();
-		if (accounts == null) {
-			return null;
-		}
-		for (Konto candidate : accounts) {
-			if (accountsMatch(account, candidate)) {
-				return candidate;
-			}
-		}
-		return null;
-	}
-
 	private static Entry findMatchingEntry(Entry[] entries, BankAccount account) {
-		if (entries == null) {
-			return null;
-		}
-		for (Entry entry : entries) {
-			if (entry != null && accountsMatch(account, entry.depot)) {
-				return entry;
-			}
+		Entry entry = HbciAccountMatcher.findUnique(entries, candidate -> candidate.depot, account);
+		if (entry != null || entries == null) {
+			return entry;
 		}
 		return entries.length == 1 && hasNoAccountIdentifier(entries[0] != null ? entries[0].depot : null)
 				? entries[0] : null;
 	}
 
-	private static boolean accountsMatch(BankAccount account, Konto konto) {
-		if (account == null || konto == null) {
-			return false;
-		}
-		return matches(account.getIban(), konto.iban)
-				|| (matches(account.getNumber(), konto.number) && matchesOptional(account.getSubnumber(), konto.subnumber));
-	}
-
 	private static boolean hasNoAccountIdentifier(Konto konto) {
 		return konto == null || (trimToNull(konto.iban) == null && trimToNull(konto.number) == null);
-	}
-
-	private static boolean matches(String left, String right) {
-		return left != null && right != null && left.equalsIgnoreCase(right);
-	}
-
-	private static boolean matchesOptional(String left, String right) {
-		return trimToNull(left) == null || trimToNull(right) == null || matches(left, right);
 	}
 
 	private static StockQuantityType quantityType(Gattung gattung) {

@@ -50,6 +50,7 @@ import de.zft2.gbanking.db.dao.enu.BankAccessType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.enablebanking.EnablebankingAccountTransactionService;
 import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.hbci.HbciAccountMatcher;
 import de.zft2.gbanking.hbci.HbciJobSupport;
 import de.zft2.gbanking.util.Amounts;
 import de.zft2.gbanking.util.TypeConverter;
@@ -166,16 +167,12 @@ public class AccountTransactionService extends AbstractDbService {
 			HbciSessionRunner.HbciSession session) {
 		logHandler.logRetrivedBankAccessInfo(session.passport(), false);
 
-		Konto kontoMatched = null;
-		for (Konto konto : getHbciAccountsFromPassport(session.passport())) {
-			if (hbciKontosMatches(bankAccount, konto)) {
-				/** some banks, e.g. DKB, seem to need the BIC here. **/
-				konto.bic = bankAccount.getBic() != null ? bankAccount.getBic() : konto.bic;
-				kontoMatched = konto;
-				break;
-			}
+		Konto kontoMatched = HbciAccountMatcher.findAccount(getHbciAccountsFromPassport(session.passport()), bankAccount);
+		if (kontoMatched == null) {
+			throw new GBankingException("Kein passendes HBCI-Konto fuer Konto " + bankAccount.getId() + " gefunden.");
 		}
-
+		/** some banks, e.g. DKB, seem to need the BIC here. **/
+		kontoMatched.bic = bankAccount.getBic() != null ? bankAccount.getBic() : kontoMatched.bic;
 		logHandler.logRetrievedAccountInfo(kontoMatched);
 
 		HBCIJob<GVRSaldoReq> saldoJob = createAndAddHbciJob(session.handler(), "SaldoReq", Map.of("my", kontoMatched));
@@ -741,11 +738,6 @@ public class AccountTransactionService extends AbstractDbService {
 		List<UmsLine> umsLines = unbooked ? umsResult.getFlatDataUnbooked() : umsResult.getFlatData();
 		log.debug("Read {} {} Umsatz entries from HBCI result.", umsLines != null ? umsLines.size() : 0, unbooked ? "unbooked" : "booked");
 		return umsLines != null ? umsLines : List.of();
-	}
-
-	private boolean hbciKontosMatches(BankAccount bankAccount, Konto konto) {
-		return bankAccount.getIban() != null && bankAccount.getIban().equalsIgnoreCase(konto.iban)
-				|| bankAccount.getNumber() != null && bankAccount.getNumber().equalsIgnoreCase(konto.number);
 	}
 
 	private <T extends HBCIJobResult> HBCIJob<T> createAndAddHbciJob(HBCIHandler handle, String jobDescription, Map<String, Object> params) {

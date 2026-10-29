@@ -281,7 +281,7 @@ public class HbciMapper {
 		return normalizeText(bankCode) + '/' + normalizedNumber + '/' + normalizeAccountNumber(subnumber);
 	}
 
-	private static String normalizeAccountNumber(String value) {
+	public static String normalizeAccountNumber(String value) {
 		String normalized = normalizeText(value);
 		if (normalized == null) {
 			return null;

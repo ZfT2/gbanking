@@ -1,6 +1,8 @@
 package de.zft2.gbanking.service.moneytransfer;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -13,6 +15,8 @@ import org.kapott.hbci.passport.HBCIPassport;
 import org.kapott.hbci.structures.Konto;
 
 import de.zft2.gbanking.db.dao.BankAccount;
+import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.logging.SensitiveDataMasker;
 import de.zft2.gbanking.service.Service;
 import de.zft2.gbanking.service.ServiceStubbingUtil;
 
@@ -46,5 +50,23 @@ class MoneyTransferServiceTest {
 		Konto senderAccount = new MoneyTransferService().getSenderAccount(passport, bankAccount);
 
 		assertSame(konto, senderAccount);
+	}
+
+	@Test
+	void getSenderAccountShouldRejectAccountWithSameNumberButDifferentIban() {
+		HBCIPassport passport = mock(HBCIPassport.class);
+		Konto konto = new Konto();
+		konto.iban = "DE02120300000000202051";
+		konto.number = "123456789";
+		when(passport.getAccounts()).thenReturn(new Konto[] { konto });
+
+		BankAccount bankAccount = new BankAccount();
+		bankAccount.setIban("DE00100000000012345678");
+		bankAccount.setNumber("123456789");
+		MoneyTransferService service = new MoneyTransferService();
+
+		GBankingException exception = assertThrows(GBankingException.class, () -> service.getSenderAccount(passport, bankAccount));
+
+		assertTrue(exception.getMessage().contains(SensitiveDataMasker.maskIban(bankAccount.getIban())), exception.getMessage());
 	}
 }

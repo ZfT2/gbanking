@@ -38,6 +38,7 @@ import de.zft2.gbanking.db.dao.BankAccountStatement;
 import de.zft2.gbanking.db.dao.BusinessCase;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
+import de.zft2.gbanking.hbci.HbciAccountMatcher;
 import de.zft2.gbanking.hbci.HbciJobSupport;
 import de.zft2.gbanking.hbci.HbciStatusMessageExtractor;
 import de.zft2.gbanking.logging.GBankingLoggingHandler;
@@ -871,18 +872,7 @@ public class AccountStatementService extends AbstractDbService {
 			return null;
 		}
 		log.info("Number of accounts found: {}", konten.length);
-		for (Konto konto : konten) {
-			if (hbciKontosMatches(bankAccount, konto)) {
-				return konto;
-			}
-		}
-		return null;
-	}
-
-	private boolean hbciKontosMatches(BankAccount bankAccount, Konto konto) {
-		return bankAccount != null && konto != null
-				&& (bankAccount.getIban() != null && bankAccount.getIban().equalsIgnoreCase(konto.iban)
-						|| bankAccount.getNumber() != null && bankAccount.getNumber().equalsIgnoreCase(konto.number));
+		return HbciAccountMatcher.findAccount(konten, bankAccount);
 	}
 
 	private String formatName(Format format) {

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -63,6 +64,7 @@ import de.zft2.gbanking.db.dao.enu.AccountRetrievalStatus;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
 import de.zft2.gbanking.messages.Messages;
 import de.zft2.gbanking.service.Service;
@@ -178,14 +180,30 @@ class AccountTransactionServiceAdditionalTest {
 	}
 
 	@Test
-	void hbciKontosMatches_shouldReturnFalseWhenAccountHasNoIdentifiers() throws Exception {
+	void retrieveAccountTransactionsWithResult_shouldFailClearlyWhenNoHbciAccountMatches() {
+		BankAccount sampleAccount = TestDataFactory.createSampleAccount(null);
+		sampleAccount.setIban("DE44500105175407324931");
+		sampleAccount.setNumber("987654321");
+		BankAccount bankAccount = dbController.insertOrUpdate(sampleAccount);
+		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 		AccountTransactionService service = new AccountTransactionService();
-		BankAccount bankAccount = new BankAccount();
-		Konto konto = new Konto();
-		konto.iban = "DE12345678901234567890";
-		konto.number = "12345678";
+		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("10020030");
+		char[] pin = "1234".toCharArray();
+		HBCIPassport passport = mock(HBCIPassport.class);
 
-		assertFalse((Boolean) invokePrivate(service, "hbciKontosMatches", new Class<?>[] { BankAccount.class, Konto.class }, bankAccount, konto));
+		when(hbciSupport.initBankAccess(bankAccount, pin)).thenReturn(bankAccess);
+		doReturn(passport).when(hbciSupport).initBankConnection(eq(bankAccess), any(GBankingHBCICallback.class));
+		doReturn(mock(HBCIHandler.class)).when(hbciSupport).createHBCIHandler(eq(BaseMessagesDb.getVersion().getId()), same(passport));
+		// same account number, but a conflicting IBAN must not be accepted as a match
+		when(passport.getAccounts()).thenReturn(new Konto[] { createKonto("DE02120300000000202051", "987654321") });
+
+		try (MockedConstruction<GBankingHBCICallback> callbacks = mockConstruction(GBankingHBCICallback.class)) {
+			GBankingException exception = assertThrows(GBankingException.class,
+					() -> service.retrieveAccountTransactionsWithResult(bankAccount, pin));
+
+			assertTrue(exception.getMessage().startsWith("Kein passendes HBCI-Konto"));
+			assertArrayEquals(new char[] { '\0', '\0', '\0', '\0' }, pin);
+		}
 	}
 
 	@Test

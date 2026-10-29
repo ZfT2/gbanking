@@ -3,7 +3,6 @@ package de.zft2.gbanking.service.account;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -642,22 +641,6 @@ class AccountTransactionServiceTest {
 		verify(job).setParam("count", 3);
 		verify(job).setParam("konto", konto);
 		verify(job).addToQueue();
-	}
-
-	@Test
-	void hbciKontosMatchesShouldMatchByIbanOrAccountNumber() throws Exception {
-		AccountTransactionService service = new AccountTransactionService();
-		BankAccount account = new BankAccount();
-		account.setIban("DE12345678901234567890");
-		account.setNumber("12345678");
-
-		Konto ibanMatch = createKonto("Name", "DE12345678901234567890", "BIC", "99999999", "50010517");
-		Konto numberMatch = createKonto("Name", "DE00000000000000000000", "BIC", "12345678", "50010517");
-		Konto noMatch = createKonto("Name", "DE00000000000000000000", "BIC", "87654321", "50010517");
-
-		assertTrue((Boolean) invokePrivate(service, "hbciKontosMatches", new Class<?>[] { BankAccount.class, Konto.class }, account, ibanMatch));
-		assertTrue((Boolean) invokePrivate(service, "hbciKontosMatches", new Class<?>[] { BankAccount.class, Konto.class }, account, numberMatch));
-		assertEquals(Boolean.FALSE, invokePrivate(service, "hbciKontosMatches", new Class<?>[] { BankAccount.class, Konto.class }, account, noMatch));
 	}
 
 	private BankAccount createAccount(String iban, String number) {
