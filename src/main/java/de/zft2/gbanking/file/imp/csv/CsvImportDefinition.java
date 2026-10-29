@@ -1,5 +1,6 @@
 package de.zft2.gbanking.file.imp.csv;
 
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -92,6 +93,18 @@ public final class CsvImportDefinition {
 			return ';';
 		}
 		return "\\t".equals(value) ? '\t' : value.charAt(0);
+	}
+
+	/**
+	 * @return the charset configured with {@code Extra.Charset} or {@code null} for automatic detection
+	 */
+	public Charset getCharset() {
+		String value = optionOrDefault("Extra.Charset", null);
+		try {
+			return value != null ? Charset.forName(value) : null;
+		} catch (IllegalArgumentException exception) {
+			throw new IllegalArgumentException("Invalid charset " + value + " in CSV import definition " + name, exception);
+		}
 	}
 
 	public String getDecimalSeparator() {

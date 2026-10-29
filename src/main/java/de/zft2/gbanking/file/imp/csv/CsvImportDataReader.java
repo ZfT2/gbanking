@@ -4,6 +4,9 @@ import static de.zft2.gbanking.util.TextValues.removeLeadingBom;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,11 +25,34 @@ import de.zft2.gbanking.exception.GBankingException;
 
 public class CsvImportDataReader {
 
+	private static final Charset FALLBACK_CHARSET = Charset.forName("windows-1252");
+
 	public CsvImportData read(Path importFile, CsvImportDefinition definition) throws IOException {
-		String content = removeLeadingBom(Files.readString(importFile, StandardCharsets.UTF_8));
+		String content = readText(importFile, definition.getCharset());
 		CSVFormat format = CSVFormat.DEFAULT.builder().setDelimiter(definition.getSeparator()).setTrim(true).get();
 		try (CSVParser parser = format.parse(new StringReader(content))) {
 			return mapRecords(parser.getRecords(), definition);
+		}
+	}
+
+	/**
+	 * Reads a CSV file as text and removes a leading byte order mark. Without a configured charset the
+	 * file is decoded as UTF-8 and falls back to Windows-1252, which many bank exports still use.
+	 *
+	 * @param file    the CSV file
+	 * @param charset the configured charset or {@code null} for automatic detection
+	 * @return the file content
+	 * @throws IOException if the file cannot be read
+	 */
+	public static String readText(Path file, Charset charset) throws IOException {
+		byte[] content = Files.readAllBytes(file);
+		if (charset != null) {
+			return removeLeadingBom(new String(content, charset));
+		}
+		try {
+			return removeLeadingBom(StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(content)).toString());
+		} catch (CharacterCodingException exception) {
+			return new String(content, FALLBACK_CHARSET);
 		}
 	}
 

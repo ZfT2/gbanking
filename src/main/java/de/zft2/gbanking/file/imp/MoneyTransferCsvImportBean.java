@@ -1,12 +1,10 @@
 package de.zft2.gbanking.file.imp;
 
-import static de.zft2.gbanking.util.TextValues.removeLeadingBom;
 import static de.zft2.gbanking.util.TextValues.trimToNull;
 
 import java.io.IOException;
 import java.io.StringReader;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
@@ -35,6 +33,7 @@ import de.zft2.gbanking.db.dao.enu.VopResult;
 import de.zft2.gbanking.enu.LocalizedEnumValue;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.file.exp.FileExportBean.ExportConstants;
+import de.zft2.gbanking.file.imp.csv.CsvImportDataReader;
 import de.zft2.gbanking.util.DecimalText;
 
 public class MoneyTransferCsvImportBean extends MoneyTransferImportBean {
@@ -87,7 +86,7 @@ public class MoneyTransferCsvImportBean extends MoneyTransferImportBean {
 
 	private List<ParsedTransfer> readTransfers(Path importFile) throws IOException {
 		updateWorker(0, "UI_MONEYTRANSFER_IMPORT_PROGRESS_READING");
-		String csvContent = removeLeadingBom(Files.readString(importFile, StandardCharsets.UTF_8));
+		String csvContent = CsvImportDataReader.readText(importFile, null);
 		try (CSVParser parser = CSVFormat.DEFAULT.builder().setDelimiter(';').setHeader().setSkipHeaderRecord(true).setTrim(true).get()
 				.parse(new StringReader(csvContent))) {
 			CsvHeaders headers = resolveHeaders(parser);

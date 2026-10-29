@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -286,6 +287,36 @@ class CsvImportAnalyzerTest {
 				analysis.matches().stream().map(match -> match.definition().getName()).toList());
 	}
 
+	@Test
+	void analyzerShouldFallBackToWindows1252ForNonUtf8Files() throws Exception {
+		CsvImportAnalyzer analyzer = analyzer("""
+				[Buchung: Minimal]
+				Betrag=Betrag
+				Name=Empfänger
+				""");
+		Path csv = csv("Betrag;Empfänger" + System.lineSeparator() + "12,34;Müller", Charset.forName("windows-1252"));
+
+		Analysis analysis = analyzer.analyze(csv);
+
+		assertNull(analysis.problem());
+		assertEquals("Müller", analyzer.read(csv, analysis.matches().get(0).definition()).rows().get(0).text("Empfänger"));
+	}
+
+	@Test
+	void readerShouldUseConfiguredCharset() throws Exception {
+		CsvImportAnalyzer analyzer = analyzer("""
+				[Buchung: Minimal]
+				Betrag=Betrag
+				Zweck=Zweck
+				Extra.Charset=ISO-8859-15
+				""");
+		Path csv = csv("Betrag;Zweck" + System.lineSeparator() + "12,34;Preis in €", Charset.forName("ISO-8859-15"));
+
+		Match match = analyzer.analyze(csv).matches().get(0);
+
+		assertEquals("Preis in €", analyzer.read(csv, match.definition()).rows().get(0).text("Zweck"));
+	}
+
 	private CsvImportAnalyzer analyzer(String definitions) throws Exception {
 		Path definitionFile = tempDir.resolve("csv-" + System.nanoTime() + ".properties");
 		Files.writeString(definitionFile, definitions.stripIndent(), StandardCharsets.UTF_8);
@@ -310,8 +341,12 @@ class CsvImportAnalyzerTest {
 	}
 
 	private Path csv(String content) throws Exception {
+		return csv(content, StandardCharsets.UTF_8);
+	}
+
+	private Path csv(String content, Charset charset) throws Exception {
 		Path csvFile = tempDir.resolve("import-" + System.nanoTime() + ".csv");
-		Files.writeString(csvFile, content.stripIndent(), StandardCharsets.UTF_8);
+		Files.writeString(csvFile, content.stripIndent(), charset);
 		return csvFile;
 	}
 }
