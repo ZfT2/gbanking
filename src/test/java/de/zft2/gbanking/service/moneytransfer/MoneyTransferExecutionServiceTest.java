@@ -73,6 +73,7 @@ class MoneyTransferExecutionServiceTest {
 
 		assertFalse(result);
 		assertEquals(MoneyTransferStatus.ERROR, moneyTransfer.getMoneytransferStatus());
+		assertEquals(MoneyTransferStatus.ERROR, dbController.getById(MoneyTransfer.class, moneyTransfer.getId()).getMoneytransferStatus());
 
 	}
 
@@ -93,6 +94,7 @@ class MoneyTransferExecutionServiceTest {
 
 		assertFalse(result);
 		assertEquals(MoneyTransferStatus.ERROR, moneyTransfer.getMoneytransferStatus());
+		assertEquals(MoneyTransferStatus.ERROR, dbController.getById(MoneyTransfer.class, moneyTransfer.getId()).getMoneytransferStatus());
 
 	}
 
@@ -141,7 +143,7 @@ class MoneyTransferExecutionServiceTest {
 			moneyTransfer.setExecutionDay(1);
 			moneyTransfer.setStandingorderMode(StandingorderMode.MONTHLY);
 		}
-		return moneyTransfer;
+		return dbController.insertOrUpdate(moneyTransfer);
 	}
 
 }

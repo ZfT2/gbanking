@@ -34,7 +34,7 @@ public class MoneyTransferService extends AbstractDbService {
 	private final MoneyTransferExecutionService moneyTransferExecutionService;
 	private final MoneyTransferInventoryService moneyTransferInventoryService;
 
-	private static final List<MoneyTransferStatus> EXECUTABLE_MONEY_TRANSFER_STATUSES = List.of(MoneyTransferStatus.NEW, MoneyTransferStatus.CHANGED,
+	static final List<MoneyTransferStatus> EXECUTABLE_MONEY_TRANSFER_STATUSES = List.of(MoneyTransferStatus.NEW, MoneyTransferStatus.CHANGED,
 			MoneyTransferStatus.ERROR, MoneyTransferStatus.DELETE_PENDING);
 
 	public MoneyTransferService() {

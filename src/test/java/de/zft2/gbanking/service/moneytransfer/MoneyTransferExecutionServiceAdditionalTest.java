@@ -13,6 +13,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -508,12 +509,14 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void executeTransfer_shouldNotResubmitUncertainOrderAndShouldClearPin() {
-		MoneyTransfer moneyTransfer = createMoneyTransfer(OrderType.REALTIME_TRANSFER);
-		moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.UNCERTAIN);
 		char[] pin = "secret".toCharArray();
+		HbciTransferFixture fixture = prepareHbciTransfer(pin);
+		fixture.moneyTransfer().setMoneytransferStatus(MoneyTransferStatus.UNCERTAIN);
+		dbController.insertOrUpdate(fixture.moneyTransfer());
 
-		assertFalse(new MoneyTransferExecutionService().executeTransfer(moneyTransfer, new BankAccount(), pin));
+		assertFalse(new MoneyTransferExecutionService().executeTransfer(fixture.moneyTransfer(), fixture.bankAccount(), pin));
 
+		verify(fixture.handle(), never()).execute();
 		assertArrayCleared(pin);
 	}
 
@@ -814,6 +817,59 @@ class MoneyTransferExecutionServiceAdditionalTest {
 	}
 
 	@Test
+	void executeTransfer_shouldNotResubmitOrderLockedInDatabaseFromOutdatedInstance() {
+		char[] pin = "1234".toCharArray();
+		HbciTransferFixture fixture = prepareHbciTransfer(pin);
+		MoneyTransfer outdatedInstance = dbController.getById(MoneyTransfer.class, fixture.moneyTransfer().getId());
+		when(fixture.handle().execute()).thenReturn(mock(HBCIExecStatus.class));
+		when(fixture.job().getJobResult()).thenThrow(new IllegalStateException("connection lost"));
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
+
+		try (MockedConstruction<GBankingHBCICallback> callbacks = mockConstruction(GBankingHBCICallback.class)) {
+			assertThrows(IllegalStateException.class, () -> service.executeTransfer(fixture.moneyTransfer(), fixture.bankAccount(), pin));
+			assertFalse(service.executeTransfer(outdatedInstance, fixture.bankAccount(), pin));
+			assertEquals(1, callbacks.constructed().size());
+		}
+
+		verify(fixture.handle()).execute();
+		assertEquals(MoneyTransferStatus.NEW, outdatedInstance.getMoneytransferStatus());
+		assertExecutionResult(fixture, MoneyTransferStatus.UNCERTAIN);
+	}
+
+	@Test
+	void executeTransfer_shouldNotSubmitOrderLockedAfterEarlyStatusCheck() {
+		char[] pin = "1234".toCharArray();
+		HbciTransferFixture fixture = prepareHbciTransfer(pin);
+		doAnswer(invocation -> {
+			lockByConcurrentExecution(fixture);
+			return fixture.senderAccount();
+		}).when(ServiceRegistry.getService(MoneyTransferService.class)).getSenderAccount(eq(fixture.passport()), any(BankAccount.class));
+
+		try (MockedConstruction<GBankingHBCICallback> ignored = mockConstruction(GBankingHBCICallback.class)) {
+			assertFalse(new MoneyTransferExecutionService().executeTransfer(fixture.moneyTransfer(), fixture.bankAccount(), pin));
+		}
+
+		verify(fixture.handle(), never()).execute();
+		assertEquals(MoneyTransferStatus.UNCERTAIN, loadPersistedStatus(fixture));
+		assertTrue(dbController.getAllByParent(MoneyTransferProtocol.class, fixture.moneyTransfer().getId()).isEmpty());
+	}
+
+	@Test
+	void executeTransfer_shouldNotOverwriteOrderLockedDuringBankAccessInitialization() {
+		char[] pin = "1234".toCharArray();
+		HbciTransferFixture fixture = prepareHbciTransfer(pin);
+		doAnswer(invocation -> {
+			lockByConcurrentExecution(fixture);
+			return null;
+		}).when(ServiceRegistry.getService(BankAccessService.class)).initBankAccess(any(BankAccount.class), same(pin));
+
+		assertFalse(new MoneyTransferExecutionService().executeTransfer(fixture.moneyTransfer(), fixture.bankAccount(), pin));
+
+		assertEquals(MoneyTransferStatus.UNCERTAIN, loadPersistedStatus(fixture));
+		assertArrayCleared(pin);
+	}
+
+	@Test
 	void executeTransfer_shouldNotDowngradePersistedResultWhenSessionCleanupFails() {
 		char[] pin = "1234".toCharArray();
 		HbciTransferFixture fixture = prepareHbciTransfer(pin);
@@ -859,6 +915,8 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		moneyTransfer.setAccountId(bankAccount.getId());
 		moneyTransfer.setRecipientId(recipient.getId());
 		moneyTransfer.setRecipient(recipient);
+		moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.NEW);
+		dbController.insertOrUpdate(moneyTransfer);
 
 		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("10020030");
@@ -896,6 +954,13 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	private MoneyTransferStatus loadPersistedStatus(HbciTransferFixture fixture) {
 		return dbController.getAllByParent(MoneyTransfer.class, fixture.bankAccount().getId()).get(0).getMoneytransferStatus();
+	}
+
+	/** Simulates a concurrent execution that locks the order in the database while the passed instance is still unchanged. */
+	private void lockByConcurrentExecution(HbciTransferFixture fixture) {
+		MoneyTransfer concurrentInstance = dbController.getById(MoneyTransfer.class, fixture.moneyTransfer().getId());
+		concurrentInstance.setMoneytransferStatus(MoneyTransferStatus.UNCERTAIN);
+		dbController.insertOrUpdate(concurrentInstance);
 	}
 
 	private static String assessExecution(BankOrderOperation operation, HBCIExecStatus status, HBCIJobResult jobResult, boolean abortedByUser)

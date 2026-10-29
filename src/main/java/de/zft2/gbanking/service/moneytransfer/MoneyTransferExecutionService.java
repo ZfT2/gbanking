@@ -67,8 +67,9 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 			log.warn("Abort money transfer execution. moneytransfer is null!");
 			return result;
 		}
-		if (moneyTransfer.getMoneytransferStatus() == MoneyTransferStatus.UNCERTAIN) {
-			log.warn("Refusing to resubmit money transfer with uncertain execution status. transferId={}", moneyTransfer.getId());
+		if (!isPersistedStatusUnchanged(moneyTransfer)) {
+			log.warn("Refusing to execute outdated or no longer executable money transfer. transferId={}, status={}", moneyTransfer.getId(),
+					moneyTransfer.getMoneytransferStatus());
 			HbciSessionRunner.clearSecret(pin);
 			return false;
 		}
@@ -85,20 +86,14 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		if (transferAccount == null || !supportsBankOrderOperation(transferAccount, moneyTransfer, operation)) {
 			log.warn("Transfer operation {} for order type {} is not supported for account id {}", operation, moneyTransfer.getOrderType(),
 					transferAccount != null ? transferAccount.getId() : null);
-			applyFailedOperationStatus(moneyTransfer, operation);
-			dbController.insertOrUpdate(moneyTransfer);
-			HbciSessionRunner.clearSecret(pin);
-			return false;
+			return rejectBeforeSubmission(moneyTransfer, operation, pin);
 		}
 
 		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 		BankAccess bankAccess = hbciSupport.initBankAccess(transferAccount, pin);
 		if (bankAccess == null) {
 			log.warn("Money transfer execution skipped, no bank access available. transferId={}, accountId={}", moneyTransfer.getId(), transferAccount.getId());
-			applyFailedOperationStatus(moneyTransfer, operation);
-			dbController.insertOrUpdate(moneyTransfer);
-			HbciSessionRunner.clearSecret(pin);
-			return false;
+			return rejectBeforeSubmission(moneyTransfer, operation, pin);
 		}
 
 		try {
@@ -174,10 +169,12 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		session.callback().setCurrentMoneyTransfer(moneyTransfer);
 		if (log.isDebugEnabled())
 			log.debug("Queued HBCI transfer job. transferId={}, jobType={}", moneyTransfer.getId(), resolveJobName(moneyTransfer.getOrderType(), operation));
-		if (operation == BankOrderOperation.CREATE) {
-			// Block a second submission before sending, so that an unclear abort cannot make the order executable again
-			moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.UNCERTAIN);
-			dbController.insertOrUpdate(moneyTransfer);
+		// Block a second submission of a new order before sending, so that an unclear abort cannot make it executable again
+		MoneyTransferStatus submissionStatus = operation == BankOrderOperation.CREATE ? MoneyTransferStatus.UNCERTAIN
+				: moneyTransfer.getMoneytransferStatus();
+		if (!updateStatusIfPersistedStatusUnchanged(moneyTransfer, submissionStatus)) {
+			log.warn("Refusing to submit money transfer, its persisted status was changed in the meantime. transferId={}", moneyTransfer.getId());
+			return false;
 		}
 		communicationState.start = LocalDateTime.now(ZoneId.systemDefault());
 		communicationState.status = session.handler().execute();
@@ -508,7 +505,7 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 			if (status != null) {
 				hbciCallback.handleFailure(status.getErrorString());
 			}
-			applyFailedOperationStatus(moneyTransfer, operation);
+			moneyTransfer.setMoneytransferStatus(resolveFailedStatus(operation));
 			log.info("Money transfer execution ended with error. transferId={}", moneyTransfer.getId());
 			return;
 		}
@@ -540,13 +537,46 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		}
 	}
 
-	private void applyFailedOperationStatus(MoneyTransfer moneyTransfer, BankOrderOperation operation) {
-		MoneyTransferStatus status = switch (operation) {
+	private static MoneyTransferStatus resolveFailedStatus(BankOrderOperation operation) {
+		return switch (operation) {
 		case CREATE -> MoneyTransferStatus.ERROR;
 		case EDIT -> MoneyTransferStatus.CHANGED;
 		case DELETE -> MoneyTransferStatus.DELETE_PENDING;
 		};
-		moneyTransfer.setMoneytransferStatus(status);
+	}
+
+	/**
+	 * Checks against the database that the order still has the status of the passed instance and that this status is executable,
+	 * so that an outdated instance can neither resubmit nor overwrite an order that is locked or completed in the meantime.
+	 */
+	private boolean isPersistedStatusUnchanged(MoneyTransfer moneyTransfer) {
+		MoneyTransfer persistedTransfer = dbController.getById(MoneyTransfer.class, moneyTransfer.getId());
+		return persistedTransfer != null && persistedTransfer.getMoneytransferStatus() == moneyTransfer.getMoneytransferStatus()
+				&& MoneyTransferService.EXECUTABLE_MONEY_TRANSFER_STATUSES.contains(persistedTransfer.getMoneytransferStatus());
+	}
+
+	/**
+	 * Atomically checks the persisted status and persists the new status, if it differs from the current one.
+	 *
+	 * @return {@code false} if the persisted order was changed in the meantime, in which case nothing is written
+	 */
+	private boolean updateStatusIfPersistedStatusUnchanged(MoneyTransfer moneyTransfer, MoneyTransferStatus status) {
+		return dbController.executeInTransaction(() -> {
+			if (!isPersistedStatusUnchanged(moneyTransfer)) {
+				return false;
+			}
+			if (moneyTransfer.getMoneytransferStatus() != status) {
+				moneyTransfer.setMoneytransferStatus(status);
+				dbController.insertOrUpdate(moneyTransfer);
+			}
+			return true;
+		});
+	}
+
+	private boolean rejectBeforeSubmission(MoneyTransfer moneyTransfer, BankOrderOperation operation, char[] pin) {
+		updateStatusIfPersistedStatusUnchanged(moneyTransfer, resolveFailedStatus(operation));
+		HbciSessionRunner.clearSecret(pin);
+		return false;
 	}
 
 	private MoneyTransferStatus resolveSuccessfulStatus(BankOrderOperation operation) {
@@ -632,7 +662,7 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 			applyExecutionDate(moneyTransfer, operation);
 			moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.UNCERTAIN);
 		} else {
-			applyFailedOperationStatus(moneyTransfer, operation);
+			moneyTransfer.setMoneytransferStatus(resolveFailedStatus(operation));
 		}
 		String technicalProtocol = createProtocolText(communicationState.status, communicationState.jobResult, exception);
 		logTechnicalProtocol(moneyTransfer, technicalProtocol);
