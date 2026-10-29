@@ -59,9 +59,10 @@ public class StatementsLogicCategoryRule extends StatementsLogicDefault<Category
 
 	private String createUniqueGeneratedName(CategoryRule categoryRule) {
 		String generatedName = buildGeneratedName(categoryRule);
+		Set<String> namesOfOtherRules = getNamesOfOtherRules(categoryRule.getId());
 		String candidate = abbreviate(generatedName, MAX_NAME_LENGTH);
 		int suffixCounter = 2;
-		while (isNameUsedByAnotherRule(candidate, categoryRule.getId())) {
+		while (namesOfOtherRules.contains(candidate)) {
 			String suffix = " (" + suffixCounter + ")";
 			candidate = abbreviate(generatedName, MAX_NAME_LENGTH - suffix.length()) + suffix;
 			suffixCounter++;
@@ -115,13 +116,14 @@ public class StatementsLogicCategoryRule extends StatementsLogicDefault<Category
 		return amount != null ? new DecimalFormat("#,##0.00", DecimalFormatSymbols.getInstance(Locale.GERMANY)).format(amount) : "";
 	}
 
-	private boolean isNameUsedByAnotherRule(String name, int currentRuleId) {
+	private Set<String> getNamesOfOtherRules(int currentRuleId) {
+		Set<String> names = new HashSet<>();
 		for (CategoryRule existingRule : getAllFull(CategoryRule.class)) {
-			if (existingRule != null && existingRule.getId() != currentRuleId && name.equals(existingRule.getName())) {
-				return true;
+			if (existingRule != null && existingRule.getId() != currentRuleId) {
+				names.add(existingRule.getName());
 			}
 		}
-		return false;
+		return names;
 	}
 
 	private String abbreviate(String value, int maxLength) {

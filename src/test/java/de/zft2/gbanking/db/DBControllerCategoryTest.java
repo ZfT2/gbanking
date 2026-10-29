@@ -170,8 +170,13 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 		secondRule.setCategory(category);
 		secondRule.setFilterPurpose("Ticket");
 
+		CategoryRule thirdRule = new CategoryRule();
+		thirdRule.setCategory(category);
+		thirdRule.setFilterPurpose("Ticket");
+
 		db.insertOrUpdate(firstRule);
 		db.insertOrUpdate(secondRule);
+		db.insertOrUpdate(thirdRule);
 
 		firstRule = db.getById(CategoryRule.class, firstRule.getId());
 		secondRule = db.getById(CategoryRule.class, secondRule.getId());
@@ -181,6 +186,7 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 		assertNotEquals(firstRule.getName(), secondRule.getName());
 		assertTrue(secondRule.getName().endsWith("(2)"));
 		assertTrue(secondRule.getName().length() <= 40);
+		assertTrue(db.getById(CategoryRule.class, thirdRule.getId()).getName().endsWith("(3)"));
 	}
 
 	@Test
