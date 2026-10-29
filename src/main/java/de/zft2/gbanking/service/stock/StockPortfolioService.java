@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -66,12 +67,18 @@ public class StockPortfolioService extends AbstractDbService {
 	private static final int QUANTITY_SCALE = StockNumericValueType.QUANTITY.getScaleDigits();
 	private static final int PRICE_SCALE = StockNumericValueType.PRICE.getScaleDigits();
 	private static final int EXCHANGE_RATE_SCALE = StockNumericValueType.FACTOR.getScaleDigits();
+	private static final String SQL_SELECT_SECURITY_LEGS_BY_PORTFOLIO = "SQL_SELECT_STOCK_SECURITY_LEGS_BY_PORTFOLIO";
+	private static final String SQL_SELECT_SUPERSEDING_PRICE = "SQL_SELECT_STOCK_SECURITY_PRICE_SUPERSEDING";
 
 	public List<PortfolioSummary> getPortfolios() {
 		Map<Integer, BankAccount> accounts = dbController.getAll(BankAccount.class).stream()
 				.collect(Collectors.toMap(BankAccount::getId, Function.identity()));
+		Map<Integer, StockPortfolioSettlementAccount> relations = dbController
+				.getAll(StockPortfolioSettlementAccount.class).stream()
+				.collect(Collectors.toMap(relation -> relation.getId(), Function.identity()));
 		return dbController.getAll(StockPortfolio.class).stream()
-				.map(portfolio -> createPortfolioSummary(portfolio, accounts))
+				.map(portfolio -> createPortfolioSummary(portfolio, accounts,
+						relations.get(portfolio.getCurrentSettlementRelationId())))
 				.sorted(Comparator.comparing(PortfolioSummary::displayName, String.CASE_INSENSITIVE_ORDER))
 				.toList();
 	}
@@ -154,9 +161,9 @@ public class StockPortfolioService extends AbstractDbService {
 		Map<Integer, StockDataSourceType> sourceTypes = dbController.getAll(StockDataSource.class).stream()
 				.collect(Collectors.toMap(StockDataSource::getId, StockDataSource::getSourceType));
 		List<TransactionSummary> result = new ArrayList<>();
-		for (StockTransaction transaction : dbController.getAllByParent(StockTransaction.class, portfolioId).stream()
-				.filter(candidate -> candidate.getTransactionStatus() == StockTransactionStatus.SETTLED).toList()) {
-			for (StockTransactionSecurityLeg leg : dbController.getAllByParent(StockTransactionSecurityLeg.class, transaction.getId())) {
+		SettledTransactions settled = settledTransactions(portfolioId);
+		for (StockTransaction transaction : settled.transactions()) {
+			for (StockTransactionSecurityLeg leg : settled.legs(transaction)) {
 				StockSecurity security = securities.get(leg.getSecurityId());
 				if (security != null) {
 					SecurityIdentifiers securityIdentifiers = identifiers.getOrDefault(security.getId(), SecurityIdentifiers.EMPTY);
@@ -179,9 +186,8 @@ public class StockPortfolioService extends AbstractDbService {
 	}
 
 	public List<TransactionPrefill> getReconciliationPrefills(int portfolioId) {
-		List<StockTransaction> transactions = dbController.getAllByParent(StockTransaction.class, portfolioId).stream()
-				.filter(transaction -> transaction.getTransactionStatus() == StockTransactionStatus.SETTLED).toList();
-		Set<PositionKey> reconciledPositions = reconciliationPositionKeys(transactions);
+		SettledTransactions settled = settledTransactions(portfolioId);
+		Set<PositionKey> reconciledPositions = reconciliationPositionKeys(settled);
 		if (reconciledPositions.isEmpty()) {
 			return List.of();
 		}
@@ -194,7 +200,7 @@ public class StockPortfolioService extends AbstractDbService {
 				.getAllByParent(StockPortfolioStatementPosition.class, latestStatement.getId()).stream()
 				.collect(Collectors.toMap(StockPortfolioService::positionKey,
 						StockPortfolioStatementPosition::getQuantityE9, Math::addExact));
-		Map<PositionKey, Long> actualQuantities = actualQuantities(transactions, latestStatement.getStatementAt());
+		Map<PositionKey, Long> actualQuantities = actualQuantities(settled, latestStatement.getStatementAt());
 		return reconciledPositions.stream()
 				.map(key -> createTransactionPrefill(key, reportedQuantities, actualQuantities))
 				.filter(Objects::nonNull)
@@ -715,9 +721,8 @@ public class StockPortfolioService extends AbstractDbService {
 		return value != null ? value.toLocalDate() : null;
 	}
 
-	private PortfolioSummary createPortfolioSummary(StockPortfolio portfolio, Map<Integer, BankAccount> accounts) {
-		StockPortfolioSettlementAccount relation = dbController.getById(StockPortfolioSettlementAccount.class,
-				portfolio.getCurrentSettlementRelationId());
+	private static PortfolioSummary createPortfolioSummary(StockPortfolio portfolio, Map<Integer, BankAccount> accounts,
+			StockPortfolioSettlementAccount relation) {
 		BankAccount portfolioAccount = accounts.get(portfolio.getAccountId());
 		BankAccount settlementAccount = relation != null ? accounts.get(relation.getAccountId()) : null;
 		return new PortfolioSummary(portfolio.getId(), accountName(portfolioAccount, "Depot " + portfolio.getId()),
@@ -818,15 +823,14 @@ public class StockPortfolioService extends AbstractDbService {
 
 	private Map<PositionKey, AcquisitionPriceState> acquisitionPricesByPosition(int portfolioId) {
 		Map<PositionKey, AcquisitionPriceState> result = new HashMap<>();
-		List<StockTransaction> transactions = dbController.getAllByParent(StockTransaction.class, portfolioId).stream()
-				.filter(transaction -> transaction.getTransactionStatus() == StockTransactionStatus.SETTLED)
+		SettledTransactions settled = settledTransactions(portfolioId);
+		List<StockTransaction> transactions = settled.transactions().stream()
 				.filter(transaction -> transaction.getTransactionType() != StockTransactionType.RECONCILIATION_ADJUSTMENT)
 				.sorted(Comparator.comparing(StockTransaction::getSettledAt,
 						Comparator.nullsLast(Comparator.naturalOrder())).thenComparingInt(StockTransaction::getId))
 				.toList();
 		for (StockTransaction transaction : transactions) {
-			for (StockTransactionSecurityLeg leg : dbController.getAllByParent(StockTransactionSecurityLeg.class,
-					transaction.getId())) {
+			for (StockTransactionSecurityLeg leg : settled.legs(transaction)) {
 				if (leg.getLegRole() != StockSecurityLegRole.REFERENCE) {
 					PositionKey key = new PositionKey(leg.getSecurityId(), leg.getQuantityType());
 					BigDecimal price = isAcquisitionTransaction(transaction.getTransactionType()) && leg.getPriceE8() != null
@@ -875,23 +879,19 @@ public class StockPortfolioService extends AbstractDbService {
 	}
 
 	private Map<Integer, StockSecurityPrice> latestPricesBySecurity() {
-		Map<Integer, StockSecurityPrice> result = new HashMap<>();
-		for (StockSecurity security : dbController.getAll(StockSecurity.class)) {
-			List<StockSecurityPriceSource> sources = dbController.getAllByParent(StockSecurityPriceSource.class, security.getId()).stream()
-					.filter(StockSecurityPriceSource::isEnabled).toList();
-			Map<Integer, Integer> priorities = sources.stream().collect(
-					Collectors.toMap(StockSecurityPriceSource::getId, StockSecurityPriceSource::getPriority));
-			List<StockSecurityPrice> prices = sources.stream()
-					.flatMap(source -> dbController.getAllByParent(StockSecurityPrice.class, source.getId()).stream()).toList();
-			Set<Integer> supersededIds = prices.stream().map(StockSecurityPrice::getSupersedesPriceId)
-					.filter(id -> id != null).collect(Collectors.toSet());
-			prices.stream().filter(price -> !price.isDeleted() && !supersededIds.contains(price.getId()))
-					.max(Comparator.comparing(StockSecurityPrice::getQuotedAt)
-							.thenComparingInt(price -> -priorities.get(price.getPriceSourceId()))
-							.thenComparingInt(StockSecurityPrice::getId))
-					.ifPresent(price -> result.put(security.getId(), price));
-		}
-		return result;
+		Map<Integer, StockSecurityPriceSource> sources = dbController.getAll(StockSecurityPriceSource.class).stream()
+				.filter(source -> source.isEnabled())
+				.collect(Collectors.toMap(source -> source.getId(), Function.identity()));
+		List<StockSecurityPrice> prices = dbController.getAll(StockSecurityPrice.class).stream()
+				.filter(price -> sources.containsKey(price.getPriceSourceId())).toList();
+		Set<Integer> supersededIds = prices.stream().map(price -> price.getSupersedesPriceId())
+				.filter(id -> id != null).collect(Collectors.toSet());
+		Comparator<StockSecurityPrice> latestFirst = Comparator.comparing(StockSecurityPrice::getQuotedAt)
+				.thenComparingInt(price -> -sources.get(price.getPriceSourceId()).getPriority())
+				.thenComparingInt(StockSecurityPrice::getId);
+		return prices.stream().filter(price -> !price.isDeleted() && !supersededIds.contains(price.getId()))
+				.collect(Collectors.toMap(price -> sources.get(price.getPriceSourceId()).getSecurityId(),
+						Function.identity(), BinaryOperator.maxBy(latestFirst)));
 	}
 
 	private PriceSummary createPriceSummary(StockSecurityPrice price, Map<Integer, StockSecurityPriceSource> priceSources,
@@ -909,8 +909,8 @@ public class StockPortfolioService extends AbstractDbService {
 			throw new GBankingException("Der Wertpapierkurs wurde nicht gefunden oder bereits ersetzt");
 		}
 		StockSecurityPriceSource source = dbController.getById(StockSecurityPriceSource.class, price.getPriceSourceId());
-		boolean inactive = price.isDeleted() || dbController.getAll(StockSecurityPrice.class).stream()
-				.anyMatch(candidate -> Objects.equals(candidate.getSupersedesPriceId(), priceId));
+		boolean inactive = price.isDeleted()
+				|| !dbController.getAllByParent(StockSecurityPrice.class, priceId, SQL_SELECT_SUPERSEDING_PRICE).isEmpty();
 		if (source == null || source.getSecurityId() != securityId || inactive) {
 			throw new GBankingException("Der Wertpapierkurs wurde nicht gefunden oder bereits ersetzt");
 		}
@@ -1170,24 +1170,21 @@ public class StockPortfolioService extends AbstractDbService {
 				.orElse(null);
 	}
 
-	private Set<PositionKey> reconciliationPositionKeys(List<StockTransaction> transactions) {
-		return transactions.stream()
+	private static Set<PositionKey> reconciliationPositionKeys(SettledTransactions settled) {
+		return settled.transactions().stream()
 				.filter(transaction -> transaction.getTransactionType() == StockTransactionType.RECONCILIATION_ADJUSTMENT)
-				.flatMap(transaction -> dbController
-						.getAllByParent(StockTransactionSecurityLeg.class, transaction.getId()).stream())
+				.flatMap(transaction -> settled.legs(transaction).stream())
 				.filter(leg -> leg.getLegRole() != StockSecurityLegRole.REFERENCE)
 				.map(StockPortfolioService::positionKey)
 				.collect(Collectors.toSet());
 	}
 
-	private Map<PositionKey, Long> actualQuantities(List<StockTransaction> transactions,
-			LocalDateTime statementAt) {
+	private static Map<PositionKey, Long> actualQuantities(SettledTransactions settled, LocalDateTime statementAt) {
 		Map<PositionKey, Long> result = new HashMap<>();
-		transactions.stream()
+		settled.transactions().stream()
 				.filter(transaction -> transaction.getTransactionType() != StockTransactionType.RECONCILIATION_ADJUSTMENT)
 				.filter(transaction -> statementAt == null || !transaction.getSettledAt().isAfter(statementAt))
-				.flatMap(transaction -> dbController
-						.getAllByParent(StockTransactionSecurityLeg.class, transaction.getId()).stream())
+				.flatMap(transaction -> settled.legs(transaction).stream())
 				.filter(leg -> leg.getLegRole() != StockSecurityLegRole.REFERENCE)
 				.forEach(leg -> result.merge(positionKey(leg), leg.getQuantityE9(), Math::addExact));
 		return result;
@@ -1203,9 +1200,8 @@ public class StockPortfolioService extends AbstractDbService {
 		if (statement == null) {
 			return;
 		}
-		List<StockTransaction> transactions = dbController.getAllByParent(StockTransaction.class, portfolioId).stream()
-				.filter(transaction -> transaction.getTransactionStatus() == StockTransactionStatus.SETTLED).toList();
-		List<StockTransaction> adjustments = matchingReconciliationTransactions(transactions, key);
+		SettledTransactions settled = settledTransactions(portfolioId);
+		List<StockTransaction> adjustments = matchingReconciliationTransactions(settled, key);
 		if (adjustments.isEmpty()) {
 			return;
 		}
@@ -1213,9 +1209,9 @@ public class StockPortfolioService extends AbstractDbService {
 				.getAllByParent(StockPortfolioStatementPosition.class, statement.getId()).stream()
 				.filter(position -> positionKey(position).equals(key)).findFirst().orElse(null);
 		long reportedQuantity = reportedPosition != null ? reportedPosition.getQuantityE9() : 0L;
-		long actualQuantity = actualQuantities(transactions, statement.getStatementAt()).getOrDefault(key, 0L);
+		long actualQuantity = actualQuantities(settled, statement.getStatementAt()).getOrDefault(key, 0L);
 		long requiredAdjustment = Math.subtractExact(reportedQuantity, actualQuantity);
-		long currentAdjustment = reconciliationQuantity(adjustments, key);
+		long currentAdjustment = reconciliationQuantity(settled, adjustments, key);
 		if (requiredAdjustment == currentAdjustment) {
 			return;
 		}
@@ -1230,27 +1226,28 @@ public class StockPortfolioService extends AbstractDbService {
 		}
 	}
 
-	private List<StockTransaction> matchingReconciliationTransactions(List<StockTransaction> transactions,
+	private static List<StockTransaction> matchingReconciliationTransactions(SettledTransactions settled,
 			PositionKey key) {
-		return transactions.stream()
+		return settled.transactions().stream()
 				.filter(transaction -> transaction.getTransactionType() == StockTransactionType.RECONCILIATION_ADJUSTMENT)
-				.filter(transaction -> dbController
-						.getAllByParent(StockTransactionSecurityLeg.class, transaction.getId()).stream()
-						.anyMatch(leg -> positionKey(leg).equals(key)))
+				.filter(transaction -> settled.legs(transaction).stream().anyMatch(leg -> positionKey(leg).equals(key)))
 				.toList();
 	}
 
-	private long reconciliationQuantity(List<StockTransaction> adjustments, PositionKey key) {
-		long result = 0L;
-		for (StockTransaction adjustment : adjustments) {
-			for (StockTransactionSecurityLeg leg : dbController
-					.getAllByParent(StockTransactionSecurityLeg.class, adjustment.getId())) {
-				if (positionKey(leg).equals(key)) {
-					result = Math.addExact(result, leg.getQuantityE9());
-				}
-			}
-		}
-		return result;
+	private static long reconciliationQuantity(SettledTransactions settled, List<StockTransaction> adjustments,
+			PositionKey key) {
+		return adjustments.stream().flatMap(adjustment -> settled.legs(adjustment).stream())
+				.filter(leg -> positionKey(leg).equals(key))
+				.mapToLong(leg -> leg.getQuantityE9()).reduce(0L, Math::addExact);
+	}
+
+	private SettledTransactions settledTransactions(int portfolioId) {
+		List<StockTransaction> transactions = dbController.getAllByParent(StockTransaction.class, portfolioId).stream()
+				.filter(transaction -> transaction.getTransactionStatus() == StockTransactionStatus.SETTLED).toList();
+		Map<Integer, List<StockTransactionSecurityLeg>> legs = dbController
+				.getAllByParent(StockTransactionSecurityLeg.class, portfolioId, SQL_SELECT_SECURITY_LEGS_BY_PORTFOLIO)
+				.stream().collect(Collectors.groupingBy(leg -> leg.getTransactionId()));
+		return new SettledTransactions(transactions, legs);
 	}
 
 	private void createReconciliationAdjustment(int portfolioId, StockPortfolioStatement statement,
@@ -1517,6 +1514,14 @@ public class StockPortfolioService extends AbstractDbService {
 	}
 
 	private record PositionKey(int securityId, StockQuantityType quantityType) {
+	}
+
+	private record SettledTransactions(List<StockTransaction> transactions,
+			Map<Integer, List<StockTransactionSecurityLeg>> legsByTransaction) {
+
+		private List<StockTransactionSecurityLeg> legs(StockTransaction transaction) {
+			return legsByTransaction.getOrDefault(transaction.getId(), List.of());
+		}
 	}
 
 	private record AcquisitionPriceValue(BigDecimal price, Currency currency) {

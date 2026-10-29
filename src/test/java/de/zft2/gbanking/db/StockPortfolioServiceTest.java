@@ -168,6 +168,9 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 		assertEquals(correction.getId(), prices.get(0).priceId());
 		assertEquals(original.getId(), correction.getSupersedesPriceId());
 		assertEquals(SETTLEMENT_DATE, correction.getQuotedAt().toLocalDate());
+		GBankingException error = assertThrows(GBankingException.class,
+				() -> service.deletePrice(security.getId(), original.getId(), false));
+		assertTrue(error.getMessage().startsWith("Der Wertpapierkurs wurde nicht gefunden oder bereits ersetzt"));
 	}
 
 	@Test

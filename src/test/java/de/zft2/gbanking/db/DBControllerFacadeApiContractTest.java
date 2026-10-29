@@ -54,6 +54,7 @@ class DBControllerFacadeApiContractTest {
 			"java.util.List getAll(java.lang.Class,java.lang.String)",
 			"java.util.List getAllBankAccountIdentifiers()",
 			"java.util.List getAllByParent(java.lang.Class,java.lang.Integer)",
+			"java.util.List getAllByParent(java.lang.Class,java.lang.Integer,java.lang.String)",
 			"java.util.List getAllByParentFull(java.lang.Class,java.lang.Integer)",
 			"java.util.List getAllByParentSpecific(de.zft2.gbanking.db.dao.Dao,java.lang.Integer,de.zft2.gbanking.db.StatementsConfig.StatementType)",
 			"java.util.List getAllByParentSpecific(java.lang.Class,java.lang.Integer,de.zft2.gbanking.db.StatementsConfig.StatementType)",

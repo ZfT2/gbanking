@@ -101,6 +101,10 @@ public abstract class DbExecutor extends DbConnectionHandler implements BaseMess
 		return getAll(type, null, StatementType.SELECT_ALL, null, statementKey);
 	}
 
+	public <T extends Dao> List<T> getAllByParent(Class<T> type, Integer parentObjectId, String statementKey) {
+		return getAll(type, parentObjectId, StatementType.SELECT_WITH_PARENT, null, statementKey);
+	}
+
 	@SuppressWarnings("unchecked")
 	public <T extends Dao> List<T> getAllByParentSpecific(T criteria, Integer parentObjectId, StatementType statementType) {
 		if (criteria == null) {
