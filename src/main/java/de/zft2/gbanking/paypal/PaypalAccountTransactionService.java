@@ -89,13 +89,10 @@ public class PaypalAccountTransactionService extends AbstractDbService {
 	}
 
 	private PaypalBalance getBalance(BankAccess bankAccess, char[] apiPassword, Currency baseCurrency) throws InterruptedException {
-		List<PaypalBalance> balances = client.getBalances(bankAccess.getPaypal().getApiUsername(), apiPassword,
-				bankAccess.getPaypal().getApiSignature());
-		for (PaypalBalance balance : balances) {
-			Currency.forCode(balance.currency());
-		}
-		return balances.stream()
-				.filter(balance -> baseCurrency == Currency.forCode(balance.currency()))
+		// Only the base currency balance is used, so balances in unsupported currencies must not abort the retrieval.
+		return client.getBalances(bankAccess.getPaypal().getApiUsername(), apiPassword, bankAccess.getPaypal().getApiSignature())
+				.stream()
+				.filter(balance -> baseCurrency.name().equalsIgnoreCase(trimToNull(balance.currency())))
 				.findFirst()
 				.orElseThrow(() -> new PaypalApiException(getText("ERROR_PAYPAL_NO_BALANCES"), false));
 	}

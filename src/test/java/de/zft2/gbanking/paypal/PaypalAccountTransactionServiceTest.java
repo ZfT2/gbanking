@@ -166,8 +166,8 @@ class PaypalAccountTransactionServiceTest implements BaseMessages {
 	@Test
 	void retrieve_shouldPersistTheBaseCurrencyBalanceAndTheDistinctBookings() throws InterruptedException {
 		BankAccount account = paypalAccount(true);
-		when(client.getBalances(API_USER, password, SIGNATURE)).thenReturn(List.of(
-				new PaypalBalance("USD", new BigDecimal("5.67")), new PaypalBalance("EUR", new BigDecimal("12.34"))));
+		when(client.getBalances(API_USER, password, SIGNATURE)).thenReturn(List.of(new PaypalBalance("BGN", BigDecimal.ONE),
+				new PaypalBalance("USD", new BigDecimal("5.67")), new PaypalBalance(" eur ", new BigDecimal("12.34"))));
 		PaypalTransaction payment = transaction("EUR123", "-10.00", "EUR");
 		when(searchTransactions()).thenReturn(List.of(payment, transaction("USD123", "-10.00", "USD"), payment));
 		when(client.getTransactionDetails(API_USER, password, SIGNATURE, "USD123"))
