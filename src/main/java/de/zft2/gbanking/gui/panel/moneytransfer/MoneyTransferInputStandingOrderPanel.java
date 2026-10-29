@@ -12,16 +12,30 @@ import de.zft2.gbanking.db.dao.enu.StandingorderMode;
 import javafx.collections.FXCollections;
 import javafx.scene.Node;
 import javafx.scene.control.ComboBox;
+import javafx.util.StringConverter;
 
 final class MoneyTransferInputStandingOrderPanel extends MoneyTransferInputBasePanel {
 
-	private static final String UI_LABEL_LAST_DAY_OF_MONTH = "UI_LABEL_LAST_DAY_OF_MONTH";
-	private final ComboBox<String> dayCombo = new ComboBox<>(FXCollections.observableArrayList(IntStream.range(1, 31).mapToObj(String::valueOf).toList()));
+	private static final int LAST_DAY_OF_MONTH = 31;
+	private final ComboBox<Integer> dayCombo = new ComboBox<>(FXCollections.observableArrayList(IntStream.rangeClosed(1, LAST_DAY_OF_MONTH).boxed().toList()));
 	private final ComboBox<StandingorderMode> cycleCombo = new ComboBox<>(FXCollections.observableArrayList(StandingorderMode.values()));
 
 	MoneyTransferInputStandingOrderPanel(MoneyTransferDetailListTabPanel parent) {
 		super(parent);
-		dayCombo.getItems().add(getText(UI_LABEL_LAST_DAY_OF_MONTH));
+		dayCombo.setConverter(new StringConverter<>() {
+			@Override
+			public String toString(Integer day) {
+				if (day == null) {
+					return "";
+				}
+				return day == LAST_DAY_OF_MONTH ? getText("UI_LABEL_LAST_DAY_OF_MONTH") : day.toString();
+			}
+
+			@Override
+			public Integer fromString(String text) {
+				return null;
+			}
+		});
 		initializeSpecificFields();
 		buttonSubmit.setText(getText("UI_BUTTON_STANDING_ORDER_SAVE"));
 	}
@@ -56,14 +70,7 @@ final class MoneyTransferInputStandingOrderPanel extends MoneyTransferInputBaseP
 
 	@Override
 	protected Integer getExecutionDay() {
-		String selectedDay = dayCombo.getValue();
-		if (selectedDay == null) {
-			return null;
-		}
-		if (selectedDay.equals(getText(UI_LABEL_LAST_DAY_OF_MONTH))) {
-			return 31;
-		}
-		return Integer.valueOf(selectedDay);
+		return dayCombo.getValue();
 	}
 
 	@Override
@@ -92,13 +99,7 @@ final class MoneyTransferInputStandingOrderPanel extends MoneyTransferInputBaseP
 	protected void updateSpecificFieldValues(MoneyTransfer selectedMoneytransfer) {
 		cycleCombo.setValue(selectedMoneytransfer.getStandingorderMode());
 		Integer executionDay = selectedMoneytransfer.getExecutionDay();
-		if (executionDay == null) {
-			dayCombo.getSelectionModel().clearSelection();
-		} else if (executionDay >= 31) {
-			dayCombo.setValue(getText(UI_LABEL_LAST_DAY_OF_MONTH));
-		} else {
-			dayCombo.setValue(String.valueOf(executionDay));
-		}
+		dayCombo.setValue(executionDay != null ? Math.min(executionDay, LAST_DAY_OF_MONTH) : null);
 	}
 
 	@Override
