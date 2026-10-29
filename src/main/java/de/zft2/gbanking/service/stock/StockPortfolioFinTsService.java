@@ -799,22 +799,14 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 			throw new GBankingException(field + " fehlt im FinTS-Ergebnis.");
 		}
 		try {
-			return value.setScale(scale, RoundingMode.HALF_UP).movePointRight(scale).longValueExact();
+			return StockNumericValues.toScaledLong(value, scale, RoundingMode.HALF_UP);
 		} catch (ArithmeticException exception) {
 			throw new GBankingException(field + " ist zu groß.", exception);
 		}
 	}
 
 	private static long toMinor(BigDecimal value, Currency currency) {
-		if (value == null) {
-			throw new GBankingException("Ein Geldbetrag fehlt im FinTS-Ergebnis.");
-		}
-		try {
-			return value.setScale(currency.getMinorUnitDigits(), RoundingMode.HALF_UP)
-					.movePointRight(currency.getMinorUnitDigits()).longValueExact();
-		} catch (ArithmeticException exception) {
-			throw new GBankingException("Ein Geldbetrag aus dem FinTS-Ergebnis ist zu groß.", exception);
-		}
+		return toScaled(value, currency.getMinorUnitDigits(), "Ein Geldbetrag");
 	}
 
 	private static String createSnapshotFingerprint(BankAccount account, Entry entry) {

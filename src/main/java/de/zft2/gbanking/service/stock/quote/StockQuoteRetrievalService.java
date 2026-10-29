@@ -27,6 +27,7 @@ import de.zft2.gbanking.db.dao.stock.StockSecurityPrice;
 import de.zft2.gbanking.db.dao.stock.StockSecurityPriceSource;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.service.AbstractDbService;
+import de.zft2.gbanking.service.stock.StockNumericValues;
 import de.zft2.gbanking.service.stock.StockSources;
 import de.zft2.gbanking.service.stock.quote.MarketDataClient.MarketQuote;
 import de.zft2.gbanking.service.stock.quote.MarketDataClient.QuoteRequest;
@@ -308,7 +309,7 @@ public class StockQuoteRetrievalService extends AbstractDbService {
 
 	private static long toPriceE8(BigDecimal value) {
 		try {
-			return value.setScale(PRICE_SCALE, RoundingMode.HALF_UP).movePointRight(PRICE_SCALE).longValueExact();
+			return StockNumericValues.toScaledLong(value, PRICE_SCALE, RoundingMode.HALF_UP);
 		} catch (ArithmeticException exception) {
 			throw new GBankingException("Der abgerufene Kurs ist zu groß", exception);
 		}
