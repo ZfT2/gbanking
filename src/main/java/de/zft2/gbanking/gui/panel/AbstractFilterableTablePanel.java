@@ -49,7 +49,7 @@ public abstract class AbstractFilterableTablePanel<T> extends BorderPane impleme
 		sorted.comparatorProperty().bind(tableView.comparatorProperty());
 		tableView.setItems(sorted);
 
-		filterText.textProperty().addListener((obs, oldVal, newVal) -> filteredData.setPredicate(item -> matchesFilter(item, normalize(newVal))));
+		filterText.textProperty().addListener((obs, oldVal, newVal) -> filteredData.setPredicate(createFilterPredicate(normalize(newVal))));
 
 		filterText.setMaxWidth(Double.MAX_VALUE);
 		HBox filterBox = new HBox(10, new Label(getText("UI_LABEL_SEARCH")), filterText);
@@ -207,6 +207,17 @@ public abstract class AbstractFilterableTablePanel<T> extends BorderPane impleme
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Creates the predicate of one filter run. Subclasses can override this method to prepare
+	 * filter values once per run instead of once per item.
+	 *
+	 * @param filter the normalized filter text
+	 * @return the predicate that is applied to all items
+	 */
+	protected Predicate<T> createFilterPredicate(String filter) {
+		return item -> matchesFilter(item, filter);
 	}
 
 	protected abstract boolean matchesFilter(T item, String filter);

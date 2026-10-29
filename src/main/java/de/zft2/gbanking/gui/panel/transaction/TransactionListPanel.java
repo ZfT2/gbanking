@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Predicate;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -368,7 +369,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 			return;
 		}
 		String searchText = normalize(filterText.getText());
-		filteredData.setPredicate(booking -> matchesFilter(booking, searchText));
+		filteredData.setPredicate(createFilterPredicate(searchText));
 		tableView.refresh();
 		updateTransactionCount();
 	}
@@ -656,12 +657,17 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	}
 
 	@Override
-	protected boolean matchesFilter(Booking booking, String filter) {
+	protected Predicate<Booking> createFilterPredicate(String filter) {
 		FilterChoice<TransactionFilter.BookingState> bookingState = bookingStateFilter.getValue();
 		TransactionFilter.Criteria criteria = new TransactionFilter.Criteria(filter, dateFromFilter.getValue(), dateToFilter.getValue(),
 				amountFromFilterValue, amountToFilterValue, getSelectedFilterValue(categoryFilter),
 				bookingState != null ? bookingState.value() : TransactionFilter.BookingState.ALL);
-		return TransactionFilter.matches(booking, criteria);
+		return booking -> TransactionFilter.matches(booking, criteria);
+	}
+
+	@Override
+	protected boolean matchesFilter(Booking booking, String filter) {
+		return createFilterPredicate(filter).test(booking);
 	}
 
 	private TableColumn<Booking, Booking> createPurposeColumn() {
