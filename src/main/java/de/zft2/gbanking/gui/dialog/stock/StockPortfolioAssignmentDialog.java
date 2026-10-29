@@ -5,6 +5,7 @@ import java.util.List;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
+import de.zft2.gbanking.gui.util.FormControlUtils;
 import de.zft2.gbanking.mapper.HbciMapper;
 import de.zft2.gbanking.service.stock.StockPortfolioFinTsService;
 import javafx.collections.FXCollections;
@@ -13,7 +14,6 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Window;
-import javafx.util.StringConverter;
 
 final class StockPortfolioAssignmentDialog extends AbstractStockDialog {
 
@@ -42,9 +42,7 @@ final class StockPortfolioAssignmentDialog extends AbstractStockDialog {
 	}
 
 	private GridPane createForm() {
-		GridPane form = new GridPane();
-		form.setHgap(12);
-		form.setVgap(8);
+		GridPane form = new GridPane(12, 8);
 		form.add(new Label(getText("UI_STOCK_FIELD_PORTFOLIO")), 0, 0);
 		form.add(new Label(getText("UI_STOCK_FIELD_SETTLEMENT_ACCOUNT")), 1, 0);
 		for (int index = 0; index < portfolioAccounts.size(); index++) {
@@ -61,17 +59,7 @@ final class StockPortfolioAssignmentDialog extends AbstractStockDialog {
 	private ComboBox<BankAccount> createAccountCombo() {
 		ComboBox<BankAccount> resultField = new ComboBox<>(FXCollections.observableArrayList(settlementAccounts));
 		resultField.setMaxWidth(Double.MAX_VALUE);
-		resultField.setConverter(new StringConverter<>() {
-			@Override
-			public String toString(BankAccount account) {
-				return StockPortfolioFinTsService.accountDisplayName(account);
-			}
-
-			@Override
-			public BankAccount fromString(String value) {
-				return null;
-			}
-		});
+		resultField.setConverter(FormControlUtils.displayConverter(account -> StockPortfolioFinTsService.accountDisplayName(account)));
 		return resultField;
 	}
 

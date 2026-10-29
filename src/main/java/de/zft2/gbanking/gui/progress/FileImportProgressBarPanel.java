@@ -1,6 +1,7 @@
 package de.zft2.gbanking.gui.progress;
 
 import java.util.List;
+import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
 
 import de.zft2.gbanking.db.dao.BankAccount;
@@ -12,8 +13,7 @@ import de.zft2.gbanking.gui.dialog.ImportedBankNameValidationDialog;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.panel.account.AccountListPanel;
-import javafx.beans.property.ReadOnlyObjectWrapper;
-import javafx.beans.property.ReadOnlyStringWrapper;
+import de.zft2.gbanking.gui.util.TableColumnFactory;
 import javafx.collections.FXCollections;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
@@ -78,7 +78,8 @@ public class FileImportProgressBarPanel extends BaseFileProgressBarPanel {
 		summaryTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
 		summaryTable.setPrefHeight(150);
 		summaryTable.setMinHeight(120);
-		summaryTable.getColumns().setAll(List.<TableColumn<ImportAccountStatistics, ?>>of(createAccountColumn(),
+		summaryTable.getColumns().setAll(List.<TableColumn<ImportAccountStatistics, ?>>of(
+				TableColumnFactory.createTextColumn(getText("UI_IMPORT_SUMMARY_ACCOUNT_COLUMN"), row -> row.getAccountName(), 180),
 				createNumberColumn("UI_IMPORT_SUMMARY_EXISTING_BOOKINGS", ImportAccountStatistics::getExistingBookings),
 				createNumberColumn("UI_IMPORT_SUMMARY_ADDED_BOOKINGS", ImportAccountStatistics::getAddedBookings),
 				createNumberColumn("UI_IMPORT_SUMMARY_UPDATED_BOOKINGS", ImportAccountStatistics::getUpdatedBookings),
@@ -88,19 +89,8 @@ public class FileImportProgressBarPanel extends BaseFileProgressBarPanel {
 		contentBox.getChildren().addAll(summaryLabel, summaryTable);
 	}
 
-	private TableColumn<ImportAccountStatistics, String> createAccountColumn() {
-		TableColumn<ImportAccountStatistics, String> column = new TableColumn<>(getText("UI_IMPORT_SUMMARY_ACCOUNT_COLUMN"));
-		column.setCellValueFactory(data -> new ReadOnlyStringWrapper(data.getValue().getAccountName()));
-		column.setPrefWidth(180);
-		return column;
-	}
-
-	private TableColumn<ImportAccountStatistics, Integer> createNumberColumn(String titleKey,
-			java.util.function.ToIntFunction<ImportAccountStatistics> valueProvider) {
-		TableColumn<ImportAccountStatistics, Integer> column = new TableColumn<>(getText(titleKey));
-		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(valueProvider.applyAsInt(data.getValue())));
-		column.setPrefWidth(90);
-		return column;
+	private TableColumn<ImportAccountStatistics, Integer> createNumberColumn(String titleKey, ToIntFunction<ImportAccountStatistics> valueProvider) {
+		return TableColumnFactory.createValueColumn(getText(titleKey), statistics -> valueProvider.applyAsInt(statistics), 90);
 	}
 
 	private void showRejectedRows(List<RejectedRow> rejectedRows) {

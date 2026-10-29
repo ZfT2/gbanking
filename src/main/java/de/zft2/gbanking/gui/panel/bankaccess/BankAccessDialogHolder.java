@@ -356,9 +356,7 @@ final class BankAccessDialogHolder extends BasePanel {
 	}
 
 	private GridPane createDefaultGrid() {
-		GridPane grid = new GridPane();
-		grid.setHgap(10);
-		grid.setVgap(6);
+		GridPane grid = new GridPane(10, 6);
 		grid.setPadding(new Insets(10));
 		return grid;
 	}

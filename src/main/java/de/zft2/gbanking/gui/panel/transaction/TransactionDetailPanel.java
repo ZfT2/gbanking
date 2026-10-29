@@ -27,6 +27,7 @@ import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.KeyboardShortcutDispatcher;
 import de.zft2.gbanking.gui.KeyboardShortcutDispatcher.Action;
 import de.zft2.gbanking.gui.panel.overview.TransactionsOverviewBasePanel;
+import de.zft2.gbanking.gui.util.FormControlUtils;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.gui.util.FormStyleUtils.FieldWidth;
 import de.zft2.gbanking.gui.util.FxNodeSupport;
@@ -188,9 +189,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 	}
 
 	private Node createMainDetailsPane() {
-		GridPane grid = new GridPane();
-		grid.setHgap(10);
-		grid.setVgap(8);
+		GridPane grid = new GridPane(10, 8);
 		grid.setPadding(new Insets(6));
 
 		addFieldAbove(grid, "UI_LABEL_BOOKING_DATE", dateBookingPicker, 0, 0);
@@ -221,9 +220,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 	}
 
 	private Node createCurrencyDetailsGrid() {
-		GridPane grid = new GridPane();
-		grid.setHgap(10);
-		grid.setVgap(8);
+		GridPane grid = new GridPane(10, 8);
 		grid.setPadding(new Insets(6));
 		addFieldAbove(grid, "UI_LABEL_FOREIGN_AMOUNT", foreignAmountText, 0, 0);
 		addFieldAbove(grid, "UI_LABEL_FOREIGN_CURRENCY", foreignCurrencyCombo, 1, 0);
@@ -234,9 +231,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 	}
 
 	private Node createSepaGrid() {
-		GridPane grid = new GridPane();
-		grid.setHgap(10);
-		grid.setVgap(8);
+		GridPane grid = new GridPane(10, 8);
 		grid.setPadding(new Insets(6));
 
 		addFieldAbove(grid, "UI_LABEL_SEPA_CUSTOMER_REF", sepaCustomerRefText, 0, 0);
@@ -253,9 +248,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 	}
 
 	private Node createRecipientPane() {
-		GridPane grid = new GridPane();
-		grid.setHgap(8);
-		grid.setVgap(6);
+		GridPane grid = new GridPane(8, 6);
 		grid.setPadding(new Insets(6));
 
 		addFieldAbove(grid, "UI_LABEL_NAME", recipientNameText, 0, 0, 2);
@@ -436,17 +429,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 	}
 
 	private StringConverter<Category> createCategoryConverter() {
-		return new StringConverter<>() {
-			@Override
-			public String toString(Category category) {
-				return category != null ? category.getFullName() : "";
-			}
-
-			@Override
-			public Category fromString(String string) {
-				return null;
-			}
-		};
+		return FormControlUtils.displayConverter(category -> category.getFullName());
 	}
 
 	private void refreshSourceChoices(boolean manualOnly) {

@@ -1,10 +1,13 @@
 package de.zft2.gbanking.gui.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Month;
+import java.time.format.DateTimeParseException;
 
 import org.junit.jupiter.api.Test;
 
@@ -17,6 +20,15 @@ class DateFormatUtilsTest {
 		assertEquals("10.04.26", DateFormatUtils.formatShort(date));
 		assertEquals("10.04.2026", DateFormatUtils.formatLong(date));
 		assertEquals("10.04.2026 14:35", DateFormatUtils.formatDateTime(LocalDateTime.of(2026, Month.APRIL, 10, 14, 35)));
+	}
+
+	@Test
+	void shouldParseLongDatesStrictly() {
+		assertEquals(LocalDate.of(2024, Month.FEBRUARY, 29), DateFormatUtils.parseLong(" 29.02.2024 "));
+		assertNull(DateFormatUtils.parseLong(null));
+		assertNull(DateFormatUtils.parseLong("  "));
+		assertThrows(DateTimeParseException.class, () -> DateFormatUtils.parseLong("31.02.2024"));
+		assertThrows(DateTimeParseException.class, () -> DateFormatUtils.parseLong("1.2.24"));
 	}
 
 	@Test

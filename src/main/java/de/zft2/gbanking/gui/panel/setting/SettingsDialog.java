@@ -406,9 +406,7 @@ public class SettingsDialog implements BaseMessages {
 	}
 
 	private GridPane createSettingsGrid() {
-		GridPane grid = new GridPane();
-		grid.setHgap(12);
-		grid.setVgap(8);
+		GridPane grid = new GridPane(12, 8);
 		grid.setPadding(new Insets(4, 0, 4, 0));
 
 		ColumnConstraints propertyColumn = new ColumnConstraints();

@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Objects;
 
 import de.zft2.gbanking.cache.InstituteLookupCache.InstituteLookupEntry;
+import de.zft2.gbanking.gui.util.FormControlUtils;
 import de.zft2.gbanking.gui.util.FxNodeSupport;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.gui.util.FormStyleUtils.FieldWidth;
@@ -31,17 +32,7 @@ public class BankNameLookupField extends StackPane {
 
 		bankNameCombo.setEditable(false);
 		FxNodeSupport.setVisibleManaged(bankNameCombo, false);
-		bankNameCombo.setConverter(new javafx.util.StringConverter<>() {
-			@Override
-			public String toString(InstituteLookupEntry entry) {
-				return entry == null ? "" : Objects.toString(entry.bankName(), "");
-			}
-
-			@Override
-			public InstituteLookupEntry fromString(String string) {
-				return null;
-			}
-		});
+		bankNameCombo.setConverter(FormControlUtils.displayConverter(entry -> Objects.toString(entry.bankName(), "")));
 		bankNameCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> selectedEntry.set(newValue));
 
 		getChildren().addAll(bankNameField, bankNameCombo);

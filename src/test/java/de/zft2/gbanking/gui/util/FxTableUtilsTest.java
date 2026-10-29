@@ -2,6 +2,7 @@ package de.zft2.gbanking.gui.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
@@ -76,6 +77,22 @@ class FxTableUtilsTest {
 		Text text = (Text) graphic.getChildren().get(0);
 		assertEquals("abc", text.getText());
 		assertTrue(cell.getStyleClass().contains("amount-neutral"));
+	}
+
+	@Test
+	void formattedCellFactoryShouldFormatValuesAndClearEmptyCells() {
+		TableColumn<String, Integer> column = new TableColumn<>("number");
+		TableCell<String, Integer> cell = JavaFxTestSupport
+				.callFx(() -> FxTableUtils.<String, Integer>createFormattedCellFactory(value -> "#" + value).call(column));
+
+		JavaFxTestSupport.runFx(() -> invokeUpdateItem(cell, 7, false));
+		assertEquals("#7", cell.getText());
+
+		JavaFxTestSupport.runFx(() -> invokeUpdateItem(cell, null, false));
+		assertNull(cell.getText());
+
+		JavaFxTestSupport.runFx(() -> invokeUpdateItem(cell, 7, true));
+		assertNull(cell.getText());
 	}
 
 	@Test

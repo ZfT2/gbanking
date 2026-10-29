@@ -49,9 +49,7 @@ final class TenantEditDialog implements BaseMessages {
 		boolean editMode = tenant != null;
 		Stage dialog = DialogWindowSupport.createModalStage(parentWindow, editMode ? "UI_DIALOG_TENANT_EDIT_TITLE" : "UI_DIALOG_TENANT_CREATE_TITLE");
 
-		GridPane grid = new GridPane();
-		grid.setHgap(10);
-		grid.setVgap(8);
+		GridPane grid = new GridPane(10, 8);
 
 		TextField usernameField = new TextField(editMode ? tenant.username() : "");
 		PasswordField oldPasswordField = new PasswordField();

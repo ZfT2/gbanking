@@ -5,9 +5,6 @@ import static de.zft2.gbanking.util.TextValues.trimToNull;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.time.format.ResolverStyle;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -31,6 +28,7 @@ import de.zft2.gbanking.gui.panel.AbstractFilterableTablePanel;
 import de.zft2.gbanking.gui.panel.overview.AccountsTransactionsOverviewPanel;
 import de.zft2.gbanking.gui.panel.overview.TransactionsOverviewBasePanel;
 import de.zft2.gbanking.gui.util.DateFormatUtils;
+import de.zft2.gbanking.gui.util.FormControlUtils;
 import de.zft2.gbanking.gui.util.FxTableUtils;
 import de.zft2.gbanking.gui.util.FxNodeSupport;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
@@ -63,7 +61,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.util.Callback;
-import javafx.util.StringConverter;
 
 public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> {
 
@@ -87,7 +84,6 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	private static final double FILTER_TEXT_MIN_WIDTH = 120;
 	private static final String FILTER_EXPAND_SYMBOL = "\u25bc";
 	private static final String FILTER_COLLAPSE_SYMBOL = "\u25b2";
-	private static final DateTimeFormatter GERMAN_DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.uuuu").withResolverStyle(ResolverStyle.STRICT);
 
 	final TransactionsOverviewBasePanel parentPanel;
 	private final BookingService bookingService;
@@ -178,8 +174,8 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	}
 
 	private void configureAdvancedFilters() {
-		configureDateFilter(dateFromFilter);
-		configureDateFilter(dateToFilter);
+		FormControlUtils.applyLongDateConverter(dateFromFilter);
+		FormControlUtils.applyLongDateConverter(dateToFilter);
 		configureAmountFilter(amountFromFilter, true);
 		configureAmountFilter(amountToFilter, false);
 		configureFilterWidth(dateFromFilter, FILTER_DATE_WIDTH);
@@ -244,28 +240,6 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 		VBox field = new VBox(2, label, control);
 		field.setAlignment(Pos.TOP_LEFT);
 		return field;
-	}
-
-	private void configureDateFilter(DatePicker datePicker) {
-		datePicker.setEditable(true);
-		datePicker.setConverter(new StringConverter<>() {
-			@Override
-			public String toString(LocalDate date) {
-				return DateFormatUtils.formatLong(date);
-			}
-
-			@Override
-			public LocalDate fromString(String text) {
-				if (text == null || text.isBlank()) {
-					return null;
-				}
-				try {
-					return LocalDate.parse(text.trim(), GERMAN_DATE_FORMAT);
-				} catch (DateTimeParseException ex) {
-					return datePicker.getValue();
-				}
-			}
-		});
 	}
 
 	private void configureAmountFilter(TextField field, boolean fromField) {
@@ -411,15 +385,9 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 		selectedCol = createSelectAllSelectionColumn(
 				booking -> booking.isSelected(), (booking, selected) -> booking.setSelected(selected));
 		reviewRequiredCol = createReviewRequiredColumn();
-		dateCol = new TableColumn<>(getText("UI_TABLE_DATE"));
-		dateCol.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue()));
-		dateCol.setCellFactory(column -> new javafx.scene.control.TableCell<>() {
-			@Override
-			protected void updateItem(Booking item, boolean empty) {
-				super.updateItem(item, empty);
-				setText(empty || item == null ? null : DateFormatUtils.formatBookingAndValue(item.getDateBooking(), item.getDateValue()));
-			}
-		});
+		dateCol = TableColumnFactory.createValueColumn(getText("UI_TABLE_DATE"), booking -> booking);
+		dateCol.setCellFactory(FxTableUtils.createFormattedCellFactory(
+				booking -> DateFormatUtils.formatBookingAndValue(booking.getDateBooking(), booking.getDateValue())));
 		dateCol.setComparator(Comparator.comparing(Booking::getDateBooking, Comparator.nullsFirst(LocalDate::compareTo)).thenComparingInt(Booking::getId));
 		FxTableUtils.setFixedWidth(dateCol, DATE_COLUMN_WIDTH);
 		purposeCol = createPurposeColumn();
@@ -427,8 +395,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 		amountCol = TableColumnFactory.createAmountColumn(getText("UI_TABLE_AMOUNT"), Booking::getAmount);
 		amountCol.setCellFactory(FxTableUtils.createAutoFitBigDecimalAmountCellFactory(booking -> booking.isPrenotification()));
 		FxTableUtils.setPreferredWidth(amountCol, AMOUNT_COLUMN_MIN_WIDTH, AMOUNT_COLUMN_PREF_WIDTH);
-		balanceCol = new TableColumn<>(getText("UI_TABLE_BALANCE"));
-		balanceCol.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue()));
+		balanceCol = TableColumnFactory.createValueColumn(getText("UI_TABLE_BALANCE"), booking -> booking);
 		balanceCol.setCellFactory(createBalanceCol());
 		FxTableUtils.setPreferredWidth(balanceCol, AMOUNT_COLUMN_MIN_WIDTH, AMOUNT_COLUMN_PREF_WIDTH);
 		TableColumn<Booking, Source> typeCol = createTypeColumn();
@@ -466,8 +433,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	}
 
 	private TableColumn<Booking, Source> createTypeColumn() {
-		TableColumn<Booking, Source> column = new TableColumn<>(getText("UI_TABLE_BOOKING_TYPE"));
-		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getSource()));
+		TableColumn<Booking, Source> column = TableColumnFactory.createValueColumn(getText("UI_TABLE_BOOKING_TYPE"), booking -> booking.getSource());
 		column.setCellFactory(tableColumn -> new TableCell<>() {
 			private final Tooltip sourceTooltip = new Tooltip();
 
@@ -495,8 +461,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	}
 
 	private TableColumn<Booking, Booking> createCrossAccountColumn() {
-		TableColumn<Booking, Booking> column = new TableColumn<>(getText("UI_TABLE_COUNTER_ACCOUNT"));
-		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue()));
+		TableColumn<Booking, Booking> column = TableColumnFactory.createValueColumn(getText("UI_TABLE_COUNTER_ACCOUNT"), booking -> booking);
 		column.setCellFactory(this::createCrossAccountCell);
 		FxTableUtils.setPreferredWidth(column, 140, 180);
 		return column;
@@ -659,8 +624,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	}
 
 	private TableColumn<Booking, Booking> createPurposeColumn() {
-		TableColumn<Booking, Booking> column = new TableColumn<>(getText("UI_TABLE_PURPOSE"));
-		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue()));
+		TableColumn<Booking, Booking> column = TableColumnFactory.createValueColumn(getText("UI_TABLE_PURPOSE"), booking -> booking);
 		column.setCellFactory(this::createPurposeCell);
 		FxTableUtils.setPreferredWidth(column, PURPOSE_COLUMN_MIN_WIDTH, PURPOSE_COLUMN_PREF_WIDTH);
 		return column;

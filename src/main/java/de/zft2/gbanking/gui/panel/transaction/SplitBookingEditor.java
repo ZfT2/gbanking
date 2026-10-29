@@ -19,12 +19,12 @@ import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.file.BookingCsvFormat;
 import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
+import de.zft2.gbanking.gui.util.FormControlUtils;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.gui.util.FxNodeSupport;
 import de.zft2.gbanking.gui.util.FxTableUtils;
+import de.zft2.gbanking.gui.util.TableColumnFactory;
 import de.zft2.gbanking.service.booking.BookingSplitService;
-import javafx.beans.property.ReadOnlyObjectWrapper;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -105,9 +105,7 @@ final class SplitBookingEditor extends VBox implements BaseMessagesDb {
 	}
 
 	private Node createTotalsPane() {
-		GridPane grid = new GridPane();
-		grid.setHgap(8);
-		grid.setVgap(4);
+		GridPane grid = new GridPane(8, 4);
 		grid.setAlignment(Pos.CENTER_RIGHT);
 		grid.add(new Label(getText("UI_LABEL_SPLIT_SUM")), 0, 0);
 		grid.add(sumValueLabel, 1, 0);
@@ -137,8 +135,7 @@ final class SplitBookingEditor extends VBox implements BaseMessagesDb {
 	}
 
 	private TableColumn<Booking, String> createPurposeColumn() {
-		TableColumn<Booking, String> column = new TableColumn<>(getText("UI_TABLE_PURPOSE"));
-		column.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getPurpose()));
+		TableColumn<Booking, String> column = TableColumnFactory.createValueColumn(getText("UI_TABLE_PURPOSE"), booking -> booking.getPurpose());
 		column.setCellFactory(TextFieldTableCell.forTableColumn());
 		column.setOnEditCommit(event -> {
 			event.getRowValue().setPurpose(trimToNull(event.getNewValue()));
@@ -150,8 +147,7 @@ final class SplitBookingEditor extends VBox implements BaseMessagesDb {
 	}
 
 	private TableColumn<Booking, Category> createCategoryColumn() {
-		TableColumn<Booking, Category> column = new TableColumn<>(getText("UI_LABEL_CATEGORY"));
-		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getCategory()));
+		TableColumn<Booking, Category> column = TableColumnFactory.createValueColumn(getText("UI_LABEL_CATEGORY"), booking -> booking.getCategory());
 		column.setCellFactory(ComboBoxTableCell.forTableColumn(categoryConverter, categoryChoices));
 		column.setOnEditCommit(event -> {
 			event.getRowValue().setCategory(event.getNewValue());
@@ -164,8 +160,7 @@ final class SplitBookingEditor extends VBox implements BaseMessagesDb {
 	}
 
 	private TableColumn<Booking, BigDecimal> createAmountColumn() {
-		TableColumn<Booking, BigDecimal> column = new TableColumn<>(getText("UI_TABLE_AMOUNT"));
-		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getAmount()));
+		TableColumn<Booking, BigDecimal> column = TableColumnFactory.createValueColumn(getText("UI_TABLE_AMOUNT"), booking -> booking.getAmount());
 		column.setCellFactory(TextFieldTableCell.forTableColumn(createAmountConverter()));
 		column.setOnEditCommit(event -> {
 			event.getRowValue().setAmount(event.getNewValue());
@@ -178,9 +173,10 @@ final class SplitBookingEditor extends VBox implements BaseMessagesDb {
 	}
 
 	private TableColumn<Booking, BankAccount> createCrossAccountColumn() {
-		TableColumn<Booking, BankAccount> column = new TableColumn<>(getText("UI_TABLE_CROSS_ACCOUNT"));
-		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(findCrossAccount(data.getValue().getCrossAccountId())));
-		column.setCellFactory(ComboBoxTableCell.forTableColumn(createAccountConverter(), crossAccountChoices));
+		TableColumn<Booking, BankAccount> column = TableColumnFactory.createValueColumn(getText("UI_TABLE_CROSS_ACCOUNT"),
+				booking -> findCrossAccount(booking.getCrossAccountId()));
+		column.setCellFactory(ComboBoxTableCell.forTableColumn(
+				FormControlUtils.displayConverter(account -> account.getAccountName()), crossAccountChoices));
 		column.setOnEditCommit(event -> {
 			BankAccount account = event.getNewValue();
 			event.getRowValue().setCrossAccountId(account != null ? account.getId() : null);
@@ -189,20 +185,6 @@ final class SplitBookingEditor extends VBox implements BaseMessagesDb {
 		});
 		FxTableUtils.setPreferredWidth(column, 140, 220);
 		return column;
-	}
-
-	private StringConverter<BankAccount> createAccountConverter() {
-		return new StringConverter<>() {
-			@Override
-			public String toString(BankAccount account) {
-				return account != null ? account.getAccountName() : "";
-			}
-
-			@Override
-			public BankAccount fromString(String value) {
-				return null;
-			}
-		};
 	}
 
 	private StringConverter<BigDecimal> createAmountConverter() {

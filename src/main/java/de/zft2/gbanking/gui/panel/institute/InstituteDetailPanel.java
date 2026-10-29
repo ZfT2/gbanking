@@ -200,9 +200,7 @@ public class InstituteDetailPanel extends VBox implements BaseMessagesBean {
 	}
 
 	private static GridPane createGrid() {
-		GridPane grid = new GridPane();
-		grid.setHgap(18);
-		grid.setVgap(6);
+		GridPane grid = new GridPane(18, 6);
 		grid.setPadding(new Insets(10));
 		for (int column = 0; column < 4; column++) {
 			ColumnConstraints constraints = new ColumnConstraints();

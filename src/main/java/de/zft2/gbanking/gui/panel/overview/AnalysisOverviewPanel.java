@@ -34,14 +34,15 @@ import de.zft2.gbanking.gui.component.GBankingTableView;
 import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.util.DateFormatUtils;
+import de.zft2.gbanking.gui.util.FormControlUtils;
 import de.zft2.gbanking.gui.util.FxTableUtils;
 import de.zft2.gbanking.gui.util.FxNodeSupport;
+import de.zft2.gbanking.gui.util.TableColumnFactory;
 import de.zft2.gbanking.service.booking.BookingService;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.settings.SettingDefinition;
 import de.zft2.gbanking.service.settings.SettingsStore;
 import de.zft2.gbanking.util.AccountDisplay;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -57,7 +58,6 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.CustomMenuItem;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.RadioMenuItem;
@@ -232,16 +232,9 @@ public class AnalysisOverviewPanel extends OverviewBasePanel {
 		table.setColumnResizePolicy(javafx.scene.control.TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
 		table.setFixedCellSize(30);
 
-		TableColumn<MetricRow, String> metricColumn = new TableColumn<>(getText("UI_TABLE_ANALYSIS_METRIC"));
-		metricColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().metric()));
-		metricColumn.setMinWidth(170);
-		metricColumn.setPrefWidth(210);
-
-		TableColumn<MetricRow, String> valueColumn = new TableColumn<>(getText("UI_TABLE_ANALYSIS_VALUE"));
-		valueColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().value()));
+		TableColumn<MetricRow, String> metricColumn = TableColumnFactory.createTextColumn(getText("UI_TABLE_ANALYSIS_METRIC"), row -> row.metric(), 170, 210);
+		TableColumn<MetricRow, String> valueColumn = TableColumnFactory.createTextColumn(getText("UI_TABLE_ANALYSIS_VALUE"), row -> row.value(), 120, 170);
 		valueColumn.setCellFactory(column -> createMetricValueCell());
-		valueColumn.setMinWidth(120);
-		valueColumn.setPrefWidth(170);
 
 		table.getColumns().setAll(Arrays.asList(metricColumn, valueColumn));
 		table.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
@@ -279,24 +272,13 @@ public class AnalysisOverviewPanel extends OverviewBasePanel {
 	}
 
 	private void configurePeriodComboBox() {
-		periodComboBox.setCellFactory(list -> createPeriodCell());
-		periodComboBox.setButtonCell(createPeriodCell());
+		periodComboBox.setConverter(FormControlUtils.displayConverter(period -> periodLabel(period)));
 		periodComboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
 			if (updatingControls || newValue == null) {
 				return;
 			}
 			handlePeriodChanged(newValue);
 		});
-	}
-
-	private ListCell<PeriodType> createPeriodCell() {
-		return new ListCell<>() {
-			@Override
-			protected void updateItem(PeriodType item, boolean empty) {
-				super.updateItem(item, empty);
-				setText(empty || item == null ? null : periodLabel(item));
-			}
-		};
 	}
 
 	private void configureDatePickers() {
@@ -663,20 +645,7 @@ public class AnalysisOverviewPanel extends OverviewBasePanel {
 
 	private StringConverter<Number> createDateAxisFormatter(double daySpan) {
 		DateTimeFormatter formatter = getTimespanFormat(daySpan);
-		return new StringConverter<>() {
-			@Override
-			public String toString(Number value) {
-				if (value == null) {
-					return "";
-				}
-				return formatter.format(LocalDate.ofEpochDay(Math.round(value.doubleValue())));
-			}
-
-			@Override
-			public Number fromString(String value) {
-				return 0;
-			}
-		};
+		return FormControlUtils.displayConverter(value -> formatter.format(LocalDate.ofEpochDay(Math.round(value.doubleValue()))));
 	}
 
 	private DateTimeFormatter getTimespanFormat(double daySpan) {
@@ -692,17 +661,7 @@ public class AnalysisOverviewPanel extends OverviewBasePanel {
 	}
 
 	protected StringConverter<Number> createAmountAxisFormatter() {
-		return new StringConverter<>() {
-			@Override
-			public String toString(Number value) {
-				return value == null ? "" : axisAmountFormat.format(value.doubleValue());
-			}
-
-			@Override
-			public Number fromString(String value) {
-				return 0;
-			}
-		};
+		return FormControlUtils.displayConverter(value -> axisAmountFormat.format(value.doubleValue()));
 	}
 
 	private void updateCategoryChart(List<CategorySlice> categorySlices) {

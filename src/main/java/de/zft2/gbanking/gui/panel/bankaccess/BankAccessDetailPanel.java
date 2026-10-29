@@ -27,6 +27,7 @@ import de.zft2.gbanking.gui.panel.AbstractReadonlyDetailPanel;
 import de.zft2.gbanking.gui.panel.action.PinAskDialog;
 import de.zft2.gbanking.gui.panel.overview.BankAccessOverviewPanel;
 import de.zft2.gbanking.gui.util.DetailFormEditMode;
+import de.zft2.gbanking.gui.util.FormControlUtils;
 import de.zft2.gbanking.gui.util.FormFields;
 import de.zft2.gbanking.gui.util.FormGridHelper;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
@@ -53,7 +54,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.stage.Stage;
-import javafx.util.StringConverter;
 
 public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 
@@ -134,27 +134,13 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 
 	private void configureComboBoxes() {
 		tanProcedureBox.setMaxWidth(Double.MAX_VALUE);
-		tanProcedureBox.setConverter(createDisplayConverter());
+		tanProcedureBox.setConverter(FormControlUtils.displayConverter(value -> value.toString()));
 		tanProcedureBox.setCellFactory(comboBox -> createTanProcedureCell());
 		tanProcedureBox.setButtonCell(createTanProcedureCell());
 
 		hbciFilterTypeBox.setItems(FXCollections.observableArrayList(HbciEncodingFilterType.values()));
 		hbciFilterTypeBox.setMaxWidth(Double.MAX_VALUE);
-		hbciFilterTypeBox.setConverter(createDisplayConverter());
-	}
-
-	private <T> StringConverter<T> createDisplayConverter() {
-		return new StringConverter<>() {
-			@Override
-			public String toString(T value) {
-				return value == null ? "" : value.toString();
-			}
-
-			@Override
-			public T fromString(String string) {
-				return null;
-			}
-		};
+		hbciFilterTypeBox.setConverter(FormControlUtils.displayConverter(value -> value.toString()));
 	}
 
 	private void addFields() {

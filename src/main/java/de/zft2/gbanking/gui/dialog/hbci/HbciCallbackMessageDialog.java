@@ -460,9 +460,7 @@ public class HbciCallbackMessageDialog implements BaseMessages {
 	}
 
 	private List<javafx.scene.Node> createRecipientCheckContent(RecipientCheckRequest request) {
-		GridPane summaryGrid = new GridPane();
-		summaryGrid.setHgap(8);
-		summaryGrid.setVgap(6);
+		GridPane summaryGrid = new GridPane(8, 6);
 		addOrderDataRow(summaryGrid, 0, request);
 		addLabelValue(summaryGrid, 1, getText("UI_DIALOG_HBCI_VOP_RECIPIENT"), request.recipientName());
 		addAccountDataRow(summaryGrid, 2, request);

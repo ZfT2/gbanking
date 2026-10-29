@@ -282,9 +282,7 @@ final class TenantSelectionDialog implements BaseMessages {
 
 	private Optional<char[]> requestDeletePassword(Stage owner, TenantProfile selectedTenant) {
 		Stage dialog = DialogWindowSupport.createModalStage(parentWindow != null ? parentWindow : owner, "UI_DIALOG_TENANT_DELETE_PASSWORD_TITLE");
-		GridPane grid = new GridPane();
-		grid.setHgap(10);
-		grid.setVgap(8);
+		GridPane grid = new GridPane(10, 8);
 
 		Label infoLabel = new Label(getText("UI_INFO_TENANT_DELETE_PASSWORD", selectedTenant.username()));
 		infoLabel.setWrapText(true);
@@ -369,9 +367,7 @@ final class TenantSelectionDialog implements BaseMessages {
 	}
 
 	private DialogControls createDialogControls() {
-		GridPane grid = new GridPane();
-		grid.setHgap(10);
-		grid.setVgap(8);
+		GridPane grid = new GridPane(10, 8);
 
 		ComboBox<LanguageOption> languageBox = new ComboBox<>();
 		languageBox.setMaxWidth(Double.MAX_VALUE);

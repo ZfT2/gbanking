@@ -7,12 +7,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 
 import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
+import de.zft2.gbanking.gui.util.TableColumnFactory;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService.XmlAccount;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService.XmlImportAssignments;
@@ -21,7 +23,6 @@ import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService.XmlPortf
 import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService.XmlTargetOption;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.geometry.Pos;
@@ -134,12 +135,8 @@ public final class PortfolioPerformanceImportMappingDialog implements BaseMessag
 		return table;
 	}
 
-	private TableColumn<MappingRow, String> textColumn(String titleKey,
-			java.util.function.Function<MappingRow, String> provider, double width) {
-		TableColumn<MappingRow, String> column = new TableColumn<>(getText(titleKey));
-		column.setCellValueFactory(data -> new ReadOnlyStringWrapper(provider.apply(data.getValue())));
-		column.setPrefWidth(width);
-		return column;
+	private TableColumn<MappingRow, String> textColumn(String titleKey, Function<MappingRow, String> provider, double width) {
+		return TableColumnFactory.createTextColumn(getText(titleKey), provider, width);
 	}
 
 	private TableColumn<MappingRow, TargetChoice> assignmentColumn() {

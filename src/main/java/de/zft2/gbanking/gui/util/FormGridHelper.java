@@ -21,9 +21,7 @@ public final class FormGridHelper {
 	}
 
 	public static GridPane createDefaultGrid() {
-		GridPane grid = new GridPane();
-		grid.setHgap(14);
-		grid.setVgap(6);
+		GridPane grid = new GridPane(14, 6);
 		grid.setPadding(new Insets(4));
 		grid.getStyleClass().add("gbanking-form-grid");
 		return grid;

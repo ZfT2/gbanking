@@ -3,8 +3,6 @@ package de.zft2.gbanking.gui.panel.category;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.Collections;
 import java.util.List;
 
@@ -23,6 +21,7 @@ import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.panel.AbstractTitledFormPanel;
 import de.zft2.gbanking.gui.panel.overview.CategoryOverviewPanel;
 import de.zft2.gbanking.gui.util.DateFormatUtils;
+import de.zft2.gbanking.gui.util.FormControlUtils;
 import de.zft2.gbanking.gui.util.FormGridHelper;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.gui.util.FxTableUtils;
@@ -52,12 +51,10 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.util.StringConverter;
 
 public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 
 	private static final Logger log = LogManager.getLogger(CategoryRuleInputPanel.class);
-	private static final DateTimeFormatter GERMAN_DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 	private static final double FIELD_WIDTH = 180.0;
 	private static final double WIDE_FIELD_WIDTH = 380.0;
 	private static final double PURPOSE_REGEX_FIELD_WIDTH = 110.0;
@@ -304,29 +301,7 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 	}
 
 	private void configureCategoryCombo() {
-		categoryCombo.setCellFactory(listView -> createCategoryCell());
-		categoryCombo.setButtonCell(createCategoryCell());
-		categoryCombo.setConverter(new StringConverter<>() {
-			@Override
-			public String toString(Category category) {
-				return category != null ? category.getFullName() : "";
-			}
-
-			@Override
-			public Category fromString(String string) {
-				return null;
-			}
-		});
-	}
-
-	private ListCell<Category> createCategoryCell() {
-		return new ListCell<>() {
-			@Override
-			protected void updateItem(Category category, boolean empty) {
-				super.updateItem(category, empty);
-				setText(empty || category == null ? null : category.getFullName());
-			}
-		};
+		categoryCombo.setConverter(FormControlUtils.displayConverter(category -> category.getFullName()));
 	}
 
 	private void configureAccountScopeCombo() {
@@ -503,31 +478,8 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 	}
 
 	private void configureDatePickers() {
-		configureDatePicker(filterDateFrom);
-		configureDatePicker(filterDateTo);
-	}
-
-	private void configureDatePicker(DatePicker datePicker) {
-		datePicker.setConverter(new StringConverter<>() {
-
-			@Override
-			public String toString(LocalDate date) {
-				return DateFormatUtils.formatLong(date);
-			}
-
-			@Override
-			public LocalDate fromString(String text) {
-				String trimmedText = TextValues.trimToNull(text);
-				if (trimmedText == null) {
-					return null;
-				}
-				try {
-					return LocalDate.parse(trimmedText, GERMAN_DATE_FORMAT);
-				} catch (DateTimeParseException ex) {
-					return datePicker.getValue();
-				}
-			}
-		});
+		FormControlUtils.applyLongDateConverter(filterDateFrom);
+		FormControlUtils.applyLongDateConverter(filterDateTo);
 	}
 
 	private void configureAmountField(TextField field) {

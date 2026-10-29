@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import de.zft2.gbanking.db.dao.BankAccount;
+import de.zft2.gbanking.gui.util.FormControlUtils;
 import de.zft2.gbanking.gui.util.FormGridHelper;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
 import de.zft2.gbanking.util.AccountDisplay;
@@ -12,7 +13,6 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Window;
-import javafx.util.StringConverter;
 
 public final class StockSettlementAccountDialog extends AbstractStockDialog {
 
@@ -34,7 +34,7 @@ public final class StockSettlementAccountDialog extends AbstractStockDialog {
 	}
 
 	private void initialize() {
-		accountField.setConverter(accountConverter());
+		accountField.setConverter(FormControlUtils.displayConverter(account -> AccountDisplay.label(account)));
 		accountField.getItems().stream()
 				.filter(account -> account.getId() == portfolio.settlementAccountId())
 				.findFirst().ifPresent(accountField::setValue);
@@ -62,20 +62,6 @@ public final class StockSettlementAccountDialog extends AbstractStockDialog {
 	private static LocalDate defaultValidFrom(PortfolioSummary portfolio) {
 		LocalDate today = LocalDate.now();
 		return portfolio.openedAt() != null && portfolio.openedAt().isAfter(today) ? portfolio.openedAt() : today;
-	}
-
-	private static StringConverter<BankAccount> accountConverter() {
-		return new StringConverter<>() {
-			@Override
-			public String toString(BankAccount account) {
-				return AccountDisplay.label(account);
-			}
-
-			@Override
-			public BankAccount fromString(String value) {
-				return null;
-			}
-		};
 	}
 
 	@FunctionalInterface

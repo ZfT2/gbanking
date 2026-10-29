@@ -9,10 +9,10 @@ import java.util.stream.IntStream;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.StandingorderMode;
+import de.zft2.gbanking.gui.util.FormControlUtils;
 import javafx.collections.FXCollections;
 import javafx.scene.Node;
 import javafx.scene.control.ComboBox;
-import javafx.util.StringConverter;
 
 final class MoneyTransferInputStandingOrderPanel extends MoneyTransferInputBasePanel {
 
@@ -22,20 +22,8 @@ final class MoneyTransferInputStandingOrderPanel extends MoneyTransferInputBaseP
 
 	MoneyTransferInputStandingOrderPanel(MoneyTransferDetailListTabPanel parent) {
 		super(parent);
-		dayCombo.setConverter(new StringConverter<>() {
-			@Override
-			public String toString(Integer day) {
-				if (day == null) {
-					return "";
-				}
-				return day == LAST_DAY_OF_MONTH ? getText("UI_LABEL_LAST_DAY_OF_MONTH") : day.toString();
-			}
-
-			@Override
-			public Integer fromString(String text) {
-				return null;
-			}
-		});
+		dayCombo.setConverter(FormControlUtils.displayConverter(
+				day -> day == LAST_DAY_OF_MONTH ? getText("UI_LABEL_LAST_DAY_OF_MONTH") : day.toString()));
 		initializeSpecificFields();
 		buttonSubmit.setText(getText("UI_BUTTON_STANDING_ORDER_SAVE"));
 	}

@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import javafx.beans.property.BooleanProperty;
@@ -86,11 +87,23 @@ public final class FxTableUtils {
 	}
 
 	public static <S> Callback<TableColumn<S, LocalDate>, TableCell<S, LocalDate>> createLocalDateCellFactory() {
+		return createFormattedCellFactory(date -> DateFormatUtils.formatShort(date));
+	}
+
+	/**
+	 * Creates a cell factory that renders the non-null values of a column with the given formatter.
+	 *
+	 * @param <S>       the row type
+	 * @param <T>       the value type of the column
+	 * @param formatter supplies the text of a non-null value
+	 * @return the cell factory
+	 */
+	public static <S, T> Callback<TableColumn<S, T>, TableCell<S, T>> createFormattedCellFactory(Function<? super T, String> formatter) {
 		return column -> new TableCell<>() {
 			@Override
-			protected void updateItem(LocalDate item, boolean empty) {
+			protected void updateItem(T item, boolean empty) {
 				super.updateItem(item, empty);
-				setText(empty || item == null ? null : DateFormatUtils.formatShort(item));
+				setText(empty || item == null ? null : formatter.apply(item));
 			}
 		};
 	}

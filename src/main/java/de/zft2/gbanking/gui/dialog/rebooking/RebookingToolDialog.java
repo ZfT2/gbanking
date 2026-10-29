@@ -92,9 +92,7 @@ public class RebookingToolDialog implements BaseGui {
 		RadioButton selectedAccountsButton = new RadioButton(getText("UI_DIALOG_REBOOKING_ASSIGN_SELECTED_ACCOUNTS"));
 		selectedAccountsButton.setToggleGroup(accountScopeGroup);
 
-		GridPane grid = new GridPane();
-		grid.setHgap(10);
-		grid.setVgap(10);
+		GridPane grid = new GridPane(10, 10);
 		grid.setPadding(new Insets(8));
 		grid.add(new Label(getText("UI_LABEL_DATE_FROM")), 0, 0);
 		grid.add(dateFromPicker, 1, 0);

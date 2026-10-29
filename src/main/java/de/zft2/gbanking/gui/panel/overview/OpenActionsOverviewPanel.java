@@ -34,7 +34,6 @@ import de.zft2.gbanking.service.action.OpenTransferAction;
 import de.zft2.gbanking.service.BankingCapabilityService;
 import de.zft2.gbanking.service.moneytransfer.MoneyTransferService;
 import de.zft2.gbanking.service.ServiceRegistry;
-import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -96,9 +95,7 @@ public class OpenActionsOverviewPanel extends OverviewBasePanel implements Accou
 	}
 
 	private GridPane createActionPanels() {
-		GridPane panels = new GridPane();
-		panels.setHgap(8);
-		panels.setVgap(8);
+		GridPane panels = new GridPane(8, 8);
 		panels.setPadding(new Insets(0, 6, 0, 0));
 		panels.setMaxWidth(Double.MAX_VALUE);
 
@@ -198,9 +195,8 @@ public class OpenActionsOverviewPanel extends OverviewBasePanel implements Accou
 		TableColumn<SelectableOpenAction<OpenAccountAction<PendingStatementReceipts>>, Boolean> selectedColumn = createSelectionColumn(statementReceiptActions);
 		TableColumn<SelectableOpenAction<OpenAccountAction<PendingStatementReceipts>>, String> accountColumn = TableColumnFactory
 				.createTextColumn(getText(UI_ACCOUNT_NAME), row -> row.getAccount().getAccountName(), 170, 220);
-		TableColumn<SelectableOpenAction<OpenAccountAction<PendingStatementReceipts>>, Integer> countColumn = new TableColumn<>(
-				getText("UI_TABLE_OPEN_ACTION_RECEIPT_COUNT"));
-		countColumn.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getValue().details().count()));
+		TableColumn<SelectableOpenAction<OpenAccountAction<PendingStatementReceipts>>, Integer> countColumn = TableColumnFactory
+				.createValueColumn(getText("UI_TABLE_OPEN_ACTION_RECEIPT_COUNT"), row -> row.getValue().details().count());
 		FxTableUtils.setFixedWidth(countColumn, 100);
 		TableColumn<SelectableOpenAction<OpenAccountAction<PendingStatementReceipts>>, LocalDate> dateColumn = TableColumnFactory
 				.createCalendarDateColumn(getText("UI_TABLE_OPEN_ACTION_LATEST_STATEMENT"), row -> row.getValue().details().latestStatementDate(), 130);

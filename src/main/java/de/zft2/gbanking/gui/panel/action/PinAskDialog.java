@@ -27,9 +27,7 @@ public class PinAskDialog implements BaseMessages {
 		boolean paypal = PaypalSupport.isPaypalChoice(bankCode);
 		Stage dialog = DialogWindowSupport.createModalStage(parentWindow, paypal ? "UI_DIALOG_PAYPAL_PASSWORD_TITLE" : "UI_DIALOG_PIN_TITLE");
 
-		GridPane grid = new GridPane();
-		grid.setHgap(10);
-		grid.setVgap(8);
+		GridPane grid = new GridPane(10, 8);
 
 		Label bankLabel = new Label(getText("UI_DIALOG_PIN_BANK", getBankCodeForDisplay(), getBankNameForDisplay()));
 		Label pinLabel = new Label(getText(paypal ? "UI_LABEL_PAYPAL_API_PASSWORD" : "UI_LABEL_PIN"));

@@ -42,7 +42,6 @@ import de.zft2.gbanking.service.stock.StockPortfolioService.SecuritySummary;
 import de.zft2.gbanking.service.stock.StockPortfolioService.TransactionPrefill;
 import de.zft2.gbanking.service.stock.StockPortfolioService.TransactionSummary;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -384,8 +383,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 
 	private <T> TableColumn<T, String> createSecurityLinkColumn(String title, Function<T, String> nameProvider,
 			ToIntFunction<T> idProvider, Function<T, Currency> currencyProvider, double width) {
-		TableColumn<T, String> column = new TableColumn<>(title);
-		column.setCellValueFactory(data -> new SimpleStringProperty(nameProvider.apply(data.getValue())));
+		TableColumn<T, String> column = TableColumnFactory.createTextColumn(title, nameProvider, 130, width);
 		column.setCellFactory(ignored -> new TableCell<>() {
 			private final Hyperlink link = new Hyperlink();
 
@@ -407,7 +405,6 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 				setAlignment(Pos.CENTER_LEFT);
 			}
 		});
-		FxTableUtils.setPreferredWidth(column, 130, width);
 		return column;
 	}
 
@@ -432,8 +429,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	private static TableColumn<PositionSummary, BigDecimal> createPositionAmountColumn(String title,
 			Function<PositionSummary, BigDecimal> valueProvider,
 			Function<PositionSummary, BigDecimal> performanceProvider) {
-		TableColumn<PositionSummary, BigDecimal> column = new TableColumn<>(title);
-		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(valueProvider.apply(data.getValue())));
+		TableColumn<PositionSummary, BigDecimal> column = TableColumnFactory.createValueColumn(title, valueProvider);
 		column.setCellFactory(ignored -> new TableCell<>() {
 			private final DecimalFormat format = FxTableUtils.createGermanDecimalFormat();
 
@@ -460,8 +456,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 
 	private static <T> TableColumn<T, BigDecimal> createPercentageColumn(String title,
 			Function<T, BigDecimal> valueProvider) {
-		TableColumn<T, BigDecimal> column = new TableColumn<>(title);
-		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(valueProvider.apply(data.getValue())));
+		TableColumn<T, BigDecimal> column = TableColumnFactory.createValueColumn(title, valueProvider);
 		column.setCellFactory(ignored -> new TableCell<>() {
 			private final DecimalFormat format = createDecimalFormat("#,##0.00;-#,##0.00");
 
@@ -484,8 +479,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 
 	private static <T> TableColumn<T, BigDecimal> createQuantityColumn(String title,
 			Function<T, BigDecimal> valueProvider) {
-		TableColumn<T, BigDecimal> column = new TableColumn<>(title);
-		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(valueProvider.apply(data.getValue())));
+		TableColumn<T, BigDecimal> column = TableColumnFactory.createValueColumn(title, valueProvider);
 		column.setCellFactory(ignored -> new TableCell<>() {
 			private final DecimalFormat format = createQuantityFormat();
 

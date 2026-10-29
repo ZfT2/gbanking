@@ -23,7 +23,6 @@ import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.util.FxTableUtils;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
 import de.zft2.gbanking.service.ServiceRegistry;
-import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
@@ -220,8 +219,8 @@ final class EnablebankingSetupDialog implements BaseMessages {
 	}
 
 	private static TableColumn<BankAccount, AccountType> createAccountTypeColumn() {
-		TableColumn<BankAccount, AccountType> column = new TableColumn<>(BaseMessages.getTextStatic("UI_TABLE_ACCOUNT_TYPE"));
-		column.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getAccountType()));
+		TableColumn<BankAccount, AccountType> column = TableColumnFactory.createValueColumn(BaseMessages.getTextStatic("UI_TABLE_ACCOUNT_TYPE"),
+				account -> account.getAccountType());
 		column.setCellFactory(ignored -> new AccountTypeCell());
 		FxTableUtils.setPreferredWidth(column, 140, 180);
 		return column;
@@ -352,9 +351,7 @@ final class EnablebankingSetupDialog implements BaseMessages {
 	}
 
 	private GridPane createGrid() {
-		GridPane grid = new GridPane();
-		grid.setHgap(10);
-		grid.setVgap(10);
+		GridPane grid = new GridPane(10, 10);
 		grid.setPadding(new Insets(4));
 		return grid;
 	}
