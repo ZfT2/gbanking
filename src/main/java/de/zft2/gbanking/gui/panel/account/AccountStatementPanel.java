@@ -6,6 +6,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -73,18 +75,17 @@ public class AccountStatementPanel extends DetailListPane implements BaseMessage
 
 	private void openStatement(AccountStatement statement) {
 		if (statement == null || statement.file() == null || !Files.isRegularFile(statement.file())) {
-			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING,
-					getText("ALERT_ACCOUNT_STATEMENT_FILE_MISSING", statement != null ? statement.fileName() : ""));
+			showAlert(AlertType.WARNING, getText("ALERT_ACCOUNT_STATEMENT_FILE_MISSING", statement != null ? statement.fileName() : ""));
 			return;
 		}
 		if (!Desktop.isDesktopSupported()) {
-			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_ACCOUNT_STATEMENT_OPEN_UNSUPPORTED"));
+			showAlert(AlertType.WARNING, getText("ALERT_ACCOUNT_STATEMENT_OPEN_UNSUPPORTED"));
 			return;
 		}
 
 		Desktop desktop = Desktop.getDesktop();
 		if (!desktop.isSupported(Desktop.Action.OPEN)) {
-			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_ACCOUNT_STATEMENT_OPEN_UNSUPPORTED"));
+			showAlert(AlertType.WARNING, getText("ALERT_ACCOUNT_STATEMENT_OPEN_UNSUPPORTED"));
 			return;
 		}
 		try {
@@ -92,47 +93,55 @@ public class AccountStatementPanel extends DetailListPane implements BaseMessage
 			desktop.open(fileToOpen.toFile());
 		} catch (IOException | RuntimeException e) {
 			log.warn("Could not open account statement file {}", statement.fileName(), e);
-			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING,
-					getText("ALERT_ACCOUNT_STATEMENT_OPEN_FAILED", statement.fileName()));
+			showAlert(AlertType.WARNING, getText("ALERT_ACCOUNT_STATEMENT_OPEN_FAILED", statement.fileName()));
 		}
 	}
 
 	private void retrieveStatements() {
-		if (currentAccount == null) {
-			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_ACCOUNT_NO_SELECTION"));
-			return;
-		}
-		if (!bankingCapabilityService.supportsAccountStatements(currentAccount)) {
-			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING,
-					getText("ALERT_ACCOUNT_STATEMENTS_UNSUPPORTED", currentAccount.getAccountName()));
-			return;
-		}
-
-		char[] pin = requestPin();
-		if (pin == null || pin.length == 0) {
-			return;
-		}
-
-		startRetrievalTask(currentAccount, pin);
+		startStatementTask((account, pin) -> accountStatementService.retrieveAccountStatementsWithResult(account, pin),
+				result -> handleRetrievalSuccess(result), "ALERT_ACCOUNT_STATEMENTS_RETRIEVAL_FAILED", "gbanking-hbci-account-statements");
 	}
 
 	private void acknowledgeStatements() {
+		startStatementTask((account, pin) -> accountStatementService.acknowledgeAccountStatementsWithResult(account, pin),
+				result -> handleAcknowledgementSuccess(result), "ALERT_ACCOUNT_STATEMENTS_ACKNOWLEDGE_FAILED",
+				"gbanking-hbci-account-statement-receipts");
+	}
+
+	private <T> void startStatementTask(BiFunction<BankAccount, char[], T> work, Consumer<T> onSuccess, String failureKey, String actionName) {
 		if (currentAccount == null) {
-			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_ACCOUNT_NO_SELECTION"));
+			showAlert(AlertType.WARNING, getText("ALERT_ACCOUNT_NO_SELECTION"));
 			return;
 		}
 		if (!bankingCapabilityService.supportsAccountStatements(currentAccount)) {
-			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING,
-					getText("ALERT_ACCOUNT_STATEMENTS_UNSUPPORTED", currentAccount.getAccountName()));
+			showAlert(AlertType.WARNING, getText("ALERT_ACCOUNT_STATEMENTS_UNSUPPORTED", currentAccount.getAccountName()));
 			return;
 		}
-
 		char[] pin = requestPin();
 		if (pin == null || pin.length == 0) {
 			return;
 		}
 
-		startAcknowledgementTask(currentAccount, pin);
+		BankAccount account = currentAccount;
+		detailPanel.setRetrievalRunning(true);
+		Task<T> task = BackgroundActionCoordinator.newTask(() -> work.apply(account, pin));
+		task.setOnSucceeded(event -> {
+			detailPanel.setRetrievalRunning(false);
+			reloadStatements();
+			onSuccess.accept(task.getValue());
+		});
+		task.setOnFailed(event -> {
+			finishWithClearedPin(pin);
+			log.error("Account statement action {} failed", actionName, task.getException());
+			showAlert(AlertType.WARNING, getText(failureKey));
+		});
+		task.setOnCancelled(event -> finishWithClearedPin(pin));
+		BackgroundActionCoordinator.getInstance().start(task, actionName);
+	}
+
+	private void finishWithClearedPin(char[] pin) {
+		Arrays.fill(pin, '\0');
+		detailPanel.setRetrievalRunning(false);
 	}
 
 	private char[] requestPin() {
@@ -143,89 +152,30 @@ public class AccountStatementPanel extends DetailListPane implements BaseMessage
 		return pinWindow.getPin();
 	}
 
-	private void startRetrievalTask(BankAccount account, char[] pin) {
-		detailPanel.setRetrievalRunning(true);
-		Task<AccountStatementRetrievalResult> task = new Task<>() {
-			@Override
-			protected AccountStatementRetrievalResult call() {
-				return accountStatementService.retrieveAccountStatementsWithResult(account, pin);
-			}
-		};
-		task.setOnSucceeded(event -> handleRetrievalSuccess(task.getValue()));
-		task.setOnFailed(event -> handleRetrievalFailure(task.getException(), pin));
-		task.setOnCancelled(event -> {
-			Arrays.fill(pin, '\0');
-			detailPanel.setRetrievalRunning(false);
-		});
-
-		BackgroundActionCoordinator.getInstance().start(task, "gbanking-hbci-account-statements");
-	}
-
-	private void startAcknowledgementTask(BankAccount account, char[] pin) {
-		detailPanel.setRetrievalRunning(true);
-		Task<AccountStatementAcknowledgementResult> task = new Task<>() {
-			@Override
-			protected AccountStatementAcknowledgementResult call() {
-				return accountStatementService.acknowledgeAccountStatementsWithResult(account, pin);
-			}
-		};
-		task.setOnSucceeded(event -> handleAcknowledgementSuccess(task.getValue()));
-		task.setOnFailed(event -> handleAcknowledgementFailure(task.getException(), pin));
-		task.setOnCancelled(event -> {
-			Arrays.fill(pin, '\0');
-			detailPanel.setRetrievalRunning(false);
-		});
-
-		BackgroundActionCoordinator.getInstance().start(task, "gbanking-hbci-account-statement-receipts");
-	}
-
 	private void handleRetrievalSuccess(AccountStatementRetrievalResult result) {
-		detailPanel.setRetrievalRunning(false);
-		reloadStatements();
 		if (result == null || result.wrongPin()) {
-			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_ACCOUNT_STATEMENTS_WRONG_PIN"));
-			return;
+			showAlert(AlertType.WARNING, getText("ALERT_ACCOUNT_STATEMENTS_WRONG_PIN"));
+		} else if (!result.successful()) {
+			showAlert(AlertType.WARNING, getText("ALERT_ACCOUNT_STATEMENTS_RETRIEVAL_FAILED"));
+		} else {
+			showAlert(AlertType.INFORMATION, getText("UI_INFO_ACCOUNT_STATEMENTS_RETRIEVED", Integer.toString(result.statements().size())));
 		}
-		if (!result.successful()) {
-			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_ACCOUNT_STATEMENTS_RETRIEVAL_FAILED"));
-			return;
-		}
-		DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.INFORMATION,
-				getText("UI_INFO_ACCOUNT_STATEMENTS_RETRIEVED", Integer.toString(result.statements().size())));
 	}
 
 	private void handleAcknowledgementSuccess(AccountStatementAcknowledgementResult result) {
-		detailPanel.setRetrievalRunning(false);
-		reloadStatements();
 		if (result == null || result.wrongPin()) {
-			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_ACCOUNT_STATEMENTS_WRONG_PIN"));
-			return;
+			showAlert(AlertType.WARNING, getText("ALERT_ACCOUNT_STATEMENTS_WRONG_PIN"));
+		} else if (!result.successful()) {
+			showAlert(AlertType.WARNING, getText("ALERT_ACCOUNT_STATEMENTS_ACKNOWLEDGE_FAILED"));
+		} else if (result.acknowledgedCount() == 0) {
+			showAlert(AlertType.INFORMATION, getText("UI_INFO_ACCOUNT_STATEMENTS_NO_PENDING_ACKNOWLEDGEMENTS"));
+		} else {
+			showAlert(AlertType.INFORMATION, getText("UI_INFO_ACCOUNT_STATEMENTS_ACKNOWLEDGED", Integer.toString(result.acknowledgedCount())));
 		}
-		if (!result.successful()) {
-			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_ACCOUNT_STATEMENTS_ACKNOWLEDGE_FAILED"));
-			return;
-		}
-		if (result.acknowledgedCount() == 0) {
-			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.INFORMATION,
-					getText("UI_INFO_ACCOUNT_STATEMENTS_NO_PENDING_ACKNOWLEDGEMENTS"));
-			return;
-		}
-		DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.INFORMATION,
-				getText("UI_INFO_ACCOUNT_STATEMENTS_ACKNOWLEDGED", Integer.toString(result.acknowledgedCount())));
 	}
 
-	private void handleRetrievalFailure(Throwable exception, char[] pin) {
-		Arrays.fill(pin, '\0');
-		detailPanel.setRetrievalRunning(false);
-		log.error("Error retrieving account statements", exception);
-		DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_ACCOUNT_STATEMENTS_RETRIEVAL_FAILED"));
-	}
-
-	private void handleAcknowledgementFailure(Throwable exception, char[] pin) {
-		Arrays.fill(pin, '\0');
-		detailPanel.setRetrievalRunning(false);
-		log.error("Error acknowledging account statement receipts", exception);
-		DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_ACCOUNT_STATEMENTS_ACKNOWLEDGE_FAILED"));
+	private void showAlert(AlertType type, String text) {
+		DialogWindowSupport.showAlert(getOwnerWindow(), type, text);
 	}
 
 	private Window getOwnerWindow() {

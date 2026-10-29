@@ -1,5 +1,7 @@
 package de.zft2.gbanking.file.imp.dto;
 
+import static de.zft2.gbanking.db.dao.Booking.toCoreTyp;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -485,19 +487,5 @@ public class ImportBooking implements BookingDetails {
 	@Override
 	public void setCrossBooking(Booking crossBooking) {
 		this.crossBooking = crossBooking;
-	}
-
-	private Typ toCoreTyp(BookingType bookingType) {
-		if (bookingType == null) {
-			return null;
-		}
-		return switch (bookingType) {
-		case REBOOKING_IN -> Typ.REBOOKING_IN;
-		case REBOOKING_OUT -> Typ.REBOOKING_OUT;
-		case INTEREST -> Typ.INTEREST;
-		case INTEREST_CHARGE -> Typ.INTEREST_CHARGE;
-		case CANCEL -> Typ.CANCEL;
-		default -> null;
-		};
 	}
 }

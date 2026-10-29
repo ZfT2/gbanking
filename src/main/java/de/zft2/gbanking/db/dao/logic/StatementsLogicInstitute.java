@@ -50,16 +50,9 @@ public class StatementsLogicInstitute extends StatementsLogicDefault<Institute> 
 
 		AbstractDaoMapper<Institute, Void> mapperBase = StatementsConfig.getMapperForDaoType(Institute.class);
 		InstituteMapper mapper = (InstituteMapper) mapperBase;
-		List<Institute> inserts = new ArrayList<>();
-		List<Institute> updates = new ArrayList<>();
+		List<Institute> inserts = matching(institutes, institute -> institute.getId() <= 0);
+		List<Institute> updates = matching(institutes, institute -> institute.getId() > 0);
 		try {
-			for (Institute institute : institutes) {
-				if (institute.getId() > 0) {
-					updates.add(institute);
-				} else {
-					inserts.add(institute);
-				}
-			}
 			if (!inserts.isEmpty()) {
 				executeInsertBatchWithReservedIds(DaoSqlStatements.SQL_SELECT_MAX_INSTITUTE_ID,
 						DaoSqlStatements.SQL_INSERT_INSTITUTE_BATCH, inserts,
@@ -80,20 +73,20 @@ public class StatementsLogicInstitute extends StatementsLogicDefault<Institute> 
 
 	private void persistInstituteDetails(Institute institute, StatementType statementType, InstituteMapper mapper)
 			throws SQLException {
-		persistInstituteDetail(institute, statementType, mapper::hasDkData,
+		persistInstituteDetail(institute, statementType, InstituteMapper::hasDkData,
 				DaoSqlStatements.SQL_UPDATE_INSTIUTE_DK, DaoSqlStatements.SQL_INSERT_INSTITUTE_DK,
 				DaoSqlStatements.SQL_DELETE_INSTIUTE_DK, mapper::setParamsDK);
-		persistInstituteDetail(institute, statementType, mapper::hasDbbData,
+		persistInstituteDetail(institute, statementType, InstituteMapper::hasDbbData,
 				DaoSqlStatements.SQL_UPDATE_INSTIUTE_DBB, DaoSqlStatements.SQL_INSERT_INSTITUTE_DBB,
 				DaoSqlStatements.SQL_DELETE_INSTIUTE_DBB, mapper::setParamsDBB);
-		persistInstituteDetail(institute, statementType, mapper::hasEpcData,
+		persistInstituteDetail(institute, statementType, InstituteMapper::hasEpcData,
 				DaoSqlStatements.SQL_UPDATE_INSTIUTE_EPC, DaoSqlStatements.SQL_INSERT_INSTITUTE_EPC,
 				DaoSqlStatements.SQL_DELETE_INSTIUTE_EPC, mapper::setParamsEPC);
-		persistInstituteDetail(institute, statementType, mapper::hasDbbReachableData,
+		persistInstituteDetail(institute, statementType, InstituteMapper::hasDbbReachableData,
 				DaoSqlStatements.SQL_UPDATE_INSTIUTE_DBB_REACHABLE,
 				DaoSqlStatements.SQL_INSERT_INSTITUTE_DBB_REACHABLE,
 				DaoSqlStatements.SQL_DELETE_INSTIUTE_DBB_REACHABLE, mapper::setParamsDbbReachable);
-		persistInstituteDetail(institute, statementType, mapper::hasAdditionalData,
+		persistInstituteDetail(institute, statementType, InstituteMapper::hasAdditionalData,
 				DaoSqlStatements.SQL_UPDATE_INSTIUTE_ADDITIONAL,
 				DaoSqlStatements.SQL_INSERT_INSTITUTE_ADDITIONAL,
 				DaoSqlStatements.SQL_DELETE_INSTIUTE_ADDITIONAL, mapper::setParamsAdditional);
@@ -104,7 +97,7 @@ public class StatementsLogicInstitute extends StatementsLogicDefault<Institute> 
 			InstituteDetailBinder binder) throws SQLException {
 		if (!hasDetails.test(institute)) {
 			if (statementType == StatementType.UPDATE) {
-				deleteInstituteDetails(deleteSql, institute);
+				deleteDetailsById(deleteSql, institute);
 			}
 			return;
 		}
@@ -128,47 +121,43 @@ public class StatementsLogicInstitute extends StatementsLogicDefault<Institute> 
 		}
 	}
 
-	private void deleteInstituteDetails(String sql, Institute institute) throws SQLException {
-		executeCachedUpdate(sql, statement -> statement.setInt(1, institute.getId()));
-	}
-
 	private void persistInstituteDetails(List<Institute> inserts, List<Institute> updates, InstituteMapper mapper)
 			throws SQLException {
-		insertInstituteDetails(inserts, mapper::hasDkData, DaoSqlStatements.SQL_INSERT_INSTITUTE_DK,
+		insertInstituteDetails(inserts, InstituteMapper::hasDkData, DaoSqlStatements.SQL_INSERT_INSTITUTE_DK,
 				(institute, statement) -> mapper.setParamsDK(institute, StatementType.INSERT, statement));
-		insertInstituteDetails(inserts, mapper::hasDbbData, DaoSqlStatements.SQL_INSERT_INSTITUTE_DBB,
+		insertInstituteDetails(inserts, InstituteMapper::hasDbbData, DaoSqlStatements.SQL_INSERT_INSTITUTE_DBB,
 				(institute, statement) -> mapper.setParamsDBB(institute, StatementType.INSERT, statement));
-		insertInstituteDetails(inserts, mapper::hasEpcData, DaoSqlStatements.SQL_INSERT_INSTITUTE_EPC,
+		insertInstituteDetails(inserts, InstituteMapper::hasEpcData, DaoSqlStatements.SQL_INSERT_INSTITUTE_EPC,
 				(institute, statement) -> mapper.setParamsEPC(institute, StatementType.INSERT, statement));
-		insertInstituteDetails(inserts, mapper::hasDbbReachableData,
+		insertInstituteDetails(inserts, InstituteMapper::hasDbbReachableData,
 				DaoSqlStatements.SQL_INSERT_INSTITUTE_DBB_REACHABLE,
 				(institute, statement) -> mapper.setParamsDbbReachable(institute, StatementType.INSERT, statement));
-		insertInstituteDetails(inserts, mapper::hasAdditionalData,
+		insertInstituteDetails(inserts, InstituteMapper::hasAdditionalData,
 				DaoSqlStatements.SQL_INSERT_INSTITUTE_ADDITIONAL,
 				(institute, statement) -> mapper.setParamsAdditional(institute, StatementType.INSERT, statement));
 
-		persistDetailBatch(updates, mapper::hasDkData,
+		persistDetailBatch(updates, InstituteMapper::hasDkData,
 				DaoSqlStatements.SQL_UPDATE_INSTIUTE_DK, DaoSqlStatements.SQL_INSERT_INSTITUTE_DK,
 				DaoSqlStatements.SQL_DELETE_INSTIUTE_DK,
 				(institute, statement) -> mapper.setParamsDK(institute, StatementType.UPDATE, statement),
 				(institute, statement) -> mapper.setParamsDK(institute, StatementType.INSERT, statement));
-		persistDetailBatch(updates, mapper::hasDbbData,
+		persistDetailBatch(updates, InstituteMapper::hasDbbData,
 				DaoSqlStatements.SQL_UPDATE_INSTIUTE_DBB, DaoSqlStatements.SQL_INSERT_INSTITUTE_DBB,
 				DaoSqlStatements.SQL_DELETE_INSTIUTE_DBB,
 				(institute, statement) -> mapper.setParamsDBB(institute, StatementType.UPDATE, statement),
 				(institute, statement) -> mapper.setParamsDBB(institute, StatementType.INSERT, statement));
-		persistDetailBatch(updates, mapper::hasEpcData,
+		persistDetailBatch(updates, InstituteMapper::hasEpcData,
 				DaoSqlStatements.SQL_UPDATE_INSTIUTE_EPC, DaoSqlStatements.SQL_INSERT_INSTITUTE_EPC,
 				DaoSqlStatements.SQL_DELETE_INSTIUTE_EPC,
 				(institute, statement) -> mapper.setParamsEPC(institute, StatementType.UPDATE, statement),
 				(institute, statement) -> mapper.setParamsEPC(institute, StatementType.INSERT, statement));
-		persistDetailBatch(updates, mapper::hasDbbReachableData,
+		persistDetailBatch(updates, InstituteMapper::hasDbbReachableData,
 				DaoSqlStatements.SQL_UPDATE_INSTIUTE_DBB_REACHABLE,
 				DaoSqlStatements.SQL_INSERT_INSTITUTE_DBB_REACHABLE,
 				DaoSqlStatements.SQL_DELETE_INSTIUTE_DBB_REACHABLE,
 				(institute, statement) -> mapper.setParamsDbbReachable(institute, StatementType.UPDATE, statement),
 				(institute, statement) -> mapper.setParamsDbbReachable(institute, StatementType.INSERT, statement));
-		persistDetailBatch(updates, mapper::hasAdditionalData,
+		persistDetailBatch(updates, InstituteMapper::hasAdditionalData,
 				DaoSqlStatements.SQL_UPDATE_INSTIUTE_ADDITIONAL,
 				DaoSqlStatements.SQL_INSERT_INSTITUTE_ADDITIONAL,
 				DaoSqlStatements.SQL_DELETE_INSTIUTE_ADDITIONAL,
@@ -195,11 +184,7 @@ public class StatementsLogicInstitute extends StatementsLogicDefault<Institute> 
 				executeCachedBatchExactlyOnce(insertSql, missingDetails, insertBinder);
 			}
 		}
-		List<Institute> deletes = matching(updates, hasDetails.negate());
-		if (!deletes.isEmpty()) {
-			executeCachedBatch(deleteSql, deletes,
-					(institute, statement) -> statement.setInt(1, institute.getId()));
-		}
+		deleteDetailsById(deleteSql, matching(updates, hasDetails.negate()));
 	}
 
 	private static List<Institute> getMissingDetails(List<Institute> institutes, int[] updateCounts) throws SQLException {
@@ -216,16 +201,6 @@ public class StatementsLogicInstitute extends StatementsLogicDefault<Institute> 
 			}
 		}
 		return missingDetails;
-	}
-
-	private static List<Institute> matching(Iterable<Institute> institutes, Predicate<Institute> predicate) {
-		List<Institute> matches = new ArrayList<>();
-		for (Institute institute : institutes) {
-			if (predicate.test(institute)) {
-				matches.add(institute);
-			}
-		}
-		return matches;
 	}
 
 	@FunctionalInterface

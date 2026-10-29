@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
 
+import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.db.dao.BankMessage;
 import de.zft2.gbanking.gui.panel.AbstractFilterableTablePanel;
 import de.zft2.gbanking.gui.util.DateFormatUtils;
@@ -65,27 +66,19 @@ final class BankMessageListPanel extends AbstractFilterableTablePanel<BankMessag
 	@Override
 	protected boolean matchesFilter(BankMessage message, String filter) {
 		return matchesAny(filter, message.getBankName(), message.getCode(), formatType(message.getType()), message.getFormat(),
-				message.getDescription(), message.getComments(), message.getMessage(), formatDate(message.getVersionDate()),
-				formatDateTime(message.getRetrievedAt()));
+				message.getDescription(), message.getComments(), message.getMessage(), DateFormatUtils.formatLong(message.getVersionDate()),
+				DateFormatUtils.formatDateTime(message.getRetrievedAt()));
 	}
 
-	private String formatDate(LocalDate date) {
-		return date != null ? DateFormatUtils.formatLong(date) : "";
-	}
-
-	private String formatDateTime(LocalDateTime dateTime) {
-		return DateFormatUtils.formatDateTime(dateTime);
-	}
-
-	private String formatType(String type) {
+	static String formatType(String type) {
 		if (type == null || type.isBlank()) {
 			return "";
 		}
 		return switch (type.trim().toUpperCase(Locale.ROOT)) {
-		case "F" -> getText("UI_LABEL_BANK_MESSAGE_TYPE_FREE_TEXT");
-		case "D" -> getText("UI_LABEL_BANK_MESSAGE_TYPE_FILE");
-		case "S" -> getText("UI_LABEL_BANK_MESSAGE_TYPE_DOCUMENT");
-		case "T" -> getText("UI_LABEL_BANK_MESSAGE_TYPE_TOPIC");
+		case "F" -> BaseMessages.getTextStatic("UI_LABEL_BANK_MESSAGE_TYPE_FREE_TEXT");
+		case "D" -> BaseMessages.getTextStatic("UI_LABEL_BANK_MESSAGE_TYPE_FILE");
+		case "S" -> BaseMessages.getTextStatic("UI_LABEL_BANK_MESSAGE_TYPE_DOCUMENT");
+		case "T" -> BaseMessages.getTextStatic("UI_LABEL_BANK_MESSAGE_TYPE_TOPIC");
 		default -> type.trim();
 		};
 	}

@@ -1,5 +1,7 @@
 package de.zft2.gbanking.file.exp;
 
+import static de.zft2.gbanking.util.FileNames.fileName;
+
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -38,14 +40,14 @@ public class FileExportOrdersCSVBean extends FileExportBean {
 			List<Object[]> csvLines = createCSVContent(accountList);
 			saveToExportFile(csvLines, fileName);
 			if (log.isInfoEnabled()) {
-				log.info("Finished money transfer CSV export. file={}, accounts={}, records={}", fileNameOnly(fileName), accountList.size(),
+				log.info("Finished money transfer CSV export. file={}, accounts={}, records={}", fileName(fileName), accountList.size(),
 						csvLines.size());
 			}
 
 		} catch (Exception e) {
 			result = false;
 			if (log.isErrorEnabled()) {
-				log.error("Error exporting money transfer CSV file {}", fileNameOnly(fileName), e);
+				log.error("Error exporting money transfer CSV file {}", fileName(fileName), e);
 			}
 			log.debug("Money transfer CSV export path: {}", fileName);
 		}

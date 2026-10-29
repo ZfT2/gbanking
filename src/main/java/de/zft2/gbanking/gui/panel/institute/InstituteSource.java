@@ -1,5 +1,8 @@
 package de.zft2.gbanking.gui.panel.institute;
 
+import static de.zft2.gbanking.db.dao.mapper.InstituteMapper.hasAdditionalData;
+import static de.zft2.gbanking.db.dao.mapper.InstituteMapper.hasDbbReachableData;
+import static de.zft2.gbanking.db.dao.mapper.InstituteMapper.hasEpcData;
 import static de.zft2.gbanking.util.TextValues.hasText;
 
 import java.util.ArrayList;
@@ -81,23 +84,6 @@ public enum InstituteSource {
 		return institute.getImportNumber() != 0 || hasText(institute.getDataCenter()) || hasText(institute.getOrganisation())
 				|| hasText(institute.getHbciDns()) || hasText(institute.getHbciIp()) || institute.getHbciVersion() != null
 				|| hasText(institute.getDdv()) || hasText(institute.getPinUrl()) || hasText(institute.getVersion());
-	}
-
-	private static boolean hasDbbReachableData(Institute institute) {
-		return institute.getServiceSct() != null || institute.getServiceCor() != null || institute.getServiceCor1() != null
-				|| institute.getServiceB2b() != null || institute.getServiceScc() != null;
-	}
-
-	private static boolean hasEpcData(Institute institute) {
-		return hasText(institute.getCountry()) || hasText(institute.getAddress()) || hasText(institute.getReadinessDate())
-				|| hasText(institute.getSchemeLeavingDate()) || hasText(institute.getSchemeOptions());
-	}
-
-	private static boolean hasAdditionalData(Institute institute) {
-		return hasText(institute.getAdditionalBankNameShort()) || hasText(institute.getAdditionalCheckdigitMethod())
-				|| hasText(institute.getAdditionalPostcode()) || hasText(institute.getAdditionalDeletionMarker())
-				|| hasText(institute.getAdditionalBlzSuccession()) || hasText(institute.getAdditionalIbanRule())
-				|| hasText(institute.getAdditionalIbanRuleVersion());
 	}
 
 	private static String reachableCountryCode(Institute institute) {

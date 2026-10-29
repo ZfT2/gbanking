@@ -1,5 +1,6 @@
 package de.zft2.gbanking.file.imp;
 
+import static de.zft2.gbanking.file.imp.csv.CsvImportValueParser.parseDecimal;
 import static de.zft2.gbanking.util.TextValues.firstNonBlank;
 
 import java.io.IOException;
@@ -8,17 +9,12 @@ import java.nio.file.Path;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import de.zft2.core.dto.Counterpart;
 import de.zft2.core.dto.DefaultCounterpart;
@@ -32,7 +28,6 @@ import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.SepaType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
-import de.zft2.gbanking.file.BookingCsvFormat;
 import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer;
 import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer.Analysis;
 import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer.Match;
@@ -40,15 +35,13 @@ import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer.Problem;
 import de.zft2.gbanking.file.imp.csv.CsvImportData;
 import de.zft2.gbanking.file.imp.csv.CsvImportDefinition;
 import de.zft2.gbanking.file.imp.csv.CsvImportTarget;
+import de.zft2.gbanking.file.imp.csv.CsvImportValueParser;
 import de.zft2.gbanking.file.imp.dto.ImportBankAccount;
 import de.zft2.gbanking.file.imp.dto.ImportBooking;
 import de.zft2.gbanking.mapper.ImportDaoMapper;
-import de.zft2.gbanking.util.DecimalText;
-import de.zft2.gbanking.util.TypeConverter;
 
 public class FileImportCSVBean extends AbstractBookingImportBean {
 
-	private static final Logger log = LogManager.getLogger(FileImportCSVBean.class);
 	private static final Pattern PAYMENT_RECIPIENT_PATTERN = Pattern.compile(
 			"^Bezahlung von\\s+([A-Z]{2}\\d{2}[A-Z0-9]{11,30})\\b", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
 
@@ -82,17 +75,6 @@ public class FileImportCSVBean extends AbstractBookingImportBean {
 		super(progressReporter, contextAccount, bankNameCorrectionHandler);
 		this.definitionName = definitionName;
 		this.analyzer = analyzer;
-	}
-
-	public boolean importFile(String importFile) {
-		try {
-			importFileToDatabase(importFile);
-			return true;
-		} catch (IOException exception) {
-			log.error("Error importing CSV file: {}", fileName(importFile), exception);
-			log.debug("CSV import path: {}", importFile);
-			return false;
-		}
 	}
 
 	public void importFileToDatabase(String importFile) throws IOException {
@@ -321,61 +303,16 @@ public class FileImportCSVBean extends AbstractBookingImportBean {
 		return creditValue != null ? value.abs() : value.abs().negate();
 	}
 
-	private BigDecimal parseDecimal(String value, CsvImportDefinition definition) {
-		if (value == null) {
-			return null;
-		}
-		if ("auto".equalsIgnoreCase(definition.getDecimalSeparator())) {
-			return new BigDecimal(normalizeDecimal(value));
-		}
-		String normalized = value.trim().replace("\u00A0", "").replace(" ", "");
-		String thousandSeparator = definition.getThousandSeparator();
-		String decimalSeparator = definition.getDecimalSeparator();
-		if (thousandSeparator != null && !thousandSeparator.isEmpty() && !thousandSeparator.equals(decimalSeparator)) {
-			normalized = normalized.replace(thousandSeparator, "");
-		}
-		return new BigDecimal(".".equals(decimalSeparator) ? normalized : normalized.replace(decimalSeparator, "."));
-	}
-
-	private String normalizeDecimal(String value) {
-		String normalized = value.trim().replace("\u00A0", "").replace(" ", "");
-		return DecimalText.toGermanDecimal(normalized);
-	}
-
 	private LocalDate parseDate(CsvImportData.Row row, CsvImportDefinition definition, CsvImportTarget target, String dateOrder) {
 		String value = text(row, definition, target);
 		if (value == null) {
 			return null;
 		}
 		try {
-			LocalDate result = dateOrder == null || dateOrder.isBlank() ? BookingCsvFormat.parseDate(value) : parseOrderedDate(value, dateOrder);
-			if (result == null) {
-				throw new DateTimeException("Unsupported date format");
-			}
-			return result;
+			return CsvImportValueParser.parseDate(value, dateOrder);
 		} catch (DateTimeException | NumberFormatException exception) {
 			throw new CsvRowException(getText("ERROR_CSV_IMPORT_DATE_INVALID", row.lineNumber(), value), exception);
 		}
-	}
-
-	private LocalDate parseOrderedDate(String value, String dateOrder) {
-		String order = dateOrder.trim().toUpperCase(Locale.ROOT);
-		String[] parts = value.trim().split("\\D+");
-		if (parts.length != 3 || order.length() != 3 || !toCharacters(order).equals(Set.of('T', 'M', 'J'))) {
-			throw new DateTimeException("Unsupported date format");
-		}
-		int day = Integer.parseInt(parts[order.indexOf('T')]);
-		int month = Integer.parseInt(parts[order.indexOf('M')]);
-		int year = TypeConverter.expandTwoDigitYear(Integer.parseInt(parts[order.indexOf('J')]));
-		return LocalDate.of(year, month, day);
-	}
-
-	private Set<Character> toCharacters(String value) {
-		Set<Character> characters = new HashSet<>();
-		for (int index = 0; index < value.length(); index++) {
-			characters.add(value.charAt(index));
-		}
-		return characters;
 	}
 
 	private String purpose(CsvImportData.Row row, CsvImportDefinition definition) {

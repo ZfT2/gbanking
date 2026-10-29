@@ -71,4 +71,15 @@ class TextValuesTest {
 		assertFalse(TextValues.equalsIgnoreCaseNonNull(null, "text"));
 		assertTrue(TextValues.equalsIgnoreCaseNonNull("Text", "text"));
 	}
+
+	@Test
+	void appendParagraph_shouldSeparateTrimmedParagraphsAndSkipBlankText() {
+		StringBuilder builder = new StringBuilder();
+		TextValues.appendParagraph(builder, " ");
+		TextValues.appendParagraph(builder, "  Erster  ");
+		TextValues.appendParagraph(builder, null);
+		TextValues.appendParagraph(builder, "Zweiter");
+		String separator = System.lineSeparator();
+		assertEquals("Erster" + separator + separator + "Zweiter", builder.toString());
+	}
 }

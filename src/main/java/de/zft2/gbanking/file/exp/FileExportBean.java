@@ -3,7 +3,6 @@ package de.zft2.gbanking.file.exp;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -182,18 +181,6 @@ public abstract class FileExportBean implements BaseMessagesDb {
 				Files.createDirectories(exportPath.getParent());
 
 		return exportPath;
-	}
-
-	protected String fileNameOnly(String fileName) {
-		if (fileName == null || fileName.isBlank()) {
-			return "";
-		}
-		try {
-			Path name = Path.of(fileName).getFileName();
-			return name != null ? name.toString() : fileName;
-		} catch (InvalidPathException e) {
-			return fileName;
-		}
 	}
 
 	protected List<Booking> getBookings(BankAccount account) {

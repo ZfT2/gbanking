@@ -154,8 +154,12 @@ public final class DbMigrationRunner {
 	}
 
 	private static boolean tableExists(Connection connection, String tableName) throws SQLException {
-		try (var ps = connection.prepareStatement(DaoSqlStatements.SQL_SELECT_SQLITE_TABLE_BY_NAME)) {
-			ps.setString(1, tableName);
+		return hasRow(connection, DaoSqlStatements.SQL_SELECT_SQLITE_TABLE_BY_NAME, tableName);
+	}
+
+	private static boolean hasRow(Connection connection, String sql, String parameter) throws SQLException {
+		try (var ps = connection.prepareStatement(sql)) {
+			ps.setString(1, parameter);
 			try (var rs = ps.executeQuery()) {
 				return rs.next();
 			}
@@ -184,12 +188,7 @@ public final class DbMigrationRunner {
 	}
 
 	private static boolean isMigrationApplied(Connection connection, String migrationKey) throws SQLException {
-		try (var ps = connection.prepareStatement(DaoSqlStatements.SQL_SELECT_SETTING_BY_ATTRIBUTE)) {
-			ps.setString(1, migrationKey);
-			try (var rs = ps.executeQuery()) {
-				return rs.next();
-			}
-		}
+		return hasRow(connection, DaoSqlStatements.SQL_SELECT_SETTING_BY_ATTRIBUTE, migrationKey);
 	}
 
 	private static void applyMigration(Connection connection, SqlTemplateRepository.VersionScript script, String appVersion) throws SQLException {

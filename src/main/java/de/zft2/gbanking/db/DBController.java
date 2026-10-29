@@ -384,28 +384,18 @@ public class DBController extends DbExecutor {
 	}
 
 	public int clearBookingCategories(Collection<Integer> selectedBookingIds) {
-		return withDbTransaction(() -> {
-			List<Integer> normalizedBookingIds = positiveIds(selectedBookingIds).stream().sorted().toList();
-			if (normalizedBookingIds.isEmpty()) {
-				return 0;
-			}
-
-			try {
-				Timestamp updatedAt = TypeConverter.toSqlTimestampNow();
-				return sumUpdatedRows(jdbc().batch(DaoSqlStatements.SQL_CLEAR_BOOKING_CATEGORY,
-						normalizedBookingIds,
-						(statement, bookingId) -> {
-							statement.setTimestamp(1, updatedAt);
-							statement.setInt(2, bookingId);
-						}));
-			} catch (SQLException exception) {
-				log.error(getText(SqlErrors.ERROR_DB_UPDATE), exception);
-				throw new GBankingException(getText(SqlErrors.ERROR_DB_UPDATE), exception);
-			}
-		});
+		return updateBookingsById(selectedBookingIds, DaoSqlStatements.SQL_CLEAR_BOOKING_CATEGORY, 1);
 	}
 
 	public int clearBookingCrossBookingIds(Collection<Integer> selectedBookingIds) {
+		return updateBookingsById(selectedBookingIds, DaoSqlStatements.SQL_CLEAR_BOOKING_CROSS_BOOKING_ID, 3);
+	}
+
+	/**
+	 * Runs the given update for every positive booking id; the statement expects the update timestamp followed by
+	 * {@code bookingIdParameterCount} booking id parameters.
+	 */
+	private int updateBookingsById(Collection<Integer> selectedBookingIds, String sql, int bookingIdParameterCount) {
 		return withDbTransaction(() -> {
 			List<Integer> normalizedBookingIds = positiveIds(selectedBookingIds).stream().sorted().toList();
 			if (normalizedBookingIds.isEmpty()) {
@@ -414,21 +404,18 @@ public class DBController extends DbExecutor {
 
 			try {
 				Timestamp updatedAt = TypeConverter.toSqlTimestampNow();
-				return sumUpdatedRows(jdbc().batch(DaoSqlStatements.SQL_CLEAR_BOOKING_CROSS_BOOKING_ID,
-						normalizedBookingIds,
-						(statement, bookingId) -> {
-							statement.setTimestamp(1, updatedAt);
-							statement.setInt(2, bookingId);
-							statement.setInt(3, bookingId);
-							statement.setInt(4, bookingId);
-						}));
+				return sumUpdatedRows(jdbc().batch(sql, normalizedBookingIds, (statement, bookingId) -> {
+					statement.setTimestamp(1, updatedAt);
+					for (int index = 2; index <= bookingIdParameterCount + 1; index++) {
+						statement.setInt(index, bookingId);
+					}
+				}));
 			} catch (SQLException exception) {
 				log.error(getText(SqlErrors.ERROR_DB_UPDATE), exception);
 				throw new GBankingException(getText(SqlErrors.ERROR_DB_UPDATE), exception);
 			}
 		});
 	}
-
 	private static Set<Integer> positiveIds(Collection<Integer> ids) {
 		Set<Integer> normalizedIds = new HashSet<>();
 		if (ids == null) {

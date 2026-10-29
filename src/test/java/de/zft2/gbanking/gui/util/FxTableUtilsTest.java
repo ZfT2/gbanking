@@ -79,6 +79,15 @@ class FxTableUtilsTest {
 	}
 
 	@Test
+	void amountStyleClassShouldReflectAmountSignAndMutedState() {
+		assertEquals("amount-positive", FxTableUtils.amountStyleClass(BigDecimal.ONE, false));
+		assertEquals("amount-negative", FxTableUtils.amountStyleClass(BigDecimal.ONE.negate(), false));
+		assertEquals("amount-neutral", FxTableUtils.amountStyleClass(BigDecimal.ZERO, false));
+		assertEquals("amount-neutral", FxTableUtils.amountStyleClass(null, false));
+		assertEquals("amount-muted", FxTableUtils.amountStyleClass(BigDecimal.ONE, true));
+	}
+
+	@Test
 	void selectionColumnShouldReflectGetterAndWriteBackChanges() {
 		SelectionRow row = new SelectionRow();
 		TableColumn<SelectionRow, Boolean> column = JavaFxTestSupport

@@ -1,5 +1,6 @@
 package de.zft2.gbanking.hbci;
 
+import static de.zft2.gbanking.util.TextValues.appendParagraph;
 import static de.zft2.gbanking.util.TextValues.firstNonBlankOrEmpty;
 import static de.zft2.gbanking.util.TextValues.trimToBlank;
 
@@ -192,25 +193,22 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 	}
 
 	public void handleRecoveredOperation(String message) {
-		if (message == null || message.isBlank()) {
-			return;
-		}
-		successful = true;
-		lastErrorDescription = null;
-		statusDialog.updateCurrentAction(message);
-		appendFeedback(List.of(message), message);
+		handleOperationOutcome(message, true);
 	}
 
 	public void handleUncertainOperation(String message) {
+		handleOperationOutcome(message, false);
+	}
+
+	private void handleOperationOutcome(String message, boolean recovered) {
 		if (message == null || message.isBlank()) {
 			return;
 		}
-		successful = false;
-		lastErrorDescription = message;
+		successful = recovered;
+		lastErrorDescription = recovered ? null : message;
 		statusDialog.updateCurrentAction(message);
 		appendFeedback(List.of(message), message);
 	}
-
 	public void registerJobDescription(HBCIJob<?> job, String description) {
 		statusDescriptionProvider.registerJobDescription(job, description);
 	}
@@ -550,19 +548,19 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 			return builder.toString();
 		}
 
-		appendSection(builder, voPResult.getText());
+		appendParagraph(builder, voPResult.getText());
 		for (VoPResultItem item : voPResult.getItems()) {
 			if (item == null) {
 				continue;
 			}
 
-			appendSection(builder, getVoPStatusText(item.getStatus()));
-			appendSection(builder, formatVoPLabelValue(getText("UI_DIALOG_HBCI_VOP_ORIGINAL_NAME"), item.getOriginal()));
-			appendSection(builder, formatVoPLabelValue(getText("UI_DIALOG_HBCI_VOP_BANK_NAME"), item.getName()));
-			appendSection(builder, formatVoPLabelValue(getText("UI_TABLE_IBAN"), item.getIban()));
-			appendSection(builder, formatVoPLabelValue(getText("UI_TABLE_AMOUNT"), formatAmount(item.getAmount(), getCurrentCurrency())));
-			appendSection(builder, formatVoPLabelValue(getText("UI_TABLE_PURPOSE"), item.getUsage()));
-			appendSection(builder, item.getText());
+			appendParagraph(builder, getVoPStatusText(item.getStatus()));
+			appendParagraph(builder, formatVoPLabelValue(getText("UI_DIALOG_HBCI_VOP_ORIGINAL_NAME"), item.getOriginal()));
+			appendParagraph(builder, formatVoPLabelValue(getText("UI_DIALOG_HBCI_VOP_BANK_NAME"), item.getName()));
+			appendParagraph(builder, formatVoPLabelValue(getText("UI_TABLE_IBAN"), item.getIban()));
+			appendParagraph(builder, formatVoPLabelValue(getText("UI_TABLE_AMOUNT"), formatAmount(item.getAmount(), getCurrentCurrency())));
+			appendParagraph(builder, formatVoPLabelValue(getText("UI_TABLE_PURPOSE"), item.getUsage()));
+			appendParagraph(builder, item.getText());
 		}
 
 		return builder.toString().trim();
@@ -695,16 +693,6 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 		case NOT_APPLICABLE -> getText("UI_DIALOG_HBCI_VOP_NOT_APPLICABLE");
 		case PENDING -> getText("UI_DIALOG_HBCI_VOP_PENDING");
 		};
-	}
-
-	private void appendSection(StringBuilder builder, String text) {
-		if (text == null || text.isBlank()) {
-			return;
-		}
-		if (!builder.isEmpty()) {
-			builder.append(System.lineSeparator()).append(System.lineSeparator());
-		}
-		builder.append(text.trim());
 	}
 
 	private String formatVoPLabelValue(String label, String value) {

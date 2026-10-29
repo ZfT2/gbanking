@@ -109,13 +109,6 @@ class MoneyTransferInputBasePanelTest {
 	}
 
 	@Test
-	void amountStyleClass_shouldReflectAmountSign() {
-		assertEquals("amount-positive", MoneyTransferInputBasePanel.amountStyleClass(BigDecimal.ONE));
-		assertEquals("amount-negative", MoneyTransferInputBasePanel.amountStyleClass(BigDecimal.ONE.negate()));
-		assertEquals("amount-neutral", MoneyTransferInputBasePanel.amountStyleClass(BigDecimal.ZERO));
-	}
-
-	@Test
 	void isArchivedMoneyTransfer_shouldDetectAllArchivedOrders() {
 		MoneyTransfer sentTransfer = new MoneyTransfer();
 		sentTransfer.setMoneytransferStatus(MoneyTransferStatus.SENT);

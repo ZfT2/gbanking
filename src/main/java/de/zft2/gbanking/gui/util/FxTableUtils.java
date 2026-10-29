@@ -14,6 +14,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
@@ -33,6 +34,8 @@ public final class FxTableUtils {
 	private static final String AMOUNT_NEGATIVE = "amount-negative";
 	private static final String AMOUNT_NEUTRAL = "amount-neutral";
 	private static final String AMOUNT_MUTED = "amount-muted";
+	private static final List<String> AMOUNT_STYLE_CLASSES = List.of(AMOUNT_POSITIVE, AMOUNT_NEGATIVE,
+			AMOUNT_NEUTRAL, AMOUNT_MUTED);
 	private static final double CELL_HORIZONTAL_INSETS = 20;
 
 	private FxTableUtils() {
@@ -147,8 +150,7 @@ public final class FxTableUtils {
 			@Override
 			protected void updateItem(String item, boolean empty) {
 				super.updateItem(item, empty);
-				getStyleClass().removeAll(AMOUNT_POSITIVE, AMOUNT_NEGATIVE, AMOUNT_NEUTRAL);
-				textNode.getStyleClass().removeAll(AMOUNT_POSITIVE, AMOUNT_NEGATIVE, AMOUNT_NEUTRAL);
+				clearAmountStyleClasses(this, textNode);
 				setAlignment(Pos.CENTER_RIGHT);
 
 				if (empty || item == null || item.isBlank()) {
@@ -166,8 +168,7 @@ public final class FxTableUtils {
 					setText(null);
 					setGraphic(graphic);
 					setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
-					getStyleClass().add(AMOUNT_NEUTRAL);
-					textNode.getStyleClass().add(AMOUNT_NEUTRAL);
+					addAmountStyleClass(null, false, this, textNode);
 				}
 			}
 
@@ -309,7 +310,7 @@ public final class FxTableUtils {
 		return property;
 	}
 
-	private static Text createAmountText() {
+	public static Text createAmountText() {
 		Text text = new Text();
 		text.getStyleClass().addAll("amount", "amount-text");
 		text.setStyle("-fx-font-weight: bold;");
@@ -323,7 +324,14 @@ public final class FxTableUtils {
 		return value.signum() > 0 ? Color.rgb(0, 100, 0) : Color.RED;
 	}
 
-	private static void applyAmountTextStyle(Text text, BigDecimal value) {
+	/**
+	 * Returns the CSS color of the given amount: green for positive, red for negative and black for zero.
+	 */
+	public static String amountCssColor(BigDecimal value) {
+		return toCssColor(resolveAmountColor(value));
+	}
+
+	public static void applyAmountTextStyle(Text text, BigDecimal value) {
 		applyAmountTextStyle(text, value, false);
 	}
 
@@ -333,11 +341,46 @@ public final class FxTableUtils {
 		text.setStyle("-fx-font-weight: bold; -fx-fill: " + toCssColor(color) + ";");
 	}
 
-	private static HBox createAmountGraphic(Text text) {
+	public static HBox createAmountGraphic(Text text) {
 		HBox box = new HBox(text);
 		box.setAlignment(Pos.CENTER_RIGHT);
 		box.setMaxWidth(Double.MAX_VALUE);
 		return box;
+	}
+
+	/**
+	 * Removes the amount style classes (positive, negative, neutral, muted) from the given nodes.
+	 */
+	public static void clearAmountStyleClasses(Node... nodes) {
+		for (Node node : nodes) {
+			node.getStyleClass().removeAll(AMOUNT_STYLE_CLASSES);
+		}
+	}
+
+	/**
+	 * Returns the amount style class matching the sign of the given value. A {@code null} value is treated
+	 * as zero, a muted amount always receives the muted style class.
+	 */
+	public static String amountStyleClass(BigDecimal value, boolean muted) {
+		if (muted) {
+			return AMOUNT_MUTED;
+		}
+		if (value == null || value.signum() == 0) {
+			return AMOUNT_NEUTRAL;
+		}
+		return value.signum() > 0 ? AMOUNT_POSITIVE : AMOUNT_NEGATIVE;
+	}
+
+	/**
+	 * Adds the amount style class matching the given value to the given nodes.
+	 *
+	 * @see #amountStyleClass(BigDecimal, boolean)
+	 */
+	public static void addAmountStyleClass(BigDecimal value, boolean muted, Node... nodes) {
+		String styleClass = amountStyleClass(value, muted);
+		for (Node node : nodes) {
+			node.getStyleClass().add(styleClass);
+		}
 	}
 
 	private static String toCssColor(Color color) {
@@ -365,8 +408,7 @@ public final class FxTableUtils {
 		@Override
 		protected void updateItem(BigDecimal item, boolean empty) {
 			super.updateItem(item, empty);
-			getStyleClass().removeAll(AMOUNT_POSITIVE, AMOUNT_NEGATIVE, AMOUNT_NEUTRAL, AMOUNT_MUTED);
-			textNode.getStyleClass().removeAll(AMOUNT_POSITIVE, AMOUNT_NEGATIVE, AMOUNT_NEUTRAL, AMOUNT_MUTED);
+			clearAmountStyleClasses(this, textNode);
 			setAlignment(Pos.CENTER_RIGHT);
 			if (empty || item == null) {
 				setText(null);
@@ -384,7 +426,7 @@ public final class FxTableUtils {
 			setText(null);
 			setGraphic(graphic);
 			setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
-			formatAmount(item, muted);
+			addAmountStyleClass(item, muted, this, textNode);
 		}
 
 		@Override
@@ -403,22 +445,6 @@ public final class FxTableUtils {
 			}
 			return rowItem != null && mutedProvider != null && mutedProvider.test(rowItem);
 		}
-
-		private void formatAmount(BigDecimal item, boolean muted) {
-			if (muted) {
-				getStyleClass().add(AMOUNT_MUTED);
-				textNode.getStyleClass().add(AMOUNT_MUTED);
-			} else if (item.signum() > 0) {
-				getStyleClass().add(AMOUNT_POSITIVE);
-				textNode.getStyleClass().add(AMOUNT_POSITIVE);
-			} else if (item.signum() < 0) {
-				getStyleClass().add(AMOUNT_NEGATIVE);
-				textNode.getStyleClass().add(AMOUNT_NEGATIVE);
-			} else {
-				getStyleClass().add(AMOUNT_NEUTRAL);
-				textNode.getStyleClass().add(AMOUNT_NEUTRAL);
-			}
-		}
 	}
 
 	private static <S> void formatAmount(TableCell<S, String> tableCell, Text textNode, HBox graphic, String item) {
@@ -429,16 +455,6 @@ public final class FxTableUtils {
 		tableCell.setText(null);
 		tableCell.setGraphic(graphic);
 		tableCell.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
-
-		if (value.signum() > 0) {
-			tableCell.getStyleClass().add(AMOUNT_POSITIVE);
-			textNode.getStyleClass().add(AMOUNT_POSITIVE);
-		} else if (value.signum() < 0) {
-			tableCell.getStyleClass().add(AMOUNT_NEGATIVE);
-			textNode.getStyleClass().add(AMOUNT_NEGATIVE);
-		} else {
-			tableCell.getStyleClass().add(AMOUNT_NEUTRAL);
-			textNode.getStyleClass().add(AMOUNT_NEUTRAL);
-		}
+		addAmountStyleClass(value, false, tableCell, textNode);
 	}
 }

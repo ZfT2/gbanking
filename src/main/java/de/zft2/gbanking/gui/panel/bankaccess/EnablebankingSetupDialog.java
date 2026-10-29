@@ -304,13 +304,10 @@ final class EnablebankingSetupDialog implements BaseMessages {
 		}
 		BankAccess accessToCancel = authorizedAccess;
 		authorizedAccess = null;
-		Task<Void> task = new Task<>() {
-			@Override
-			protected Void call() {
-				setupService.cancelAuthorization(accessToCancel);
-				return null;
-			}
-		};
+		Task<Void> task = BackgroundActionCoordinator.newTask(() -> {
+			setupService.cancelAuthorization(accessToCancel);
+			return null;
+		});
 		BackgroundActionCoordinator.getInstance().start(task, "gbanking-enablebanking-cancel-authorization");
 	}
 
@@ -377,12 +374,7 @@ final class EnablebankingSetupDialog implements BaseMessages {
 	private <T> void startTask(String name, Callable<T> operation, Consumer<T> onSuccess, Runnable onFailure,
 			Button... buttons) {
 		setDisabled(true, buttons);
-		Task<T> task = new Task<>() {
-			@Override
-			protected T call() throws Exception {
-				return operation.call();
-			}
-		};
+		Task<T> task = BackgroundActionCoordinator.newTask(operation);
 		task.setOnSucceeded(event -> {
 			setDisabled(false, buttons);
 			onSuccess.accept(task.getValue());

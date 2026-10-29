@@ -70,7 +70,7 @@ public final class RebookingLinkWriter {
 				|| booking.getAccountId() == counterpartAccount.getId()) {
 			return false;
 		}
-		if (booking.getParentBookingId() != null || isPrenotification(booking)
+		if (booking.getParentBookingId() != null || booking.isPrenotification()
 				|| booking.getForeignCurrencyDetails() != null) {
 			return false;
 		}
@@ -118,7 +118,7 @@ public final class RebookingLinkWriter {
 
 	private static Recipient createRecipientForAccount(BankAccount account) {
 		Recipient recipient = new Recipient();
-		recipient.setName(accountName(account));
+		recipient.setName(accountName(account, account.getId()));
 		recipient.setIban(account.getIban());
 		recipient.setBic(account.getBic());
 		recipient.setAccountNumber(account.getNumber());
@@ -128,20 +128,20 @@ public final class RebookingLinkWriter {
 		return recipient;
 	}
 
-	private static String accountName(BankAccount account) {
-		if (hasText(account.getNamePP())) {
-			return account.getNamePP();
+	/**
+	 * Returns the display name of the given account: the first non-blank value of the portfolio name, the
+	 * account name, the IBAN and the account number, otherwise a generic name with the given account id.
+	 */
+	public static String accountName(BankAccount account, int accountId) {
+		if (account != null) {
+			for (String name : new String[] { account.getNamePP(), account.getAccountName(), account.getIban(),
+					account.getNumber() }) {
+				if (hasText(name)) {
+					return name;
+				}
+			}
 		}
-		if (hasText(account.getAccountName())) {
-			return account.getAccountName();
-		}
-		if (hasText(account.getIban())) {
-			return account.getIban();
-		}
-		if (hasText(account.getNumber())) {
-			return account.getNumber();
-		}
-		return "Konto " + account.getId();
+		return "Konto " + accountId;
 	}
 
 	private static LocalDate defaultDate(LocalDate value, LocalDate fallback, LocalDate defaultValue) {
@@ -149,9 +149,5 @@ public final class RebookingLinkWriter {
 			return value;
 		}
 		return fallback != null ? fallback : defaultValue;
-	}
-
-	private static boolean isPrenotification(Booking booking) {
-		return booking.getSource() != null && booking.getSource().isPrenotification();
 	}
 }

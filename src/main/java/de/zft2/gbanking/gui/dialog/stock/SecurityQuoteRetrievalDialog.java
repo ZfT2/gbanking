@@ -84,12 +84,7 @@ final class SecurityQuoteRetrievalDialog extends AbstractStockDialog {
 		setRetrieving(true);
 		statusLabel.setText(getText("UI_STOCK_QUOTE_RETRIEVING"));
 
-		Task<RetrievalResult> task = new Task<>() {
-			@Override
-			protected RetrievalResult call() {
-				return service.retrieve(securityId, provider, symbol);
-			}
-		};
+		Task<RetrievalResult> task = BackgroundActionCoordinator.newTask(() -> service.retrieve(securityId, provider, symbol));
 		task.setOnSucceeded(event -> retrievalSucceeded(task.getValue()));
 		task.setOnFailed(event -> retrievalFailed(task.getException()));
 		task.setOnCancelled(event -> setRetrieving(false));

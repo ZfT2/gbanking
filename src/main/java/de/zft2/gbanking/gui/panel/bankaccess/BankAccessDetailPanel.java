@@ -209,13 +209,8 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 
 		BankAccess access = currentBankAccess;
 		buttonBankAccessUpdate.setDisable(true);
-		Task<Boolean> task = new Task<>() {
-			@Override
-			protected Boolean call() {
-				return ServiceRegistry.getService(EnablebankingAccountTransactionService.class)
-						.reauthorizeAndRetrieve(access);
-			}
-		};
+		Task<Boolean> task = BackgroundActionCoordinator
+				.newTask(() -> ServiceRegistry.getService(EnablebankingAccountTransactionService.class).reauthorizeAndRetrieve(access));
 		task.setOnSucceeded(event -> {
 			buttonBankAccessUpdate.setDisable(false);
 			refreshDisplayedBankAccess();
@@ -248,17 +243,14 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 		}
 
 		buttonBankAccessRefreshParameterData.setDisable(true);
-		Task<Boolean> refreshTask = new Task<>() {
-			@Override
-			protected Boolean call() {
-				try {
-					BankAccessService bankAccessService = ServiceRegistry.getService(BankAccessService.class);
-					return bankAccessService.refreshBankAccessParameterData(currentBankAccess, pin);
-				} finally {
-					Arrays.fill(pin, '\0');
-				}
+		Task<Boolean> refreshTask = BackgroundActionCoordinator.newTask(() -> {
+			try {
+				BankAccessService bankAccessService = ServiceRegistry.getService(BankAccessService.class);
+				return bankAccessService.refreshBankAccessParameterData(currentBankAccess, pin);
+			} finally {
+				Arrays.fill(pin, '\0');
 			}
-		};
+		});
 
 		refreshTask.setOnSucceeded(event -> handleParameterDataRefreshFinished(Boolean.TRUE.equals(refreshTask.getValue())));
 		refreshTask.setOnFailed(event -> {

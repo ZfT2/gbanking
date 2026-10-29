@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -95,44 +96,29 @@ public class MoneyTransferInventoryService extends AbstractDbService {
 	private boolean retrieveInventory(BankAccount bankAccount, OrderType orderType, HbciSessionRunner.HbciSession session) {
 		MoneyTransferService moneyTransferService = ServiceRegistry.getService(MoneyTransferService.class);
 		Konto senderAccount = moneyTransferService.getSenderAccount(session.passport(), bankAccount);
-		return orderType == OrderType.STANDING_ORDER ? retrieveStandingOrders(session.handler(), bankAccount, senderAccount, session.callback())
-				: retrieveScheduledTransfers(session.handler(), bankAccount, senderAccount, session.callback());
-	}
-
-	private boolean retrieveStandingOrders(HBCIHandler handle, BankAccount bankAccount, Konto senderAccount, GBankingHBCICallback hbciCallback) {
-		HBCIJob<GVRDauerList> job = createInventoryJob(handle, "DauerSEPAList", senderAccount);
-		hbciCallback.registerJobDescription(job, getText("UI_DIALOG_HBCI_JOB_STANDING_ORDERS", hbciCallback.getAccountDescription(bankAccount)));
-		HBCIExecStatus status = handle.execute();
-		GVRDauerList jobResult = job.getJobResult();
-		boolean success = isSuccessful(status, jobResult);
-
-		if (success) {
-			InventoryMappingResult mappingResult = mapStandingOrders(bankAccount, jobResult);
-			success = saveCompleteInventory(bankAccount, OrderType.STANDING_ORDER, mappingResult);
-			if (success) {
-				log.info("Retrieved {} standing orders for account id {}", mappingResult.transfers().size(), bankAccount.getId());
-			}
-		} else {
-			handleFailure(hbciCallback, status, jobResult);
+		if (orderType == OrderType.STANDING_ORDER) {
+			return executeInventoryJob(session, bankAccount, senderAccount, orderType, "DauerSEPAList", "UI_DIALOG_HBCI_JOB_STANDING_ORDERS",
+					(GVRDauerList result) -> mapEntries(result.getEntries(), entry -> mapStandingOrder(bankAccount, entry)));
 		}
-		return success;
+		return executeInventoryJob(session, bankAccount, senderAccount, orderType, "TermUebSEPAList", "UI_DIALOG_HBCI_JOB_SCHEDULED_TRANSFERS",
+				(GVRTermUebList result) -> mapEntries(result.getEntries(), entry -> mapScheduledTransfer(bankAccount, entry)));
 	}
 
-	private boolean retrieveScheduledTransfers(HBCIHandler handle, BankAccount bankAccount, Konto senderAccount, GBankingHBCICallback hbciCallback) {
-		HBCIJob<GVRTermUebList> job = createInventoryJob(handle, "TermUebSEPAList", senderAccount);
-		hbciCallback.registerJobDescription(job, getText("UI_DIALOG_HBCI_JOB_SCHEDULED_TRANSFERS", hbciCallback.getAccountDescription(bankAccount)));
-		HBCIExecStatus status = handle.execute();
-		GVRTermUebList jobResult = job.getJobResult();
-		boolean success = isSuccessful(status, jobResult);
-
-		if (success) {
-			InventoryMappingResult mappingResult = mapScheduledTransfers(bankAccount, jobResult);
-			success = saveCompleteInventory(bankAccount, OrderType.SCHEDULED_TRANSFER, mappingResult);
-			if (success) {
-				log.info("Retrieved {} scheduled transfers for account id {}", mappingResult.transfers().size(), bankAccount.getId());
-			}
-		} else {
+	private <R extends HBCIJobResult> boolean executeInventoryJob(HbciSessionRunner.HbciSession session, BankAccount bankAccount,
+			Konto senderAccount, OrderType orderType, String jobName, String descriptionKey, Function<R, InventoryMappingResult> mapper) {
+		GBankingHBCICallback hbciCallback = session.callback();
+		HBCIJob<R> job = createInventoryJob(session.handler(), jobName, senderAccount);
+		hbciCallback.registerJobDescription(job, getText(descriptionKey, hbciCallback.getAccountDescription(bankAccount)));
+		HBCIExecStatus status = session.handler().execute();
+		R jobResult = job.getJobResult();
+		if (!isSuccessful(status, jobResult)) {
 			handleFailure(hbciCallback, status, jobResult);
+			return false;
+		}
+		InventoryMappingResult mappingResult = mapper.apply(jobResult);
+		boolean success = saveCompleteInventory(bankAccount, orderType, mappingResult);
+		if (success) {
+			log.info("Retrieved {} inventory entries of type {} for account id {}", mappingResult.transfers().size(), orderType, bankAccount.getId());
 		}
 		return success;
 	}
@@ -158,15 +144,14 @@ public class MoneyTransferInventoryService extends AbstractDbService {
 		}
 	}
 
-	private InventoryMappingResult mapStandingOrders(BankAccount bankAccount, GVRDauerList result) {
-		GVRDauerList.Dauer[] entries = result.getEntries();
+	private static <E> InventoryMappingResult mapEntries(E[] entries, Function<E, MoneyTransfer> mapper) {
 		if (entries == null) {
 			return new InventoryMappingResult(List.of(), false);
 		}
 		List<MoneyTransfer> transfers = new ArrayList<>();
 		boolean complete = true;
-		for (GVRDauerList.Dauer entry : entries) {
-			MoneyTransfer transfer = mapStandingOrder(bankAccount, entry);
+		for (E entry : entries) {
+			MoneyTransfer transfer = mapper.apply(entry);
 			if (transfer == null) {
 				complete = false;
 			} else {
@@ -190,24 +175,6 @@ public class MoneyTransferInventoryService extends AbstractDbService {
 		transfer.setExecutionDay(entry.execday > 0 ? Math.min(entry.execday, 31) : null);
 		transfer.setStandingorderMode(toStandingorderMode(entry.timeunit, entry.turnus));
 		return transfer.getExecutionDate() != null && transfer.getExecutionDay() != null && transfer.getStandingorderMode() != null ? transfer : null;
-	}
-
-	private InventoryMappingResult mapScheduledTransfers(BankAccount bankAccount, GVRTermUebList result) {
-		GVRTermUebList.Entry[] entries = result.getEntries();
-		if (entries == null) {
-			return new InventoryMappingResult(List.of(), false);
-		}
-		List<MoneyTransfer> transfers = new ArrayList<>();
-		boolean complete = true;
-		for (GVRTermUebList.Entry entry : entries) {
-			MoneyTransfer transfer = mapScheduledTransfer(bankAccount, entry);
-			if (transfer == null) {
-				complete = false;
-			} else {
-				transfers.add(transfer);
-			}
-		}
-		return new InventoryMappingResult(transfers, complete);
 	}
 
 	private MoneyTransfer mapScheduledTransfer(BankAccount bankAccount, GVRTermUebList.Entry entry) {

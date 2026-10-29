@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import de.zft2.gbanking.db.DbExecutor;
 import de.zft2.gbanking.db.StatementsConfig;
@@ -82,6 +83,29 @@ public class StatementsLogicDefault<T extends Dao> extends DbExecutor implements
 		}
 
 		return entityList;
+	}
+
+	/**
+	 * Returns the entities matching the predicate, preserving their iteration order.
+	 */
+	protected static <E> List<E> matching(Iterable<E> entities, Predicate<E> predicate) {
+		List<E> matches = new ArrayList<>();
+		for (E entity : entities) {
+			if (predicate.test(entity)) {
+				matches.add(entity);
+			}
+		}
+		return matches;
+	}
+
+	protected void deleteDetailsById(String deleteSql, T entity) throws SQLException {
+		executeCachedUpdate(deleteSql, statement -> statement.setInt(1, entity.getId()));
+	}
+
+	protected void deleteDetailsById(String deleteSql, List<T> entities) throws SQLException {
+		if (!entities.isEmpty()) {
+			executeCachedBatch(deleteSql, entities, (entity, statement) -> statement.setInt(1, entity.getId()));
+		}
 	}
 
 }

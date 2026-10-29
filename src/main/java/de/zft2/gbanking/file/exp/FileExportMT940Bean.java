@@ -1,5 +1,6 @@
 package de.zft2.gbanking.file.exp;
 
+import static de.zft2.gbanking.util.FileNames.fileName;
 import static de.zft2.gbanking.util.TextValues.firstNonBlank;
 
 import java.io.IOException;
@@ -47,7 +48,7 @@ public class FileExportMT940Bean extends FileExportBean {
 			saveToExportFile(mt940Content, fileName);
 			return true;
 		} catch (Exception e) {
-			log.error("Error exporting MT940 file {}", fileNameOnly(fileName), e);
+			log.error("Error exporting MT940 file {}", fileName(fileName), e);
 			log.debug("MT940 export path: {}", fileName);
 			return false;
 		}

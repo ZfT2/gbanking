@@ -52,6 +52,7 @@ import de.zft2.gbanking.enablebanking.EnablebankingAccountTransactionService;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.hbci.HbciJobSupport;
 import de.zft2.gbanking.util.Amounts;
+import de.zft2.gbanking.util.TypeConverter;
 import de.zft2.gbanking.hbci.HbciStatusMessageExtractor;
 import de.zft2.gbanking.logging.GBankingLoggingHandler;
 import de.zft2.gbanking.logging.SensitiveDataMasker;
@@ -252,7 +253,7 @@ public class AccountTransactionService extends AbstractDbService {
 	private int updatePrenotifications(BankAccount bankAccount, Optional<List<UmsLine>> prenotificationResult) {
 		if (prenotificationResult.isEmpty()) {
 			log.warn("Keeping existing prenotifications for account id {} because the HBCI prenotification refresh was incomplete.", bankAccount.getId());
-			return (int) getAccountBookings(bankAccount.getId()).stream().filter(this::isPrenotification).count();
+			return (int) getAccountBookings(bankAccount.getId()).stream().filter(booking -> booking.isPrenotification()).count();
 		}
 
 		List<Booking> bookings = mapHbciBookings(bankAccount, prenotificationResult.get(), Source.ONLINE_PRENO_NEW);
@@ -262,7 +263,7 @@ public class AccountTransactionService extends AbstractDbService {
 
 	private int updatePendingBookings(BankAccount bankAccount, Optional<PendingBookingSnapshot> snapshot, String providerName) {
 		if (snapshot.isEmpty()) {
-			return (int) getAccountBookings(bankAccount.getId()).stream().filter(this::isPrenotification).count();
+			return (int) getAccountBookings(bankAccount.getId()).stream().filter(booking -> booking.isPrenotification()).count();
 		}
 		PendingBookingSnapshot pending = snapshot.get();
 		deletePreviousPrenotifications(bankAccount, pending.fromInclusive());
@@ -487,7 +488,7 @@ public class AccountTransactionService extends AbstractDbService {
 
 	private void deletePreviousPrenotifications(BankAccount bankAccount, LocalDate fromInclusive) {
 		getAccountBookings(bankAccount.getId()).stream()
-				.filter(this::isPrenotification)
+				.filter(booking -> booking.isPrenotification())
 				.filter(booking -> fromInclusive == null || booking.getDateBooking() == null
 						|| !booking.getDateBooking().isBefore(fromInclusive))
 				.forEach(booking -> dbController.delete(booking, null));
@@ -566,7 +567,7 @@ public class AccountTransactionService extends AbstractDbService {
 
 	private BigDecimal calculateBookingBalance(List<Booking> bookings) {
 		return bookings.stream()
-				.filter(booking -> !isPrenotification(booking))
+				.filter(booking -> !booking.isPrenotification())
 				.map(Booking::getAmount)
 				.filter(Objects::nonNull)
 				.reduce(BigDecimal.ZERO, BigDecimal::add)
@@ -594,10 +595,6 @@ public class AccountTransactionService extends AbstractDbService {
 
 	private boolean isZero(BigDecimal amount) {
 		return Amounts.sameRoundedAmount(amount, BigDecimal.ZERO);
-	}
-
-	private boolean isPrenotification(Booking booking) {
-		return booking != null && booking.getSource() != null && booking.getSource().isPrenotification();
 	}
 
 	private List<UmsLine> readBookedUms(HBCIJob<GVRKUms> umsatzJob) {
@@ -720,13 +717,7 @@ public class AccountTransactionService extends AbstractDbService {
 	}
 
 	private String formatDate(Date date) {
-		if (date == null) {
-			return "";
-		}
-		if (date instanceof java.sql.Date sqlDate) {
-			return sqlDate.toLocalDate().toString();
-		}
-		return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate().toString();
+		return Objects.toString(TypeConverter.toLocalDate(date), "");
 	}
 
 	private String formatValue(Value value) {

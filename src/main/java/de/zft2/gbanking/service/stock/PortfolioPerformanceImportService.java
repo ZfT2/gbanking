@@ -89,6 +89,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 	private static final String IMPORTER_VERSION = "1";
 	private static final int QUANTITY_SCALE = StockNumericValueType.QUANTITY.getScaleDigits();
 	private static final int PRICE_SCALE = StockNumericValueType.PRICE.getScaleDigits();
+	private static final XmlImportAssignments NO_ASSIGNMENTS = new XmlImportAssignments(Map.of(), Map.of());
 	private final CsvImportAnalyzer csvImportAnalyzer;
 
 	public PortfolioPerformanceImportService() {
@@ -244,11 +245,11 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		}
 		if (assignments != null) {
 			validateAssignments(document, assignments);
-			importMappedPortfolios(document, assignments, source, record, lookups, counters);
+			importPortfolios(document, assignments, source, record, lookups, counters);
 		} else if (portfolio != null) {
 			importIntoSelectedPortfolio(document, portfolio, source, record, lookups, counters);
 		} else {
-			importAllPortfolios(document, source, record, lookups, counters);
+			importPortfolios(document, NO_ASSIGNMENTS, source, record, lookups, counters);
 		}
 		if (assignments != null) {
 			document.additionalAccounts().stream()
@@ -295,45 +296,21 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		}
 	}
 
-	private void importAllPortfolios(Document document, StockDataSource source, StockImportRecord record,
-			ImportLookups lookups, Counters counters) {
+	/**
+	 * Imports every portfolio of the document; portfolios and settlement accounts without an assigned target are created.
+	 */
+	private void importPortfolios(Document document, XmlImportAssignments assignments, StockDataSource source,
+			StockImportRecord record, ImportLookups lookups, Counters counters) {
 		Map<String, List<ImportedPortfolio>> portfoliosBySettlementAccount = new LinkedHashMap<>();
 		for (Portfolio sourcePortfolio : document.portfolios()) {
-			Account settlementAccount = findAccount(document, sourcePortfolio.settlementAccountExternalId());
-			if (settlementAccount == null) {
-				throw new GBankingException("Für das Depot '" + sourcePortfolio.name()
-						+ "' ist in der XML-Datei kein Verrechnungskonto hinterlegt");
-			}
-			PortfolioSummary target = ensureImportedPortfolio(sourcePortfolio, settlementAccount, 0, 0, counters);
-			importTransactions(sourcePortfolio.transactions(), false, target, source, record, lookups, counters);
-			portfoliosBySettlementAccount.computeIfAbsent(settlementAccount.externalId(), ignored -> new ArrayList<>())
-					.add(new ImportedPortfolio(sourcePortfolio, target));
-		}
-		for (Map.Entry<String, List<ImportedPortfolio>> entry : portfoliosBySettlementAccount.entrySet()) {
-			Account account = findAccount(document, entry.getKey());
-			importSettlementAccount(account, entry.getValue(), source, record, lookups, counters);
-			BankAccount targetAccount = dbController.getById(BankAccount.class,
-					entry.getValue().get(0).target().settlementAccountId());
-			updateImportedAccountBalance(account, targetAccount);
-		}
-	}
-
-	private void importMappedPortfolios(Document document, XmlImportAssignments assignments,
-			StockDataSource source, StockImportRecord record, ImportLookups lookups, Counters counters) {
-		Map<String, List<ImportedPortfolio>> portfoliosBySettlementAccount = new LinkedHashMap<>();
-		for (Portfolio sourcePortfolio : document.portfolios()) {
-			Integer portfolioTargetId = assignments.portfolioTargets().get(sourcePortfolio.externalId());
-			Integer accountTargetId = assignments.accountTargets().get(sourcePortfolio.settlementAccountExternalId());
-			if (portfolioTargetId == null || accountTargetId == null) {
-				throw new GBankingException("Die Zuordnung für das Depot '" + sourcePortfolio.name() + "' ist unvollständig");
-			}
 			Account settlementAccount = findAccount(document, sourcePortfolio.settlementAccountExternalId());
 			if (settlementAccount == null) {
 				throw new GBankingException("Für das Depot '" + sourcePortfolio.name()
 						+ "' ist in der XML-Datei kein Verrechnungskonto hinterlegt");
 			}
 			PortfolioSummary target = ensureImportedPortfolio(sourcePortfolio, settlementAccount,
-					portfolioTargetId, accountTargetId, counters);
+					assignments.portfolioTargets().getOrDefault(sourcePortfolio.externalId(), 0),
+					assignments.accountTargets().getOrDefault(sourcePortfolio.settlementAccountExternalId(), 0), counters);
 			importTransactions(sourcePortfolio.transactions(), false, target, source, record, lookups, counters);
 			portfoliosBySettlementAccount.computeIfAbsent(settlementAccount.externalId(), ignored -> new ArrayList<>())
 					.add(new ImportedPortfolio(sourcePortfolio, target));

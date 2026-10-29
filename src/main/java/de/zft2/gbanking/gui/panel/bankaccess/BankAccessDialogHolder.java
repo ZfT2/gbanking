@@ -177,12 +177,8 @@ final class BankAccessDialogHolder extends BasePanel {
 	}
 
 	private void startBankAccessTask(Stage dialog, BankAccess bankAccess, Button okButton, Button cancelButton) {
-		Task<Boolean> task = new Task<>() {
-			@Override
-			protected Boolean call() {
-				return ServiceRegistry.getService(BankAccessService.class).addNewBankAccess(bankAccess);
-			}
-		};
+		Task<Boolean> task = BackgroundActionCoordinator
+				.newTask(() -> ServiceRegistry.getService(BankAccessService.class).addNewBankAccess(bankAccess));
 		task.setOnSucceeded(event -> {
 			setButtonsDisabled(okButton, cancelButton, false);
 			if (Boolean.TRUE.equals(task.getValue())) {

@@ -1,5 +1,6 @@
 package de.zft2.gbanking.file.exp;
 
+import static de.zft2.gbanking.util.FileNames.fileName;
 import static de.zft2.gbanking.util.TextValues.firstNonBlank;
 import static de.zft2.gbanking.util.TextValues.trimToNull;
 
@@ -64,14 +65,14 @@ public class FileExportOrdersSepaBean extends FileExportBean {
 			String finalMessage = exportData.skippedCount() > 0 ? "UI_MONEYTRANSFER_SEPA_EXPORT_SKIPPED" : "UI_PROGRESS_FINISH";
 			updateWorkerState(99, finalMessage, exportData.skippedCount());
 			if (log.isInfoEnabled()) {
-				log.info("Finished SEPA PAIN export. file={}, records={}, skippedUnsupported={}", fileNameOnly(fileName),
+				log.info("Finished SEPA PAIN export. file={}, records={}, skippedUnsupported={}", fileName(fileName),
 						exportData.exportedCount(), exportData.skippedCount());
 			}
 			return true;
 		} catch (ExportException exception) {
 			throw exception;
 		} catch (Exception exception) {
-			log.error("Error exporting SEPA PAIN file {}", fileNameOnly(fileName), exception);
+			log.error("Error exporting SEPA PAIN file {}", fileName(fileName), exception);
 			throw new ExportException(getText("ERROR_MONEYTRANSFER_SEPA_EXPORT_FAILED", exception.getMessage()));
 		}
 	}

@@ -49,6 +49,23 @@ public final class TextValues {
 	}
 
 	/**
+	 * Appends the trimmed text as a new paragraph, separated from existing content by a blank line.
+	 * Blank text is ignored.
+	 *
+	 * @param builder the target builder
+	 * @param text    the paragraph text, may be {@code null}
+	 */
+	public static void appendParagraph(StringBuilder builder, String text) {
+		if (isBlank(text)) {
+			return;
+		}
+		if (!builder.isEmpty()) {
+			builder.append(System.lineSeparator()).append(System.lineSeparator());
+		}
+		builder.append(text.trim());
+	}
+
+	/**
 	 * Checks whether the given text is {@code null} or contains only whitespace.
 	 *
 	 * @param value the text to check, may be {@code null}

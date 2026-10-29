@@ -1,5 +1,8 @@
 package de.zft2.gbanking.util;
 
+import java.math.BigDecimal;
+import java.util.regex.Pattern;
+
 /**
  * Central helper for the conversion of decimal numbers in German notation.
  *
@@ -11,7 +14,30 @@ package de.zft2.gbanking.util;
  */
 public final class DecimalText {
 
+	private static final Pattern GERMAN_GROUPED_AMOUNT = Pattern.compile("[-+]?\\d{1,3}(\\.\\d{3})+");
+
 	private DecimalText() {
+	}
+
+	/**
+	 * Parses an amount entered in German notation. Spaces are ignored. If the text contains a comma, it
+	 * is used as decimal separator; without a comma, dots are treated as thousand separators only if
+	 * they group exactly three digits (e.g. {@code 1.234}), otherwise as decimal separator.
+	 *
+	 * @param value the text to parse, may be {@code null}
+	 * @return the parsed amount or {@code null} for blank input
+	 * @throws NumberFormatException if the text is not a valid amount
+	 */
+	public static BigDecimal parseGermanAmount(String value) {
+		String normalized = TextValues.trimToNull(value);
+		if (normalized == null) {
+			return null;
+		}
+		String compact = normalized.replace(" ", "").replace("\u00a0", "");
+		if (compact.contains(",") || GERMAN_GROUPED_AMOUNT.matcher(compact).matches()) {
+			return new BigDecimal(toDotDecimal(compact.replace(".", "")));
+		}
+		return new BigDecimal(compact);
 	}
 
 	/**

@@ -2,6 +2,7 @@ package de.zft2.gbanking.gui;
 
 import static de.zft2.gbanking.gui.PinRequestCoordinator.clearPins;
 import static de.zft2.gbanking.gui.PinRequestCoordinator.copyPin;
+import static de.zft2.gbanking.util.FileNames.fileName;
 
 import java.awt.Desktop;
 import java.io.IOException;
@@ -351,7 +352,7 @@ public class GBankingGui extends Application implements BaseGui {
 			return;
 		}
 
-		Task<List<String>> updateTask = createAccountUpdateTask(checkedAccounts, pinMap);
+		Task<List<String>> updateTask = BackgroundActionCoordinator.newTask(() -> updateSelectedAccounts(checkedAccounts, pinMap));
 		updateTask.setOnSucceeded(event -> handleAccountUpdateSuccess(updateTask, checkedAccounts, overviewPanel));
 		updateTask.setOnFailed(event -> log.error("Error updating accounts", updateTask.getException()));
 		updateTask.setOnCancelled(event -> clearPins(pinMap));
@@ -409,15 +410,6 @@ public class GBankingGui extends Application implements BaseGui {
 		parameters[messageParameters.length] = formatAccountNames(unsupportedAccounts);
 		showWarning(primaryStage, getText(messageKey, parameters));
 		return false;
-	}
-
-	private Task<List<String>> createAccountUpdateTask(List<BankAccount> checkedAccounts, Map<Integer, char[]> pinMap) {
-		return new Task<>() {
-			@Override
-			protected List<String> call() {
-				return updateSelectedAccounts(checkedAccounts, pinMap);
-			}
-		};
 	}
 
 	private List<String> updateSelectedAccounts(List<BankAccount> checkedAccounts, Map<Integer, char[]> pinMap) {
@@ -526,22 +518,19 @@ public class GBankingGui extends Application implements BaseGui {
 			return;
 		}
 
-		Task<Void> transferTask = new Task<>() {
-			@Override
-			protected Void call() {
-				try {
-					for (MoneyTransfer moneytransfer : moneytransferList) {
-						CancellationSupport.throwIfCancellationRequested();
-						int accountId = moneytransfer.getAccountId();
-						log.debug("Executing money transfer id {} for account id {}", moneytransfer.getId(), accountId);
-						moneyTransferService.executeTransfer(moneytransfer, accountMap.get(accountId), copyPin(pinMap.get(accountId)));
-					}
-					return null;
-				} finally {
-					clearPins(pinMap);
+		Task<Void> transferTask = BackgroundActionCoordinator.newTask(() -> {
+			try {
+				for (MoneyTransfer moneytransfer : moneytransferList) {
+					CancellationSupport.throwIfCancellationRequested();
+					int accountId = moneytransfer.getAccountId();
+					log.debug("Executing money transfer id {} for account id {}", moneytransfer.getId(), accountId);
+					moneyTransferService.executeTransfer(moneytransfer, accountMap.get(accountId), copyPin(pinMap.get(accountId)));
 				}
+				return null;
+			} finally {
+				clearPins(pinMap);
 			}
-		};
+		});
 		transferTask.setOnSucceeded(event -> {
 			log.info("Finished execution of {} money transfer orders.", moneytransferList.size());
 			MoneyTransferOverviewPanel moneyTransferPanel = (MoneyTransferOverviewPanel) OverviewPanelFactory
@@ -580,21 +569,18 @@ public class GBankingGui extends Application implements BaseGui {
 			return;
 		}
 
-		Task<Void> inventoryTask = new Task<>() {
-			@Override
-			protected Void call() {
-				try {
-					for (Entry<BankAccount, char[]> entry : pinMap.entrySet()) {
-						CancellationSupport.throwIfCancellationRequested();
-						log.info("Retrieving order inventory. accountId={}, type={}", entry.getKey().getId(), orderType);
-						moneyTransferService.retrieveMoneyTransferInventory(entry.getKey(), orderType, copyPin(entry.getValue()));
-					}
-					return null;
-				} finally {
-					clearPins(pinMap);
+		Task<Void> inventoryTask = BackgroundActionCoordinator.newTask(() -> {
+			try {
+				for (Entry<BankAccount, char[]> entry : pinMap.entrySet()) {
+					CancellationSupport.throwIfCancellationRequested();
+					log.info("Retrieving order inventory. accountId={}, type={}", entry.getKey().getId(), orderType);
+					moneyTransferService.retrieveMoneyTransferInventory(entry.getKey(), orderType, copyPin(entry.getValue()));
 				}
+				return null;
+			} finally {
+				clearPins(pinMap);
 			}
-		};
+		});
 		inventoryTask.setOnSucceeded(event -> {
 			log.info("Finished order inventory retrieval for {} accounts, type={}.", selectedAccounts.size(), orderType);
 			MoneyTransferOverviewPanel moneyTransferPanel = (MoneyTransferOverviewPanel) OverviewPanelFactory
@@ -667,17 +653,14 @@ public class GBankingGui extends Application implements BaseGui {
 		}
 
 		AtomicReference<ExecutionSummary> latestSummary = new AtomicReference<>();
-		Task<ExecutionSummary> executionTask = new Task<>() {
-			@Override
-			protected ExecutionSummary call() {
-				try {
-					return OpenActionsExecutionUtil.execute(selection, account -> pinMap.get(account.getBankAccessId()),
-							summary -> latestSummary.set(summary));
-				} finally {
-					clearPins(pinMap);
-				}
+		Task<ExecutionSummary> executionTask = BackgroundActionCoordinator.newTask(() -> {
+			try {
+				return OpenActionsExecutionUtil.execute(selection, account -> pinMap.get(account.getBankAccessId()),
+						summary -> latestSummary.set(summary));
+			} finally {
+				clearPins(pinMap);
 			}
-		};
+		});
 		executionTask.setOnSucceeded(event -> handleOpenActionsExecutionResult(panel, selection, executionTask.getValue()));
 		executionTask.setOnFailed(event -> {
 			log.error("Error executing selected open actions", executionTask.getException());
@@ -906,13 +889,6 @@ public class GBankingGui extends Application implements BaseGui {
 
 	void processStockExport(ExportType exportType) {
 		fileTransferCoordinator.processStockExport(exportType);
-	}
-
-	private String fileName(Path path) {
-		if (path == null)
-			return null;
-		Path fileName = path.getFileName();
-		return fileName != null ? fileName.toString() : null;
 	}
 
 	void shutdownApplication() {

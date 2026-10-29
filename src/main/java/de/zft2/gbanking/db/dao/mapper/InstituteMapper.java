@@ -131,7 +131,7 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 		return value == null ? null : value.toString();
 	}
 
-	public boolean hasDkData(Institute institute) {
+	public static boolean hasDkData(Institute institute) {
 		return institute.getImportNumber() != 0
 				|| hasText(institute.getDataCenter())
 				|| hasText(institute.getOrganisation())
@@ -154,7 +154,7 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 				|| institute.getLastChanged() != null;
 	}
 
-	public boolean hasDbbData(Institute institute) {
+	public static boolean hasDbbData(Institute institute) {
 		return hasText(institute.getDatasetNumber())
 				|| institute.getFeature() != 0
 				|| hasText(institute.getPostcode())
@@ -166,17 +166,17 @@ public class InstituteMapper extends AbstractDaoMapper<Institute, Void> {
 				|| hasText(institute.getBlzSuccession());
 	}
 
-	public boolean hasEpcData(Institute institute) {
+	public static boolean hasEpcData(Institute institute) {
 		return hasText(institute.getCountry()) || hasText(institute.getAddress()) || hasText(institute.getReadinessDate())
 				|| hasText(institute.getSchemeLeavingDate()) || hasText(institute.getSchemeOptions());
 	}
 
-	public boolean hasDbbReachableData(Institute institute) {
+	public static boolean hasDbbReachableData(Institute institute) {
 		return institute.getServiceSct() != null || institute.getServiceCor() != null || institute.getServiceCor1() != null
 				|| institute.getServiceB2b() != null || institute.getServiceScc() != null;
 	}
 
-	public boolean hasAdditionalData(Institute institute) {
+	public static boolean hasAdditionalData(Institute institute) {
 		return hasText(institute.getAdditionalBankNameShort()) || hasText(institute.getAdditionalCheckdigitMethod())
 				|| hasText(institute.getAdditionalPostcode()) || hasText(institute.getAdditionalDeletionMarker())
 				|| hasText(institute.getAdditionalBlzSuccession()) || hasText(institute.getAdditionalIbanRule())

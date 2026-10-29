@@ -20,6 +20,7 @@ import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.enu.InstituteValidityDateType;
+import de.zft2.gbanking.db.dao.mapper.InstituteMapper;
 import de.zft2.gbanking.concurrent.ProgressReporter;
 
 public class InstituteFileImportDbbReachable extends InstituteFileImport {
@@ -50,8 +51,7 @@ public class InstituteFileImportDbbReachable extends InstituteFileImport {
 
 	@Override
 	protected boolean isRelevantCurrentInstitute(Institute institute) {
-		return institute.getServiceSct() != null || institute.getServiceCor() != null || institute.getServiceCor1() != null
-				|| institute.getServiceB2b() != null || institute.getServiceScc() != null;
+		return InstituteMapper.hasDbbReachableData(institute);
 	}
 
 	@Override

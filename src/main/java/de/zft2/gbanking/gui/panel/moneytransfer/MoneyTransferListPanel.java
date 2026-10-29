@@ -193,12 +193,8 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 	}
 
 	private void startInstantPaymentStatusTask(List<MoneyTransfer> selectedTransfers, BankAccount account, char[] pin) {
-		Task<Integer> task = new Task<>() {
-			@Override
-			protected Integer call() {
-				return ServiceRegistry.getService(MoneyTransferService.class).retrieveInstantPaymentStatuses(selectedTransfers, account, pin);
-			}
-		};
+		Task<Integer> task = BackgroundActionCoordinator.newTask(
+				() -> ServiceRegistry.getService(MoneyTransferService.class).retrieveInstantPaymentStatuses(selectedTransfers, account, pin));
 		task.setOnSucceeded(event -> handleInstantPaymentStatusResult(task.getValue(), selectedTransfers.size()));
 		task.setOnFailed(event -> {
 			Arrays.fill(pin, '\0');

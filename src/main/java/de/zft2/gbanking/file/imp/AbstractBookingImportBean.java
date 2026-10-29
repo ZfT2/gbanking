@@ -278,15 +278,6 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 		return value == null || value.isBlank() ? null : value.trim().toLowerCase(Locale.ROOT);
 	}
 
-	protected String fileName(String fileName) {
-		if (fileName == null) {
-			return null;
-		}
-		Path path = Path.of(fileName);
-		Path pathFileName = path.getFileName();
-		return pathFileName != null ? pathFileName.toString() : fileName;
-	}
-
 	private void processBookingsWithBookingCore(Collection<ImportBankAccount> importAccounts) {
 		try {
 			ServiceRegistry.getService(ImportPropertiesSynchronizationService.class).initializeAndSynchronize();

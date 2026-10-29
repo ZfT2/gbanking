@@ -1,7 +1,6 @@
 package de.zft2.gbanking.file.imp.institute;
 
 import static de.zft2.gbanking.util.TextValues.equalsIgnoreCase;
-import static de.zft2.gbanking.util.TextValues.hasText;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -25,6 +24,7 @@ import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.enu.InstituteValidityDateType;
+import de.zft2.gbanking.db.dao.mapper.InstituteMapper;
 import de.zft2.gbanking.concurrent.ProgressReporter;
 
 public class InstituteFileImportAdditional extends InstituteFileImport {
@@ -124,10 +124,7 @@ public class InstituteFileImportAdditional extends InstituteFileImport {
 
 	@Override
 	protected boolean isRelevantCurrentInstitute(Institute institute) {
-		return hasText(institute.getAdditionalBankNameShort()) || hasText(institute.getAdditionalCheckdigitMethod())
-				|| hasText(institute.getAdditionalPostcode()) || hasText(institute.getAdditionalDeletionMarker())
-				|| hasText(institute.getAdditionalBlzSuccession()) || hasText(institute.getAdditionalIbanRule())
-				|| hasText(institute.getAdditionalIbanRuleVersion());
+		return InstituteMapper.hasAdditionalData(institute);
 	}
 
 	@Override

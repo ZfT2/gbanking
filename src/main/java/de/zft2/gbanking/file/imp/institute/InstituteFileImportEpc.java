@@ -14,6 +14,7 @@ import org.apache.commons.csv.CSVRecord;
 
 import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.enu.InstituteStatus;
+import de.zft2.gbanking.db.dao.mapper.InstituteMapper;
 import de.zft2.gbanking.concurrent.ProgressReporter;
 
 /**
@@ -58,8 +59,7 @@ public class InstituteFileImportEpc extends InstituteFileImport {
 
 	@Override
 	protected boolean isRelevantCurrentInstitute(Institute institute) {
-		return hasText(institute.getCountry()) || hasText(institute.getAddress()) || hasText(institute.getReadinessDate())
-				|| hasText(institute.getSchemeLeavingDate()) || hasText(institute.getSchemeOptions());
+		return InstituteMapper.hasEpcData(institute);
 	}
 
 	@Override

@@ -5,11 +5,14 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.function.Consumer;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.dao.BankAccount;
+import de.zft2.gbanking.gui.BackgroundActionCoordinator;
 import de.zft2.gbanking.gui.BaseGui;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.GuiLayoutState;
@@ -124,49 +127,43 @@ public class RebookingToolDialog implements BaseGui {
 	}
 
 	private void startRebookingAssignmentDetection(RebookingAssignmentRequest request) {
-		List<BankAccount> anchorAccounts = request.allAccounts() ? bean.getAllAccounts() : selectedAccounts;
-		if (anchorAccounts.isEmpty()) {
-			showWarning(stage, getText(request.allAccounts() ? "ERROR_NO_ACCOUNTS_FOUND" : ALERT_REBOOKING_ASSIGN_NO_SELECTED_ACCOUNTS));
-			return;
-		}
-
-		Task<RebookingAssignmentSummary> detectionTask = new Task<>() {
-			@Override
-			protected RebookingAssignmentSummary call() {
+		List<BankAccount> anchorAccounts = anchorAccounts(request);
+		if (!anchorAccounts.isEmpty()) {
+			runInBackground(() -> {
 				log.info("Starting manual rebooking assignment detection. from={}, to={}, allAccounts={}, anchorAccounts={}", request.dateFrom(),
 						request.dateTo(), request.allAccounts(), anchorAccounts.size());
 				return accountTransactionService.detectRebookings(request.dateFrom(), request.dateTo(), anchorAccounts);
-			}
-		};
-		detectionTask.setOnSucceeded(event -> handleRebookingAssignmentSummary(detectionTask.getValue()));
-		detectionTask.setOnFailed(event -> {
-			log.error("Error assigning rebookings", detectionTask.getException());
-			showWarning(stage, getText("ALERT_REBOOKING_ASSIGN_ERROR"));
-		});
-		startBackgroundTask(detectionTask, "gbanking-assign-rebookings-detect");
+			}, summary -> handleRebookingAssignmentSummary(summary), "ALERT_REBOOKING_ASSIGN_ERROR", "gbanking-assign-rebookings-detect");
+		}
 	}
 
 	private void startMissingRebookingDetection(RebookingAssignmentRequest request) {
-		List<BankAccount> anchorAccounts = request.allAccounts() ? bean.getAllAccounts() : selectedAccounts;
-		if (anchorAccounts.isEmpty()) {
-			showWarning(stage, getText(request.allAccounts() ? "ERROR_NO_ACCOUNTS_FOUND" : ALERT_REBOOKING_ASSIGN_NO_SELECTED_ACCOUNTS));
-			return;
-		}
-
-		Task<MissingRebookingCreationSummary> detectionTask = new Task<>() {
-			@Override
-			protected MissingRebookingCreationSummary call() {
+		List<BankAccount> anchorAccounts = anchorAccounts(request);
+		if (!anchorAccounts.isEmpty()) {
+			runInBackground(() -> {
 				log.info("Starting missing rebooking detection. from={}, to={}, allAccounts={}, anchorAccounts={}", request.dateFrom(), request.dateTo(),
 						request.allAccounts(), anchorAccounts.size());
 				return accountTransactionService.detectMissingRebookings(request.dateFrom(), request.dateTo(), anchorAccounts);
-			}
-		};
-		detectionTask.setOnSucceeded(event -> handleMissingRebookingSummary(detectionTask.getValue()));
-		detectionTask.setOnFailed(event -> {
-			log.error("Error detecting missing rebookings", detectionTask.getException());
-			showWarning(stage, getText("ALERT_REBOOKING_CREATE_ERROR"));
+			}, summary -> handleMissingRebookingSummary(summary), "ALERT_REBOOKING_CREATE_ERROR", "gbanking-create-rebookings-detect");
+		}
+	}
+
+	private List<BankAccount> anchorAccounts(RebookingAssignmentRequest request) {
+		List<BankAccount> anchorAccounts = request.allAccounts() ? bean.getAllAccounts() : selectedAccounts;
+		if (anchorAccounts.isEmpty()) {
+			showWarning(stage, getText(request.allAccounts() ? "ERROR_NO_ACCOUNTS_FOUND" : ALERT_REBOOKING_ASSIGN_NO_SELECTED_ACCOUNTS));
+		}
+		return anchorAccounts;
+	}
+
+	private <T> void runInBackground(Callable<T> work, Consumer<T> onSuccess, String failureKey, String actionName) {
+		Task<T> task = BackgroundActionCoordinator.newTask(work);
+		task.setOnSucceeded(event -> onSuccess.accept(task.getValue()));
+		task.setOnFailed(event -> {
+			log.error("Rebooking background action {} failed", actionName, task.getException());
+			showWarning(stage, getText(failureKey));
 		});
-		startBackgroundTask(detectionTask, "gbanking-create-rebookings-detect");
+		startBackgroundTask(task, actionName);
 	}
 
 	private void handleRebookingAssignmentSummary(RebookingAssignmentSummary summary) {
@@ -250,32 +247,14 @@ public class RebookingToolDialog implements BaseGui {
 	}
 
 	private void saveDetectedRebookings(RebookingAssignmentSummary summary) {
-		Task<Integer> saveTask = new Task<>() {
-			@Override
-			protected Integer call() {
-				return accountTransactionService.persistDetectedRebookingLinks(summary);
-			}
-		};
-		saveTask.setOnSucceeded(event -> showInfo(stage, getText("UI_DIALOG_REBOOKING_ASSIGN_SAVED", saveTask.getValue())));
-		saveTask.setOnFailed(event -> {
-			log.error("Error saving assigned rebookings", saveTask.getException());
-			showWarning(stage, getText("ALERT_REBOOKING_ASSIGN_ERROR"));
-		});
-		startBackgroundTask(saveTask, "gbanking-assign-rebookings-save");
+		runInBackground(() -> accountTransactionService.persistDetectedRebookingLinks(summary),
+				count -> showInfo(stage, getText("UI_DIALOG_REBOOKING_ASSIGN_SAVED", count)), "ALERT_REBOOKING_ASSIGN_ERROR",
+				"gbanking-assign-rebookings-save");
 	}
 
 	private void createMissingRebookings(MissingRebookingCreationSummary summary) {
-		Task<Integer> createTask = new Task<>() {
-			@Override
-			protected Integer call() {
-				return accountTransactionService.createMissingRebookings(summary);
-			}
-		};
-		createTask.setOnSucceeded(event -> showInfo(stage, getText("UI_DIALOG_REBOOKING_CREATE_SAVED", createTask.getValue())));
-		createTask.setOnFailed(event -> {
-			log.error("Error creating missing rebookings", createTask.getException());
-			showWarning(stage, getText("ALERT_REBOOKING_CREATE_ERROR"));
-		});
-		startBackgroundTask(createTask, "gbanking-create-rebookings-save");
+		runInBackground(() -> accountTransactionService.createMissingRebookings(summary),
+				count -> showInfo(stage, getText("UI_DIALOG_REBOOKING_CREATE_SAVED", count)), "ALERT_REBOOKING_CREATE_ERROR",
+				"gbanking-create-rebookings-save");
 	}
 }

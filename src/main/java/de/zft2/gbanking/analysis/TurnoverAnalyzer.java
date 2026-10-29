@@ -119,7 +119,7 @@ public final class TurnoverAnalyzer {
 		Set<Integer> selectedAccountIds = accountIds(selectedAccounts);
 		List<Booking> selectedBookings = bookingList.stream()
 				.filter(booking -> booking != null && selectedAccountIds.contains(booking.getAccountId()))
-				.filter(booking -> !isPrenotification(booking))
+				.filter(booking -> !booking.isPrenotification())
 				.toList();
 		DateRange dateRange = resolveDateRange(safeConfiguration, selectedBookings, today != null ? today : LocalDate.now(ZoneId.systemDefault()));
 		List<Booking> periodBookings = selectedBookings.stream()
@@ -342,10 +342,6 @@ public final class TurnoverAnalyzer {
 
 	private boolean hasBankAccess(BankAccount account) {
 		return account != null && account.getBankAccessId() != null && account.getBankAccessId() > 0;
-	}
-
-	private boolean isPrenotification(Booking booking) {
-		return booking != null && booking.getSource() != null && booking.getSource().isPrenotification();
 	}
 
 	private LocalDate relevantDate(Booking booking) {

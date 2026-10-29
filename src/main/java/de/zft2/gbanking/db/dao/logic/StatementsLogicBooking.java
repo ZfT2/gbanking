@@ -1,7 +1,6 @@
 package de.zft2.gbanking.db.dao.logic;
 
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -55,16 +54,9 @@ public class StatementsLogicBooking extends StatementsLogicDefault<Booking> impl
 		AbstractDaoMapper<Booking, Void> mapperBase = StatementsConfig.getMapperForDaoType(Booking.class);
 		BookingMapper mapper = (BookingMapper) mapperBase;
 		String updateSql = StatementsConfig.getSqlStatement(Booking.class, StatementType.UPDATE);
-		List<Booking> inserts = new ArrayList<>();
-		List<Booking> updates = new ArrayList<>();
+		List<Booking> inserts = matching(bookings, booking -> booking.getId() <= 0);
+		List<Booking> updates = matching(bookings, booking -> booking.getId() > 0);
 		try {
-			for (Booking booking : bookings) {
-				if (booking.getId() > 0) {
-					updates.add(booking);
-				} else {
-					inserts.add(booking);
-				}
-			}
 			if (!inserts.isEmpty()) {
 				executeInsertBatchWithReservedIds(DaoSqlStatements.SQL_SELECT_MAX_BOOKING_ID,
 						DaoSqlStatements.SQL_INSERT_BOOKING_BATCH, inserts,
@@ -100,14 +92,10 @@ public class StatementsLogicBooking extends StatementsLogicDefault<Booking> impl
 	private void persistSingleDetail(Booking booking, boolean hasData, String insertSql, String deleteSql,
 			SqlStatementBinder parameterBinder) throws SQLException {
 		if (!hasData) {
-			deleteBookingDetails(deleteSql, booking);
+			deleteDetailsById(deleteSql, booking);
 			return;
 		}
 		executeCachedUpdateExactlyOnce(insertSql, parameterBinder);
-	}
-
-	private void deleteBookingDetails(String sql, Booking booking) throws SQLException {
-		executeCachedUpdate(sql, statement -> statement.setInt(1, booking.getId()));
 	}
 
 	private void persistBookingDetails(Set<Booking> bookings, List<Booking> updates, BookingMapper mapper)
@@ -145,21 +133,6 @@ public class StatementsLogicBooking extends StatementsLogicDefault<Booking> impl
 		if (!upserts.isEmpty()) {
 			executeCachedBatchExactlyOnce(upsertSql, upserts, upsertBinder);
 		}
-		List<Booking> deletes = matching(updates, hasDetails.negate());
-		if (!deletes.isEmpty()) {
-			executeCachedBatch(deleteSql, deletes,
-					(booking, statement) -> statement.setInt(1, booking.getId()));
-		}
+		deleteDetailsById(deleteSql, matching(updates, hasDetails.negate()));
 	}
-
-	private static List<Booking> matching(Iterable<Booking> bookings, Predicate<Booking> predicate) {
-		List<Booking> matches = new ArrayList<>();
-		for (Booking booking : bookings) {
-			if (predicate.test(booking)) {
-				matches.add(booking);
-			}
-		}
-		return matches;
-	}
-
 }

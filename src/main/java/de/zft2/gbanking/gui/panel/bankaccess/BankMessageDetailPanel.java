@@ -1,8 +1,6 @@
 package de.zft2.gbanking.gui.panel.bankaccess;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.Locale;
+import static de.zft2.gbanking.util.TextValues.nullToEmpty;
 
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankMessage;
@@ -61,7 +59,7 @@ final class BankMessageDetailPanel extends AbstractReadonlyDetailPanel {
 		retrievalSupported = supported;
 		if (bankAccess != null) {
 			updateTitle(bankAccess.getBankName());
-			bankNameText.setText(toText(bankAccess.getBankName()));
+			bankNameText.setText(nullToEmpty(bankAccess.getBankName()));
 		} else {
 			resetTitle();
 			bankNameText.clear();
@@ -76,12 +74,12 @@ final class BankMessageDetailPanel extends AbstractReadonlyDetailPanel {
 			return;
 		}
 
-		retrievedAtText.setText(formatDateTime(bankMessage.getRetrievedAt()));
-		versionDateText.setText(formatDate(bankMessage.getVersionDate()));
-		codeText.setText(toText(bankMessage.getCode()));
-		typeText.setText(formatType(bankMessage.getType()));
-		formatText.setText(toText(bankMessage.getFormat()));
-		descriptionText.setText(toText(bankMessage.getDescription()));
+		retrievedAtText.setText(DateFormatUtils.formatDateTime(bankMessage.getRetrievedAt()));
+		versionDateText.setText(DateFormatUtils.formatLong(bankMessage.getVersionDate()));
+		codeText.setText(nullToEmpty(bankMessage.getCode()));
+		typeText.setText(BankMessageListPanel.formatType(bankMessage.getType()));
+		formatText.setText(nullToEmpty(bankMessage.getFormat()));
+		descriptionText.setText(nullToEmpty(bankMessage.getDescription()));
 	}
 
 	void setRetrievalRunning(boolean running) {
@@ -99,30 +97,5 @@ final class BankMessageDetailPanel extends AbstractReadonlyDetailPanel {
 
 	private void updateRetrieveButton() {
 		retrieveButton.setDisable(currentBankAccess == null || !retrievalSupported);
-	}
-
-	private String formatDateTime(LocalDateTime dateTime) {
-		return DateFormatUtils.formatDateTime(dateTime);
-	}
-
-	private String formatDate(LocalDate date) {
-		return date != null ? DateFormatUtils.formatLong(date) : "";
-	}
-
-	private String formatType(String type) {
-		if (type == null || type.isBlank()) {
-			return "";
-		}
-		return switch (type.trim().toUpperCase(Locale.ROOT)) {
-		case "F" -> getText("UI_LABEL_BANK_MESSAGE_TYPE_FREE_TEXT");
-		case "D" -> getText("UI_LABEL_BANK_MESSAGE_TYPE_FILE");
-		case "S" -> getText("UI_LABEL_BANK_MESSAGE_TYPE_DOCUMENT");
-		case "T" -> getText("UI_LABEL_BANK_MESSAGE_TYPE_TOPIC");
-		default -> type.trim();
-		};
-	}
-
-	private String toText(String value) {
-		return value != null ? value : "";
 	}
 }

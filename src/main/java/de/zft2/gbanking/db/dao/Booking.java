@@ -427,6 +427,10 @@ public class Booking extends Dao implements Serializable, BookingDetails {
 		this.crossBookingId = crossBookingId;
 	}
 
+	public boolean isPrenotification() {
+		return source != null && source.isPrenotification();
+	}
+
 	public static BookingType toBookingType(Typ typ) {
 		if (typ == null || typ == Typ.UNKNOWN) {
 			return null;

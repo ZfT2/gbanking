@@ -1,7 +1,6 @@
 package de.zft2.gbanking.file.imp;
 
 import java.math.BigDecimal;
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -228,11 +227,6 @@ public abstract class MoneyTransferImportBean implements BaseMessagesDb {
 	protected void updateWorker(int progress, String messageKey, String... values) {
 		progressReporter.reportState(getText(messageKey, values));
 		progressReporter.reportProgress(progress);
-	}
-
-	protected String fileName(Path path) {
-		Path name = path.getFileName();
-		return name != null ? name.toString() : path.toString();
 	}
 
 	private String normalizeText(String value) {

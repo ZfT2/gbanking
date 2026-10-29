@@ -3,11 +3,9 @@ package de.zft2.gbanking.service.account;
 import static de.zft2.gbanking.util.TextValues.hasText;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -29,7 +27,6 @@ import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.BankAccessType;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Source;
-import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.StatementsConfig;
 import de.zft2.gbanking.rebooking.DetectedRebookingPair;
 import de.zft2.gbanking.rebooking.MissingRebookingCandidate;
@@ -37,6 +34,7 @@ import de.zft2.gbanking.rebooking.MissingRebookingCreationSummary;
 import de.zft2.gbanking.rebooking.MissingRebookingRouteSummary;
 import de.zft2.gbanking.rebooking.RebookingAccountSummary;
 import de.zft2.gbanking.rebooking.RebookingAssignmentSummary;
+import de.zft2.gbanking.rebooking.RebookingLinkWriter;
 import de.zft2.gbanking.rebooking.RebookingRules;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.ServiceRegistry;
@@ -47,6 +45,8 @@ final class RebookingService extends AbstractDbService {
 
 	private static final Logger log = LogManager.getLogger(RebookingService.class);
 	private static final int SEARCH_WINDOW_DAYS = 6;
+
+	private final RebookingLinkWriter rebookingLinkWriter = new RebookingLinkWriter(dbController);
 
 	int adjustRebookings(BankAccount checkedAccount) {
 		if (checkedAccount == null || checkedAccount.getId() <= 0) {
@@ -300,49 +300,8 @@ final class RebookingService extends AbstractDbService {
 
 	private boolean createMissingCounterBooking(MissingRebookingCandidate candidate) {
 		Booking sourceBooking = dbController.getByIdFull(Booking.class, candidate.sourceBooking().getId());
-		if (!canPersistMissingCounterBooking(sourceBooking, candidate.targetAccount())) {
-			return false;
-		}
-
-		Booking counterBooking = createCounterBooking(sourceBooking, candidate.sourceAccount(),
-				candidate.targetAccount());
-		Booking savedCounterBooking = dbController.insertOrUpdate(counterBooking);
-		if (savedCounterBooking == null || savedCounterBooking.getId() <= 0) {
-			return false;
-		}
-
-		sourceBooking.setBookingType(BookingType.rebookingFromAmount(sourceBooking.getAmount()));
-		sourceBooking.setCrossAccountId(candidate.targetAccount().getId());
-		sourceBooking.setCrossBookingId(savedCounterBooking.getId());
-		dbController.insertOrUpdate(sourceBooking);
-		return true;
-	}
-
-	private Booking createCounterBooking(Booking sourceBooking, BankAccount sourceAccount,
-			BankAccount targetAccount) {
-		BigDecimal counterAmount = sourceBooking.getAmount().negate();
-		Booking counterBooking = new Booking();
-		counterBooking.setAccountId(targetAccount.getId());
-		counterBooking.setDateBooking(defaultDate(sourceBooking.getDateBooking(), sourceBooking.getDate(),
-				LocalDate.now(ZoneId.systemDefault())));
-		counterBooking.setDateValue(defaultDate(sourceBooking.getDateValue(), sourceBooking.getDate(),
-				counterBooking.getDateBooking()));
-		counterBooking.setDate(sourceBooking.getDate() != null ? sourceBooking.getDate()
-				: counterBooking.getDateValue());
-		counterBooking.setPurpose(sourceBooking.getPurpose());
-		counterBooking.setAmount(counterAmount);
-		counterBooking.setSource(Source.MANUELL_NEW);
-		counterBooking.setBookingType(BookingType.rebookingFromAmount(counterAmount));
-		counterBooking.setCrossAccountId(sourceBooking.getAccountId());
-		counterBooking.setCrossBookingId(sourceBooking.getId());
-		counterBooking.setUpdatedAt(LocalDate.now(ZoneId.systemDefault()));
-
-		Recipient recipient = dbController.resolveRecipient(createRecipientForAccount(sourceAccount));
-		if (recipient != null) {
-			counterBooking.setRecipient(recipient);
-			counterBooking.setRecipientId(recipient.getId());
-		}
-		return counterBooking;
+		return rebookingLinkWriter.linkWithCounterBooking(sourceBooking, candidate.sourceAccount(),
+				candidate.targetAccount()) != null;
 	}
 
 	private void linkRebookingPair(Booking booking, Booking crossBooking) {
@@ -446,18 +405,7 @@ final class RebookingService extends AbstractDbService {
 	}
 
 	private static void prepareAccountForBookingCore(BankAccount account) {
-		if (hasText(account.getNamePP())) {
-			return;
-		}
-		if (hasText(account.getAccountName())) {
-			account.setNamePP(account.getAccountName());
-		} else if (hasText(account.getIban())) {
-			account.setNamePP(account.getIban());
-		} else if (hasText(account.getNumber())) {
-			account.setNamePP(account.getNumber());
-		} else {
-			account.setNamePP("Konto " + account.getId());
-		}
+		account.setNamePP(RebookingLinkWriter.accountName(account, account.getId()));
 	}
 
 	private static BankAccount findRebookingTargetAccount(List<BankAccount> accounts, Booking booking) {
@@ -488,7 +436,7 @@ final class RebookingService extends AbstractDbService {
 			return false;
 		}
 		if (!BookingType.isRebooking(booking.getBookingType()) || booking.getCrossBooking() != null
-				|| isPrenotification(booking) || booking.getParentBookingId() != null
+				|| booking.isPrenotification() || booking.getParentBookingId() != null
 				|| booking.getForeignCurrencyDetails() != null
 				|| sourceAccount.getBaseCurrency() != targetAccount.getBaseCurrency()) {
 			return false;
@@ -513,8 +461,8 @@ final class RebookingService extends AbstractDbService {
 			BankAccount sourceAccount = candidate.sourceAccount();
 			BankAccount targetAccount = candidate.targetAccount();
 			MissingRebookingRouteKey routeKey = new MissingRebookingRouteKey(sourceAccount.getId(),
-					formatRebookingAccountName(sourceAccount, sourceAccount.getId()), targetAccount.getId(),
-					formatRebookingAccountName(targetAccount, targetAccount.getId()));
+					RebookingLinkWriter.accountName(sourceAccount, sourceAccount.getId()), targetAccount.getId(),
+					RebookingLinkWriter.accountName(targetAccount, targetAccount.getId()));
 			countsByRoute.merge(routeKey, 1, Integer::sum);
 		}
 
@@ -541,45 +489,6 @@ final class RebookingService extends AbstractDbService {
 			}
 		}
 		return bookingIds;
-	}
-
-	private static boolean canPersistMissingCounterBooking(Booking sourceBooking,
-			BankAccount targetAccount) {
-		if (sourceBooking == null || targetAccount == null || sourceBooking.getId() <= 0
-				|| sourceBooking.getAmount() == null || targetAccount.getId() <= 0
-				|| sourceBooking.getAccountId() == targetAccount.getId()) {
-			return false;
-		}
-		if (sourceBooking.getParentBookingId() != null || isPrenotification(sourceBooking)
-				|| sourceBooking.getForeignCurrencyDetails() != null) {
-			return false;
-		}
-		Integer crossBookingId = sourceBooking.getCrossBookingId();
-		if (crossBookingId != null && crossBookingId > 0) {
-			return false;
-		}
-		Integer crossAccountId = sourceBooking.getCrossAccountId();
-		return crossAccountId == null || crossAccountId <= 0
-				|| crossAccountId == targetAccount.getId();
-	}
-
-	private static Recipient createRecipientForAccount(BankAccount account) {
-		Recipient recipient = new Recipient();
-		recipient.setName(formatRebookingAccountName(account, account.getId()));
-		recipient.setIban(account.getIban());
-		recipient.setBic(account.getBic());
-		recipient.setAccountNumber(account.getNumber());
-		recipient.setBlz(account.getBlz());
-		recipient.setBank(account.getBankName());
-		recipient.setSource(Source.MANUELL);
-		return recipient;
-	}
-
-	private static LocalDate defaultDate(LocalDate value, LocalDate fallback, LocalDate defaultValue) {
-		if (value != null) {
-			return value;
-		}
-		return fallback != null ? fallback : defaultValue;
 	}
 
 	private static boolean canPersistRebookingPair(Booking booking, Booking crossBooking) {
@@ -611,7 +520,7 @@ final class RebookingService extends AbstractDbService {
 
 		return rebookingCountsByAccountId.entrySet().stream()
 				.map(entry -> new RebookingAccountSummary(entry.getKey(),
-						formatRebookingAccountName(accountById.get(entry.getKey()), entry.getKey()),
+						RebookingLinkWriter.accountName(accountById.get(entry.getKey()), entry.getKey()),
 						entry.getValue()))
 				.sorted(Comparator.comparing(RebookingAccountSummary::accountName,
 						String.CASE_INSENSITIVE_ORDER)
@@ -626,24 +535,6 @@ final class RebookingService extends AbstractDbService {
 		}
 	}
 
-	private static String formatRebookingAccountName(BankAccount account, int accountId) {
-		if (account != null) {
-			if (hasText(account.getNamePP())) {
-				return account.getNamePP();
-			}
-			if (hasText(account.getAccountName())) {
-				return account.getAccountName();
-			}
-			if (hasText(account.getIban())) {
-				return account.getIban();
-			}
-			if (hasText(account.getNumber())) {
-				return account.getNumber();
-			}
-		}
-		return "Konto " + accountId;
-	}
-
 	private static boolean shouldPersistDetectedRebooking(Booking booking, Booking crossBooking,
 			RebookingDetectionContext detectionContext) {
 		if (booking == null || crossBooking == null || booking.getId() <= 0
@@ -654,7 +545,7 @@ final class RebookingService extends AbstractDbService {
 				&& !detectionContext.anchorBookingIds().contains(crossBooking.getId())) {
 			return false;
 		}
-		if (isPrenotification(booking) || isPrenotification(crossBooking)) {
+		if (booking.isPrenotification() || crossBooking.isPrenotification()) {
 			return false;
 		}
 		if (!hasSameBaseCurrency(booking, crossBooking, detectionContext.accounts())) {
@@ -717,10 +608,6 @@ final class RebookingService extends AbstractDbService {
 		}
 		baseBooking.setCrossAccountId(counterpartBooking.getAccountId());
 		baseBooking.setCrossBookingId(counterpartBooking.getId());
-	}
-
-	private static boolean isPrenotification(Booking booking) {
-		return booking != null && booking.getSource() != null && booking.getSource().isPrenotification();
 	}
 
 	private static String pairKey(Booking booking, Booking crossBooking) {

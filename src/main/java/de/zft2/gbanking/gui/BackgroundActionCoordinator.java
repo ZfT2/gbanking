@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
@@ -70,6 +71,19 @@ public final class BackgroundActionCoordinator {
 
 	public static BackgroundActionCoordinator getInstance() {
 		return INSTANCE;
+	}
+
+	/**
+	 * Creates a task that runs the given work; handlers, bindings and the start remain with the caller.
+	 */
+	public static <T> Task<T> newTask(Callable<T> work) {
+		Objects.requireNonNull(work, "work");
+		return new Task<>() {
+			@Override
+			protected T call() throws Exception {
+				return work.call();
+			}
+		};
 	}
 
 	public boolean start(Task<?> task, String actionName) {

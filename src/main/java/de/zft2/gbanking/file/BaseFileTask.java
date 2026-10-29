@@ -1,7 +1,8 @@
 package de.zft2.gbanking.file;
 
+import static de.zft2.gbanking.util.FileNames.fileName;
+
 import java.io.IOException;
-import java.nio.file.Path;
 
 import javax.xml.parsers.ParserConfigurationException;
 
@@ -42,11 +43,6 @@ public abstract class BaseFileTask extends BaseWorker {
 	}
 
 	protected String fileNameOnly() {
-		if (fileName == null) {
-			return null;
-		}
-		Path path = Path.of(fileName);
-		Path pathFileName = path.getFileName();
-		return pathFileName != null ? pathFileName.toString() : fileName;
+		return fileName(fileName);
 	}
 }

@@ -1,5 +1,7 @@
 package de.zft2.gbanking.file.imp;
 
+import static de.zft2.gbanking.util.FileNames.fileName;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
@@ -68,11 +70,6 @@ public class MoneyTransferImportTask extends BaseFileTask implements BaseMessage
 			throw new IllegalArgumentException("At least one money transfer import file is required");
 		}
 		return importFiles.get(0);
-	}
-
-	private static String fileName(Path file) {
-		Path name = file.getFileName();
-		return name != null ? name.toString() : file.toString();
 	}
 
 	private static final class FileProgressReporter implements ProgressReporter {

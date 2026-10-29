@@ -15,11 +15,9 @@ import de.zft2.gbanking.db.dao.Institute;
 
 class InstituteMapperTest {
 
-	private final InstituteMapper mapper = new InstituteMapper();
-
 	@Test
 	void hasDkDataShouldRecognizeEveryPersistedField() {
-		assertFalse(mapper.hasDkData(new Institute()));
+		assertFalse(InstituteMapper.hasDkData(new Institute()));
 		assertEveryValueDetected(List.of(
 				institute -> institute.setImportNumber(1),
 				institute -> institute.setDataCenter("data-center"),
@@ -41,12 +39,12 @@ class InstituteMapperTest {
 				institute -> institute.setPinUrl("https://pin.example"),
 				institute -> institute.setVersion("1.0"),
 				institute -> institute.setLastChanged(LocalDate.of(2026, Month.JULY, 29))),
-				institute -> mapper.hasDkData(institute));
+				institute -> InstituteMapper.hasDkData(institute));
 	}
 
 	@Test
 	void hasDbbDataShouldRecognizeEveryPersistedField() {
-		assertFalse(mapper.hasDbbData(new Institute()));
+		assertFalse(InstituteMapper.hasDbbData(new Institute()));
 		assertEveryValueDetected(List.of(
 				institute -> institute.setDatasetNumber("dataset"),
 				institute -> institute.setFeature(1),
@@ -57,19 +55,19 @@ class InstituteMapperTest {
 				institute -> institute.setFeatureChange('A'),
 				institute -> institute.setBlzDeletion(1),
 				institute -> institute.setBlzSuccession("10020030")),
-				institute -> mapper.hasDbbData(institute));
+				institute -> InstituteMapper.hasDbbData(institute));
 	}
 
 	@Test
 	void hasEpcDataShouldRecognizeEveryPersistedField() {
-		assertFalse(mapper.hasEpcData(new Institute()));
+		assertFalse(InstituteMapper.hasEpcData(new Institute()));
 		assertEveryValueDetected(List.of(
 				institute -> institute.setCountry("DE"),
 				institute -> institute.setAddress("Address"),
 				institute -> institute.setReadinessDate("2026-07-29"),
 				institute -> institute.setSchemeLeavingDate("2026-08-01"),
 				institute -> institute.setSchemeOptions("SCT")),
-				institute -> mapper.hasEpcData(institute));
+				institute -> InstituteMapper.hasEpcData(institute));
 	}
 
 	private static void assertEveryValueDetected(List<Consumer<Institute>> values,

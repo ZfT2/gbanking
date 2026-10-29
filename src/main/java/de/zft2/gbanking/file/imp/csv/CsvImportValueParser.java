@@ -50,7 +50,19 @@ public final class CsvImportValueParser {
 		if (value == null || value.isBlank()) {
 			return null;
 		}
-		String dateOrder = definition.getDateOrder();
+		return parseDate(value, definition.getDateOrder());
+	}
+
+	/**
+	 * Parses a date in the given day/month/year order (e.g. {@code TMJ}). Without an order, the common
+	 * booking date formats are accepted.
+	 *
+	 * @throws DateTimeException if the date does not match the expected format
+	 */
+	public static LocalDate parseDate(String value, String dateOrder) {
+		if (value == null || value.isBlank()) {
+			return null;
+		}
 		if (dateOrder == null || dateOrder.isBlank()) {
 			LocalDate date = BookingCsvFormat.parseDate(value);
 			if (date != null) {

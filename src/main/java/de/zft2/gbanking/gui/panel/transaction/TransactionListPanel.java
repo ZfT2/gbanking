@@ -13,7 +13,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Predicate;
@@ -37,6 +36,7 @@ import de.zft2.gbanking.gui.util.FxNodeSupport;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
 import de.zft2.gbanking.service.booking.BookingService;
 import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.util.DecimalText;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -61,7 +61,6 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.util.Callback;
 import javafx.util.StringConverter;
@@ -70,9 +69,6 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 
 	private static final Logger log = LogManager.getLogger(TransactionListPanel.class);
 
-	private static final String AMOUNT_NEUTRAL = "amount-neutral";
-	private static final String AMOUNT_NEGATIVE = "amount-negative";
-	private static final String AMOUNT_POSITIVE = "amount-positive";
 	private static final String BOOKING_PRENOTIFICATION = "booking-prenotification";
 
 	private static final double PURPOSE_COLUMN_MIN_WIDTH = 180;
@@ -292,7 +288,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 
 	private BigDecimal parseFilterAmount(String value) {
 		try {
-			return TransactionFilter.parseGermanAmount(value);
+			return DecimalText.parseGermanAmount(value);
 		} catch (NumberFormatException ex) {
 			return null;
 		}
@@ -428,8 +424,8 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 		FxTableUtils.setFixedWidth(dateCol, DATE_COLUMN_WIDTH);
 		purposeCol = createPurposeColumn();
 		categoryCol = createCategoryColumn();
-		amountCol = TableColumnFactory.createAmountColumn(getText("UI_TABLE_AMOUNT"), Booking::getAmount, this::isPrenotification);
-		amountCol.setCellFactory(FxTableUtils.createAutoFitBigDecimalAmountCellFactory(this::isPrenotification));
+		amountCol = TableColumnFactory.createAmountColumn(getText("UI_TABLE_AMOUNT"), Booking::getAmount);
+		amountCol.setCellFactory(FxTableUtils.createAutoFitBigDecimalAmountCellFactory(booking -> booking.isPrenotification()));
 		FxTableUtils.setPreferredWidth(amountCol, AMOUNT_COLUMN_MIN_WIDTH, AMOUNT_COLUMN_PREF_WIDTH);
 		balanceCol = new TableColumn<>(getText("UI_TABLE_BALANCE"));
 		balanceCol.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue()));
@@ -600,16 +596,15 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 
 	private Callback<TableColumn<Booking, Booking>, TableCell<Booking, Booking>> createBalanceCol() {
 		return column -> new javafx.scene.control.TableCell<>() {
-			private final Text textNode = createAmountText();
+			private final Text textNode = FxTableUtils.createAmountText();
 
 			@Override
 			protected void updateItem(Booking item, boolean empty) {
 				super.updateItem(item, empty);
-				getStyleClass().removeAll(AMOUNT_POSITIVE, AMOUNT_NEGATIVE, AMOUNT_NEUTRAL);
-				textNode.getStyleClass().removeAll(AMOUNT_POSITIVE, AMOUNT_NEGATIVE, AMOUNT_NEUTRAL);
+				FxTableUtils.clearAmountStyleClasses(this, textNode);
 				setAlignment(Pos.CENTER_RIGHT);
 
-				BigDecimal balance = empty || item == null || isPrenotification(item) || filterActive ? null : item.getBalance();
+				BigDecimal balance = empty || item == null || item.isPrenotification() || filterActive ? null : item.getBalance();
 				if (balance == null) {
 					setText(null);
 					setGraphic(null);
@@ -623,37 +618,28 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 			public void updateSelected(boolean selected) {
 				super.updateSelected(selected);
 				Booking booking = getItem();
-				BigDecimal balance = booking == null || isPrenotification(booking) || filterActive ? null : booking.getBalance();
+				BigDecimal balance = booking == null || booking.isPrenotification() || filterActive ? null : booking.getBalance();
 				if (balance != null) {
-					applyAmountTextStyle(textNode, balance);
+					FxTableUtils.applyAmountTextStyle(textNode, balance);
 				}
 			}
 		};
 	}
 
 	private void formatBalanceText(TableCell<Booking, Booking> tableCell, Text textNode, BigDecimal balance) {
-		final HBox graphic = createAmountGraphic(textNode);
+		final HBox graphic = FxTableUtils.createAmountGraphic(textNode);
 		textNode.setText(amountFormat.format(balance));
-		applyAmountTextStyle(textNode, balance);
+		FxTableUtils.applyAmountTextStyle(textNode, balance);
 		FxTableUtils.ensureColumnFitsText(tableCell.getTableColumn(), textNode);
 		tableCell.setText(null);
 		tableCell.setGraphic(graphic);
-		if (balance.signum() > 0) {
-			getStyleClass().add(AMOUNT_POSITIVE);
-			textNode.getStyleClass().add(AMOUNT_POSITIVE);
-		} else if (balance.signum() < 0) {
-			getStyleClass().add(AMOUNT_NEGATIVE);
-			textNode.getStyleClass().add(AMOUNT_NEGATIVE);
-		} else {
-			getStyleClass().add(AMOUNT_NEUTRAL);
-			textNode.getStyleClass().add(AMOUNT_NEUTRAL);
-		}
+		FxTableUtils.addAmountStyleClass(balance, false, tableCell, textNode);
 	}
 
 	@Override
 	protected void updateRowStyle(TableRow<Booking> row, Booking booking) {
 		row.getStyleClass().removeAll(BOOKING_PRENOTIFICATION);
-		if (isPrenotification(booking)) {
+		if (booking != null && booking.isPrenotification()) {
 			row.getStyleClass().add(BOOKING_PRENOTIFICATION);
 		}
 	}
@@ -806,22 +792,14 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 
 	private void updateSaldoLabel() {
 		BigDecimal saldo = filteredData.stream()
-				.filter(booking -> !isPrenotification(booking))
+				.filter(booking -> !booking.isPrenotification())
 				.map(Booking::getAmount)
 				.filter(Objects::nonNull)
 				.reduce(BigDecimal.ZERO, BigDecimal::add);
 		saldoValueLabel.setText(amountFormat.format(saldo));
-		saldoValueLabel.getStyleClass().removeAll(AMOUNT_POSITIVE, AMOUNT_NEGATIVE, AMOUNT_NEUTRAL);
-		if (saldo.signum() > 0) {
-			saldoValueLabel.getStyleClass().add(AMOUNT_POSITIVE);
-			saldoValueLabel.setStyle("-fx-text-fill: rgb(0, 100, 0);");
-		} else if (saldo.signum() < 0) {
-			saldoValueLabel.getStyleClass().add(AMOUNT_NEGATIVE);
-			saldoValueLabel.setStyle("-fx-text-fill: red;");
-		} else {
-			saldoValueLabel.getStyleClass().add(AMOUNT_NEUTRAL);
-			saldoValueLabel.setStyle("");
-		}
+		FxTableUtils.clearAmountStyleClasses(saldoValueLabel);
+		FxTableUtils.addAmountStyleClass(saldo, false, saldoValueLabel);
+		saldoValueLabel.setStyle(saldo.signum() == 0 ? "" : "-fx-text-fill: " + FxTableUtils.amountCssColor(saldo) + ";");
 	}
 
 	/**
@@ -833,44 +811,6 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 		ColumnConstraints constraints = new ColumnConstraints();
 		constraints.prefWidthProperty().bind(column.widthProperty());
 		footer.getColumnConstraints().add(constraints);
-	}
-
-	private Text createAmountText() {
-		Text text = new Text();
-		text.getStyleClass().addAll("amount", "amount-text");
-		text.setStyle("-fx-font-weight: bold; -fx-fill: rgb(0, 0, 0);");
-		return text;
-	}
-
-	private Color resolveAmountColor(BigDecimal value) {
-		if (value == null || value.signum() == 0) {
-			return Color.BLACK;
-		}
-		return value.signum() > 0 ? Color.rgb(0, 100, 0) : Color.RED;
-	}
-
-	private void applyAmountTextStyle(Text text, BigDecimal value) {
-		Color color = resolveAmountColor(value);
-		text.setFill(color);
-		text.setStyle("-fx-font-weight: bold; -fx-fill: " + toCssColor(color) + ";");
-	}
-
-	private String toCssColor(Color color) {
-		return String.format(Locale.ROOT, "rgb(%d, %d, %d)",
-				(int) Math.round(color.getRed() * 255),
-				(int) Math.round(color.getGreen() * 255),
-				(int) Math.round(color.getBlue() * 255));
-	}
-
-	private HBox createAmountGraphic(Text text) {
-		HBox box = new HBox(text);
-		box.setAlignment(Pos.CENTER_RIGHT);
-		box.setMaxWidth(Double.MAX_VALUE);
-		return box;
-	}
-
-	private boolean isPrenotification(Booking booking) {
-		return booking != null && booking.getSource() != null && booking.getSource().isPrenotification();
 	}
 
 	private record FilterChoice<T>(T value, String label) {

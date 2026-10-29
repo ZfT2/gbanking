@@ -1,12 +1,9 @@
 package de.zft2.gbanking.gui.panel.transaction;
 
-import static de.zft2.gbanking.util.TextValues.trimToNull;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.Locale;
-import java.util.regex.Pattern;
 
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingForeignCurrencyDetails;
@@ -19,7 +16,6 @@ final class TransactionFilter {
 
 	static final int UNCATEGORIZED_ID = -1;
 
-	private static final Pattern GERMAN_GROUPED_AMOUNT = Pattern.compile("[-+]?\\d{1,3}(\\.\\d{3})+");
 	private static final String NUMERIC_SEARCH_CHARACTERS = "0123456789.,+-";
 
 	private TransactionFilter() {
@@ -33,21 +29,6 @@ final class TransactionFilter {
 		return matchesTextSearch(booking, effectiveCriteria.searchText()) && matchesDateRange(booking, effectiveCriteria)
 				&& matchesAmountRange(booking, effectiveCriteria) && matchesCategory(booking, effectiveCriteria.categoryId())
 				&& matchesBookingState(booking, effectiveCriteria.bookingState());
-	}
-
-	static BigDecimal parseGermanAmount(String value) {
-		String normalized = trimToNull(value);
-		if (normalized == null) {
-			return null;
-		}
-		String compact = normalized.replace(" ", "").replace("\u00a0", "");
-		if (compact.contains(",")) {
-			return new BigDecimal(compact.replace(".", "").replace(',', '.'));
-		}
-		if (GERMAN_GROUPED_AMOUNT.matcher(compact).matches()) {
-			return new BigDecimal(compact.replace(".", ""));
-		}
-		return new BigDecimal(compact);
 	}
 
 	static String formatGermanAmount(BigDecimal amount) {
@@ -139,7 +120,7 @@ final class TransactionFilter {
 	}
 
 	private static boolean matchesBookingState(Booking booking, BookingState bookingState) {
-		boolean prenotification = booking.getSource() != null && booking.getSource().isPrenotification();
+		boolean prenotification = booking.isPrenotification();
 		return switch (bookingState) {
 		case ALL -> true;
 		case BOOKED -> !prenotification;

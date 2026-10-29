@@ -2,7 +2,6 @@ package de.zft2.gbanking.gui.panel.transaction;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
@@ -114,12 +113,7 @@ class TransactionFilterTest {
 	}
 
 	@Test
-	void germanAmountConversion_shouldSupportGermanAndPlainNotation() {
-		assertEquals(new BigDecimal("1234.56"), TransactionFilter.parseGermanAmount("1.234,56"));
-		assertEquals(new BigDecimal("1234.56"), TransactionFilter.parseGermanAmount("1234,56"));
-		assertEquals(new BigDecimal("1234.56"), TransactionFilter.parseGermanAmount("1234.56"));
-		assertEquals(new BigDecimal("1234"), TransactionFilter.parseGermanAmount("1.234"));
-		assertNull(TransactionFilter.parseGermanAmount(" "));
+	void germanAmountFormatting_shouldUseGermanSeparators() {
 		assertEquals("1.234,56", TransactionFilter.formatGermanAmount(new BigDecimal("1234.56")));
 		assertEquals("-1.234.567,89", TransactionFilter.formatGermanAmount(new BigDecimal("-1234567.891")));
 		assertEquals("-123,40", TransactionFilter.formatGermanAmount(new BigDecimal("-123.4")));

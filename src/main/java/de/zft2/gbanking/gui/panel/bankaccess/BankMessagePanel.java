@@ -1,5 +1,7 @@
 package de.zft2.gbanking.gui.panel.bankaccess;
 
+import static de.zft2.gbanking.util.TextValues.appendParagraph;
+
 import java.util.Arrays;
 import java.util.List;
 
@@ -87,22 +89,12 @@ public class BankMessagePanel extends DetailListPane implements BaseMessagesBean
 		}
 
 		StringBuilder builder = new StringBuilder();
-		appendSection(builder, bankMessage.getMessage());
-		appendSection(builder, bankMessage.getComments());
+		appendParagraph(builder, bankMessage.getMessage());
+		appendParagraph(builder, bankMessage.getComments());
 		if (builder.isEmpty()) {
-			appendSection(builder, bankMessage.getDescription());
+			appendParagraph(builder, bankMessage.getDescription());
 		}
 		return builder.toString();
-	}
-
-	private void appendSection(StringBuilder builder, String text) {
-		if (text == null || text.isBlank()) {
-			return;
-		}
-		if (!builder.isEmpty()) {
-			builder.append(System.lineSeparator()).append(System.lineSeparator());
-		}
-		builder.append(text.trim());
 	}
 
 	private void retrieveMessages() {
@@ -134,12 +126,8 @@ public class BankMessagePanel extends DetailListPane implements BaseMessagesBean
 
 	private void startRetrievalTask(BankAccess bankAccess, char[] pin) {
 		detailPanel.setRetrievalRunning(true);
-		Task<BankMessageRetrievalResult> task = new Task<>() {
-			@Override
-			protected BankMessageRetrievalResult call() {
-				return bankMessageService.retrieveBankMessagesWithResult(bankAccess, pin);
-			}
-		};
+		Task<BankMessageRetrievalResult> task = BackgroundActionCoordinator
+				.newTask(() -> bankMessageService.retrieveBankMessagesWithResult(bankAccess, pin));
 		task.setOnSucceeded(event -> handleRetrievalSuccess(task.getValue()));
 		task.setOnFailed(event -> handleRetrievalFailure(task.getException(), pin));
 		task.setOnCancelled(event -> {

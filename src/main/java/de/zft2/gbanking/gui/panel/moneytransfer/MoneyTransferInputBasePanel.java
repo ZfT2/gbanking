@@ -32,6 +32,7 @@ import de.zft2.gbanking.gui.panel.AbstractTitledFormPanel;
 import de.zft2.gbanking.gui.util.FormControlUtils;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.gui.util.FormStyleUtils.FieldWidth;
+import de.zft2.gbanking.gui.util.FxTableUtils;
 import de.zft2.gbanking.gui.util.StatusSymbols;
 import de.zft2.gbanking.service.BankingCapabilityService;
 import de.zft2.gbanking.service.moneytransfer.BankOrderOperation;
@@ -64,9 +65,6 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 	private static final String UI_BUTTON_NO = "UI_BUTTON_NO";
 	private static final String IBAN_VALID_SYMBOL = StatusSymbols.CHECK;
 	private static final String IBAN_INVALID_SYMBOL = StatusSymbols.CROSS;
-	private static final String AMOUNT_POSITIVE = "amount-positive";
-	private static final String AMOUNT_NEGATIVE = "amount-negative";
-	private static final String AMOUNT_NEUTRAL = "amount-neutral";
 
 	private static final double BIC_COLUMN_WIDTH = 110.0;
 	private static final double CURRENCY_COLUMN_WIDTH = 90.0;
@@ -424,7 +422,7 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 
 	private void updateAccountBalanceLabel(BankAccount account) {
 		BigDecimal balance = resolveAccountBalance(account);
-		accountBalanceLabel.getStyleClass().removeAll(AMOUNT_POSITIVE, AMOUNT_NEGATIVE, AMOUNT_NEUTRAL);
+		FxTableUtils.clearAmountStyleClasses(accountBalanceLabel);
 		if (balance == null) {
 			accountBalanceLabel.setText("");
 			accountBalanceLabel.setVisible(false);
@@ -432,7 +430,7 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 		}
 
 		accountBalanceLabel.setText(getText("UI_TABLE_BALANCE") + ": " + formatAccountBalance(account, balance));
-		accountBalanceLabel.getStyleClass().add(amountStyleClass(balance));
+		FxTableUtils.addAmountStyleClass(balance, false, accountBalanceLabel);
 		accountBalanceLabel.setVisible(true);
 	}
 
@@ -449,7 +447,7 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 		}
 		return bookings.stream()
 				.filter(Objects::nonNull)
-				.filter(booking -> booking.getSource() == null || !booking.getSource().isPrenotification())
+				.filter(booking -> !booking.isPrenotification())
 				.map(booking -> booking.getAmount())
 				.filter(Objects::nonNull)
 				.reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -458,13 +456,6 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 	static String formatAccountBalance(BankAccount account, BigDecimal balance) {
 		String currency = account != null ? account.getCurrency() : null;
 		return formatAmountForDisplay(balance) + (currency != null ? " " + currency : "");
-	}
-
-	static String amountStyleClass(BigDecimal amount) {
-		if (amount.signum() > 0) {
-			return AMOUNT_POSITIVE;
-		}
-		return amount.signum() < 0 ? AMOUNT_NEGATIVE : AMOUNT_NEUTRAL;
 	}
 
 	public void refreshCapabilityState(BankAccount selectedAccount) {

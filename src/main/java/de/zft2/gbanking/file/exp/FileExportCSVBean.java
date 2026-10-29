@@ -1,5 +1,7 @@
 package de.zft2.gbanking.file.exp;
 
+import static de.zft2.gbanking.util.FileNames.fileName;
+
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -41,11 +43,11 @@ public class FileExportCSVBean extends FileExportBean {
 		try {
 			List<Object[]> csvLines = createCSVContent(accountList);
 			saveToExportFile(csvLines, fileName);
-			log.info("Finished CSV booking export. file={}, accounts={}, records={}", () -> fileNameOnly(fileName), accountList::size,
+			log.info("Finished CSV booking export. file={}, accounts={}, records={}", () -> fileName(fileName), accountList::size,
 					csvLines::size);
 			return true;
 		} catch (Exception e) {
-			log.error("Error exporting CSV file {}", fileNameOnly(fileName), e);
+			log.error("Error exporting CSV file {}", fileName(fileName), e);
 			log.debug("CSV export path: {}", fileName);
 			return false;
 		}

@@ -1,5 +1,7 @@
 package de.zft2.gbanking.gui;
 
+import static de.zft2.gbanking.util.FileNames.fileName;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
@@ -310,11 +312,6 @@ final class FileTransferCoordinator implements BaseGui {
 
 	private StockPortfolioOverviewPanel stockOverview() {
 		return (StockPortfolioOverviewPanel) OverviewPanelFactory.retrievePanel(PageContext.STOCK_PORTFOLIOS.name());
-	}
-
-	private String fileName(Path path) {
-		Path name = path != null ? path.getFileName() : null;
-		return name != null ? name.toString() : null;
 	}
 
 	private record BookingImportSelection(BankAccount account, String csvDefinitionName) {

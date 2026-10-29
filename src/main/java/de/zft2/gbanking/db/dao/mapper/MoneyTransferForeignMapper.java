@@ -18,6 +18,20 @@ public class MoneyTransferForeignMapper extends AbstractDaoMapper<MoneyTransferF
 
 	@Override
 	public void setParamsFull(MoneyTransferForeign foreignTransfer, PreparedStatement ps) throws SQLException {
+		int index = setValueParams(foreignTransfer, ps);
+		if (foreignTransfer.getId() > 0) {
+			ps.setInt(index, foreignTransfer.getId());
+		}
+	}
+
+	public void setParamsForUpsert(MoneyTransferForeign foreignTransfer, PreparedStatement ps) throws SQLException {
+		setValueParams(foreignTransfer, ps);
+	}
+
+	/**
+	 * Binds all value columns including the change timestamp and returns the next free parameter index.
+	 */
+	private int setValueParams(MoneyTransferForeign foreignTransfer, PreparedStatement ps) throws SQLException {
 		int index = 1;
 
 		ps.setInt(index++, foreignTransfer.getMoneyTransferId());
@@ -35,29 +49,7 @@ public class MoneyTransferForeignMapper extends AbstractDaoMapper<MoneyTransferF
 		ps.setString(index++, foreignTransfer.getRegulatoryReporting());
 		ps.setString(index++, foreignTransfer.getEndToEndReference());
 		ps.setTimestamp(index++, TypeConverter.toSqlTimestampNow());
-		if (foreignTransfer.getId() > 0) {
-			ps.setInt(index, foreignTransfer.getId());
-		}
-	}
-
-	public void setParamsForUpsert(MoneyTransferForeign foreignTransfer, PreparedStatement ps) throws SQLException {
-		int index = 1;
-
-		ps.setInt(index++, foreignTransfer.getMoneyTransferId());
-		ps.setInt(index++, foreignTransfer.getCurrency().getDbStateId());
-		ps.setString(index++, foreignTransfer.getRecipientCountry());
-		ps.setString(index++, foreignTransfer.getRecipientAccountNumber());
-		ps.setString(index++, foreignTransfer.getRecipientBankCode());
-		ps.setString(index++, foreignTransfer.getRecipientSubAccount());
-		ps.setString(index++, foreignTransfer.getRecipientAddressLine1());
-		ps.setString(index++, foreignTransfer.getRecipientAddressLine2());
-		ps.setString(index++, foreignTransfer.getRecipientBankCountry());
-		ps.setString(index++, foreignTransfer.getRecipientBankAddressLine1());
-		ps.setString(index++, foreignTransfer.getRecipientBankAddressLine2());
-		index = setEnumNullable(index, foreignTransfer.getChargeBearer(), ps);
-		ps.setString(index++, foreignTransfer.getRegulatoryReporting());
-		ps.setString(index++, foreignTransfer.getEndToEndReference());
-		ps.setTimestamp(index, TypeConverter.toSqlTimestampNow());
+		return index;
 	}
 
 	@Override

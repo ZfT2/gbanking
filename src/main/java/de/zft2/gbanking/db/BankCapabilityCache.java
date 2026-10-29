@@ -43,31 +43,26 @@ public final class BankCapabilityCache {
 	 * Returns the parameter data of the given bank access and loads it on the first access.
 	 */
 	public static BankAccessData getBankAccessData(int bankAccessId, Supplier<BankAccessData> loader) {
-		BankAccessData cached = BANK_ACCESS_DATA.get(bankAccessId);
-		if (cached != null) {
-			return cached;
-		}
-		BankAccessData loaded = loader.get();
-		if (loaded == null) {
-			return null;
-		}
-		BankAccessData existing = BANK_ACCESS_DATA.putIfAbsent(bankAccessId, loaded);
-		return existing != null ? existing : loaded;
+		return getOrLoad(BANK_ACCESS_DATA, bankAccessId, loader);
 	}
 
 	/**
 	 * Returns the account data of the given account and loads it on the first access.
 	 */
 	public static AccountData getAccountData(int accountId, Supplier<AccountData> loader) {
-		AccountData cached = ACCOUNT_DATA.get(accountId);
+		return getOrLoad(ACCOUNT_DATA, accountId, loader);
+	}
+
+	private static <V> V getOrLoad(Map<Integer, V> cache, int id, Supplier<V> loader) {
+		V cached = cache.get(id);
 		if (cached != null) {
 			return cached;
 		}
-		AccountData loaded = loader.get();
+		V loaded = loader.get();
 		if (loaded == null) {
 			return null;
 		}
-		AccountData existing = ACCOUNT_DATA.putIfAbsent(accountId, loaded);
+		V existing = cache.putIfAbsent(id, loaded);
 		return existing != null ? existing : loaded;
 	}
 

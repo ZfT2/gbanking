@@ -76,9 +76,6 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
 public class StockPortfolioOverviewPanel extends OverviewBasePanel {
-	private static final String AMOUNT_POSITIVE = "amount-positive";
-	private static final String AMOUNT_NEGATIVE = "amount-negative";
-	private static final String AMOUNT_NEUTRAL = "amount-neutral";
 	private static final String MUTED_TRANSACTION_STYLE = "booking-prenotification";
 	private static final double MASTER_DIVIDER = 0.22;
 	private static final double TABLE_DIVIDER = 0.5;
@@ -481,14 +478,8 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	}
 
 	static void applyPerformanceStyle(TableCell<?, ?> cell, BigDecimal performance) {
-		cell.getStyleClass().removeAll(AMOUNT_POSITIVE, AMOUNT_NEGATIVE, AMOUNT_NEUTRAL);
-		if (performance != null && performance.signum() > 0) {
-			cell.getStyleClass().add(AMOUNT_POSITIVE);
-		} else if (performance != null && performance.signum() < 0) {
-			cell.getStyleClass().add(AMOUNT_NEGATIVE);
-		} else {
-			cell.getStyleClass().add(AMOUNT_NEUTRAL);
-		}
+		FxTableUtils.clearAmountStyleClasses(cell);
+		FxTableUtils.addAmountStyleClass(performance, false, cell);
 	}
 
 	private static <T> TableColumn<T, BigDecimal> createQuantityColumn(String title,

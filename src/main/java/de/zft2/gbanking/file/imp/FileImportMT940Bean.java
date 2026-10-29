@@ -16,8 +16,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.kapott.hbci.GV_Result.GVRKUms;
 import org.kapott.hbci.GV_Result.GVRKUms.BTag;
 import org.kapott.hbci.GV_Result.GVRKUms.UmsLine;
@@ -43,8 +41,6 @@ import de.zft2.gbanking.util.TypeConverter;
 
 public class FileImportMT940Bean extends AbstractBookingImportBean {
 
-	private static final Logger log = LogManager.getLogger(FileImportMT940Bean.class);
-
 	public FileImportMT940Bean(ProgressReporter progressReporter) {
 		this(progressReporter, null);
 	}
@@ -56,17 +52,6 @@ public class FileImportMT940Bean extends AbstractBookingImportBean {
 	FileImportMT940Bean(ProgressReporter progressReporter, BankAccount contextAccount,
 			ImportedBankNameCorrectionHandler bankNameCorrectionHandler) {
 		super(progressReporter, contextAccount, bankNameCorrectionHandler);
-	}
-
-	public boolean importFile(String importFile) {
-		try {
-			importFileToDatabase(importFile);
-			return true;
-		} catch (IOException e) {
-			log.error("Error importing MT940 file: {}", fileName(importFile), e);
-			log.debug("MT940 import path: {}", importFile);
-			return false;
-		}
 	}
 
 	public void importFileToDatabase(String importFile) throws IOException {

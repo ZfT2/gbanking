@@ -1,5 +1,7 @@
 package de.zft2.gbanking.file.exp;
 
+import static de.zft2.gbanking.util.FileNames.fileName;
+
 import java.math.RoundingMode;
 import java.nio.file.Path;
 import java.util.List;
@@ -48,7 +50,7 @@ public class FileExportXMLBean extends FileExportBean {
 
 		} catch (ParserConfigurationException | TransformerException e) {
 			result = false;
-			log.error("Error exporting XML file {}", fileNameOnly(fileName), new GBankingException(e.getMessage(), true));
+			log.error("Error exporting XML file {}", fileName(fileName), new GBankingException(e.getMessage(), true));
 			log.debug("XML export path: {}", fileName);
 		}
 

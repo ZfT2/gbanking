@@ -349,10 +349,7 @@ public final class StatementsConfig {
 		if (StockDao.class.isAssignableFrom(type)) {
 			return (AbstractDaoMapper<T, V>) new StockDaoMapper<>(type.asSubclass(StockDao.class));
 		}
-		DaoMetadata<?, ?> metadata = DAO_METADATA.get(type);
-		if (metadata == null) {
-			metadata = DEFAULT_METADATA;
-		}
+		DaoMetadata<?, ?> metadata = DAO_METADATA.getOrDefault(type, DEFAULT_METADATA);
 		return (AbstractDaoMapper<T, V>) metadata.mapper();
 	}
 
@@ -361,10 +358,7 @@ public final class StatementsConfig {
 		if (StockDao.class.isAssignableFrom(type)) {
 			return (StatementsLogic<T>) new StatementsLogicStock<>();
 		}
-		DaoMetadata<?, ?> metadata = DAO_METADATA.get(type);
-		if (metadata == null) {
-			metadata = DEFAULT_METADATA;
-		}
+		DaoMetadata<?, ?> metadata = DAO_METADATA.getOrDefault(type, DEFAULT_METADATA);
 		return (StatementsLogic<T>) metadata.logic();
 	}
 

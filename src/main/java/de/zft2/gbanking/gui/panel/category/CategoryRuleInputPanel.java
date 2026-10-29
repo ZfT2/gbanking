@@ -7,7 +7,6 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Collections;
 import java.util.List;
-import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -27,6 +26,7 @@ import de.zft2.gbanking.gui.util.DateFormatUtils;
 import de.zft2.gbanking.gui.util.FormGridHelper;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.gui.util.FxTableUtils;
+import de.zft2.gbanking.util.DecimalText;
 import de.zft2.gbanking.util.Ranges;
 import de.zft2.gbanking.util.TextValues;
 import javafx.collections.FXCollections;
@@ -57,7 +57,6 @@ import javafx.util.StringConverter;
 public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 
 	private static final Logger log = LogManager.getLogger(CategoryRuleInputPanel.class);
-	private static final Pattern GERMAN_GROUPED_AMOUNT = Pattern.compile("-?\\d{1,3}(\\.\\d{3})+");
 	private static final DateTimeFormatter GERMAN_DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 	private static final double FIELD_WIDTH = 180.0;
 	private static final double WIDE_FIELD_WIDTH = 380.0;
@@ -295,24 +294,9 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 		return template;
 	}
 
-	private BigDecimal parseAmount(String value) {
-		String normalized = TextValues.trimToNull(value);
-		if (normalized == null) {
-			return null;
-		}
-		String compact = normalized.replace(" ", "");
-		if (compact.contains(",")) {
-			return new BigDecimal(compact.replace(".", "").replace(',', '.'));
-		}
-		if (GERMAN_GROUPED_AMOUNT.matcher(compact).matches()) {
-			return new BigDecimal(compact.replace(".", ""));
-		}
-		return new BigDecimal(compact);
-	}
-
 	private BigDecimal parseAmountOrWarn(String value) {
 		try {
-			return parseAmount(value);
+			return DecimalText.parseGermanAmount(value);
 		} catch (NumberFormatException ex) {
 			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_CATEGORY_REQUIRED_FIELD_MISSING"));
 			return null;
@@ -631,7 +615,7 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 
 	private void formatAmountField(TextField field) {
 		try {
-			BigDecimal amount = parseAmount(field.getText());
+			BigDecimal amount = DecimalText.parseGermanAmount(field.getText());
 			field.setText(formatAmount(amount));
 		} catch (NumberFormatException ex) {
 			// Keep the user's input visible; save validation will handle invalid values.

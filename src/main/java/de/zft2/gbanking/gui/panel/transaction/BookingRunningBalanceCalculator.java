@@ -31,7 +31,7 @@ final class BookingRunningBalanceCalculator {
 	}
 
 	private static void applyBalance(Booking booking, Map<Integer, BigDecimal> balanceByAccount) {
-		if (booking.getSource() != null && booking.getSource().isPrenotification()) {
+		if (booking.isPrenotification()) {
 			booking.setBalance(null);
 			return;
 		}
