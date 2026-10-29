@@ -335,6 +335,24 @@ class GBankingServiceTest {
 	}
 
 	@Test
+	void testApplyCategoryRule_WithRegex_IgnoresUmlautCase() {
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
+		Booking booking = TestDataFactory.createSampleBooking(account.getId());
+		booking.setPurpose("Stadtwerke MÜNCHEN Abschlag");
+		booking = dbController.insertOrUpdate(booking);
+
+		Category category = dbController.insertOrUpdate(TestDataFactory.createSampleCategory("Energie"));
+		CategoryRule categoryRule = new CategoryRule();
+		categoryRule.setCategory(category);
+		categoryRule.setFilterPurpose("stadtwerke münchen");
+		categoryRule.setFilterPurposeIsRegex(true);
+
+		bookingCategoryService.applyCategoryRule(categoryRule);
+
+		assertEquals(category.getId(), dbController.getByIdFull(Booking.class, booking.getId()).getCategoryId());
+	}
+
+	@Test
 	void testApplyCategoryRulesToBookings_RespectsOverwriteExistingCategoriesChoice() {
 		BankAccount account = TestDataFactory.createSampleAccount(null);
 		account = dbController.insertOrUpdate(account);

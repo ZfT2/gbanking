@@ -218,7 +218,7 @@ public class BookingCategoryService extends AbstractDbService {
 			return value -> value.toLowerCase(Locale.ROOT).contains(lowerCaseFilter);
 		}
 		try {
-			return Pattern.compile(filter, Pattern.CASE_INSENSITIVE).asPredicate();
+			return Pattern.compile(filter, Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE).asPredicate();
 		} catch (PatternSyntaxException ex) {
 			log.warn("Invalid regex for category rule filter: {}", filter, ex);
 			return value -> false;
