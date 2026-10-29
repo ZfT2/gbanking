@@ -23,6 +23,7 @@ import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Category;
 import de.zft2.gbanking.db.dao.enu.AccountState;
 import de.zft2.gbanking.util.AccountDisplay;
+import de.zft2.gbanking.util.Ranges;
 
 public final class TurnoverAnalyzer {
 
@@ -313,10 +314,7 @@ public final class TurnoverAnalyzer {
 	}
 
 	private DateRange normalizeRange(LocalDate from, LocalDate to) {
-		if (from != null && to != null && to.isBefore(from)) {
-			return new DateRange(to, from);
-		}
-		return new DateRange(from, to);
+		return Ranges.isReversed(from, to) ? new DateRange(to, from) : new DateRange(from, to);
 	}
 
 	private void addOrReplacePoint(List<BalancePoint> points, LocalDate date, BigDecimal balance) {

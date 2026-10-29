@@ -74,6 +74,15 @@ class TransactionFilterTest {
 	}
 
 	@Test
+	void matches_shouldSwapReversedDateAndAmountRanges() {
+		Booking booking = booking("-75.50", LocalDate.of(2026, Month.JULY, 15));
+
+		assertTrue(TransactionFilter.matches(booking,
+				criteria(LocalDate.of(2026, Month.JULY, 31), LocalDate.of(2026, Month.JULY, 1), "-10", "-100", null,
+						TransactionFilter.BookingState.ALL)));
+	}
+
+	@Test
 	void matches_shouldCombineCategoryAndBookingState() {
 		Booking pendingBooking = booking("10.00", LocalDate.of(2026, Month.JULY, 15));
 		pendingBooking.setCategory(new Category(7, "Lebensmittel"));

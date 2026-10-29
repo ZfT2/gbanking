@@ -27,6 +27,7 @@ import de.zft2.gbanking.gui.util.DateFormatUtils;
 import de.zft2.gbanking.gui.util.FormGridHelper;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.gui.util.FxTableUtils;
+import de.zft2.gbanking.util.Ranges;
 import de.zft2.gbanking.util.TextValues;
 import javafx.collections.FXCollections;
 import javafx.geometry.HPos;
@@ -162,6 +163,10 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 		}
 		BigDecimal amountTo = parseAmountOrWarn(filterAmountTo.getText());
 		if (amountTo == null && TextValues.trimToNull(filterAmountTo.getText()) != null) {
+			return;
+		}
+		if (Ranges.isReversed(filterDateFrom.getValue(), filterDateTo.getValue()) || Ranges.isReversed(amountFrom, amountTo)) {
+			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_CATEGORY_RULE_INVALID_RANGE"));
 			return;
 		}
 

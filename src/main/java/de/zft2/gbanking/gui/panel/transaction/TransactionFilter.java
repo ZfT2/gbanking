@@ -12,6 +12,7 @@ import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingNoteDetails;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.gui.util.DateFormatUtils;
+import de.zft2.gbanking.util.Ranges;
 
 final class TransactionFilter {
 
@@ -158,6 +159,17 @@ final class TransactionFilter {
 		Criteria {
 			searchText = normalize(searchText);
 			bookingState = bookingState != null ? bookingState : BookingState.ALL;
+			// Reversed ranges are swapped, consistent with the turnover analysis.
+			if (Ranges.isReversed(dateFrom, dateTo)) {
+				LocalDate from = dateFrom;
+				dateFrom = dateTo;
+				dateTo = from;
+			}
+			if (Ranges.isReversed(amountFrom, amountTo)) {
+				BigDecimal from = amountFrom;
+				amountFrom = amountTo;
+				amountTo = from;
+			}
 		}
 
 		static Criteria empty() {
