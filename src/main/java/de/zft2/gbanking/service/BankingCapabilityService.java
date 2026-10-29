@@ -187,14 +187,11 @@ public class BankingCapabilityService extends AbstractDbService {
 	}
 
 	private BankCapabilityCache.AccountData loadAccountData(int accountId) {
-		// The bookings of the account are not required here, therefore only the account itself
-		// and its business cases are loaded.
-		BankAccount account = dbController.getById(BankAccount.class, accountId);
+		BankAccount account = dbController.getBankAccountWithBusinessCases(accountId);
 		if (account == null) {
 			return new BankCapabilityCache.AccountData(null, Set.of());
 		}
-		List<BusinessCase> businessCases = dbController.getAllByParent(BusinessCase.class, accountId);
-		Set<String> codes = accountCodes(account, businessCases);
+		Set<String> codes = accountCodes(account, account.getAllowedBusinessCases());
 		return new BankCapabilityCache.AccountData(account, computeSupportedCapabilities(account, codes));
 	}
 

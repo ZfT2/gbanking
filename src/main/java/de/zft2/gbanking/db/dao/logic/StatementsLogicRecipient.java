@@ -3,6 +3,7 @@ package de.zft2.gbanking.db.dao.logic;
 import static de.zft2.gbanking.util.TextValues.hasText;
 import static de.zft2.gbanking.util.TextValues.isMoreReadable;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -115,15 +116,21 @@ public class StatementsLogicRecipient extends StatementsLogicDefault<Recipient> 
 	}
 
 	private List<Recipient> findMatchingRecipientCandidates(Recipient recipient, boolean indexedAccountIdentifierLookup) {
-		if (!indexedAccountIdentifierLookup) {
+		if (indexedAccountIdentifierLookup) {
+			return findRecipientsByAccountIdentifier(DaoSqlStatements.SQL_SELECT_RECIPIENT_CANDIDATES_BY_ACCOUNT_IDENTIFIER, recipient);
+		}
+		if (recipient.hasAccountIdentifier()) {
 			return getAll(Recipient.class);
 		}
-		return findRecipientsByAccountIdentifier(DaoSqlStatements.SQL_SELECT_RECIPIENT_CANDIDATES_BY_ACCOUNT_IDENTIFIER, recipient);
+		// SQLite ignores the case of ASCII characters only, other names are compared by the caller.
+		String asciiName = hasAsciiText(recipient.getName()) ? recipient.getName().trim() : null;
+		return executeSqlSelectStatementForList(DaoSqlStatements.SQL_SELECT_RECIPIENT_CANDIDATES_WITHOUT_ACCOUNT_IDENTIFIER, Recipient.class,
+				Arrays.asList(asciiName, asciiName));
 	}
 
 	private List<Recipient> findRecipientsByAccountIdentifier(String sql, Recipient recipient) {
 		return executeSqlSelectStatementForList(sql, Recipient.class,
-				java.util.Arrays.asList(recipient.getIban(), recipient.getIban(), recipient.getAccountNumber(), recipient.getAccountNumber()));
+				Arrays.asList(recipient.getIban(), recipient.getIban(), recipient.getAccountNumber(), recipient.getAccountNumber()));
 	}
 
 	private boolean canUseIndexedAccountIdentifierLookup(Recipient recipient) {

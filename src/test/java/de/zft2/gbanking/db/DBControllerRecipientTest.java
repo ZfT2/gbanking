@@ -289,6 +289,20 @@ class DBControllerRecipientTest extends DBControllerIntegrationBaseTest {
 	}
 
 	@Test
+	void recipientWithoutAccountIdentifier_shouldReuseCaseVariantByName() {
+		Recipient upperCaseRecipient = new Recipient(" MAX MUSTERMANN ", null, null, null, null, "A-BANK", Source.IMPORT);
+		db.insertOrUpdate(upperCaseRecipient);
+		referenceRecipient(upperCaseRecipient);
+		db.insertOrUpdate(new Recipient("Max Mustermann", "DE1234567890", null, null, null, "A-Bank", Source.IMPORT));
+
+		Recipient resolvedRecipient = db.resolveRecipientForImportedBooking(
+				new Recipient("max mustermann", null, null, null, null, "a-bank", Source.IMPORT));
+
+		assertEquals(upperCaseRecipient.getId(), resolvedRecipient.getId());
+		assertEquals(2, db.getAll(Recipient.class).size());
+	}
+
+	@Test
 	void recipientWithoutAccountIdentifier_shouldUseUnicodeMatchingFallback() {
 		Recipient upperCaseRecipient = new Recipient("MÜLLER GMBH", null, "TESTDEFFXXX", null, null, "MUSTERBANK", Source.IMPORT);
 		db.insertOrUpdate(upperCaseRecipient);

@@ -17,6 +17,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -76,7 +77,12 @@ public class AccountStatementService extends AbstractDbService {
 	}
 
 	public List<AccountStatement> listAccountStatements(BankAccount bankAccount) {
-		return toAccountStatements(listExistingAccountStatementDaos(bankAccount));
+		return toAccountStatements(listExistingAccountStatementDaos(bankAccount, statement -> true));
+	}
+
+	public List<AccountStatement> listPendingReceiptStatements(BankAccount bankAccount) {
+		return toAccountStatements(listExistingAccountStatementDaos(bankAccount,
+				statement -> statement.isReceiptAvailable() && !statement.isAcknowledged()));
 	}
 
 	public Path prepareForOpening(AccountStatement statement) {
@@ -409,7 +415,7 @@ public class AccountStatementService extends AbstractDbService {
 	private boolean hasBusinessCase(BankAccount bankAccount, String businessCaseCode) {
 		BankAccount resolvedAccount = bankAccount;
 		if (bankAccount != null && bankAccount.getId() > 0) {
-			BankAccount accountFromDb = dbController.getByIdFull(BankAccount.class, bankAccount.getId());
+			BankAccount accountFromDb = dbController.getBankAccountWithBusinessCases(bankAccount.getId());
 			if (accountFromDb != null) {
 				resolvedAccount = accountFromDb;
 			}
@@ -747,9 +753,12 @@ public class AccountStatementService extends AbstractDbService {
 		return statements != null ? statements : List.of();
 	}
 
-	private List<BankAccountStatement> listExistingAccountStatementDaos(BankAccount bankAccount) {
+	private List<BankAccountStatement> listExistingAccountStatementDaos(BankAccount bankAccount, Predicate<BankAccountStatement> filter) {
 		List<BankAccountStatement> existingStatements = new ArrayList<>();
 		for (BankAccountStatement statement : listAccountStatementDaos(bankAccount)) {
+			if (!filter.test(statement)) {
+				continue;
+			}
 			Path statementFile = statementFileManager.resolve(statement.getFileName());
 			if (Files.isRegularFile(statementFile)) {
 				existingStatements.add(statement);

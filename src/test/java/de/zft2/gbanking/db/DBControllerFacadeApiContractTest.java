@@ -34,6 +34,7 @@ class DBControllerFacadeApiContractTest {
 			"de.zft2.gbanking.db.dao.BankAccess getBankAccessByBlz(java.lang.String)",
 			"de.zft2.gbanking.db.dao.BankAccess getBankAccessByBlzAndUserId(java.lang.String,java.lang.String)",
 			"de.zft2.gbanking.db.dao.BankAccess getBankAccessById(int)",
+			"de.zft2.gbanking.db.dao.BankAccount getBankAccountWithBusinessCases(int)",
 			"de.zft2.gbanking.db.dao.BankAccountRetrievalStatus getBankAccountRetrievalStatus(int)",
 			"de.zft2.gbanking.db.dao.Booking findCrossBooking(de.zft2.gbanking.db.dao.Booking)",
 			"de.zft2.gbanking.db.dao.Dao find(java.lang.Class,de.zft2.gbanking.db.dao.Dao)",

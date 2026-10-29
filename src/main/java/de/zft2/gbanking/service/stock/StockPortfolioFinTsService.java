@@ -119,7 +119,7 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 			return null;
 		}
 		StockPortfolio portfolio = dbController.getById(StockPortfolio.class, portfolioSummary.portfolioId());
-		return portfolio != null ? dbController.getByIdFull(BankAccount.class, portfolio.getAccountId()) : null;
+		return portfolio != null ? dbController.getBankAccountWithBusinessCases(portfolio.getAccountId()) : null;
 	}
 
 	public List<BankAccount> resolveAccountsForUpdate(List<BankAccount> selectedAccounts) {
@@ -136,7 +136,7 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 				.filter(account -> account.getAccountType() == AccountType.DEPOT)
 				.map(account -> findPortfolioForAccount(account.getId()))
 				.filter(Objects::nonNull)
-				.map(portfolio -> dbController.getByIdFull(BankAccount.class, portfolio.settlementAccountId()))
+				.map(portfolio -> dbController.getBankAccountWithBusinessCases(portfolio.settlementAccountId()))
 				.filter(Objects::nonNull)
 				.forEach(account -> accountsById.putIfAbsent(account.getId(), account));
 		return List.copyOf(accountsById.values());

@@ -484,7 +484,7 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		}
 
 		if (bankAccount.getId() > 0) {
-			BankAccount accountFromDb = dbController.getByIdFull(BankAccount.class, bankAccount.getId());
+			BankAccount accountFromDb = dbController.getBankAccountWithBusinessCases(bankAccount.getId());
 			if (accountFromDb != null) {
 				return accountFromDb;
 			}

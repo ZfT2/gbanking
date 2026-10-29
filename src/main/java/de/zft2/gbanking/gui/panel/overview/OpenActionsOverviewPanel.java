@@ -3,7 +3,9 @@ package de.zft2.gbanking.gui.panel.overview;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 
 import org.apache.logging.log4j.LogManager;
@@ -236,8 +238,10 @@ public class OpenActionsOverviewPanel extends OverviewBasePanel implements Accou
 		transferActions.clear();
 		scheduledTransferActions.clear();
 		standingOrderActions.clear();
+		Map<Integer, BankAccount> accountsById = new HashMap<>();
 		for (MoneyTransfer transfer : moneyTransferService.retrieveOpenTransfers()) {
-			BankAccount account = moneyTransferService.getAccountForOpenMoneytransfers(transfer.getAccountId());
+			BankAccount account = accountsById.computeIfAbsent(transfer.getAccountId(),
+					accountId -> moneyTransferService.getAccountForOpenMoneytransfers(accountId));
 			if (account == null) {
 				continue;
 			}
@@ -259,8 +263,7 @@ public class OpenActionsOverviewPanel extends OverviewBasePanel implements Accou
 	private List<SelectableOpenAction<OpenAccountAction<PendingStatementReceipts>>> loadReceiptActions(List<BankAccount> accounts) {
 		List<SelectableOpenAction<OpenAccountAction<PendingStatementReceipts>>> actions = new ArrayList<>();
 		for (BankAccount account : accounts) {
-			List<AccountStatement> pendingReceipts = accountStatementService.listAccountStatements(account).stream()
-					.filter(statement -> statement.receiptAvailable() && !statement.acknowledged()).toList();
+			List<AccountStatement> pendingReceipts = accountStatementService.listPendingReceiptStatements(account);
 			if (!pendingReceipts.isEmpty()) {
 				LocalDate latestDate = pendingReceipts.stream().map(statement -> statement.statementDate()).filter(date -> date != null)
 						.max(Comparator.naturalOrder()).orElse(null);

@@ -27,6 +27,7 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.BankAccountIdentifier;
 import de.zft2.gbanking.db.dao.BankAccountRetrievalStatus;
 import de.zft2.gbanking.db.dao.Booking;
+import de.zft2.gbanking.db.dao.BusinessCase;
 import de.zft2.gbanking.db.dao.Category;
 import de.zft2.gbanking.db.dao.CategoryRule;
 import de.zft2.gbanking.db.dao.Dao;
@@ -118,6 +119,17 @@ public class DBController extends DbExecutor {
 				throw databaseReadFailure("Error reading institute bank lookup", exception);
 			}
 		});
+	}
+
+	/**
+	 * Loads the bank account together with its business cases, but without its bookings.
+	 */
+	public BankAccount getBankAccountWithBusinessCases(int bankAccountId) {
+		BankAccount bankAccount = getById(BankAccount.class, bankAccountId);
+		if (bankAccount != null) {
+			bankAccount.setAllowedBusinessCases(getAllByParent(BusinessCase.class, bankAccountId));
+		}
+		return bankAccount;
 	}
 
 	public BankAccountRetrievalStatus getBankAccountRetrievalStatus(int bankAccountId) {

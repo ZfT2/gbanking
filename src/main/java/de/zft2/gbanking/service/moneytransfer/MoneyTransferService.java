@@ -44,7 +44,7 @@ public class MoneyTransferService extends AbstractDbService {
 	}
 
 	public BankAccount getAccountForOpenMoneytransfers(int accountId) {
-		return dbController.getByIdFull(BankAccount.class, accountId);
+		return dbController.getBankAccountWithBusinessCases(accountId);
 	}
 
 	public boolean executeTransfer(MoneyTransfer moneyTransfer, BankAccount bankAccount, char[] pin) {

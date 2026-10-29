@@ -2,6 +2,7 @@ package de.zft2.gbanking.db;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.util.List;
 import java.util.Set;
@@ -142,6 +143,19 @@ class DBControllerBulkRelationTest extends DBControllerIntegrationBaseTest {
 		assertEquals(Set.of("ZahlungSEPA"), businessCaseValues(accountFromAccess));
 		assertEquals(Set.of(booking.getId()), bookingIds(accountFromRule));
 		assertEquals(Set.of("ZahlungSEPA"), businessCaseValues(accountFromRule));
+	}
+
+	@Test
+	void bankAccountWithBusinessCasesShouldNotLoadBookings() {
+		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("12345678"));
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
+		db.insertOrUpdate(TestDataFactory.createSampleBooking(account.getId()));
+		linkBusinessCase(account, "ZahlungSEPA");
+
+		BankAccount storedAccount = db.getBankAccountWithBusinessCases(account.getId());
+
+		assertEquals(Set.of("ZahlungSEPA"), businessCaseValues(storedAccount));
+		assertNull(storedAccount.getBookings());
 	}
 
 	private void linkBusinessCase(BankAccount bankAccount, String value) {
