@@ -26,8 +26,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class MessagesTest {
 	private static final Pattern MESSAGE_PARAMETER = Pattern.compile("\\{\\d+}");
-	// '?' between letters or U+FFFD indicates characters lost by writing or reading with a wrong encoding
-	private static final Pattern LOST_CHARACTER = Pattern.compile("\\p{L}\\?\\p{L}|\\uFFFD");
+	// '?' before a letter, '?' between a letter and a lowercase word or U+FFFD indicates characters lost by a wrong encoding
+	private static final Pattern LOST_CHARACTER = Pattern.compile("\\?\\p{L}|\\p{L}\\?\\s+\\p{Ll}|\\uFFFD");
 
 	private Locale previousLocale;
 
