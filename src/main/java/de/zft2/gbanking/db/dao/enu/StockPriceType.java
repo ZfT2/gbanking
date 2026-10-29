@@ -13,10 +13,6 @@ public enum StockPriceType implements IdType, LocalizedEnumValue {
 		this.dbStateId = dbStateId;
 	}
 
-	public static StockPriceType forInt(int value) {
-		return IdType.forId(StockPriceType.class, value);
-	}
-
 	@Override
 	public int getDbStateId() {
 		return dbStateId;

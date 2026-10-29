@@ -12,10 +12,6 @@ public enum StockDayCountConvention implements IdType {
 		this.dbStateId = dbStateId;
 	}
 
-	public static StockDayCountConvention forInt(int value) {
-		return IdType.forId(StockDayCountConvention.class, value);
-	}
-
 	@Override
 	public int getDbStateId() {
 		return dbStateId;

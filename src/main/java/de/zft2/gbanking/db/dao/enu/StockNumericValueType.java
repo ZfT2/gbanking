@@ -16,10 +16,6 @@ public enum StockNumericValueType implements IdType {
 		this.scaleFactor = powerOfTen(scaleDigits);
 	}
 
-	public static StockNumericValueType forInt(int value) {
-		return IdType.forId(StockNumericValueType.class, value);
-	}
-
 	@Override
 	public int getDbStateId() {
 		return dbStateId;

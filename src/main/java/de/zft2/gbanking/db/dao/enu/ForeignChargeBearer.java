@@ -15,10 +15,6 @@ public enum ForeignChargeBearer implements IdType, LocalizedEnumValue {
 		this.dbStateId = dbStateId;
 	}
 
-	public static ForeignChargeBearer forInt(int intValue) {
-		return IdType.forId(ForeignChargeBearer.class, intValue);
-	}
-
 	@Override
 	public int getDbStateId() {
 		return dbStateId;

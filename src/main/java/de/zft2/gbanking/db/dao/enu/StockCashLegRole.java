@@ -12,10 +12,6 @@ public enum StockCashLegRole implements IdType {
 		this.dbStateId = dbStateId;
 	}
 
-	public static StockCashLegRole forInt(int value) {
-		return IdType.forId(StockCashLegRole.class, value);
-	}
-
 	@Override
 	public int getDbStateId() {
 		return dbStateId;

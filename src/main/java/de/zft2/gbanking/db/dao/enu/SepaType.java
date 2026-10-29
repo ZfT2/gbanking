@@ -36,10 +36,6 @@ public enum SepaType implements IdType, LocalizedEnumValue {
 		return null;
 	}
 
-	public static SepaType forInt(Integer intValue) {
-		return IdType.forId(SepaType.class, intValue);
-	}
-
 	@Override
 	public final String toString() {
 		return getDisplayName();

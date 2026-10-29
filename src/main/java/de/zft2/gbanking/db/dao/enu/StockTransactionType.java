@@ -30,14 +30,6 @@ public enum StockTransactionType implements IdType, LocalizedEnumValue {
 		this.dbStateId = dbStateId;
 	}
 
-	public static StockTransactionType forInt(int value) {
-		return IdType.forId(StockTransactionType.class, value);
-	}
-
-	public static StockTransactionType forString(String value) {
-		return LocalizedEnumValue.forString(StockTransactionType.class, value);
-	}
-
 	@Override
 	public int getDbStateId() {
 		return dbStateId;

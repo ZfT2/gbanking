@@ -12,10 +12,6 @@ public enum StockImportRecordStatus implements IdType {
 		this.dbStateId = dbStateId;
 	}
 
-	public static StockImportRecordStatus forInt(int value) {
-		return IdType.forId(StockImportRecordStatus.class, value);
-	}
-
 	@Override
 	public int getDbStateId() {
 		return dbStateId;

@@ -12,10 +12,6 @@ public enum StockCouponRateStatus implements IdType {
 		this.dbStateId = dbStateId;
 	}
 
-	public static StockCouponRateStatus forInt(int value) {
-		return IdType.forId(StockCouponRateStatus.class, value);
-	}
-
 	@Override
 	public int getDbStateId() {
 		return dbStateId;

@@ -12,10 +12,6 @@ public enum StockSubBalanceQualifier implements IdType {
 		this.dbStateId = dbStateId;
 	}
 
-	public static StockSubBalanceQualifier forInt(int value) {
-		return IdType.forId(StockSubBalanceQualifier.class, value);
-	}
-
 	@Override
 	public int getDbStateId() {
 		return dbStateId;
