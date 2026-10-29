@@ -170,8 +170,9 @@ public class StockQuoteRetrievalService extends AbstractDbService {
 		int inserted = 0;
 		int corrected = 0;
 		int unchanged = 0;
+		LocalDate today = LocalDate.now();
 		for (MarketQuote quote : quotesByDate.values()) {
-			if (quote.date().isAfter(LocalDate.now())) {
+			if (quote.date().isAfter(today)) {
 				throw new GBankingException("Der Kursanbieter lieferte ein Datum in der Zukunft: " + quote.date());
 			}
 			long priceE8 = toPriceE8(quote.price());
