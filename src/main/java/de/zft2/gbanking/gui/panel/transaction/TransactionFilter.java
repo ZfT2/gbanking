@@ -9,6 +9,7 @@ import java.util.Locale;
 import java.util.regex.Pattern;
 
 import de.zft2.gbanking.db.dao.Booking;
+import de.zft2.gbanking.db.dao.BookingForeignCurrencyDetails;
 import de.zft2.gbanking.db.dao.BookingNoteDetails;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.gui.util.DateFormatUtils;
@@ -19,6 +20,7 @@ final class TransactionFilter {
 	static final int UNCATEGORIZED_ID = -1;
 
 	private static final Pattern GERMAN_GROUPED_AMOUNT = Pattern.compile("[-+]?\\d{1,3}(\\.\\d{3})+");
+	private static final String NUMERIC_SEARCH_CHARACTERS = "0123456789.,+-";
 
 	private TransactionFilter() {
 	}
@@ -71,14 +73,25 @@ final class TransactionFilter {
 		String sourceSymbol = booking.getSource() != null ? booking.getSource().getSymbol() : null;
 		BookingNoteDetails noteDetails = booking.getNoteDetails();
 		String note = noteDetails != null ? noteDetails.getNote() : null;
-		String foreignCurrency = booking.getForeignCurrencyDetails() != null
-				&& booking.getForeignCurrencyDetails().getForeignCurrency() != null
-						? booking.getForeignCurrencyDetails().getForeignCurrency().name() : null;
+		BookingForeignCurrencyDetails foreign = booking.getForeignCurrencyDetails();
+		String foreignCurrency = foreign != null && foreign.getForeignCurrency() != null ? foreign.getForeignCurrency().name() : null;
 		return containsAny(filter, booking.getPurpose(), note, categoryName, foreignCurrency, booking.getCrossAccountName(), booking.getAccountName(),
-				sourceDescription, sourceSymbol) || matchesRecipientSearch(booking.getRecipient(), filter)
-				|| matchesAmountSearch(booking.getAmount(), filter)
-				|| matchesDateSearch(booking.getDateBooking(), filter) || matchesDateSearch(booking.getDateValue(), filter)
-				|| matchesDateSearch(booking.getDate(), filter);
+				sourceDescription, sourceSymbol) || matchesRecipientSearch(booking.getRecipient(), filter) || matchesNumericSearch(booking, filter);
+	}
+
+	private static boolean matchesNumericSearch(Booking booking, String filter) {
+		return isNumericSearch(filter) && (matchesAmountSearch(booking.getAmount(), filter) || matchesDateSearch(booking.getDateBooking(), filter)
+				|| matchesDateSearch(booking.getDateValue(), filter) || matchesDateSearch(booking.getDate(), filter));
+	}
+
+	// Amounts and dates consist of digits and separators only, a search with other characters can never match them.
+	private static boolean isNumericSearch(String filter) {
+		for (int i = 0; i < filter.length(); i++) {
+			if (NUMERIC_SEARCH_CHARACTERS.indexOf(filter.charAt(i)) < 0) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private static boolean matchesRecipientSearch(Recipient recipient, String filter) {

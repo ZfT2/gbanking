@@ -10,6 +10,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.InstituteBankLookup;
@@ -17,6 +18,9 @@ import de.zft2.gbanking.db.dao.InstituteBankLookup;
 public final class InstituteLookupCache {
 	private static final int BIC8_LENGTH = 8;
 	private static final int BIC11_LENGTH = 11;
+	private static final Pattern BLZ_PATTERN = Pattern.compile("\\d{8}");
+	private static final Pattern BIC_PATTERN = Pattern.compile("[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?");
+	private static final Pattern GERMAN_IBAN_PATTERN = Pattern.compile("DE\\d{20}");
 
 	public record InstituteLookupEntry(String bankName, String bic) {
 	}
@@ -94,7 +98,7 @@ public final class InstituteLookupCache {
 
 	public static String normalizeBlzCandidate(String value) {
 		String trimmed = trimToNull(value);
-		return trimmed != null && trimmed.matches("\\d{8}") ? trimmed : null;
+		return trimmed != null && BLZ_PATTERN.matcher(trimmed).matches() ? trimmed : null;
 	}
 
 	public static String normalizeBicCandidate(String value) {
@@ -103,7 +107,7 @@ public final class InstituteLookupCache {
 			return null;
 		}
 		String normalizedBic = trimmed.replace(" ", "").toUpperCase(Locale.ROOT);
-		return normalizedBic.matches("[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?") ? normalizedBic : null;
+		return BIC_PATTERN.matcher(normalizedBic).matches() ? normalizedBic : null;
 	}
 
 	private static LookupIndex getLookupIndex() {
@@ -159,6 +163,6 @@ public final class InstituteLookupCache {
 			return null;
 		}
 		normalizedIban = normalizedIban.replace(" ", "").toUpperCase(Locale.ROOT);
-		return normalizedIban.matches("DE\\d{20}") ? normalizedIban : null;
+		return GERMAN_IBAN_PATTERN.matcher(normalizedIban).matches() ? normalizedIban : null;
 	}
 }

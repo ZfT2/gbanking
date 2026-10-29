@@ -8,6 +8,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -60,16 +62,26 @@ class TransactionListPanelTest {
 	}
 
 	@Test
-	void shouldMarkTransactionCountAsFilteredWhenSearchIsUsed() {
+	void shouldMarkTransactionCountAsFilteredAfterSearchDelay() throws InterruptedException {
+		String filteredCount = expectedCount("UI_PANEL_TRANSACTIONS_COUNT_FILTERED", 1);
+		CountDownLatch filtered = new CountDownLatch(1);
 		JavaFxTestSupport.runFx(() -> {
 			TransactionListPanel listPanel = createListPanel();
 			listPanel.updateModelBooking(List.of(createBooking("Miete"), createBooking("Tafel")));
 			Label countLabel = transactionCountLabel(listPanel);
+			countLabel.textProperty().addListener((obs, oldText, newText) -> {
+				if (filteredCount.equals(newText)) {
+					filtered.countDown();
+				}
+			});
 
 			filterText(listPanel).setText("miete");
 
-			assertEquals(expectedCount("UI_PANEL_TRANSACTIONS_COUNT_FILTERED", 1), countLabel.getText());
+			// The search is debounced, so the count only changes after the typing pause.
+			assertEquals(expectedCount("UI_PANEL_TRANSACTIONS_COUNT", 2), countLabel.getText());
 		});
+
+		assertTrue(filtered.await(5, TimeUnit.SECONDS));
 	}
 
 	@Test

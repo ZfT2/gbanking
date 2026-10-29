@@ -13,6 +13,7 @@ import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.KeyboardShortcutDispatcher;
 import de.zft2.gbanking.gui.component.GBankingTableView;
 import de.zft2.gbanking.gui.util.FxTableUtils;
+import javafx.animation.PauseTransition;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
@@ -29,8 +30,11 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.stage.Window;
+import javafx.util.Duration;
 
 public abstract class AbstractFilterableTablePanel<T> extends BorderPane implements BaseMessagesBean {
+
+	private static final Duration FILTER_DELAY = Duration.millis(250);
 
 	protected final GBankingTableView<T> tableView = new GBankingTableView<>();
 	protected final TextField filterText = new TextField();
@@ -38,6 +42,7 @@ public abstract class AbstractFilterableTablePanel<T> extends BorderPane impleme
 	private final HBox titleRow = new HBox(8);
 	protected final ObservableList<T> masterData;
 	protected final FilteredList<T> filteredData;
+	private final PauseTransition filterDelay = new PauseTransition(FILTER_DELAY);
 	private boolean restoringSelection;
 
 	protected AbstractFilterableTablePanel(ObservableList<T> masterData) {
@@ -49,7 +54,8 @@ public abstract class AbstractFilterableTablePanel<T> extends BorderPane impleme
 		sorted.comparatorProperty().bind(tableView.comparatorProperty());
 		tableView.setItems(sorted);
 
-		filterText.textProperty().addListener((obs, oldVal, newVal) -> filteredData.setPredicate(createFilterPredicate(normalize(newVal))));
+		filterDelay.setOnFinished(event -> applyFilter());
+		filterText.textProperty().addListener((obs, oldVal, newVal) -> scheduleFilter());
 
 		filterText.setMaxWidth(Double.MAX_VALUE);
 		HBox filterBox = new HBox(10, new Label(getText("UI_LABEL_SEARCH")), filterText);
@@ -73,6 +79,21 @@ public abstract class AbstractFilterableTablePanel<T> extends BorderPane impleme
 
 		BorderPane.setMargin(titleRow, new Insets(0, 0, 6, 0));
 		BorderPane.setMargin(filterBox, new Insets(6, 0, 0, 0));
+	}
+
+	/**
+	 * Applies the filter after a short typing pause, so that not every keystroke filters all items.
+	 */
+	protected final void scheduleFilter() {
+		filterDelay.playFromStart();
+	}
+
+	/**
+	 * Applies the current filter immediately and cancels a scheduled filter run.
+	 */
+	protected void applyFilter() {
+		filterDelay.stop();
+		filteredData.setPredicate(createFilterPredicate(normalize(filterText.getText())));
 	}
 
 	protected void setPanelTitle(String title) {

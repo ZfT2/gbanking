@@ -30,6 +30,7 @@ class TransactionFilterTest {
 		assertTrue(matchesText(booking, "15.07.26"));
 		assertTrue(matchesText(booking, "15.07.2026"));
 		assertTrue(matchesText(booking, "16.07.2026"));
+		assertTrue(matchesText(booking, "2026-07-15"));
 		assertFalse(matchesText(booking, "17.07.2026"));
 	}
 

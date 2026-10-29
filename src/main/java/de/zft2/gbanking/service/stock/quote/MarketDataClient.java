@@ -23,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -39,6 +40,8 @@ final class MarketDataClient {
 	private static final URI ALPACA_ENDPOINT = URI.create("https://data.alpaca.markets/v2/stocks/");
 	private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
 	private static final int MAX_RESPONSE_CHARACTERS = 10_000_000;
+	// Configured date formats are parsed once instead of once per quote row.
+	private static final Map<String, DateTimeFormatter> DATE_FORMATTERS = new ConcurrentHashMap<>();
 
 	private final HttpClient httpClient;
 	private final URI alphaVantageEndpoint;
@@ -283,9 +286,8 @@ final class MarketDataClient {
 			if ("UNIX_MILLISECONDS".equalsIgnoreCase(format)) {
 				return Instant.ofEpochMilli(Long.parseLong(value)).atZone(ZoneOffset.UTC).toLocalDate();
 			}
-			DateTimeFormatter formatter = DateTimeFormatter.ofPattern(format, Locale.ROOT)
-					.withResolverStyle(ResolverStyle.STRICT);
-			return LocalDate.parse(value, formatter);
+			return LocalDate.parse(value, DATE_FORMATTERS.computeIfAbsent(format,
+					pattern -> DateTimeFormatter.ofPattern(pattern, Locale.ROOT).withResolverStyle(ResolverStyle.STRICT)));
 		} catch (IllegalArgumentException | DateTimeParseException exception) {
 			throw new GBankingException("Das Kursdatum " + value + " passt nicht zum Datumsformat " + format,
 					exception);

@@ -2,7 +2,9 @@ package de.zft2.gbanking.messages;
 
 import java.text.MessageFormat;
 import java.util.Locale;
+import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,6 +15,7 @@ public class Messages {
 	private static final Locale GERMAN_LOCALE = Locale.GERMAN;
 	private static final Locale ENGLISH_LOCALE = Locale.ENGLISH;
 	private static final String BUNDLE_NAME = "messages";
+	private static final Map<Locale, ResourceBundle> BUNDLES = new ConcurrentHashMap<>();
 
 	static Messages messages;
 
@@ -31,7 +34,12 @@ public class Messages {
 
 	public static synchronized void setLocale(Locale locale) {
 		currentLocale = resolveSupportedLocale(locale);
-		messageBundle = ResourceBundle.getBundle(BUNDLE_NAME, currentLocale);
+		messageBundle = bundle(currentLocale);
+	}
+
+	// ResourceBundle.getBundle performs a caller lookup on every call, the bundles are kept here instead.
+	private static ResourceBundle bundle(Locale supportedLocale) {
+		return BUNDLES.computeIfAbsent(supportedLocale, locale -> ResourceBundle.getBundle(BUNDLE_NAME, locale));
 	}
 
 	public static synchronized Locale getLocale() {
@@ -65,7 +73,7 @@ public class Messages {
 
 	public String getMessage(String key, Locale locale) {
 		try {
-			return ResourceBundle.getBundle(BUNDLE_NAME, resolveSupportedLocale(locale)).getString(key);
+			return bundle(resolveSupportedLocale(locale)).getString(key);
 		} catch (Exception e) {
 			return key;
 		}

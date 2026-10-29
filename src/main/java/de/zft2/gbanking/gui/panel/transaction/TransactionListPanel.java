@@ -112,6 +112,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	private TableColumn<Booking, BigDecimal> amountCol;
 	private TableColumn<Booking, Booking> balanceCol;
 	private boolean updatingFilters;
+	private boolean filterActive;
 	private BigDecimal amountFromFilterValue;
 	private BigDecimal amountToFilterValue;
 
@@ -142,10 +143,6 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 		tableView.setFixedCellSize(70);
 		configureBookingSelection();
 		filteredData.addListener((ListChangeListener<Booking>) change -> updateSaldoLabel());
-		filterText.textProperty().addListener((obs, oldValue, newValue) -> {
-			tableView.refresh();
-			updateTransactionCount();
-		});
 		updateSaldoLabel();
 
 		if (parentPanel.getPageContext() == PageContext.ALL_TRANSACTIONS) {
@@ -203,10 +200,10 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 		bookingStateFilter.getSelectionModel().selectFirst();
 		refreshFilterChoices();
 
-		dateFromFilter.valueProperty().addListener((obs, oldValue, newValue) -> applyFilters());
-		dateToFilter.valueProperty().addListener((obs, oldValue, newValue) -> applyFilters());
-		categoryFilter.valueProperty().addListener((obs, oldValue, newValue) -> applyFilters());
-		bookingStateFilter.valueProperty().addListener((obs, oldValue, newValue) -> applyFilters());
+		dateFromFilter.valueProperty().addListener((obs, oldValue, newValue) -> applyFilter());
+		dateToFilter.valueProperty().addListener((obs, oldValue, newValue) -> applyFilter());
+		categoryFilter.valueProperty().addListener((obs, oldValue, newValue) -> applyFilter());
+		bookingStateFilter.valueProperty().addListener((obs, oldValue, newValue) -> applyFilter());
 	}
 
 	private FlowPane createAdvancedFilterPane() {
@@ -284,7 +281,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 			} else {
 				amountToFilterValue = parsedValue;
 			}
-			applyFilters();
+			scheduleFilter();
 		});
 		field.focusedProperty().addListener((obs, wasFocused, isFocused) -> {
 			if (!Boolean.TRUE.equals(isFocused)) {
@@ -344,7 +341,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 		} finally {
 			updatingFilters = false;
 		}
-		applyFilters();
+		applyFilter();
 	}
 
 	private String getCategoryFilterLabel(Booking booking) {
@@ -364,13 +361,18 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 				.ifPresentOrElse(comboBox.getSelectionModel()::select, comboBox.getSelectionModel()::selectFirst);
 	}
 
-	private void applyFilters() {
+	@Override
+	protected void applyFilter() {
 		if (updatingFilters) {
 			return;
 		}
-		String searchText = normalize(filterText.getText());
-		filteredData.setPredicate(createFilterPredicate(searchText));
-		tableView.refresh();
+		super.applyFilter();
+		boolean active = hasActiveFilter();
+		if (active != filterActive) {
+			filterActive = active;
+			// The balance column is only filled without an active filter.
+			tableView.refresh();
+		}
 		updateTransactionCount();
 	}
 
@@ -387,7 +389,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 		} finally {
 			updatingFilters = false;
 		}
-		applyFilters();
+		applyFilter();
 	}
 
 	private boolean hasActiveFilter() {
@@ -607,7 +609,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 				textNode.getStyleClass().removeAll(AMOUNT_POSITIVE, AMOUNT_NEGATIVE, AMOUNT_NEUTRAL);
 				setAlignment(Pos.CENTER_RIGHT);
 
-				BigDecimal balance = empty || item == null || isPrenotification(item) || hasActiveFilter() ? null : item.getBalance();
+				BigDecimal balance = empty || item == null || isPrenotification(item) || filterActive ? null : item.getBalance();
 				if (balance == null) {
 					setText(null);
 					setGraphic(null);
@@ -621,7 +623,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 			public void updateSelected(boolean selected) {
 				super.updateSelected(selected);
 				Booking booking = getItem();
-				BigDecimal balance = booking == null || isPrenotification(booking) || hasActiveFilter() ? null : booking.getBalance();
+				BigDecimal balance = booking == null || isPrenotification(booking) || filterActive ? null : booking.getBalance();
 				if (balance != null) {
 					applyAmountTextStyle(textNode, balance);
 				}
@@ -749,7 +751,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	}
 
 	void refreshAfterAdditionalNoteChange() {
-		applyFilters();
+		applyFilter();
 		tableView.refresh();
 	}
 
@@ -796,7 +798,6 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	 * as filtered.
 	 */
 	private void updateTransactionCount() {
-		boolean filterActive = hasActiveFilter();
 		int transactionCount = filterActive ? filteredData.size() : masterData.size();
 		FxNodeSupport.setVisibleManaged(transactionCountLabel, filterActive || transactionCount > 0);
 		String messageKey = filterActive ? "UI_PANEL_TRANSACTIONS_COUNT_FILTERED" : "UI_PANEL_TRANSACTIONS_COUNT";
