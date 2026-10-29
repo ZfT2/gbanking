@@ -336,9 +336,9 @@ class MarketDataClientTest {
 	}
 
 	private static void assertMessage(String expected, Executable executable) {
-		// GBankingException.getMessage() appends ": " and the message of the original exception.
+		// GBankingException.getMessage() appends the message of an original exception after ": ".
 		String message = assertThrows(GBankingException.class, executable).getMessage();
-		assertTrue(message.startsWith(expected + ": "), message);
+		assertTrue(message.equals(expected) || message.startsWith(expected + ": "), message);
 	}
 
 	private static GenericQuoteFeed feed(GenericQuoteFeedFormat format, char delimiter, String itemsPath,

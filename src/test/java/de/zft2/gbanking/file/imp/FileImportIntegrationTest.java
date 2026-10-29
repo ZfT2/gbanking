@@ -109,7 +109,7 @@ class FileImportIntegrationTest {
 	void testImportFile_FileNotFound() {
 		GBankingException exception = assertThrows(GBankingException.class, () -> fileImportBean.importFile("nonexistent.xml"));
 
-		assertEquals("File not found: nonexistent.xml: ", exception.getMessage());
+		assertEquals("File not found: nonexistent.xml", exception.getMessage());
 	}
 
 	// ------------------------------------------------------------------------

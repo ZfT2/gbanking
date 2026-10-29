@@ -16,7 +16,7 @@ public class GBankingException extends RuntimeException {
 	public GBankingException(String message, boolean suppressStacktrace) {
 		super(message, null, suppressStacktrace, !suppressStacktrace);
 		this.message = message;
-		this.originalException = new Exception();
+		this.originalException = null;
 		this.suppressStacktrace = suppressStacktrace;
 	}
 
@@ -50,7 +50,8 @@ public class GBankingException extends RuntimeException {
 
 	@Override
 	public String getMessage() {
-		return message + ": " + (originalException != null ? originalException.getMessage() : "");
+		String originalMessage = originalException != null ? originalException.getMessage() : null;
+		return originalMessage == null || originalMessage.isBlank() ? message : message + ": " + originalMessage;
 	}
 	
 	@Override
