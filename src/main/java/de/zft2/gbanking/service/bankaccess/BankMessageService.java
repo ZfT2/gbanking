@@ -209,7 +209,7 @@ public class BankMessageService extends AbstractDbService {
 	private List<String> collectFreeTextCodes(List<GVRInfoList.Info> entries) {
 		List<String> codes = new ArrayList<>();
 		for (GVRInfoList.Info entry : entries) {
-			if (entry != null && FREE_TEXT_TYPE.equalsIgnoreCase(trimToBlank(entry.type)) && trimToNull(entry.code) != null) {
+			if (FREE_TEXT_TYPE.equalsIgnoreCase(trimToBlank(entry.type)) && trimToNull(entry.code) != null) {
 				codes.add(entry.code.trim());
 			}
 		}
@@ -345,19 +345,15 @@ public class BankMessageService extends AbstractDbService {
 	}
 
 	private String resolveDetailMessage(GVRInfoList.Info entry, Map<String, String> detailMessages) {
-		if (entry == null || detailMessages == null || detailMessages.isEmpty() || trimToNull(entry.code) == null) {
+		if (detailMessages == null || detailMessages.isEmpty() || trimToNull(entry.code) == null) {
 			return "";
 		}
 		return trimToBlank(detailMessages.get(entry.code.trim()));
 	}
 
 	private String createMessageKey(GVRInfoList.Info entry) {
-		String keyMaterial = String.join("|",
-				normalizeForMessageKey(entry != null ? entry.code : null),
-				formatDate(TypeConverter.toLocalDate(entry != null ? entry.date : null)),
-				normalizeForMessageKey(entry != null ? entry.description : null),
-				normalizeForMessageKey(entry != null ? entry.type : null),
-				normalizeForMessageKey(entry != null ? entry.format : null));
+		String keyMaterial = String.join("|", normalizeForMessageKey(entry.code), formatDate(TypeConverter.toLocalDate(entry.date)),
+				normalizeForMessageKey(entry.description), normalizeForMessageKey(entry.type), normalizeForMessageKey(entry.format));
 		return Hashes.sha256Base64Url(keyMaterial);
 	}
 
