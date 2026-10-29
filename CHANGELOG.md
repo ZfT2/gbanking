@@ -4,6 +4,60 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-29
+
+### Fixed
+- Check persisted transfer status atomically before submission
+- Prevent re-execution of transfers after unclear submission
+- Match HBCI accounts strictly by IBAN, number and sub-account
+- PayPal: ignore balances in unsupported currencies on retrieval
+- Drop empty cause suffix from GBankingException messages
+- Validate reversed from/to ranges in rules and transaction filter
+- IdTypeLookup: warn on unknown ids and reject non-positive ids
+- Update: clean up work files and limit download size
+- CSV import: read non-UTF-8 files and support Extra.Charset
+- Category rules: match umlauts case-insensitively in regex mode
+
+### Changed
+- Remove unreachable null checks in BankMessageService
+- Centralize file cleanup, DAO null handling and DB errors
+- Centralize GUI converters, cell factories and grids
+- Centralize HBCI session failure and interrupt handling
+- Consolidate duplicated helper and workflow methods
+- Avoid full recipient and booking loads for lookups
+- Debounce table filters, cache formatters, bundles and regexes
+- CSV analysis: read file once and parse headers only
+- PP import/export: batch-load legs and cache lookups
+- Duplicate check per amount group, resolve recipients once
+- Account list: re-measure updated-at column only on changes
+- Stock portfolio: batch-load legs and prices instead of N+1
+- Quote retrieval: determine today once per save
+- Stock: reuse StockNumericValues for scaled conversions
+- Standing order: use numeric day combo instead of label match
+- Remove unused category SELECT_ID lookup
+- Enums: remove unused forInt and forString lookup methods
+- Transaction filter: format German amounts without DecimalFormat
+- Transaction list: build filter criteria once per filter run
+- Category rules: compile text filters once per rule
+- Category rules: load rule names once for unique name generation
+
+### Tests
+- Detect lost umlauts at word start and end in message bundles
+- Detect characters lost by encoding errors in message bundles
+- Cover HBCI status, job, account and error descriptions
+- Cover market data fetching, feed validation and parse errors
+- Cover PayPal transaction retrieval and error handling
+- Cover BankMessageService
+- Cover Enablebanking setup, authorization and account selection
+- Cover Enablebanking transaction retrieval flows
+- Cover account statement retrieval and receipt acknowledgement
+- Stabilize date assertions and remove dead test code
+- Centralize temporary test database setup
+
+### Maintenance
+- Remove 39 unused message keys
+- release: prepare next development version 0.10.2-SNAPSHOT
+
 ## [0.10.1] - 2026-10-28
 
 ### Fixed
@@ -408,19 +462,6 @@ All notable changes to this project will be documented in this file.
 ### Maintenance
 - fix DB Controller singletons
 - release: prepare next development version 0.11.1-SNAPSHOT
-
-## [0.11.0] - 2026-07-01
-
-### Fixed
-- ask for password before tenant deletion
-- add seperate job for prenotification bookings
-- matching between imported and new online bookings (V0000x codes)
-- repair and reactivate rebooking-related tests
-- small layout and renaming changes
-
-### Maintenance
-- fix DB Controller singletons
-- release: prepare next development version 0.10.2-SNAPSHOT
 
 ## [0.7.1] - 2026-06-03
 
