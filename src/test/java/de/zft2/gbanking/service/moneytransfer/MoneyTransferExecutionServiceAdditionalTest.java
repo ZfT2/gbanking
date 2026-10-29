@@ -14,6 +14,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.never;
@@ -31,6 +32,7 @@ import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,7 +44,10 @@ import org.kapott.hbci.GV_Result.GVRDauerEdit;
 import org.kapott.hbci.GV_Result.GVRInstUebSEPA;
 import org.kapott.hbci.GV_Result.GVRStatus;
 import org.kapott.hbci.GV_Result.HBCIJobResult;
+import org.kapott.hbci.GV_Result.HBCIJobResultImpl;
+import org.kapott.hbci.callback.HBCICallbackConsole;
 import org.kapott.hbci.manager.HBCIHandler;
+import org.kapott.hbci.manager.HBCIUtils;
 import org.kapott.hbci.passport.HBCIPassport;
 import org.kapott.hbci.status.HBCIDialogStatus;
 import org.kapott.hbci.status.HBCIExecStatus;
@@ -99,6 +104,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 	@AfterEach
 	void tearDown() {
 		ServiceStubbingUtil.unloadStubbedServicesInContext(SERVICES_TO_STUB);
+		ServiceRegistry.removeService(BankingCapabilityService.class);
 	}
 
 	@Test
@@ -480,8 +486,8 @@ class MoneyTransferExecutionServiceAdditionalTest {
 				new Class<?>[] { BankOrderOperation.class, HBCIJobResult.class }, BankOrderOperation.CREATE, result);
 
 		Object outcome = invokePrivate(service, "assessExecution",
-				new Class<?>[] { BankOrderOperation.class, HBCIExecStatus.class, HBCIJobResult.class, bankResponse.getClass() },
-				BankOrderOperation.CREATE, executionStatus, result, bankResponse);
+				new Class<?>[] { BankOrderOperation.class, HBCIExecStatus.class, HBCIJobResult.class, bankResponse.getClass(), boolean.class },
+				BankOrderOperation.CREATE, executionStatus, result, bankResponse, false);
 		applyExecutionOutcome(service, moneyTransfer, BankOrderOperation.CREATE, mock(GBankingHBCICallback.class),
 				executionStatus, result, outcome.toString());
 
@@ -493,18 +499,11 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void assessExecution_shouldHonorFinalRejectedInstantPaymentStatus() throws Exception {
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
-		GVRInstUebSEPA result = successfulInstantPaymentResult("instant-4711", "6");
 		HBCIExecStatus executionStatus = mock(HBCIExecStatus.class);
 		when(executionStatus.isOK()).thenReturn(true);
-		Object bankResponse = invokePrivate(service, "extractBankResponse",
-				new Class<?>[] { BankOrderOperation.class, HBCIJobResult.class }, BankOrderOperation.CREATE, result);
 
-		Object outcome = invokePrivate(service, "assessExecution",
-				new Class<?>[] { BankOrderOperation.class, HBCIExecStatus.class, HBCIJobResult.class, bankResponse.getClass() },
-				BankOrderOperation.CREATE, executionStatus, result, bankResponse);
-
-		assertEquals("FAILURE", outcome.toString());
+		assertEquals("FAILURE",
+				assessExecution(BankOrderOperation.CREATE, executionStatus, successfulInstantPaymentResult("instant-4711", "6"), false));
 	}
 
 	@Test
@@ -756,10 +755,103 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void executeTransfer_shouldRunHbciOrderAfterCallbackAndPersistSentStatus() {
+		char[] pin = "1234".toCharArray();
+		HbciTransferFixture fixture = prepareHbciTransfer(pin);
+		MoneyTransfer moneyTransfer = fixture.moneyTransfer();
+		Recipient recipient = moneyTransfer.getRecipient();
+		HBCIJob<HBCIJobResult> job = fixture.job();
+		stubSuccessfulExecution(fixture);
 
+		try (MockedConstruction<GBankingHBCICallback> callbacks = mockConstruction(GBankingHBCICallback.class)) {
+			boolean result = new MoneyTransferExecutionService().executeTransfer(moneyTransfer, fixture.bankAccount(), pin);
+
+			ArgumentCaptor<Konto> recipientCaptor = ArgumentCaptor.forClass(Konto.class);
+			assertTrue(result);
+			assertArrayCleared(pin);
+			verify(job).setParam("src", fixture.senderAccount());
+			verify(job).setParam(eq("dst"), recipientCaptor.capture());
+			verify(job).setParam("btg.value", "12.34");
+			verify(job).setParam("btg.curr", "EUR");
+			verify(job).setParam("usage", "Test purpose");
+			verify(job).addToQueue();
+			verify(fixture.handle()).execute();
+			verify(callbacks.constructed().get(0)).startStatusDialog();
+			verify(callbacks.constructed().get(0)).finishStatusDialog();
+			verify(fixture.passport()).close();
+			assertEquals(recipient.getIban(), recipientCaptor.getValue().iban);
+			assertEquals(recipient.getBic(), recipientCaptor.getValue().bic);
+			assertEquals(recipient.getName(), recipientCaptor.getValue().name);
+			assertExecutionResult(fixture, MoneyTransferStatus.SENT);
+			List<MoneyTransferProtocol> protocols = dbController.getAllByParent(MoneyTransferProtocol.class, moneyTransfer.getId());
+			assertNotNull(protocols.get(0).getTimeStart());
+			assertNotNull(protocols.get(0).getTimeFinish());
+			assertEquals(de.zft2.gbanking.db.dao.enu.MoneyTransferProtocolResultStatus.SUCCESS, protocols.get(0).getResultStatus());
+			assertTrue(protocols.get(0).isPinOk());
+			assertNull(protocols.get(0).getProtocolText());
+		}
+	}
+
+	@Test
+	void executeTransfer_shouldBlockNewOrderBeforeSendingAndKeepItUncertainAfterAbort() {
+		char[] pin = "1234".toCharArray();
+		HbciTransferFixture fixture = prepareHbciTransfer(pin);
+		AtomicReference<MoneyTransferStatus> statusWhileSending = new AtomicReference<>();
+		when(fixture.handle().execute()).thenAnswer(invocation -> {
+			statusWhileSending.set(loadPersistedStatus(fixture));
+			return mock(HBCIExecStatus.class);
+		});
+		when(fixture.job().getJobResult()).thenThrow(new IllegalStateException("connection lost"));
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
+
+		try (MockedConstruction<GBankingHBCICallback> callbacks = mockConstruction(GBankingHBCICallback.class)) {
+			assertThrows(IllegalStateException.class, () -> service.executeTransfer(fixture.moneyTransfer(), fixture.bankAccount(), pin));
+			verify(callbacks.constructed().get(0)).handleException(any(IllegalStateException.class));
+		}
+
+		assertEquals(MoneyTransferStatus.UNCERTAIN, statusWhileSending.get());
+		assertExecutionResult(fixture, MoneyTransferStatus.UNCERTAIN);
+		assertArrayCleared(pin);
+	}
+
+	@Test
+	void executeTransfer_shouldNotDowngradePersistedResultWhenSessionCleanupFails() {
+		char[] pin = "1234".toCharArray();
+		HbciTransferFixture fixture = prepareHbciTransfer(pin);
+		stubSuccessfulExecution(fixture);
+		doThrow(new IllegalStateException("close failed")).when(fixture.passport()).close();
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
+
+		try (MockedConstruction<GBankingHBCICallback> callbacks = mockConstruction(GBankingHBCICallback.class)) {
+			assertThrows(IllegalStateException.class, () -> service.executeTransfer(fixture.moneyTransfer(), fixture.bankAccount(), pin));
+			verify(callbacks.constructed().get(0)).finishStatusDialog();
+		}
+
+		assertExecutionResult(fixture, MoneyTransferStatus.SENT);
+	}
+
+	@Test
+	void assessExecution_shouldReleaseNewOrderOnlyIfItCannotHaveBeenExecuted() throws Exception {
+		// hbci4j logs the bank error code, which requires an initialized thread context
+		HBCIUtils.initThread(new Properties(), new HBCICallbackConsole());
+		try {
+			HBCIExecStatus responseLost = createExecutionStatus(successfulMessageStatus(), new HBCIMsgStatus(), null);
+			HBCIJobResultImpl noResponse = new HBCIJobResultImpl();
+			HBCIJobResultImpl rejected = new HBCIJobResultImpl();
+			rejected.jobStatus.addRetVal(new HBCIRetVal(null, null, null, "9010", "rejected", null));
+
+			assertEquals("UNCERTAIN", assessExecution(BankOrderOperation.CREATE, responseLost, noResponse, false));
+			assertEquals("FAILURE", assessExecution(BankOrderOperation.CREATE, responseLost, noResponse, true));
+			assertEquals("FAILURE", assessExecution(BankOrderOperation.CREATE, new HBCIExecStatus(), noResponse, false));
+			assertEquals("FAILURE", assessExecution(BankOrderOperation.CREATE, responseLost, rejected, false));
+			assertEquals("FAILURE", assessExecution(BankOrderOperation.EDIT, responseLost, noResponse, false));
+		} finally {
+			HBCIUtils.doneThread();
+		}
+	}
+
+	private HbciTransferFixture prepareHbciTransfer(char[] pin) {
 		BankingCapabilityService bankingCapabilityService = mock(BankingCapabilityService.class);
 		ServiceRegistry.setService(BankingCapabilityService.class, bankingCapabilityService);
-
 		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = dbController.insertOrUpdate(new Recipient("Recipient Name", "DE12345678901234567890", "TESTDEFFXXX", null, null,
 				"Testbank", de.zft2.gbanking.db.dao.enu.Source.MANUELL));
@@ -768,18 +860,11 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		moneyTransfer.setRecipientId(recipient.getId());
 		moneyTransfer.setRecipient(recipient);
 
-		MoneyTransferService moneyTransferService = ServiceRegistry.getService(MoneyTransferService.class);
 		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
-
-		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
-
 		BankAccess bankAccess = TestDataFactory.createSampleBankAccess("10020030");
-		char[] pin = "1234".toCharArray();
 		HBCIPassport passport = mock(HBCIPassport.class);
 		HBCIHandler handle = mock(HBCIHandler.class);
 		Konto senderAccount = new Konto();
-		HBCIExecStatus status = mock(HBCIExecStatus.class);
-		HBCIJobResult jobResult = mock(HBCIJobResult.class);
 		@SuppressWarnings("unchecked")
 		HBCIJob<HBCIJobResult> job = mock(HBCIJob.class);
 
@@ -787,44 +872,40 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		doReturn(true).when(bankingCapabilityService).supportsTransferOrderType(any(BankAccount.class), eq(OrderType.TRANSFER));
 		doReturn(passport).when(hbciSupport).initBankConnection(eq(bankAccess), any(GBankingHBCICallback.class));
 		doReturn(handle).when(hbciSupport).createHBCIHandler(eq(BaseMessagesDb.getVersion().getId()), same(passport));
-		doReturn(senderAccount).when(moneyTransferService).getSenderAccount(eq(passport), any(BankAccount.class));
+		doReturn(senderAccount).when(ServiceRegistry.getService(MoneyTransferService.class)).getSenderAccount(eq(passport), any(BankAccount.class));
 		doReturn(job).when(hbciSupport).newHbciJob(handle, "UebSEPA");
+		return new HbciTransferFixture(bankAccount, moneyTransfer, passport, handle, job, senderAccount);
+	}
+
+	private static void stubSuccessfulExecution(HbciTransferFixture fixture) {
+		HBCIExecStatus status = mock(HBCIExecStatus.class);
+		HBCIJobResult jobResult = mock(HBCIJobResult.class);
 		when(status.isOK()).thenReturn(true);
-		when(handle.execute()).thenReturn(status);
-		when(job.getJobResult()).thenReturn(jobResult);
 		when(jobResult.isOK()).thenReturn(true);
+		when(fixture.handle().execute()).thenReturn(status);
+		when(fixture.job().getJobResult()).thenReturn(jobResult);
+	}
 
-		try (MockedConstruction<GBankingHBCICallback> callbacks = mockConstruction(GBankingHBCICallback.class)) {
-			boolean result = service.executeTransfer(moneyTransfer, bankAccount, pin);
+	private void assertExecutionResult(HbciTransferFixture fixture, MoneyTransferStatus expectedStatus) {
+		assertEquals(expectedStatus, fixture.moneyTransfer().getMoneytransferStatus());
+		assertEquals(expectedStatus, loadPersistedStatus(fixture));
+		List<MoneyTransferProtocol> protocols = dbController.getAllByParent(MoneyTransferProtocol.class, fixture.moneyTransfer().getId());
+		assertEquals(1, protocols.size());
+		assertEquals(expectedStatus, protocols.get(0).getMoneytransferStatus());
+	}
 
-			ArgumentCaptor<Konto> recipientCaptor = ArgumentCaptor.forClass(Konto.class);
-			assertTrue(result);
-			assertEquals(MoneyTransferStatus.SENT, moneyTransfer.getMoneytransferStatus());
-			assertArrayCleared(pin);
-			verify(job).setParam("src", senderAccount);
-			verify(job).setParam(eq("dst"), recipientCaptor.capture());
-			verify(job).setParam("btg.value", "12.34");
-			verify(job).setParam("btg.curr", "EUR");
-			verify(job).setParam("usage", "Test purpose");
-			verify(job).addToQueue();
-			verify(handle).execute();
-			verify(callbacks.constructed().get(0)).startStatusDialog();
-			verify(callbacks.constructed().get(0)).finishStatusDialog();
-			verify(passport).close();
-			assertEquals(recipient.getIban(), recipientCaptor.getValue().iban);
-			assertEquals(recipient.getBic(), recipientCaptor.getValue().bic);
-			assertEquals(recipient.getName(), recipientCaptor.getValue().name);
-			assertEquals(MoneyTransferStatus.SENT, dbController.getAllByParent(MoneyTransfer.class, bankAccount.getId()).get(0).getMoneytransferStatus());
-			List<MoneyTransferProtocol> protocols = dbController.getAllByParent(MoneyTransferProtocol.class, moneyTransfer.getId());
-			assertEquals(1, protocols.size());
-			assertEquals(MoneyTransferStatus.SENT, protocols.get(0).getMoneytransferStatus());
-			assertNotNull(protocols.get(0).getTimeStart());
-			assertNotNull(protocols.get(0).getTimeFinish());
-			assertEquals(de.zft2.gbanking.db.dao.enu.MoneyTransferProtocolResultStatus.SUCCESS, protocols.get(0).getResultStatus());
-			assertTrue(protocols.get(0).isPinOk());
-			assertNull(protocols.get(0).getProtocolText());
-		}
-		ServiceRegistry.removeService(BankingCapabilityService.class);
+	private MoneyTransferStatus loadPersistedStatus(HbciTransferFixture fixture) {
+		return dbController.getAllByParent(MoneyTransfer.class, fixture.bankAccount().getId()).get(0).getMoneytransferStatus();
+	}
+
+	private static String assessExecution(BankOrderOperation operation, HBCIExecStatus status, HBCIJobResult jobResult, boolean abortedByUser)
+			throws Exception {
+		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
+		Object bankResponse = invokePrivate(service, "extractBankResponse", new Class<?>[] { BankOrderOperation.class, HBCIJobResult.class },
+				operation, jobResult);
+		return invokePrivate(service, "assessExecution",
+				new Class<?>[] { BankOrderOperation.class, HBCIExecStatus.class, HBCIJobResult.class, bankResponse.getClass(), boolean.class },
+				operation, status, jobResult, bankResponse, abortedByUser).toString();
 	}
 
 	private static MoneyTransfer createMoneyTransfer(OrderType orderType) {
@@ -914,10 +995,14 @@ class MoneyTransferExecutionServiceAdditionalTest {
 	}
 
 	private static HBCIExecStatus createDialogEndFailureStatus() {
+		return createExecutionStatus(successfulMessageStatus(), successfulMessageStatus(), new HBCIMsgStatus());
+	}
+
+	private static HBCIExecStatus createExecutionStatus(HBCIMsgStatus initStatus, HBCIMsgStatus messageStatus, HBCIMsgStatus endStatus) {
 		HBCIDialogStatus dialogStatus = new HBCIDialogStatus();
-		dialogStatus.setInitStatus(successfulMessageStatus());
-		dialogStatus.setMsgStatus(new HBCIMsgStatus[] { successfulMessageStatus() });
-		dialogStatus.setEndStatus(new HBCIMsgStatus());
+		dialogStatus.setInitStatus(initStatus);
+		dialogStatus.setMsgStatus(new HBCIMsgStatus[] { messageStatus });
+		dialogStatus.setEndStatus(endStatus);
 		HBCIExecStatus executionStatus = new HBCIExecStatus();
 		executionStatus.addDialogStatus("customer-1", dialogStatus);
 		return executionStatus;
@@ -966,5 +1051,9 @@ class MoneyTransferExecutionServiceAdditionalTest {
 			}
 			throw e;
 		}
+	}
+
+	private record HbciTransferFixture(BankAccount bankAccount, MoneyTransfer moneyTransfer, HBCIPassport passport, HBCIHandler handle,
+			HBCIJob<HBCIJobResult> job, Konto senderAccount) {
 	}
 }

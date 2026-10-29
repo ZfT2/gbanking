@@ -1,5 +1,7 @@
 package de.zft2.gbanking.service.moneytransfer;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
@@ -10,7 +12,9 @@ import org.kapott.hbci.structures.Konto;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferForeign;
+import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.Recipient;
+import de.zft2.gbanking.db.dao.enu.MoneyTransferProtocolResultStatus;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.Source;
@@ -93,6 +97,32 @@ public class MoneyTransferService extends AbstractDbService {
 				throw new GBankingException(getText(ERROR_BANK_DELETE_NOT_AVAILABLE));
 			}
 			persistedTransfer.setMoneytransferStatus(MoneyTransferStatus.INVENTORY);
+			return dbController.insertOrUpdate(persistedTransfer);
+		});
+	}
+
+	/**
+	 * Resolves an order with an uncertain execution status after the user checked it with the bank.
+	 *
+	 * @param moneyTransfer the order with the uncertain execution status
+	 * @param executed      {@code true} if the bank executed the order, {@code false} if it may be sent again
+	 * @return the updated order
+	 */
+	public MoneyTransfer resolveUncertainTransfer(MoneyTransfer moneyTransfer, boolean executed) {
+		return dbController.executeInTransaction(() -> {
+			MoneyTransfer persistedTransfer = findPersistedMoneyTransfer(moneyTransfer);
+			if (persistedTransfer == null || persistedTransfer.getMoneytransferStatus() != MoneyTransferStatus.UNCERTAIN) {
+				throw new GBankingException(getText("ERROR_MONEYTRANSFER_NOT_UNCERTAIN"));
+			}
+			MoneyTransferStatus status = executed ? MoneyTransferStatus.SENT : MoneyTransferStatus.ERROR;
+			persistedTransfer.setMoneytransferStatus(status);
+			LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
+			MoneyTransferProtocol protocol = new MoneyTransferProtocol(persistedTransfer.getId(), status, now, now);
+			protocol.setResultStatus(executed ? MoneyTransferProtocolResultStatus.SUCCESS : MoneyTransferProtocolResultStatus.ERROR_UNKNOWN);
+			protocol.setProtocolText(getText(executed ? "UI_DIALOG_MONEYTRANSFER_PROTOCOL_MANUALLY_EXECUTED"
+					: "UI_DIALOG_MONEYTRANSFER_PROTOCOL_MANUALLY_NOT_EXECUTED"));
+			dbController.insertOrUpdate(protocol);
+			log.info("Uncertain money transfer resolved manually. transferId={}, status={}", persistedTransfer.getId(), status);
 			return dbController.insertOrUpdate(persistedTransfer);
 		});
 	}

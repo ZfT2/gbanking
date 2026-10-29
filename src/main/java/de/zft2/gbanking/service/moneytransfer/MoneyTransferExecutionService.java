@@ -17,6 +17,7 @@ import org.kapott.hbci.GV_Result.GVRDauerNew;
 import org.kapott.hbci.GV_Result.GVRInstUebSEPA;
 import org.kapott.hbci.GV_Result.GVRTermUeb;
 import org.kapott.hbci.GV_Result.GVRTermUebEdit;
+import org.kapott.hbci.GV_Result.GVRVoP.VoPStatus;
 import org.kapott.hbci.GV_Result.HBCIJobResult;
 import org.kapott.hbci.manager.HBCIHandler;
 import org.kapott.hbci.status.HBCIExecStatus;
@@ -105,19 +106,12 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 					session -> executeTransfer(moneyTransfer, transferAccount, operation, communicationState, session));
 
 		} catch (InterruptedException ex) {
-			communicationState.finish = communicationState.start != null && communicationState.finish == null ? LocalDateTime.now(ZoneId.systemDefault())
-					: communicationState.finish;
-			if (communicationState.start != null) {
-				applyFailedOperationStatus(moneyTransfer, operation);
-				String technicalProtocol = createProtocolText(communicationState.status, communicationState.jobResult, ex);
-				logTechnicalProtocol(moneyTransfer, technicalProtocol);
-				persistExecutionResult(moneyTransfer, operation, false, communicationState, MoneyTransferStatus.ERROR,
-						MoneyTransferProtocolEvaluator.evaluate(false, technicalProtocol, false, null, false), BankResponseData.EMPTY);
-			}
-			log.error("Money transfer execution failed. transferId={}, type={}, accountId={}", moneyTransfer.getId(), moneyTransfer.getOrderType(),
-					transferAccount.getId(), ex);
+			handleAbortedExecution(moneyTransfer, transferAccount, operation, communicationState, ex);
 			Thread.currentThread().interrupt();
-			throw new GBankingException(getText("EXCEPTION_MONEYTRANSFER_SENDING_ACCOUNT_NOT_FOUND"), ex);
+			throw new GBankingException(getText("EXCEPTION_MONEYTRANSFER_EXECUTION_INTERRUPTED"), ex);
+		} catch (RuntimeException ex) {
+			handleAbortedExecution(moneyTransfer, transferAccount, operation, communicationState, ex);
+			throw ex;
 		}
 		log.info("Finished money transfer execution. transferId={}, type={}, accountId={}, success={}, status={}", moneyTransfer.getId(),
 				moneyTransfer.getOrderType(), transferAccount.getId(), result, moneyTransfer.getMoneytransferStatus());
@@ -180,25 +174,27 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		session.callback().setCurrentMoneyTransfer(moneyTransfer);
 		if (log.isDebugEnabled())
 			log.debug("Queued HBCI transfer job. transferId={}, jobType={}", moneyTransfer.getId(), resolveJobName(moneyTransfer.getOrderType(), operation));
+		if (operation == BankOrderOperation.CREATE) {
+			// Block a second submission before sending, so that an unclear abort cannot make the order executable again
+			moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.UNCERTAIN);
+			dbController.insertOrUpdate(moneyTransfer);
+		}
 		communicationState.start = LocalDateTime.now(ZoneId.systemDefault());
 		communicationState.status = session.handler().execute();
 		communicationState.finish = LocalDateTime.now(ZoneId.systemDefault());
 		communicationState.jobResult = job.getJobResult();
 
 		BankResponseData bankResponse = extractBankResponse(operation, communicationState.jobResult);
-		ExecutionOutcome outcome = assessExecution(operation, communicationState.status, communicationState.jobResult, bankResponse);
+		ExecutionOutcome outcome = assessExecution(operation, communicationState.status, communicationState.jobResult, bankResponse,
+				session.callback().isSubmissionAbortedByUser());
 		boolean recipientNameCorrected = applyRecipientNameFromVoP(moneyTransfer, session.callback());
 		updateMoneyTransferAfterExecution(moneyTransfer, operation, session.callback(), communicationState.status,
 				communicationState.jobResult, outcome, bankResponse);
 		String technicalProtocol = createProtocolText(communicationState.status, communicationState.jobResult, null);
 		logTechnicalProtocol(moneyTransfer, technicalProtocol);
-		MoneyTransferProtocolEvaluator.Evaluation evaluation = outcome == ExecutionOutcome.UNCERTAIN
-				? MoneyTransferProtocolEvaluator.evaluateUncertain(technicalProtocol, session.callback().isVopRequired(),
-						session.callback().getVopStatus(), recipientNameCorrected)
-				: MoneyTransferProtocolEvaluator.evaluate(outcome == ExecutionOutcome.SUCCESS, technicalProtocol,
-						session.callback().isVopRequired(), session.callback().getVopStatus(), recipientNameCorrected);
 		persistExecutionResult(moneyTransfer, operation, outcome == ExecutionOutcome.SUCCESS, communicationState,
-				moneyTransfer.getMoneytransferStatus(), evaluation, bankResponse);
+				moneyTransfer.getMoneytransferStatus(), evaluate(outcome, technicalProtocol, session.callback().isVopRequired(),
+						session.callback().getVopStatus(), recipientNameCorrected), bankResponse);
 
 		if (outcome == ExecutionOutcome.UNCERTAIN) {
 			MoneyTransferStatusResolution resolution = reconcileTransferStatus(session.handler(), session.callback(), moneyTransfer,
@@ -519,7 +515,7 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		if (outcome == ExecutionOutcome.UNCERTAIN) {
 			applyExecutionDate(moneyTransfer, operation);
 			moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.UNCERTAIN);
-			log.warn("Money transfer execution status is uncertain after dialog end failure. transferId={}", moneyTransfer.getId());
+			log.warn("Money transfer execution status is uncertain, the order may have reached the bank. transferId={}", moneyTransfer.getId());
 			return;
 		}
 
@@ -590,22 +586,63 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 	}
 
 	private ExecutionOutcome assessExecution(BankOrderOperation operation, HBCIExecStatus status, HBCIJobResult jobResult,
-			BankResponseData bankResponse) {
-		if (jobResult != null && !jobResult.isOK()) {
+			BankResponseData bankResponse, boolean abortedByUser) {
+		boolean accepted = (jobResult == null || jobResult.isOK()) && status != null && status.isOK();
+		if (operation != BankOrderOperation.CREATE) {
+			return accepted ? ExecutionOutcome.SUCCESS : ExecutionOutcome.FAILURE;
+		}
+		if (HbciExecutionAssessment.isRejectedByBank(jobResult)) {
 			return ExecutionOutcome.FAILURE;
 		}
 		SepaOrderStatus orderStatus = bankResponse.sepaOrderStatus();
 		if (orderStatus != null && orderStatus.isFinal()) {
 			return orderStatus == SepaOrderStatus.COMPLETED ? ExecutionOutcome.SUCCESS : ExecutionOutcome.FAILURE;
 		}
-		if (status != null && status.isOK()) {
+		if (accepted) {
 			return ExecutionOutcome.SUCCESS;
 		}
-		if (operation != BankOrderOperation.CREATE || jobResult == null
-				|| !HbciExecutionAssessment.isOnlyDialogEndFailure(status)) {
-			return ExecutionOutcome.FAILURE;
+		// A new order may only become executable again if the bank cannot have executed it
+		return abortedByUser || HbciExecutionAssessment.wasNotSubmitted(status) ? ExecutionOutcome.FAILURE : ExecutionOutcome.UNCERTAIN;
+	}
+
+	private static MoneyTransferProtocolEvaluator.Evaluation evaluate(ExecutionOutcome outcome, String technicalProtocol, boolean vopRequired,
+			VoPStatus vopStatus, boolean recipientNameCorrected) {
+		return outcome == ExecutionOutcome.UNCERTAIN
+				? MoneyTransferProtocolEvaluator.evaluateUncertain(technicalProtocol, vopRequired, vopStatus, recipientNameCorrected)
+				: MoneyTransferProtocolEvaluator.evaluate(outcome == ExecutionOutcome.SUCCESS, technicalProtocol, vopRequired, vopStatus,
+						recipientNameCorrected);
+	}
+
+	/**
+	 * Persists the result of an execution that was aborted by an exception after the order was handed over to hbci4j. A new
+	 * order stays uncertain, because it may have reached the bank. A result that was already persisted is never downgraded.
+	 */
+	private void handleAbortedExecution(MoneyTransfer moneyTransfer, BankAccount transferAccount, BankOrderOperation operation,
+			CommunicationState communicationState, Exception exception) {
+		log.warn("Money transfer execution aborted. transferId={}, type={}, accountId={}, cause={}", moneyTransfer.getId(),
+				moneyTransfer.getOrderType(), transferAccount.getId(), exception.toString());
+		if (communicationState.start == null || communicationState.resultPersisted) {
+			return;
 		}
-		return ExecutionOutcome.UNCERTAIN;
+		if (communicationState.finish == null) {
+			communicationState.finish = LocalDateTime.now(ZoneId.systemDefault());
+		}
+		ExecutionOutcome outcome = operation == BankOrderOperation.CREATE ? ExecutionOutcome.UNCERTAIN : ExecutionOutcome.FAILURE;
+		if (outcome == ExecutionOutcome.UNCERTAIN) {
+			applyExecutionDate(moneyTransfer, operation);
+			moneyTransfer.setMoneytransferStatus(MoneyTransferStatus.UNCERTAIN);
+		} else {
+			applyFailedOperationStatus(moneyTransfer, operation);
+		}
+		String technicalProtocol = createProtocolText(communicationState.status, communicationState.jobResult, exception);
+		logTechnicalProtocol(moneyTransfer, technicalProtocol);
+		try {
+			persistExecutionResult(moneyTransfer, operation, false, communicationState, moneyTransfer.getMoneytransferStatus(),
+					evaluate(outcome, technicalProtocol, false, null, false), BankResponseData.EMPTY);
+		} catch (RuntimeException persistException) {
+			// The status written before sending still blocks a second submission of a new order
+			exception.addSuppressed(persistException);
+		}
 	}
 
 	private MoneyTransferStatusResolution reconcileTransferStatus(HBCIHandler handler, GBankingHBCICallback callback,
@@ -662,6 +699,7 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 			saveProtocol(moneyTransfer, communicationState.start, communicationState.finish, protocolStatus,
 					evaluation, bankResponse);
 		});
+		communicationState.resultPersisted = true;
 	}
 
 	private void archiveHistoryPredecessor(MoneyTransfer moneyTransfer) {
@@ -721,6 +759,7 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 		private LocalDateTime finish;
 		private HBCIExecStatus status;
 		private HBCIJobResult jobResult;
+		private boolean resultPersisted;
 	}
 
 	private enum ExecutionOutcome {

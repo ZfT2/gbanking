@@ -1,8 +1,10 @@
 package de.zft2.gbanking.hbci;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -57,6 +59,23 @@ class GBankingHBCICallbackTest {
 			callback.callback(null, GBankingHBCICallback.NEED_PT_TAN, "Bitte TAN eingeben", 0, retData);
 
 			assertEquals("123456", retData.toString());
+			assertFalse(callback.isSubmissionAbortedByUser());
+		}
+	}
+
+	@Test
+	void needPtTanShouldMarkSubmissionAsAbortedWhenNoTanIsEntered() {
+		try (MockedStatic<DialogWindowSupport> dialogSupportMock = mockStatic(DialogWindowSupport.class);
+				MockedStatic<ChipTanUsbSupport> chipTanMock = mockStatic(ChipTanUsbSupport.class);
+				MockedConstruction<HbciCallbackMessageDialog> ignored = Mockito.mockConstruction(HbciCallbackMessageDialog.class)) {
+			dialogSupportMock.when(DialogWindowSupport::findBestOwnerWindow).thenReturn(Optional.empty());
+			chipTanMock.when(ChipTanUsbSupport::isEnabled).thenReturn(false);
+
+			GBankingHBCICallback callback = new GBankingHBCICallback(new BankAccess());
+			StringBuffer retData = new StringBuffer();
+
+			assertThrows(HBCI_Exception.class, () -> callback.callback(null, GBankingHBCICallback.NEED_PT_TAN, "Bitte TAN eingeben", 0, retData));
+			assertTrue(callback.isSubmissionAbortedByUser());
 		}
 	}
 
@@ -133,6 +152,7 @@ class GBankingHBCICallbackTest {
 			StringBuffer sb = new StringBuffer();
 			assertThrows(HBCI_Exception.class,
 					() -> callback.callback(null, GBankingHBCICallback.NEED_PT_TAN, "Bitte TAN eingeben", 0, sb));
+			assertTrue(callback.isSubmissionAbortedByUser());
 
 			HbciCallbackMessageDialog dialog = dialogConstruction.constructed().get(0);
 			verify(dialog).requestConfirmation(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString());

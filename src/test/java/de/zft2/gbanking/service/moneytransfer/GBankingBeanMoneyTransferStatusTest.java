@@ -1,6 +1,8 @@
 package de.zft2.gbanking.service.moneytransfer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -14,6 +16,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import de.zft2.gbanking.db.dao.BankAccount;
+import de.zft2.gbanking.db.dao.enu.MoneyTransferProtocolResultStatus;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.Source;
@@ -23,6 +26,7 @@ import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.TestDatabaseExtension;
+import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.dto.MoneyTransferForm;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.testdata.TestDataFactory;
@@ -187,6 +191,55 @@ class GBankingBeanMoneyTransferStatusTest {
 		assertEquals("Original purpose", deletionPending.getPurpose());
 		assertEquals(MoneyTransferStatus.SUPERSEDED,
 				transfers.stream().filter(transfer -> transfer.getId() == changedTransfer.getId()).findFirst().orElseThrow().getMoneytransferStatus());
+	}
+
+	@Test
+	void resolveUncertainTransfer_shouldMarkTransferAsSentWhenExecuted() {
+		MoneyTransfer uncertainTransfer = insertTransfer(MoneyTransferStatus.UNCERTAIN);
+
+		MoneyTransfer resolved = moneyTransferService.resolveUncertainTransfer(uncertainTransfer, true);
+
+		assertEquals(MoneyTransferStatus.SENT, resolved.getMoneytransferStatus());
+		assertManualProtocol(resolved, MoneyTransferProtocolResultStatus.SUCCESS, "UI_DIALOG_MONEYTRANSFER_PROTOCOL_MANUALLY_EXECUTED");
+		assertTrue(moneyTransferService.retrieveOpenTransfers().isEmpty());
+	}
+
+	@Test
+	void resolveUncertainTransfer_shouldMakeTransferExecutableAgainWhenNotExecuted() {
+		MoneyTransfer uncertainTransfer = insertTransfer(MoneyTransferStatus.UNCERTAIN);
+
+		MoneyTransfer resolved = moneyTransferService.resolveUncertainTransfer(uncertainTransfer, false);
+
+		assertEquals(MoneyTransferStatus.ERROR, resolved.getMoneytransferStatus());
+		assertManualProtocol(resolved, MoneyTransferProtocolResultStatus.ERROR_UNKNOWN, "UI_DIALOG_MONEYTRANSFER_PROTOCOL_MANUALLY_NOT_EXECUTED");
+		assertEquals(resolved.getId(), moneyTransferService.retrieveOpenTransfers().get(0).getId());
+	}
+
+	@Test
+	void resolveUncertainTransfer_shouldRejectTransferWhichIsNotUncertain() {
+		MoneyTransfer sentTransfer = insertTransfer(MoneyTransferStatus.SENT);
+
+		assertThrows(GBankingException.class, () -> moneyTransferService.resolveUncertainTransfer(sentTransfer, false));
+
+		assertEquals(MoneyTransferStatus.SENT,
+				dbController.getAllByParent(MoneyTransfer.class, sentTransfer.getAccountId()).get(0).getMoneytransferStatus());
+		assertTrue(dbController.getAllByParent(MoneyTransferProtocol.class, sentTransfer.getId()).isEmpty());
+	}
+
+	private MoneyTransfer insertTransfer(MoneyTransferStatus status) {
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
+		Recipient recipient = dbController.insertOrUpdate(
+				new Recipient("Uncertain Recipient", "DE88888888888888888888", "TESTDEFFXXX", null, null, "Testbank", Source.MONEYTRANSFER));
+		return dbController.insertOrUpdate(new MoneyTransfer(account.getId(), OrderType.TRANSFER, recipient.getId(), "Uncertain transfer",
+				new BigDecimal("15.00"), LocalDate.of(2026, Month.AUGUST, 23), status));
+	}
+
+	private void assertManualProtocol(MoneyTransfer transfer, MoneyTransferProtocolResultStatus resultStatus, String textKey) {
+		List<MoneyTransferProtocol> protocols = dbController.getAllByParent(MoneyTransferProtocol.class, transfer.getId());
+		assertEquals(1, protocols.size());
+		assertEquals(transfer.getMoneytransferStatus(), protocols.get(0).getMoneytransferStatus());
+		assertEquals(resultStatus, protocols.get(0).getResultStatus());
+		assertEquals(moneyTransferService.getText(textKey), protocols.get(0).getProtocolText());
 	}
 
 	private static MoneyTransfer createInventoryTransfer(int accountId, int recipientId) {

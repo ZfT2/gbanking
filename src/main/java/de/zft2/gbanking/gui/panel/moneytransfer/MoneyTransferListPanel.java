@@ -16,6 +16,7 @@ import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
+import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.BackgroundActionCoordinator;
 import de.zft2.gbanking.gui.EnvironmentOptions;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
@@ -35,6 +36,8 @@ import de.zft2.gbanking.util.StandingOrderSchedule;
 import javafx.collections.FXCollections;
 import javafx.concurrent.Task;
 import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableColumn;
@@ -144,20 +147,53 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 		MenuItem retrieveInstantStatusItem = new MenuItem(getText("UI_MENU_MONEYTRANSFER_INSTANT_STATUS_RETRIEVE"));
 		retrieveInstantStatusItem.setOnAction(event -> retrieveSelectedInstantPaymentStatuses());
 
-		ContextMenu contextMenu = new ContextMenu(showProtocolItem, retrieveInstantStatusItem);
+		MenuItem markExecutedItem = createResolveUncertainItem("UI_MENU_MONEYTRANSFER_MARK_EXECUTED", true);
+		MenuItem markNotExecutedItem = createResolveUncertainItem("UI_MENU_MONEYTRANSFER_MARK_NOT_EXECUTED", false);
+
+		ContextMenu contextMenu = new ContextMenu(showProtocolItem, retrieveInstantStatusItem, markExecutedItem, markNotExecutedItem);
 		MenuItem importCsvItem = createImportCsvItem();
 		if (importCsvItem != null) {
 			contextMenu.getItems().add(importCsvItem);
 		}
 
 		contextMenu.setOnShowing(event -> {
-			showProtocolItem.setDisable(getSelectedMoneyTransfer() == null);
+			MoneyTransfer selected = getSelectedMoneyTransfer();
+			boolean uncertain = selected != null && selected.getMoneytransferStatus() == MoneyTransferStatus.UNCERTAIN;
+			showProtocolItem.setDisable(selected == null);
 			retrieveInstantStatusItem.setDisable(!canRetrieveInstantPaymentStatus(getStatusQuerySelection()));
+			markExecutedItem.setVisible(uncertain);
+			markNotExecutedItem.setVisible(uncertain);
 			if (importCsvItem != null) {
 				importCsvItem.setDisable(parentPanel.getSelectedAccount() == null);
 			}
 		});
 		return contextMenu;
+	}
+
+	private MenuItem createResolveUncertainItem(String textKey, boolean executed) {
+		MenuItem item = new MenuItem(getText(textKey));
+		item.setOnAction(event -> resolveSelectedUncertainTransfer(executed));
+		return item;
+	}
+
+	private void resolveSelectedUncertainTransfer(boolean executed) {
+		MoneyTransfer selected = getSelectedMoneyTransfer();
+		if (selected == null || !confirmUncertainResolution(executed)) {
+			return;
+		}
+		try {
+			handleSelection(ServiceRegistry.getService(MoneyTransferService.class).resolveUncertainTransfer(selected, executed));
+		} catch (GBankingException e) {
+			showWarning(e.getMessage());
+		}
+		parentPanel.reloadListPanels();
+	}
+
+	private boolean confirmUncertainResolution(boolean executed) {
+		return DialogWindowSupport.showConfirmation(getTableWindow(), Alert.AlertType.WARNING, getText("ALERT_MONEYTRANSFER_RESOLVE_UNCERTAIN_TITLE"),
+				getText(executed ? "ALERT_MONEYTRANSFER_MARK_EXECUTED_HEADER" : "ALERT_MONEYTRANSFER_MARK_NOT_EXECUTED_HEADER"),
+				getText("ALERT_MONEYTRANSFER_RESOLVE_UNCERTAIN_TEXT"), new ButtonType(getText("UI_BUTTON_YES"), ButtonBar.ButtonData.YES),
+				new ButtonType(getText("UI_BUTTON_NO"), ButtonBar.ButtonData.NO));
 	}
 
 	private void retrieveSelectedInstantPaymentStatuses() {

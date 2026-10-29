@@ -74,6 +74,7 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 	private String pendingRecipientCheckDetails;
 	private String confirmedRecipientName;
 	private boolean vopRequired;
+	private boolean submissionAbortedByUser;
 	private VoPStatus vopStatus;
 	private MoneyTransfer currentMoneyTransfer;
 
@@ -103,7 +104,7 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 				firstNonBlankOrEmpty(bankAccess.getFints().getCustomerId(), bankAccess.getFints().getUserId()));
 		case HAVE_VOP_RESULT -> handleVoPResult(passport, msg, retDataBuilder);
 		case NEED_PT_PHOTOTAN, NEED_PT_QRTAN, NEED_PT_TAN -> {
-			confirmRecipientCheckIfNeeded();
+			confirmRecipientCheckIfNeeded(true);
 			retDataBuilder.replace(0, retDataBuilder.length(), requestTan(reason, msg, retDataBuilder.toString()));
 		}
 		case NEED_PT_SECMECH -> {
@@ -120,7 +121,8 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 			}
 		}
 		case NEED_PT_DECOUPLED, NEED_PT_DECOUPLED_RETRY -> {
-			confirmRecipientCheckIfNeeded();
+			// The bank already holds the order here and the user may still release it in the banking app
+			confirmRecipientCheckIfNeeded(false);
 			boolean continueProcess = statusDialog.requestConfirmation(getText("UI_DIALOG_HBCI_FEEDBACK_DECOUPLED"), msg, getText(UI_BUTTON_OK),
 					getText(UI_BUTTON_CANCEL));
 			if (!continueProcess) {
@@ -246,6 +248,13 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 		return vopRequired;
 	}
 
+	/**
+	 * Returns whether the user withheld the authorization of the order, so that the bank cannot have executed it.
+	 */
+	public boolean isSubmissionAbortedByUser() {
+		return submissionAbortedByUser;
+	}
+
 	public VoPStatus getVopStatus() {
 		return vopStatus;
 	}
@@ -298,9 +307,17 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 				? statusDialog.requestSecretInput(prompt, details, challenge, getText(UI_BUTTON_OK), getText(UI_BUTTON_CANCEL))
 				: statusDialog.requestSecretInput(prompt, details, getText(UI_BUTTON_OK), getText(UI_BUTTON_CANCEL));
 		if (tan == null || tan.isBlank()) {
-			throw new HBCI_Exception("No TAN entered");
+			throw abortSubmission("No TAN entered");
 		}
 		return tan.trim();
+	}
+
+	/**
+	 * Marks the order as withheld by the user before its authorization reached the bank.
+	 */
+	private HBCI_Exception abortSubmission(String message) {
+		submissionAbortedByUser = true;
+		return new HBCI_Exception(message);
 	}
 
 	private TanChallenge createTanChallenge(int reason, String message, String payload) {
@@ -480,7 +497,7 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 		}
 	}
 
-	private void confirmRecipientCheckIfNeeded() {
+	private void confirmRecipientCheckIfNeeded(boolean beforeTanEntry) {
 		if (pendingRecipientCheckMessage == null && pendingRecipientCheckDetails == null) {
 			return;
 		}
@@ -493,7 +510,8 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 		boolean continueTransfer = statusDialog.requestConfirmation(getText("UI_DIALOG_HBCI_FEEDBACK_RECIPIENT_CHECK"), feedbackDetails,
 				getText(UI_BUTTON_CONTINUE), getText(UI_BUTTON_CANCEL));
 		if (!continueTransfer) {
-			throw new HBCI_Exception("User aborted after recipient check feedback");
+			String message = "User aborted after recipient check feedback";
+			throw beforeTanEntry ? abortSubmission(message) : new HBCI_Exception(message);
 		}
 	}
 
@@ -503,9 +521,8 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 		VoPResult voPResult = extractVoPResult(passport);
 		String details = formatVoPDetails(message, voPResult);
 		if (voPResult == null) {
-			boolean continueTransfer = statusDialog.requestConfirmation(getText("UI_DIALOG_HBCI_FEEDBACK_RECIPIENT_CHECK"), details,
-					getText(UI_BUTTON_CONTINUE), getText(UI_BUTTON_CANCEL));
-			retData.replace(0, retData.length(), continueTransfer ? "true" : "false");
+			answerRecipientCheck(retData, statusDialog.requestConfirmation(getText("UI_DIALOG_HBCI_FEEDBACK_RECIPIENT_CHECK"), details,
+					getText(UI_BUTTON_CONTINUE), getText(UI_BUTTON_CANCEL)));
 			return;
 		}
 
@@ -514,7 +531,7 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 		if (status == VoPStatus.MATCH) {
 			pendingRecipientCheckMessage = null;
 			pendingRecipientCheckDetails = null;
-			retData.replace(0, retData.length(), "true");
+			answerRecipientCheck(retData, true);
 			return;
 		}
 
@@ -526,7 +543,15 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 		}
 		pendingRecipientCheckMessage = null;
 		pendingRecipientCheckDetails = null;
-		retData.replace(0, retData.length(), continueTransfer ? "true" : "false");
+		answerRecipientCheck(retData, continueTransfer);
+	}
+
+	/**
+	 * Answers the verification of payee. hbci4j cancels the order itself if the user does not continue the transfer.
+	 */
+	private void answerRecipientCheck(StringBuilder retData, boolean continueTransfer) {
+		submissionAbortedByUser |= !continueTransfer;
+		retData.replace(0, retData.length(), Boolean.toString(continueTransfer));
 	}
 
 	private VoPResult extractVoPResult(HBCIPassport passport) {

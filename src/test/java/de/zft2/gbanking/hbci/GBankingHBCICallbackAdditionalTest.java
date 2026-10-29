@@ -196,6 +196,26 @@ class GBankingHBCICallbackAdditionalTest {
 			StringBuffer sb = new StringBuffer();
 			assertThrows(HBCI_Exception.class,
 					() -> callback.callback(null, GBankingHBCICallback.NEED_PT_DECOUPLED, "Bitte in der App freigeben", 0, sb));
+			// The bank already holds the order, so the execution status must stay open
+			assertFalse(callback.isSubmissionAbortedByUser());
+		}
+	}
+
+	@Test
+	void haveVoPResult_shouldMarkSubmissionAsAbortedWhenUserRejectsRecipientCheck() {
+		try (MockedStatic<DialogWindowSupport> dialogSupportMock = mockStatic(DialogWindowSupport.class);
+				MockedConstruction<HbciCallbackMessageDialog> ignored = Mockito.mockConstruction(HbciCallbackMessageDialog.class,
+						(mock, context) -> when(mock.requestConfirmation(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString()))
+								.thenReturn(false))) {
+			dialogSupportMock.when(DialogWindowSupport::findBestOwnerWindow).thenReturn(Optional.empty());
+
+			GBankingHBCICallback callback = new GBankingHBCICallback(new BankAccess());
+			StringBuffer retData = new StringBuffer("true");
+
+			callback.callback(null, GBankingHBCICallback.HAVE_VOP_RESULT, "Empfaengerpruefung", 0, retData);
+
+			assertEquals("false", retData.toString());
+			assertTrue(callback.isSubmissionAbortedByUser());
 		}
 	}
 
@@ -213,6 +233,7 @@ class GBankingHBCICallbackAdditionalTest {
 			callback.callback(null, GBankingHBCICallback.HAVE_VOP_RESULT, "Empfaengerpruefung erfolgreich", 0, retData);
 
 			assertEquals("true", retData.toString());
+			assertFalse(callback.isSubmissionAbortedByUser());
 		}
 	}
 
