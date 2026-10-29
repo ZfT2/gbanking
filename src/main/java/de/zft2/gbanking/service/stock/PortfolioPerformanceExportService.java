@@ -48,6 +48,7 @@ public class PortfolioPerformanceExportService extends AbstractDbService {
 
 	private static final int QUANTITY_SCALE = StockNumericValueType.QUANTITY.getScaleDigits();
 	private static final int PRICE_SCALE = StockNumericValueType.PRICE.getScaleDigits();
+	private static final String SQL_SELECT_CASH_LEGS_BY_PORTFOLIO = "SQL_SELECT_STOCK_CASH_LEGS_BY_PORTFOLIO";
 	private static final String[] TRANSACTION_HEADERS = { "Datum", "Typ", "Wert", "Buchungswährung",
 			"Bruttobetrag", "Währung Bruttobetrag", "Wechselkurs", "Gebühren", "Steuern", "Stück", "ISIN",
 			"WKN", "Ticker-Symbol", "Wertpapiername", "Notiz" };
@@ -159,12 +160,16 @@ public class PortfolioPerformanceExportService extends AbstractDbService {
 		Map<Integer, StockSecurity> securities = dbController.getAll(StockSecurity.class).stream()
 				.collect(Collectors.toMap(StockSecurity::getId, Function.identity()));
 		Map<Integer, SecurityIdentifiers> identifiers = identifiers();
-		Map<Integer, List<StockTransactionSecurityLeg>> securityLegs = new HashMap<>();
-		Map<Integer, List<StockTransactionCashLeg>> cashLegs = new HashMap<>();
-		for (StockTransaction transaction : transactions) {
-			securityLegs.put(transaction.getId(), dbController.getAllByParent(StockTransactionSecurityLeg.class, transaction.getId()));
-			cashLegs.put(transaction.getId(), dbController.getAllByParent(StockTransactionCashLeg.class, transaction.getId()));
-		}
+		// Load all legs of the portfolio at once, but keep only those of settled transactions
+		Set<Integer> transactionIds = transactions.stream().map(transaction -> transaction.getId()).collect(Collectors.toSet());
+		Map<Integer, List<StockTransactionSecurityLeg>> securityLegs = dbController.getAllByParent(
+				StockTransactionSecurityLeg.class, portfolio.portfolioId(), StockPortfolioService.SQL_SELECT_SECURITY_LEGS_BY_PORTFOLIO)
+				.stream().filter(leg -> transactionIds.contains(leg.getTransactionId()))
+				.collect(Collectors.groupingBy(leg -> leg.getTransactionId()));
+		Map<Integer, List<StockTransactionCashLeg>> cashLegs = dbController.getAllByParent(
+				StockTransactionCashLeg.class, portfolio.portfolioId(), SQL_SELECT_CASH_LEGS_BY_PORTFOLIO)
+				.stream().filter(leg -> transactionIds.contains(leg.getTransactionId()))
+				.collect(Collectors.groupingBy(leg -> leg.getTransactionId()));
 		Map<Integer, String> notes = dbController.getAll(StockTransactionMetadata.class).stream()
 				.collect(Collectors.toMap(StockTransactionMetadata::getTransactionId,
 						metadata -> nullToEmpty(metadata.getNote()), (left, right) -> left));

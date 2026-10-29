@@ -67,7 +67,7 @@ public class StockPortfolioService extends AbstractDbService {
 	private static final int QUANTITY_SCALE = StockNumericValueType.QUANTITY.getScaleDigits();
 	private static final int PRICE_SCALE = StockNumericValueType.PRICE.getScaleDigits();
 	private static final int EXCHANGE_RATE_SCALE = StockNumericValueType.FACTOR.getScaleDigits();
-	private static final String SQL_SELECT_SECURITY_LEGS_BY_PORTFOLIO = "SQL_SELECT_STOCK_SECURITY_LEGS_BY_PORTFOLIO";
+	static final String SQL_SELECT_SECURITY_LEGS_BY_PORTFOLIO = "SQL_SELECT_STOCK_SECURITY_LEGS_BY_PORTFOLIO";
 	private static final String SQL_SELECT_SUPERSEDING_PRICE = "SQL_SELECT_STOCK_SECURITY_PRICE_SUPERSEDING";
 
 	public List<PortfolioSummary> getPortfolios() {
