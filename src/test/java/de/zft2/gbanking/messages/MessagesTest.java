@@ -1,6 +1,7 @@
 package de.zft2.gbanking.messages;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.BufferedReader;
@@ -20,9 +21,13 @@ import java.util.regex.Pattern;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class MessagesTest {
 	private static final Pattern MESSAGE_PARAMETER = Pattern.compile("\\{\\d+}");
+	// '?' between letters or U+FFFD indicates characters lost by writing or reading with a wrong encoding
+	private static final Pattern LOST_CHARACTER = Pattern.compile("\\p{L}\\?\\p{L}|\\uFFFD");
 
 	private Locale previousLocale;
 
@@ -68,6 +73,12 @@ class MessagesTest {
 		for (Map.Entry<String, String> germanMessage : germanMessages.entrySet()) {
 			assertEquals(parameters(germanMessage.getValue()), parameters(englishMessages.get(germanMessage.getKey())), germanMessage.getKey());
 		}
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "/messages_de.properties", "/messages_en.properties" })
+	void messagesShouldNotContainCharactersLostByEncodingErrors(String resourceName) throws IOException {
+		loadMessages(resourceName).forEach((key, message) -> assertFalse(LOST_CHARACTER.matcher(message).find(), key));
 	}
 
 	private List<String> loadKeys(String resourceName) throws IOException {
