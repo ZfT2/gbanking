@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
@@ -15,7 +16,7 @@ final class UpdateBackupCleaner {
 	private static final Logger log = LogManager.getLogger(UpdateBackupCleaner.class);
 	private static final String UPDATES_DIRECTORY = ".updates";
 	private static final String UPDATE_DIRECTORY_PREFIX = "gbanking-update-";
-	private static final String BACKUP_DIRECTORY = "backup";
+	private static final String INSTALL_LOG = "install-update.log";
 
 	void cleanup(Path installDirectory) {
 		Path updatesDirectory = installDirectory.resolve(UPDATES_DIRECTORY);
@@ -31,26 +32,35 @@ final class UpdateBackupCleaner {
 			})
 					.toList();
 			for (Path updateDirectory : updateDirectories) {
-				deleteBackup(updateDirectory.resolve(BACKUP_DIRECTORY));
+				deleteStaleFiles(updateDirectory);
 			}
 		} catch (IOException exception) {
 			log.warn("Could not inspect update backup directory {}", updatesDirectory, exception);
 		}
 	}
 
-	private void deleteBackup(Path backupDirectory) {
-		if (!Files.isDirectory(backupDirectory)) {
-			return;
-		}
+	static void deleteTree(Path directory) {
+		deleteTree(directory, path -> true);
+	}
 
-		try (Stream<Path> paths = Files.walk(backupDirectory)) {
-			List<Path> pathsToDelete = paths.sorted(Comparator.reverseOrder()).toList();
+	private static void deleteStaleFiles(Path updateDirectory) {
+		// The installer log is kept so that failed installations can still be analyzed.
+		Path installLog = updateDirectory.resolve(INSTALL_LOG);
+		boolean keepDirectory = Files.exists(installLog);
+		deleteTree(updateDirectory, path -> !path.equals(installLog) && !(keepDirectory && path.equals(updateDirectory)));
+	}
+
+	private static void deleteTree(Path directory, Predicate<Path> filter) {
+		try (Stream<Path> paths = Files.walk(directory)) {
+			List<Path> pathsToDelete = paths.filter(filter).sorted(Comparator.reverseOrder()).toList();
 			for (Path path : pathsToDelete) {
 				Files.deleteIfExists(path);
 			}
-			log.info("Removed successful application update backup: {}", backupDirectory);
+			if (!pathsToDelete.isEmpty()) {
+				log.info("Removed application update files in {}", directory);
+			}
 		} catch (IOException exception) {
-			log.warn("Could not remove application update backup {}", backupDirectory, exception);
+			log.warn("Could not remove application update files in {}", directory, exception);
 		}
 	}
 }

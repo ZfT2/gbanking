@@ -56,6 +56,8 @@ class UpdateInstallerLauncherIntegrationTest {
 		new UpdateBackupCleaner().cleanup(installDirectory);
 
 		assertFalse(Files.exists(backupDirectory));
+		assertFalse(Files.exists(script));
+		assertTrue(Files.isRegularFile(workDirectory.resolve("install-update.log")));
 		assertTrue(Files.isRegularFile(installDirectory.resolve("lib/dependency-2.0.jar")));
 	}
 

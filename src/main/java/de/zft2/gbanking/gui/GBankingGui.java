@@ -238,7 +238,7 @@ public class GBankingGui extends Application implements BaseGui {
 		moneyTransferService = ServiceRegistry.getService(MoneyTransferService.class);
 		stockPortfolioFinTsService = ServiceRegistry.getService(StockPortfolioFinTsService.class);
 		log.info("Main window initialization completed.");
-		applicationUpdateCoordinator.cleanupSuccessfulUpdateBackups();
+		applicationUpdateCoordinator.cleanupStaleUpdateFiles();
 	}
 
 	OverviewBasePanel activateOverview(PageContext pageContext) {

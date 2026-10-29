@@ -1,6 +1,7 @@
 package de.zft2.gbanking.gui;
 
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -28,6 +29,7 @@ final class ApplicationUpdateCoordinator implements BaseGui {
 	private static final Logger log = LogManager.getLogger(ApplicationUpdateCoordinator.class);
 	private static final double BYTES_PER_MEGABYTE = 1024d * 1024d;
 	private static final double MAX_PROGRESS = 1d;
+	private static final AtomicBoolean STALE_UPDATE_FILES_CLEANED = new AtomicBoolean();
 
 	private final GBankingGui gui;
 	private final Label statusLabel;
@@ -42,8 +44,12 @@ final class ApplicationUpdateCoordinator implements BaseGui {
 		this.progressLabel = progressLabel;
 	}
 
-	void cleanupSuccessfulUpdateBackups() {
-		updateManager.cleanupSuccessfulUpdateBackups();
+	void cleanupStaleUpdateFiles() {
+		// Only once per process: later main window initializations (e.g. after a tenant switch)
+		// must not remove the files of an update that is currently being prepared.
+		if (STALE_UPDATE_FILES_CLEANED.compareAndSet(false, true)) {
+			updateManager.cleanupStaleUpdateFiles();
+		}
 	}
 
 	void checkForUpdates() {

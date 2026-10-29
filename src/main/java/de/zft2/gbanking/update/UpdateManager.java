@@ -65,29 +65,36 @@ public class UpdateManager {
 		Path updatesDir = installDirectory.resolve(".updates");
 		Files.createDirectories(updatesDir);
 		Path workDirectory = Files.createTempDirectory(updatesDir, "gbanking-update-");
+		boolean prepared = false;
+		try {
+			notify(progressListener, "Downloading update archive");
+			Path archiveFile = download(release.applicationAsset(), workDirectory, progressListener);
+			notify(progressListener, "Downloading checksums");
+			Path checksumsFile = download(release.checksumsAsset(), workDirectory, null);
+			notify(progressListener, "Downloading checksum signature");
+			Path signatureFile = download(release.signatureAsset(), workDirectory, null);
 
-		notify(progressListener, "Downloading update archive");
-		Path archiveFile = download(release.applicationAsset(), workDirectory, progressListener);
-		notify(progressListener, "Downloading checksums");
-		Path checksumsFile = download(release.checksumsAsset(), workDirectory, null);
-		notify(progressListener, "Downloading checksum signature");
-		Path signatureFile = download(release.signatureAsset(), workDirectory, null);
+			notify(progressListener, "Verifying checksum signature");
+			signatureVerifier().verifyOrThrow(checksumsFile, signatureFile);
+			notify(progressListener, "Verifying update archive checksum");
+			checksumVerifier.verify(checksumsFile, archiveFile, release.applicationAsset().name());
 
-		notify(progressListener, "Verifying checksum signature");
-		signatureVerifier().verifyOrThrow(checksumsFile, signatureFile);
-		notify(progressListener, "Verifying update archive checksum");
-		checksumVerifier.verify(checksumsFile, archiveFile, release.applicationAsset().name());
-
-		notify(progressListener, "Extracting update archive");
-		Path sourceDirectory = zipPackageExtractor.extract(archiveFile, workDirectory.resolve("extracted"));
-		return new PreparedUpdate(release.version(), installDirectory, sourceDirectory, workDirectory);
+			notify(progressListener, "Extracting update archive");
+			Path sourceDirectory = zipPackageExtractor.extract(archiveFile, workDirectory.resolve("extracted"));
+			prepared = true;
+			return new PreparedUpdate(release.version(), installDirectory, sourceDirectory, workDirectory);
+		} finally {
+			if (!prepared) {
+				UpdateBackupCleaner.deleteTree(workDirectory);
+			}
+		}
 	}
 
 	public void launchInstaller(PreparedUpdate preparedUpdate) throws IOException, UpdateException {
 		installerLauncher.launch(preparedUpdate);
 	}
 
-	public void cleanupSuccessfulUpdateBackups() {
+	public void cleanupStaleUpdateFiles() {
 		new UpdateBackupCleaner().cleanup(installDirectory);
 	}
 
@@ -109,14 +116,18 @@ public class UpdateManager {
 			}
 
 			long totalBytes = response.headers().firstValueAsLong("Content-Length").orElse(asset.size());
+			long maxBytes = asset.size() > 0 ? asset.size() : Long.MAX_VALUE;
 			try (OutputStream outputStream = Files.newOutputStream(targetFile)) {
 				byte[] buffer = new byte[DOWNLOAD_BUFFER_SIZE];
 				long downloadedBytes = 0L;
 				int read;
 				notifyDownloadProgress(progressListener, downloadedBytes, totalBytes);
 				while ((read = inputStream.read(buffer)) >= 0) {
-					outputStream.write(buffer, 0, read);
 					downloadedBytes += read;
+					if (downloadedBytes > maxBytes) {
+						throw new UpdateException("Download of " + asset.name() + " exceeds the expected size of " + maxBytes + " bytes");
+					}
+					outputStream.write(buffer, 0, read);
 					notifyDownloadProgress(progressListener, downloadedBytes, totalBytes);
 				}
 			}
