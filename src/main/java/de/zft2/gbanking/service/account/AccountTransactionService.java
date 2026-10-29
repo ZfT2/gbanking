@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Date;
@@ -62,6 +63,7 @@ import de.zft2.gbanking.rebooking.RebookingAssignmentSummary;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.HbciSessionRunner;
 import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.service.account.BookingDuplicateChecker.Candidates;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
 
 public class AccountTransactionService extends AbstractDbService {
@@ -302,10 +304,11 @@ public class AccountTransactionService extends AbstractDbService {
 			return 0;
 		}
 
-		List<Booking> duplicateCheckBookings = getAccountBookingsForDuplicateCheck(bankAccount.getId());
-		List<Booking> processedIncomingBookings = new ArrayList<>();
+		Candidates duplicateCheckBookings = getAccountBookingsForDuplicateCheck(bankAccount.getId());
+		Candidates processedIncomingBookings = new Candidates(List.of());
 		List<Booking> newBookingsList = new ArrayList<>();
 		Map<Recipient, Set<Integer>> recipientBookingMap = new HashMap<>();
+		Map<List<Object>, Recipient> resolvedRecipients = new HashMap<>();
 		int skippedDuplicates = 0;
 
 		for (Booking newBooking : bookings) {
@@ -321,7 +324,8 @@ public class AccountTransactionService extends AbstractDbService {
 			}
 
 			if (newBooking.getRecipient() != null) {
-				newBooking.setRecipient(dbController.resolveRecipient(newBooking.getRecipient()));
+				newBooking.setRecipient(resolvedRecipients.computeIfAbsent(recipientValues(newBooking.getRecipient()),
+						values -> dbController.resolveRecipient(newBooking.getRecipient())));
 			}
 
 			newBookingsList.add(newBooking);
@@ -398,9 +402,18 @@ public class AccountTransactionService extends AbstractDbService {
 		return rebookingService.persistDetectedRebookingLinks(summary);
 	}
 
-	private List<Booking> getAccountBookingsForDuplicateCheck(int accountId) {
+	private Candidates getAccountBookingsForDuplicateCheck(int accountId) {
 		List<Booking> bookings = dbController.getAllByParentFull(Booking.class, accountId);
-		return bookings != null ? new ArrayList<>(bookings) : new ArrayList<>();
+		return new Candidates(bookings != null ? bookings : List.of());
+	}
+
+	/**
+	 * Returns all values the recipient resolution depends on, so identical incoming recipients of one retrieval are
+	 * resolved only once.
+	 */
+	private static List<Object> recipientValues(Recipient recipient) {
+		return Arrays.asList(recipient.getId(), recipient.getSource(), recipient.getName(), recipient.getIban(), recipient.getBic(),
+				recipient.getAccountNumber(), recipient.getBlz(), recipient.getBank(), recipient.getNote(), recipient.isDefault());
 	}
 
 	private LocalDate resolveBookingRetrievalStartDate(LocalDate lastBookingDate) {

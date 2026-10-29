@@ -1,6 +1,5 @@
 package de.zft2.gbanking.file.imp;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -10,14 +9,15 @@ import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.Booking;
+import de.zft2.gbanking.service.account.BookingDuplicateChecker.Candidates;
 
 final class ImportedBookingPersistence {
 
 	private static final Logger log = LogManager.getLogger(ImportedBookingPersistence.class);
 
 	private final DBController dbController;
-	private final Map<Integer, List<Booking>> existingBookingsByAccountId = new HashMap<>();
-	private final Map<Integer, List<Booking>> processedBookingsByAccountId = new HashMap<>();
+	private final Map<Integer, Candidates> existingBookingsByAccountId = new HashMap<>();
+	private final Map<Integer, Candidates> processedBookingsByAccountId = new HashMap<>();
 
 	ImportedBookingPersistence(DBController dbController) {
 		this.dbController = dbController;
@@ -42,7 +42,7 @@ final class ImportedBookingPersistence {
 		}
 
 		int accountId = booking.getAccountId();
-		List<Booking> processedBookings = processedBookings(accountId);
+		Candidates processedBookings = processedBookings(accountId);
 		Booking existingBooking = ImportedBookingMatcher.findMatchingBooking(existingBookings(accountId), processedBookings, booking);
 		if (existingBooking != null) {
 			processedBookings.add(existingBooking);
@@ -60,13 +60,13 @@ final class ImportedBookingPersistence {
 		return booking.getDateBooking() != null || booking.getDateValue() != null;
 	}
 
-	private List<Booking> existingBookings(int accountId) {
+	private Candidates existingBookings(int accountId) {
 		return existingBookingsByAccountId.computeIfAbsent(accountId,
-				id -> new ArrayList<>(dbController.getAllByParentFull(Booking.class, id)));
+				id -> new Candidates(dbController.getAllByParentFull(Booking.class, id)));
 	}
 
-	private List<Booking> processedBookings(int accountId) {
-		return processedBookingsByAccountId.computeIfAbsent(accountId, id -> new ArrayList<>());
+	private Candidates processedBookings(int accountId) {
+		return processedBookingsByAccountId.computeIfAbsent(accountId, id -> new Candidates(List.of()));
 	}
 
 	record Result(boolean existing, boolean skipped, Booking booking) {

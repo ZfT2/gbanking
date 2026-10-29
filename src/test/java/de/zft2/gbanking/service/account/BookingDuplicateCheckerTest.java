@@ -15,6 +15,7 @@ import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingAdditionalDetails;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.service.account.BookingDuplicateChecker.Candidates;
 
 class BookingDuplicateCheckerTest {
 
@@ -29,7 +30,7 @@ class BookingDuplicateCheckerTest {
 		Booking existingBooking = createBooking(Source.IMPORT, "Anderer Verwendungszweck");
 		setInstituteReference(existingBooking, "REFERENCE-123");
 
-		assertTrue(checker.isDuplicate(newBooking, List.of(existingBooking), List.of()));
+		assertTrue(isDuplicate(newBooking, List.of(existingBooking), List.of()));
 	}
 
 	@Test
@@ -38,8 +39,8 @@ class BookingDuplicateCheckerTest {
 		Booking existingBooking = createBooking(Source.ONLINE, "Identische Buchung");
 		Booking alreadyProcessedBooking = createBooking(Source.ONLINE_NEW, "Identische Buchung");
 
-		assertTrue(checker.isDuplicate(newBooking, List.of(existingBooking), List.of()));
-		assertFalse(checker.isDuplicate(newBooking, List.of(existingBooking),
+		assertTrue(isDuplicate(newBooking, List.of(existingBooking), List.of()));
+		assertFalse(isDuplicate(newBooking, List.of(existingBooking),
 				List.of(alreadyProcessedBooking)));
 	}
 
@@ -49,10 +50,10 @@ class BookingDuplicateCheckerTest {
 		newBooking.setRecipient(createRecipient("DE12345678901234567890"));
 		Booking existingBooking = createBooking(Source.MANUELL, "Manuelle Buchung");
 
-		assertFalse(checker.isDuplicate(newBooking, List.of(existingBooking), List.of()));
+		assertFalse(isDuplicate(newBooking, List.of(existingBooking), List.of()));
 
 		existingBooking.setRecipient(createRecipient("DE12345678901234567890"));
-		assertTrue(checker.isDuplicate(newBooking, List.of(existingBooking), List.of()));
+		assertTrue(isDuplicate(newBooking, List.of(existingBooking), List.of()));
 	}
 
 	@Test
@@ -62,7 +63,17 @@ class BookingDuplicateCheckerTest {
 		Booking importedBooking = createBooking(Source.IMPORT_INITIAL, "Kartenzahlung  V00010");
 		importedBooking.setAmount(new BigDecimal("42.000"));
 
-		assertSame(onlineBooking, checker.findDuplicate(importedBooking, List.of(onlineBooking), List.of()));
+		assertSame(onlineBooking, checker.findDuplicate(importedBooking, new Candidates(List.of(onlineBooking)), new Candidates(List.of())));
+	}
+
+	@Test
+	void shouldGroupMissingAmountWithZeroAmount() {
+		Booking newBooking = createBooking(Source.ONLINE_NEW, "Nullbuchung");
+		newBooking.setAmount(null);
+		Booking existingBooking = createBooking(Source.ONLINE, "Nullbuchung");
+		existingBooking.setAmount(new BigDecimal("0.00"));
+
+		assertTrue(isDuplicate(newBooking, List.of(existingBooking), List.of()));
 	}
 
 	@Test
@@ -71,7 +82,7 @@ class BookingDuplicateCheckerTest {
 				"Abschluss per 30.06.2026\nSaldo Rechnungsabschluss per 30.06.2026\nincl. Abschlussbetrag 3.155,05\nSollzinsen: - 0,25");
 		Booking importedBooking = createBooking(Source.IMPORT_INITIAL, "ABSCHLUSS PER 30.06.2026");
 
-		assertTrue(checker.isDuplicate(onlineBooking, List.of(importedBooking), List.of()));
+		assertTrue(isDuplicate(onlineBooking, List.of(importedBooking), List.of()));
 	}
 
 	@Test
@@ -80,7 +91,7 @@ class BookingDuplicateCheckerTest {
 		Booking onlineBooking = createBooking(Source.ONLINE_NEW,
 				"Abschluss per 30.06.2026\nSaldo Rechnungsabschluss per 30.06.2026\nincl. Abschlussbetrag 3.155,05\nSollzinsen: - 0,25");
 
-		assertTrue(checker.isDuplicate(importedBooking, List.of(onlineBooking), List.of()));
+		assertTrue(isDuplicate(importedBooking, List.of(onlineBooking), List.of()));
 	}
 
 	@Test
@@ -88,7 +99,7 @@ class BookingDuplicateCheckerTest {
 		Booking onlineBooking = createBooking(Source.ONLINE_NEW, "Kartenzahlung\n15.05.2026\nV00010");
 		Booking importedBooking = createBooking(Source.IMPORT_INITIAL, "Kartenzahlung 15.05.2026");
 
-		assertTrue(checker.isDuplicate(onlineBooking, List.of(importedBooking), List.of()));
+		assertTrue(isDuplicate(onlineBooking, List.of(importedBooking), List.of()));
 	}
 
 	@Test
@@ -98,7 +109,7 @@ class BookingDuplicateCheckerTest {
 		Booking importedBooking = createBooking(Source.IMPORT_INITIAL,
 				"Rechnung VG260400524 1x Werkzeug TAN1:Auftrag nicht TAN-pflichtig IBAN: DE70760200700049183526 BIC: HYVEDEMM460");
 
-		assertTrue(checker.isDuplicate(onlineBooking, List.of(importedBooking), List.of()));
+		assertTrue(isDuplicate(onlineBooking, List.of(importedBooking), List.of()));
 	}
 
 	@Test
@@ -106,7 +117,7 @@ class BookingDuplicateCheckerTest {
 		Booking onlineBooking = createBooking(Source.ONLINE_NEW, "Abschluss per 30.06.2026\nSollzinsen: - 0,25");
 		Booking importedBooking = createBooking(Source.IMPORT_INITIAL, "ABSCHLUSS PER 31.05.2026");
 
-		assertFalse(checker.isDuplicate(onlineBooking, List.of(importedBooking), List.of()));
+		assertFalse(isDuplicate(onlineBooking, List.of(importedBooking), List.of()));
 	}
 
 	@Test
@@ -114,7 +125,7 @@ class BookingDuplicateCheckerTest {
 		Booking onlineBooking = createBooking(Source.ONLINE_NEW, "Abschluss per 30.06.2026\nSollzinsen: - 0,25");
 		Booking importedBooking = createBooking(Source.IMPORT_INITIAL, "Zinsen");
 
-		assertFalse(checker.isDuplicate(onlineBooking, List.of(importedBooking), List.of()));
+		assertFalse(isDuplicate(onlineBooking, List.of(importedBooking), List.of()));
 	}
 
 	@Test
@@ -124,7 +135,11 @@ class BookingDuplicateCheckerTest {
 		manualBooking.setRecipient(createRecipient("DE12345678901234567890"));
 		onlineBooking.setRecipient(createRecipient("DE12345678901234567890"));
 
-		assertFalse(checker.isDuplicate(onlineBooking, List.of(manualBooking), List.of()));
+		assertFalse(isDuplicate(onlineBooking, List.of(manualBooking), List.of()));
+	}
+
+	private boolean isDuplicate(Booking newBooking, List<Booking> existingBookings, List<Booking> processedBookings) {
+		return checker.isDuplicate(newBooking, new Candidates(existingBookings), new Candidates(processedBookings));
 	}
 
 	private static Booking createBooking(Source source, String purpose) {

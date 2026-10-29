@@ -1,11 +1,15 @@
 package de.zft2.gbanking.service.account;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.BiPredicate;
 import java.util.regex.Pattern;
 
@@ -29,17 +33,16 @@ public final class BookingDuplicateChecker {
 	private static final Pattern WHITESPACE_RUN = Pattern.compile("\\s+");
 	private static final String NORMALIZED_PURPOSE_SEPARATOR = " ";
 
-	boolean isDuplicate(Booking newBooking, List<Booking> existingBookings, List<Booking> processedIncomingBookings) {
+	boolean isDuplicate(Booking newBooking, Candidates existingBookings, Candidates processedIncomingBookings) {
 		return findDuplicate(newBooking, existingBookings, processedIncomingBookings) != null;
 	}
 
-	public Booking findDuplicate(Booking newBooking, Collection<Booking> existingBookings,
-			Collection<Booking> processedIncomingBookings) {
+	public Booking findDuplicate(Booking newBooking, Candidates existingBookings, Candidates processedIncomingBookings) {
 		if (newBooking == null) {
 			return null;
 		}
-		Collection<Booking> existing = existingBookings != null ? existingBookings : List.of();
-		Collection<Booking> processed = processedIncomingBookings != null ? processedIncomingBookings : List.of();
+		List<Booking> existing = existingBookings.withSameAmount(newBooking);
+		List<Booking> processed = processedIncomingBookings.withSameAmount(newBooking);
 		Booking stableReferenceMatch = findStableReferenceMatch(newBooking, existing);
 		if (stableReferenceMatch != null) {
 			return stableReferenceMatch;
@@ -326,4 +329,31 @@ public final class BookingDuplicateChecker {
 		return normalizedPurpose.isEmpty() ? null : normalizedPurpose;
 	}
 
+	/**
+	 * Bookings grouped by their rounded amount. Every duplicate criterion requires the same rounded amount, so a
+	 * booking only has to be compared with the bookings of its own group. The order is kept within a group because
+	 * the multiplicity check depends on it.
+	 */
+	public static final class Candidates {
+		// compareTo based keys, so a missing amount and 0.00 share a group like in Amounts.sameRoundedAmount
+		private final Map<BigDecimal, List<Booking>> bookingsByAmount = new TreeMap<>();
+		private int size;
+
+		public Candidates(Collection<Booking> bookings) {
+			bookings.forEach(booking -> add(booking));
+		}
+
+		public void add(Booking booking) {
+			bookingsByAmount.computeIfAbsent(Amounts.normalizeAmount(booking.getAmount()), amount -> new ArrayList<>()).add(booking);
+			size++;
+		}
+
+		public List<Booking> withSameAmount(Booking booking) {
+			return bookingsByAmount.getOrDefault(Amounts.normalizeAmount(booking.getAmount()), List.of());
+		}
+
+		public int size() {
+			return size;
+		}
+	}
 }
