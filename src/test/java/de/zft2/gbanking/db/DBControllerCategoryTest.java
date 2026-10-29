@@ -1,5 +1,6 @@
 package de.zft2.gbanking.db;
 
+import static de.zft2.gbanking.testdata.DateAssertions.assertToday;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -31,6 +32,7 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 
 	@Test
 	void insertSingleCategory_shouldWork() {
+		LocalDate before = LocalDate.now(ZoneId.systemDefault());
 
 		Category cg = TestDataFactory.createSampleCategory("Auto");
 		db.insertOrUpdate(cg);
@@ -40,9 +42,7 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 
 		assertEquals("Auto", cg.getName());
 		assertEquals("Auto", cg.getFullName());
-		
-		LocalDate dateUpdatedAtWithoutTime = getCalendarWithoutTime(cg.getUpdatedAt());
-		assertEquals(dateUpdatedAtWithoutTime, getCalendarWithoutTime(LocalDate.now(ZoneId.systemDefault())));
+		assertToday(before, cg.getUpdatedAt());
 	}
 
 	@Test
@@ -127,6 +127,7 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 	
 	@Test
 	void insertCategoryRule_shouldWork() {
+		LocalDate before = LocalDate.now(ZoneId.systemDefault());
 		
 		Category cg = TestDataFactory.createSampleCategory("Bahn");
 		cg = db.insertOrUpdate(cg);
@@ -152,9 +153,7 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 		cr.setOverwriteExistingCategories(false);
 		db.insertOrUpdate(cr);
 		assertFalse(db.getById(CategoryRule.class, cr.getId()).isOverwriteExistingCategories());
-		
-		LocalDate dateUpdatedAtWithoutTime = getCalendarWithoutTime(cr.getUpdatedAt());
-		assertEquals(dateUpdatedAtWithoutTime, getCalendarWithoutTime(LocalDate.now(ZoneId.systemDefault())));
+		assertToday(before, cr.getUpdatedAt());
 	}
 
 	@Test

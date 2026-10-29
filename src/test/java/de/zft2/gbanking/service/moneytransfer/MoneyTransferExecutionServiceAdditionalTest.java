@@ -1,5 +1,6 @@
 package de.zft2.gbanking.service.moneytransfer;
 
+import static de.zft2.gbanking.testdata.DateAssertions.assertToday;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -449,8 +450,7 @@ class MoneyTransferExecutionServiceAdditionalTest {
 				mock(HBCIExecStatus.class), null, "SUCCESS");
 
 		assertEquals(MoneyTransferStatus.SENT, moneyTransfer.getMoneytransferStatus());
-		assertFalse(moneyTransfer.getExecutionDate().isBefore(before));
-		assertFalse(moneyTransfer.getExecutionDate().isAfter(LocalDate.now(ZoneId.systemDefault())));
+		assertToday(before, moneyTransfer.getExecutionDate());
 	}
 
 	@Test

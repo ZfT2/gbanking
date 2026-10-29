@@ -1,5 +1,6 @@
 package de.zft2.gbanking.service.account;
 
+import static de.zft2.gbanking.testdata.DateAssertions.assertToday;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -544,6 +545,7 @@ class AccountTransactionServiceAdditionalTest {
 		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		insertBooking(dbController, bankAccount.getId(), Source.ONLINE, new BigDecimal("90.00"));
 		AccountTransactionService service = new AccountTransactionService();
+		LocalDate before = LocalDate.now(ZoneId.systemDefault());
 
 		service.reconcileAccountBalance(bankAccount, new BigDecimal("100.00"));
 
@@ -552,8 +554,8 @@ class AccountTransactionServiceAdditionalTest {
 		assertEquals(2, bookings.size());
 		assertEquals(new BigDecimal("10.00"), adjustment.getAmount());
 		assertEquals(BookingType.DEPOSIT, adjustment.getBookingType());
-		assertEquals(LocalDate.now(ZoneId.systemDefault()), adjustment.getDateBooking());
-		assertEquals(LocalDate.now(ZoneId.systemDefault()), adjustment.getDateValue());
+		assertToday(before, adjustment.getDateBooking());
+		assertToday(before, adjustment.getDateValue());
 		assertEquals(Messages.getInstance().getMessage("BOOKING_PURPOSE_AUTO_ADJUSTING"), adjustment.getPurpose());
 	}
 

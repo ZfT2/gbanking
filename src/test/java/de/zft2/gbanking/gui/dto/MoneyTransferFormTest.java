@@ -1,14 +1,14 @@
 package de.zft2.gbanking.gui.dto;
 
+import static de.zft2.gbanking.testdata.DateAssertions.assertToday;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-
 import java.time.Month;
 import java.time.ZoneId;
+
 import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.db.dao.BankAccount;
@@ -33,8 +33,7 @@ class MoneyTransferFormTest {
 		assertEquals(OrderType.TRANSFER, form.getOrderType());
 		assertEquals("Max Mustermann", form.getRecipientName());
 		assertEquals(new BigDecimal("12.34"), form.getAmount());
-		assertFalse(form.getExecutionDate().isBefore(before));
-		assertFalse(form.getExecutionDate().isAfter(LocalDate.now(ZoneId.systemDefault())));
+		assertToday(before, form.getExecutionDate());
 	}
 
 	@Test

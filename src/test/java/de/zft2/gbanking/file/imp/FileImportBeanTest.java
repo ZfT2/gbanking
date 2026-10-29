@@ -19,7 +19,6 @@ import java.util.Locale;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -418,19 +417,6 @@ class FileImportBeanTest extends CoreBookingUtil {
 				.filter(booking -> booking.getRecipient() != null && "18882074".equals(booking.getRecipient().getAccountNumber()))
 				.findFirst().orElseThrow();
 		assertNull(bookingWithoutIban.getRecipient().getIban());
-	}
-
-	@Disabled("Test data must be refreshed")
-	void testImportDefinedBookingsFile_Success() throws URISyntaxException {
-
-		fileImportBean.importFile(verifyFileName("DefinedAccountsBookings.xml"));
-
-		List<BankAccount> dbAccountList = dbController.getAllFull(BankAccount.class);
-		assertEquals(26, dbAccountList.size());
-
-		List<Booking> dbBookingList = dbController.getAllFull(Booking.class);
-		assertEquals(788, dbBookingList.size());
-
 	}
 
 	@Test

@@ -2,6 +2,7 @@ package de.zft2.gbanking.testdata;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Random;
@@ -25,6 +26,9 @@ import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.TanProcedure;
 
 public final class TestDataFactory {
+
+	/** Fixed booking and value date of the sample bookings, keeps date assertions independent of the current day. */
+	public static final LocalDate SAMPLE_BOOKING_DATE = LocalDate.of(2024, Month.MARCH, 15);
 
 	private static final Random RANDOM = new Random();
 
@@ -217,7 +221,7 @@ public final class TestDataFactory {
 		if (recipientId != null) {
 			booking.setRecipientId(recipientId);
 		}
-		LocalDate date = LocalDate.now(ZoneId.systemDefault());
+		LocalDate date = SAMPLE_BOOKING_DATE;
 		booking.setDateBooking(date);
 		booking.setDateValue(date);
 		booking.setPurpose(purpose);

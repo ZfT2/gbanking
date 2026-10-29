@@ -9,6 +9,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Month;
@@ -32,8 +33,11 @@ import de.zft2.gbanking.testdata.TestDataFactory;
 
 class EnablebankingAccountTransactionServiceTest {
 
+	private static final LocalDate TODAY = LocalDate.of(2026, Month.SEPTEMBER, 8);
+
 	private final EnablebankingAccountTransactionService service = new EnablebankingAccountTransactionService(
-			new AccountTransactionService(), new EnablebankingAuthorizationService());
+			new AccountTransactionService(), new EnablebankingAuthorizationService(),
+			Clock.fixed(TODAY.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC));
 
 	@Test
 	void shouldMapBookPdngAndHoldWhileIgnoringOtherStatuses() {
@@ -83,29 +87,28 @@ class EnablebankingAccountTransactionServiceTest {
 		HbciCallbackMessageDialog dialog = mock(HbciCallbackMessageDialog.class);
 		EnablebankingException wrongPeriod = new EnablebankingException("wrong period", 400,
 				"WRONG_TRANSACTIONS_PERIOD");
-		LocalDate today = LocalDate.now(ZoneOffset.UTC);
 		List<Integer> lookbackDays = List.of(1440, 1080, 720, 360, 180, 90);
 
 		when(client.getTransactions("account-uid", null, "longest", null))
 				.thenReturn(new EnablebankingTransactionPage(List.of(), null));
-		when(client.getTransactions("account-uid", today.minusDays(1439), null, null))
+		when(client.getTransactions("account-uid", TODAY.minusDays(1439), null, null))
 				.thenReturn(new EnablebankingTransactionPage(List.of(), null));
 		for (int days : lookbackDays.subList(1, lookbackDays.size() - 1)) {
-			when(client.getTransactions("account-uid", today.minusDays(days - 1L), null, null))
+			when(client.getTransactions("account-uid", TODAY.minusDays(days - 1L), null, null))
 					.thenThrow(wrongPeriod);
 		}
 		Map<String, Object> booking = transaction("BOOK", "CRDT", "10.50", "booked");
-		when(client.getTransactions("account-uid", today.minusDays(89), null, null))
+		when(client.getTransactions("account-uid", TODAY.minusDays(89), null, null))
 				.thenReturn(new EnablebankingTransactionPage(List.of(booking), null));
 
 		var result = service.retrieveTransactions(client, "account-uid", null, dialog);
 
-		assertEquals(today.minusDays(89), result.from());
+		assertEquals(TODAY.minusDays(89), result.from());
 		assertEquals(List.of(booking), result.transactions());
 		InOrder calls = inOrder(client);
 		calls.verify(client).getTransactions("account-uid", null, "longest", null);
 		for (int days : lookbackDays) {
-			calls.verify(client).getTransactions("account-uid", today.minusDays(days - 1L), null, null);
+			calls.verify(client).getTransactions("account-uid", TODAY.minusDays(days - 1L), null, null);
 		}
 	}
 

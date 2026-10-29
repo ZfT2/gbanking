@@ -7,6 +7,7 @@ import static de.zft2.gbanking.enablebanking.EnablebankingJson.string;
 import static de.zft2.gbanking.enablebanking.EnablebankingJson.upper;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -62,17 +63,20 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 
 	private final AccountTransactionService accountTransactionService;
 	private final EnablebankingAuthorizationService authorizationService;
+	private final Clock clock;
 	private final ThreadLocal<Map<Integer, AccountTransactionRetrievalResult>> completedBatchResults =
 			ThreadLocal.withInitial(HashMap::new);
 
 	public EnablebankingAccountTransactionService() {
-		this(ServiceRegistry.getService(AccountTransactionService.class), new EnablebankingAuthorizationService());
+		this(ServiceRegistry.getService(AccountTransactionService.class), new EnablebankingAuthorizationService(),
+				Clock.systemUTC());
 	}
 
 	EnablebankingAccountTransactionService(AccountTransactionService accountTransactionService,
-			EnablebankingAuthorizationService authorizationService) {
+			EnablebankingAuthorizationService authorizationService, Clock clock) {
 		this.accountTransactionService = accountTransactionService;
 		this.authorizationService = authorizationService;
+		this.clock = clock;
 	}
 
 	public AccountTransactionRetrievalResult retrieve(BankAccount bankAccount) {
@@ -357,7 +361,7 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 			return new TransactionRetrieval(transactions, null);
 		}
 		for (int lookbackDays : INITIAL_LOOKBACK_DAYS) {
-			LocalDate fallbackFrom = LocalDate.now(ZoneOffset.UTC).minusDays(lookbackDays - 1L);
+			LocalDate fallbackFrom = LocalDate.now(clock).minusDays(lookbackDays - 1L);
 			try {
 				updateStatus(statusDialog, 0.35d, "UI_DIALOG_ENABLEBANKING_STATUS_TRANSACTIONS_PERIOD", lookbackDays);
 				transactions = retrieveAllTransactions(client, accountUid, fallbackFrom, null, statusDialog);
@@ -398,7 +402,7 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 		statusDialog.appendMessages(getText("UI_DIALOG_ENABLEBANKING_STATUS_TRANSACTIONS_RESULT", transactions.size()));
 		log.info("Retrieved {} Enablebanking transactions in {} page(s), strategy={}, lookbackDays={}",
 				transactions.size(), pageNumber - 1, strategy != null ? strategy : "default",
-				from != null ? java.time.temporal.ChronoUnit.DAYS.between(from, LocalDate.now(ZoneOffset.UTC)) + 1 : null);
+				from != null ? java.time.temporal.ChronoUnit.DAYS.between(from, LocalDate.now(clock)) + 1 : null);
 		return transactions;
 	}
 

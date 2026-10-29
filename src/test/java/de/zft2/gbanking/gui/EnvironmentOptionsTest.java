@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import de.zft2.core.config.ImportProperties;
@@ -16,9 +17,20 @@ import de.zft2.gbanking.util.AppPaths;
 
 class EnvironmentOptionsTest {
 
+	private String previousImportPropertiesDirectory;
+
+	@BeforeEach
+	void rememberRuntimeOptions() {
+		previousImportPropertiesDirectory = System.getProperty(ImportProperties.IMPORT_PROPERTIES_DIRECTORY_PROPERTY);
+	}
+
 	@AfterEach
-	void clearRuntimeOptions() {
-		System.clearProperty(ImportProperties.IMPORT_PROPERTIES_DIRECTORY_PROPERTY);
+	void restoreRuntimeOptions() {
+		if (previousImportPropertiesDirectory == null) {
+			System.clearProperty(ImportProperties.IMPORT_PROPERTIES_DIRECTORY_PROPERTY);
+		} else {
+			System.setProperty(ImportProperties.IMPORT_PROPERTIES_DIRECTORY_PROPERTY, previousImportPropertiesDirectory);
+		}
 	}
 
 	@Test
