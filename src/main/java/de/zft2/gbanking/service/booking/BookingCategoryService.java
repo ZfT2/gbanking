@@ -4,9 +4,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -189,39 +191,38 @@ public class BookingCategoryService extends AbstractDbService {
 	}
 
 	private void addTextFilters(CategoryRule categoryRule, List<Predicate<Booking>> filters) {
-		if (categoryRule.getFilterPurpose() != null) {
-			filters.add(booking -> matchesTextFilter(booking.getPurpose(), categoryRule.getFilterPurpose(), categoryRule.isFilterPurposeIsRegex()));
-		}
-		if (categoryRule.getFilterRecipientName() != null) {
-			filters.add(booking -> matchesTextFilter(booking.getRecipient() != null ? booking.getRecipient().getName() : null,
-					categoryRule.getFilterRecipientName(), categoryRule.isFilterRecipientIsRegex()));
-		}
-		if (categoryRule.getFilterRecipientIban() != null) {
-			filters.add(booking -> matchesTextFilter(booking.getRecipient() != null ? booking.getRecipient().getIban() : null,
-					categoryRule.getFilterRecipientIban(), false));
-		}
-		if (categoryRule.getFilterRecipientAccountNumber() != null) {
-			filters.add(booking -> matchesTextFilter(booking.getRecipient() != null ? booking.getRecipient().getAccountNumber() : null,
-					categoryRule.getFilterRecipientAccountNumber(), false));
-		}
+		addTextFilter(filters, categoryRule.getFilterPurpose(), categoryRule.isFilterPurposeIsRegex(), booking -> booking.getPurpose());
+		addTextFilter(filters, categoryRule.getFilterRecipientName(), categoryRule.isFilterRecipientIsRegex(),
+				booking -> booking.getRecipient() != null ? booking.getRecipient().getName() : null);
+		addTextFilter(filters, categoryRule.getFilterRecipientIban(), false,
+				booking -> booking.getRecipient() != null ? booking.getRecipient().getIban() : null);
+		addTextFilter(filters, categoryRule.getFilterRecipientAccountNumber(), false,
+				booking -> booking.getRecipient() != null ? booking.getRecipient().getAccountNumber() : null);
 	}
 
-	private boolean matchesTextFilter(String value, String filter, boolean regex) {
+	private void addTextFilter(List<Predicate<Booking>> filters, String filter, boolean regex, Function<Booking, String> valueOfBooking) {
 		if (filter == null) {
-			return true;
+			return;
 		}
-		if (value == null) {
-			return false;
+		// The matcher is created once per rule, not once per evaluated booking.
+		Predicate<String> textMatcher = createTextMatcher(filter, regex);
+		filters.add(booking -> {
+			String value = valueOfBooking.apply(booking);
+			return value != null && textMatcher.test(value);
+		});
+	}
+
+	private Predicate<String> createTextMatcher(String filter, boolean regex) {
+		if (!regex) {
+			String lowerCaseFilter = filter.toLowerCase(Locale.ROOT);
+			return value -> value.toLowerCase(Locale.ROOT).contains(lowerCaseFilter);
 		}
-		if (regex) {
-			try {
-				return Pattern.compile(filter, Pattern.CASE_INSENSITIVE).matcher(value).find();
-			} catch (PatternSyntaxException ex) {
-				log.warn("Invalid regex for category rule filter: {}", filter, ex);
-				return false;
-			}
+		try {
+			return Pattern.compile(filter, Pattern.CASE_INSENSITIVE).asPredicate();
+		} catch (PatternSyntaxException ex) {
+			log.warn("Invalid regex for category rule filter: {}", filter, ex);
+			return value -> false;
 		}
-		return value.toLowerCase().contains(filter.toLowerCase());
 	}
 
 	private boolean updateBookingsWithCategoryRule(CategoryRule categoryRule, Set<Integer> bookingIdSet) {

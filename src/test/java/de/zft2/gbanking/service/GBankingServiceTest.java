@@ -318,6 +318,23 @@ class GBankingServiceTest {
 	}
 
 	@Test
+	void testApplyCategoryRule_WithInvalidRegex_MatchesNoBooking() {
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
+		Booking booking = TestDataFactory.createSampleBooking(account.getId());
+		booking.setPurpose("Ticket (Monatskarte");
+		booking = dbController.insertOrUpdate(booking);
+
+		CategoryRule categoryRule = new CategoryRule();
+		categoryRule.setCategory(dbController.insertOrUpdate(TestDataFactory.createSampleCategory("Bahn")));
+		categoryRule.setFilterPurpose("(Monatskarte");
+		categoryRule.setFilterPurposeIsRegex(true);
+
+		bookingCategoryService.applyCategoryRule(categoryRule);
+
+		assertEquals(0, dbController.getByIdFull(Booking.class, booking.getId()).getCategoryId());
+	}
+
+	@Test
 	void testApplyCategoryRulesToBookings_RespectsOverwriteExistingCategoriesChoice() {
 		BankAccount account = TestDataFactory.createSampleAccount(null);
 		account = dbController.insertOrUpdate(account);
