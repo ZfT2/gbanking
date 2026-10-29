@@ -16,14 +16,12 @@ import java.time.Month;
 import java.util.List;
 import java.util.Locale;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
@@ -49,25 +47,10 @@ class MoneyTransferCsvImportBeanTest {
 	private static final String HEADER = "AUFTRAGGEBER_IBAN;NAME;IBAN;BIC;BETRAG;ZWECK;PURPOSECODE";
 	private static final String SENDER_IBAN = "DE44500105175407324931";
 
-	private DBController dbController;
-	private Path tempDir;
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
 
-	@BeforeAll
-	void setupDatabase() throws Exception {
-		tempDir = Files.createTempDirectory("gb_test_");
-		dbController = DBController.getInstance(tempDir.toString());
-	}
-
-	@BeforeEach
-	void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
-	}
-
-	@AfterAll
-	void cleanupDatabase() throws Exception {
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
-	}
+	private final DBController dbController = database.controller();
 
 	@Test
 	void importFile_shouldPersistImportedTransferAndPurposeCodeForMatchingSenderIban() throws Exception {
@@ -197,7 +180,7 @@ class MoneyTransferCsvImportBeanTest {
 		BankAccount account = insertAccount(SENDER_IBAN, "5407324931");
 		MoneyTransfer transfer = insertTransfer(account);
 		insertProtocol(transfer, "Export-Protokoll");
-		Path exportFile = tempDir.resolve("orders-with-protocol.csv");
+		Path exportFile = database.directory().resolve("orders-with-protocol.csv");
 
 		Locale previousLocale = Messages.getLocale();
 		boolean result;
@@ -361,7 +344,7 @@ class MoneyTransferCsvImportBeanTest {
 	}
 
 	private Path writeCsvWithHeader(String header, String... rows) throws Exception {
-		Path csvFile = Files.createTempFile(tempDir, "moneytransfer_import_", ".csv");
+		Path csvFile = Files.createTempFile(database.directory(), "moneytransfer_import_", ".csv");
 		Files.writeString(csvFile, header + System.lineSeparator() + String.join(System.lineSeparator(), rows), StandardCharsets.UTF_8);
 		return csvFile;
 	}

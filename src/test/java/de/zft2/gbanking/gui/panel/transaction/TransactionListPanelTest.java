@@ -4,20 +4,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import de.zft2.gbanking.BaseMessages;
-import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
 import de.zft2.gbanking.gui.panel.overview.AccountsTransactionsOverviewPanel;
@@ -37,19 +33,8 @@ class TransactionListPanelTest {
 	private static final double NARROW_WINDOW_WIDTH = 700;
 	private static final double SCENE_HEIGHT = 500;
 
-	private static Path tempDir;
-
-	@BeforeAll
-	static void setupDatabase() throws Exception {
-		tempDir = Files.createTempDirectory("gb_test_");
-		DBController.getInstance(tempDir.toString());
-	}
-
-	@AfterAll
-	static void cleanupDatabase() throws Exception {
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
-	}
+	@RegisterExtension
+	static final TestDatabaseExtension database = TestDatabaseExtension.withoutClearing();
 
 	@Test
 	void shouldShowTransactionCountOfAllTransactions() {

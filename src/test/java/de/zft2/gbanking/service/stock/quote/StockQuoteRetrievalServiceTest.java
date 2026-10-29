@@ -8,19 +8,16 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.StockDataSourceType;
@@ -39,26 +36,15 @@ import de.zft2.gbanking.service.stock.quote.StockQuoteRetrievalService.Retrieval
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class StockQuoteRetrievalServiceTest {
 
-	private DBController db;
-	private Path tempDir;
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
 
-	@BeforeAll
-	void setupDatabase() throws Exception {
-		tempDir = Files.createTempDirectory("gb_test_quote_");
-		db = DBController.getInstance(tempDir.toString());
-	}
+	private final DBController db = database.controller();
 
 	@BeforeEach
-	void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
+	void initQuoteSettings() {
 		QuoteProviderSettings.ensureSettingsExist();
 		setSetting(QuoteProviderSettings.ALPHA_VANTAGE_API_KEY, "tenant-api-key");
-	}
-
-	@AfterAll
-	void cleanupDatabase() throws Exception {
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
 	}
 
 	@Test

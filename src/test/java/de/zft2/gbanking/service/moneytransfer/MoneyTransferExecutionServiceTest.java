@@ -9,17 +9,14 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
 
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
@@ -30,7 +27,7 @@ import de.zft2.gbanking.db.dao.enu.StandingorderMode;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
 import de.zft2.gbanking.service.BankingCapabilityService;
 import de.zft2.gbanking.service.GBankingService;
@@ -43,31 +40,17 @@ import de.zft2.gbanking.testdata.HbciParameterTestDataFactory;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MoneyTransferExecutionServiceTest {
 
-	private Path tempDir;
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
 
 	private static final List<Class<? extends Service>> SERVICES_TO_STUB = List.of(GBankingService.class, BankAccessService.class,
 			BankingCapabilityService.class);
 
-	@BeforeAll
-	void setupDatabase() throws Exception {
-		tempDir = Files.createTempDirectory("gb_test_");
-		DBController.getInstance(tempDir.toString());
-	}
+	private final DBController dbController = database.controller();
 
 	@BeforeEach
 	void setup() {
-		clearDatabase();
 		ServiceStubbingUtil.initStubbedServicesInContext(SERVICES_TO_STUB);
-	}
-
-	private void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
-	}
-
-	@AfterAll
-	void cleanupDatabase() throws Exception {
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
 	}
 
 	@AfterEach
@@ -128,7 +111,6 @@ class MoneyTransferExecutionServiceTest {
 	}
 
 	private BankAccess insertBankAccessWithBpd(String... businessCases) {
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccess bankAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("10020030"));
 		bankAccess.getFints().setBpd(HbciParameterTestDataFactory.buildCapabilityBpd(businessCases));
 		dbController.insertOrUpdatePD(bankAccess);
@@ -136,7 +118,7 @@ class MoneyTransferExecutionServiceTest {
 	}
 
 	private BankAccount insertBankAccount() {
-		return DBController.getInstance(tempDir.toString()).insertOrUpdate(TestDataFactory.createSampleAccount(null));
+		return dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 	}
 
 	private MoneyTransfer createMoneyTransfer(OrderType orderType, int accountId) {
@@ -151,7 +133,7 @@ class MoneyTransferExecutionServiceTest {
 		recipient.setIban("DE12345678901234567890");
 		recipient.setBic("TESTDEFFXXX");
 		recipient.setSource(Source.MANUELL);
-		recipient = DBController.getInstance(tempDir.toString()).insertOrUpdate(recipient);
+		recipient = dbController.insertOrUpdate(recipient);
 		moneyTransfer.setRecipient(recipient);
 		moneyTransfer.setRecipientId(recipient.getId());
 		if (orderType == OrderType.STANDING_ORDER) {

@@ -20,8 +20,6 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.Month;
 import java.time.ZoneId;
@@ -31,12 +29,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.kapott.hbci.GV.HBCIJob;
 import org.kapott.hbci.GV_Result.GVRKUms;
 import org.kapott.hbci.GV_Result.GVRKUms.UmsLine;
@@ -54,7 +51,7 @@ import org.mockito.MockedConstruction;
 
 import de.zft2.gbanking.BaseMessagesDb;
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.BankAccountRetrievalStatus;
@@ -76,35 +73,21 @@ import de.zft2.gbanking.testdata.TestDataFactory;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AccountTransactionServiceAdditionalTest {
 
-	private Path tempDir;
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
 
 	private static final List<Class<? extends Service>> SERVICES_TO_STUB = List.of(BankAccessService.class);
 
+	private final DBController dbController = database.controller();
+
 	@BeforeEach
 	void setUp() {
-		clearDatabase();
 		ServiceStubbingUtil.initStubbedServicesInContext(SERVICES_TO_STUB);
 	}
 
 	@AfterEach
 	void tearDown() {
 		ServiceStubbingUtil.unloadStubbedServicesInContext(SERVICES_TO_STUB);
-	}
-
-	@BeforeAll
-	void setupDatabase() throws Exception {
-		tempDir = Files.createTempDirectory("gb_test_");
-		DBController.getInstance(tempDir.toString());
-	}
-
-	private void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
-	}
-
-	@AfterAll
-	void cleanupDatabase() throws Exception {
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
 	}
 
 	@Test
@@ -222,7 +205,6 @@ class AccountTransactionServiceAdditionalTest {
 
 	@Test
 	void retrieveAccountTransactionsWithResult_shouldFlagWrongPinStatus() {
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount bankAccount = TestDataFactory.createSampleAccount(null);
 		bankAccount.setIban("DE44500105175407324931");
 		bankAccount.setNumber("987654321");
@@ -271,7 +253,6 @@ class AccountTransactionServiceAdditionalTest {
 
 	@Test
 	void retrieveAccountTransactionsWithResult_shouldFlagWrongPinTransportFailure() {
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 		AccountTransactionService service = new AccountTransactionService();
@@ -296,7 +277,6 @@ class AccountTransactionServiceAdditionalTest {
 
 	@Test
 	void retrieveAccountTransactions_shouldExecuteMatchingJobsPersistBookingsAndClearPin() {
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount bankAccount = TestDataFactory.createSampleAccount(null);
 		bankAccount.setIban("DE44500105175407324931");
 		bankAccount.setNumber("987654321");
@@ -371,7 +351,6 @@ class AccountTransactionServiceAdditionalTest {
 
 	@Test
 	void retrieveAccountTransactions_shouldPersistLowlevelPrenotificationsWhenSupported() {
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount bankAccount = TestDataFactory.createSampleAccount(null);
 		bankAccount.setIban("DE44500105175407324931");
 		bankAccount.setNumber("987654321");
@@ -441,7 +420,6 @@ class AccountTransactionServiceAdditionalTest {
 
 	@Test
 	void retrieveAccountTransactions_shouldKeepExistingPrenotificationsWhenLowlevelResultFails() {
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount bankAccount = TestDataFactory.createSampleAccount(null);
 		bankAccount.setIban("DE44500105175407324931");
 		bankAccount.setNumber("987654321");
@@ -498,7 +476,6 @@ class AccountTransactionServiceAdditionalTest {
 
 	@Test
 	void retrieveAccountTransactions_shouldNotPersistPartialDataWhenOverallStatusFails() {
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount bankAccount = TestDataFactory.createSampleAccount(null);
 		bankAccount.setIban("DE44500105175407324931");
 		bankAccount.setNumber("987654321");
@@ -564,7 +541,6 @@ class AccountTransactionServiceAdditionalTest {
 
 	@Test
 	void reconcileAccountBalance_shouldCreateAutomaticAdjustmentBookingWhenSaldoDiffersFromBookingBalance() {
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		insertBooking(dbController, bankAccount.getId(), Source.ONLINE, new BigDecimal("90.00"));
 		AccountTransactionService service = new AccountTransactionService();
@@ -583,7 +559,6 @@ class AccountTransactionServiceAdditionalTest {
 
 	@Test
 	void reconcileAccountBalance_shouldRemoveLastAutomaticAdjustmentWhenItMatchesNewDifference() {
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		insertBooking(dbController, bankAccount.getId(), Source.ONLINE, new BigDecimal("100.00"));
 		Booking adjustment = insertBooking(dbController, bankAccount.getId(), Source.AUTO_ADJUSTING, new BigDecimal("10.00"));
@@ -599,7 +574,6 @@ class AccountTransactionServiceAdditionalTest {
 
 	@Test
 	void reconcileAccountBalance_shouldIgnorePrenotifications() {
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		insertBooking(dbController, bankAccount.getId(), Source.ONLINE, new BigDecimal("90.00"));
 		insertBooking(dbController, bankAccount.getId(), Source.ONLINE_PRENO, new BigDecimal("500.00"));
@@ -614,7 +588,6 @@ class AccountTransactionServiceAdditionalTest {
 
 	@Test
 	void reconcileAccountBalance_shouldUseBaseAmountOfForeignCurrencyBookings() {
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		insertBooking(dbController, bankAccount.getId(), Source.ONLINE, new BigDecimal("90.00"));
 		Booking foreignCurrencyBooking = TestDataFactory.createSampleBooking(bankAccount.getId());

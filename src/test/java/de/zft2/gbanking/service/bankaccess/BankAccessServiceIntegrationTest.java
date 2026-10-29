@@ -18,18 +18,15 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Properties;
 
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
@@ -58,7 +55,7 @@ import de.zft2.gbanking.db.dao.enu.InstituteStatus;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.Upd;
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
 import de.zft2.gbanking.mapper.HbciMapper;
 import de.zft2.gbanking.paypal.PaypalAccountService;
@@ -70,18 +67,13 @@ import de.zft2.gbanking.testdata.HbciParameterTestDataFactory;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class BankAccessServiceIntegrationTest {
 
-	private DBController dbController;
-	private Path tempDir;
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
 
-	@BeforeAll
-	void setupDatabase() throws Exception {
-		tempDir = Files.createTempDirectory("gb_test_");
-		dbController = DBController.getInstance(tempDir.toString());
-	}
+	private final DBController dbController = database.controller();
 
 	@BeforeEach
-	void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
+	void prepareCacheAndServices() {
 		InstituteLookupCache.clear();
 		ServiceRegistry.setService(PaypalAccountService.class, mock(PaypalAccountService.class));
 	}
@@ -91,12 +83,6 @@ class BankAccessServiceIntegrationTest {
 		InstituteLookupCache.clear();
 		ServiceRegistry.removeService(BankAccessService.class);
 		ServiceRegistry.removeService(PaypalAccountService.class);
-	}
-
-	@AfterAll
-	void cleanupDatabase() throws Exception {
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
 	}
 
 	@Test

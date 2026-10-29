@@ -16,14 +16,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingCreditCardDetails;
@@ -39,25 +37,10 @@ import de.zft2.gbanking.testdata.TestDataFactory;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FileImportCsvCreditcardTest {
 
-	private DBController dbController;
-	private Path tempDir;
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
 
-	@BeforeAll
-	void setupDatabase() throws Exception {
-		tempDir = Files.createTempDirectory("gb_test_");
-		dbController = DBController.getInstance(tempDir.toString());
-	}
-
-	@BeforeEach
-	void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
-	}
-
-	@AfterAll
-	void cleanupDatabase() throws Exception {
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
-	}
+	private final DBController dbController = database.controller();
 
 	@Test
 	void importFileToDatabase_shouldDetectDetailedFormatAndPersistCreditcardDetails() throws Exception {
@@ -199,7 +182,7 @@ class FileImportCsvCreditcardTest {
 	}
 
 	private Path writeCsv(String content) throws Exception {
-		Path csvFile = tempDir.resolve("creditcard-import-" + System.nanoTime() + ".csv");
+		Path csvFile = database.directory().resolve("creditcard-import-" + System.nanoTime() + ".csv");
 		Files.writeString(csvFile, content.stripIndent(), StandardCharsets.UTF_8);
 		return csvFile;
 	}

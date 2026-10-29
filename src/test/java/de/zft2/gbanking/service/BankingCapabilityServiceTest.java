@@ -4,20 +4,18 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Properties;
 
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import de.zft2.gbanking.db.BankCapabilityCache;
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.DatabaseQueryCounter;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
@@ -41,29 +39,22 @@ class BankingCapabilityServiceTest {
 	private static final String UPD_STATEMENT_FRAGMENT = "FROM UPD";
 	private static final int BOOKING_COUNT = 20;
 
-	private DBController dbController;
-	private Path tempDir;
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
+
+	private final DBController dbController = database.controller();
 	private BankingCapabilityService capabilityService;
 
 	@BeforeAll
-	void setupDatabase() throws Exception {
-		tempDir = Files.createTempDirectory("gb_test_");
-		dbController = DBController.getInstance(tempDir.toString());
+	void initService() {
 		capabilityService = ServiceRegistry.getService(BankingCapabilityService.class);
 	}
 
 	@BeforeEach
-	void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
+	void clearCapabilityCache() {
 		// The tables are cleared without using the write paths of the controller, therefore the
 		// cached capability data has to be cleared as well.
 		BankCapabilityCache.clear();
-	}
-
-	@AfterAll
-	void cleanupDatabase() throws Exception {
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
 	}
 
 	@Test

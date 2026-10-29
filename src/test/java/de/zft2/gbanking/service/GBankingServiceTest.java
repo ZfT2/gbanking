@@ -6,8 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.Month;
 import java.util.ArrayList;
@@ -16,11 +14,10 @@ import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.kapott.hbci.GV_Result.GVRKUms.UmsLine;
 import org.kapott.hbci.structures.Konto;
 import org.kapott.hbci.structures.Saldo;
@@ -43,7 +40,7 @@ import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferForeign;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.gui.dto.MoneyTransferForm;
 import de.zft2.gbanking.service.account.AccountTransactionService;
 import de.zft2.gbanking.service.booking.BookingCategoryService;
@@ -59,8 +56,10 @@ import de.zft2.gbanking.testdata.HbciParameterTestDataFactory;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class GBankingServiceTest {
 
-	private DBController dbController;
-	private Path tempDir;
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
+
+	private final DBController dbController = database.controller();
 
 	private GBankingService gBankingservice;
 	private CategoryService categoryService;
@@ -70,29 +69,13 @@ class GBankingServiceTest {
 	private BankingCapabilityService bankingCapabilityService;
 
 	@BeforeAll
-	void setupDatabase() throws Exception {
-
-		// Create fresh DBControllerForTest instance
-		tempDir = Files.createTempDirectory("gb_test_");
-		dbController = DBController.getInstance(tempDir.toString());
-
+	void initServices() {
 		gBankingservice = ServiceRegistry.getService(GBankingService.class);
 		bookingCategoryService = ServiceRegistry.getService(BookingCategoryService.class);
 		moneyTransferService = ServiceRegistry.getService(MoneyTransferService.class);
 		categoryService = ServiceRegistry.getService(CategoryService.class);
 		recipientService = ServiceRegistry.getService(RecipientService.class);
 		bankingCapabilityService = ServiceRegistry.getService(BankingCapabilityService.class);
-	}
-
-	@BeforeEach
-	void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
-	}
-
-	@AfterAll
-	void cleanupDatabase() throws Exception {
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
 	}
 
 	@Test

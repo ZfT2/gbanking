@@ -19,14 +19,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.enu.InstituteStatus;
 import de.zft2.gbanking.exception.GBankingException;
@@ -34,32 +33,18 @@ import de.zft2.gbanking.exception.GBankingException;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class InstituteFileImportDkIntegrationTest extends BaseInstituteFileImportTest {
 
-	private DBController dbController;
-	private Path tempDir;
-	private Path basePath;
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
 
 	private static final String FILE_NAME = "institute_test.csv";
 
+	private final DBController dbController = database.controller();
+	private Path basePath;
+
 	@BeforeAll
-	void setupDatabase() throws Exception {
-
-		// Create fresh SQLite database inside a temporary directory
-		tempDir = Files.createTempDirectory("gb_test_");
-		dbController = DBController.getInstance(tempDir.toString());
-
+	void setupBasePath() {
 		// Use src/test/resources as base path for file import
 		basePath = Paths.get("src", "test", "resources").toAbsolutePath();
-	}
-
-	@BeforeEach
-	void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
-	}
-
-	@AfterAll
-	void cleanupDatabase() throws Exception {
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
 	}
 
 	// ---------------------------------------------------------
@@ -140,7 +125,7 @@ class InstituteFileImportDkIntegrationTest extends BaseInstituteFileImportTest {
 		int countAfterFirstImport = dbController.getAll(Institute.class).size();
 		dropInstituteLookupIndex();
 		DBController.resetConnection();
-		dbController = DBController.getInstance(tempDir.toString());
+		database.controller();
 		assertFalse(instituteLookupIndexExists(), "Opening an existing institute database must not modify it");
 
 		// Second import (identical file)
@@ -226,7 +211,7 @@ class InstituteFileImportDkIntegrationTest extends BaseInstituteFileImportTest {
 
 	@Test
 	void testDatedImportsAreProcessedOldestFirstAndIgnoreArchivedVersionsForUpdates() throws Exception {
-		Path datedBasePath = tempDir.resolve("dated-institute-import");
+		Path datedBasePath = database.directory().resolve("dated-institute-import");
 		Path importDir = datedBasePath.resolve("import");
 		Files.createDirectories(importDir);
 
@@ -257,7 +242,7 @@ class InstituteFileImportDkIntegrationTest extends BaseInstituteFileImportTest {
 
 	@Test
 	void testReappearingInstituteKeepsOneContinuousValidityInterval() throws Exception {
-		Path importBasePath = tempDir.resolve("reappearing-institute-import");
+		Path importBasePath = database.directory().resolve("reappearing-institute-import");
 		Path importDir = importBasePath.resolve("import");
 		Files.createDirectories(importDir);
 
@@ -291,7 +276,7 @@ class InstituteFileImportDkIntegrationTest extends BaseInstituteFileImportTest {
 
 	@Test
 	void testRowsWithOnlyImportNumberAreIgnored() throws Exception {
-		Path importBasePath = tempDir.resolve("empty-institute-row-import");
+		Path importBasePath = database.directory().resolve("empty-institute-row-import");
 		Path importDir = importBasePath.resolve("import");
 		Files.createDirectories(importDir);
 
@@ -312,7 +297,7 @@ class InstituteFileImportDkIntegrationTest extends BaseInstituteFileImportTest {
 
 	@Test
 	void testShiftedImportNumbersDoNotCreateFalseVersionsAndDeletedRowsAreArchived() throws Exception {
-		Path importBasePath = tempDir.resolve("shifted-institute-number-import");
+		Path importBasePath = database.directory().resolve("shifted-institute-number-import");
 		Path importDir = importBasePath.resolve("import");
 		Files.createDirectories(importDir);
 
@@ -353,7 +338,7 @@ class InstituteFileImportDkIntegrationTest extends BaseInstituteFileImportTest {
 	}
 
 	private void assertShiftedAndSwappedNumbers(boolean identicalContent) throws Exception {
-		Path importBasePath = tempDir.resolve("occupied-shift-institute-import");
+		Path importBasePath = database.directory().resolve("occupied-shift-institute-import");
 		Path importDir = importBasePath.resolve("import");
 		Files.createDirectories(importDir);
 		InstituteFileImport importer = InstituteFileImport.getInstance(InstituteFileImportDk.class, importBasePath.toString(), FILE_NAME,
@@ -390,7 +375,7 @@ class InstituteFileImportDkIntegrationTest extends BaseInstituteFileImportTest {
 
 	@Test
 	void testFailedFileImportIsRolledBackCompletely() throws Exception {
-		Path importBasePath = tempDir.resolve("failed-institute-import");
+		Path importBasePath = database.directory().resolve("failed-institute-import");
 		Path importDir = importBasePath.resolve("import");
 		Path archiveDir = importBasePath.resolve("import/archive");
 		Files.createDirectories(importDir);
@@ -442,7 +427,7 @@ class InstituteFileImportDkIntegrationTest extends BaseInstituteFileImportTest {
 
 	@Test
 	void testTechnicalDataChangesUpdateCurrentRowWithoutCreatingFalseVersion() throws Exception {
-		Path importBasePath = tempDir.resolve("technical-institute-change-import");
+		Path importBasePath = database.directory().resolve("technical-institute-change-import");
 		Path importDir = importBasePath.resolve("import");
 		Files.createDirectories(importDir);
 
@@ -510,7 +495,7 @@ class InstituteFileImportDkIntegrationTest extends BaseInstituteFileImportTest {
 
 		for (int i = 0; i < 20; i++) {
 
-			Path importBasePath = tempDir.resolve("shifted-institute-number-import");
+			Path importBasePath = database.directory().resolve("shifted-institute-number-import");
 			Path importDir = importBasePath.resolve("import");
 			Files.createDirectories(importDir);
 
@@ -538,7 +523,7 @@ class InstituteFileImportDkIntegrationTest extends BaseInstituteFileImportTest {
 
 	@Test
 	void testBicPlaceholderIsStoredAsEmptyBic() throws Exception {
-		Path importBasePath = tempDir.resolve("bic-placeholder-import");
+		Path importBasePath = database.directory().resolve("bic-placeholder-import");
 		Path importDir = importBasePath.resolve("import");
 		Files.createDirectories(importDir);
 
@@ -560,7 +545,7 @@ class InstituteFileImportDkIntegrationTest extends BaseInstituteFileImportTest {
 
 	@Test
 	void testLaterKnownBicEnrichesExistingInstituteWithoutNewVersion() throws Exception {
-		Path importBasePath = tempDir.resolve("bic-enrichment-import");
+		Path importBasePath = database.directory().resolve("bic-enrichment-import");
 		Path importDir = importBasePath.resolve("import");
 		Files.createDirectories(importDir);
 
@@ -591,7 +576,7 @@ class InstituteFileImportDkIntegrationTest extends BaseInstituteFileImportTest {
 
 	@Test
 	void testBicRemovedBySourceClearsTheStoredBicWithoutNewVersion() throws Exception {
-		Path importBasePath = tempDir.resolve("bic-removal-import");
+		Path importBasePath = database.directory().resolve("bic-removal-import");
 		Path importDir = importBasePath.resolve("import");
 		Files.createDirectories(importDir);
 

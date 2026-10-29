@@ -16,14 +16,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import de.zft2.gbanking.cache.InstituteLookupCache;
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.ImportHistory;
@@ -40,26 +40,19 @@ import de.zft2.gbanking.testdata.TestDataFactory;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FileImportCSVBeanTest {
 
-	private DBController dbController;
-	private Path tempDir;
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
 
-	@BeforeAll
-	void setupDatabase() throws Exception {
-		tempDir = Files.createTempDirectory("gb_test_");
-		dbController = DBController.getInstance(tempDir.toString());
-	}
+	private final DBController dbController = database.controller();
 
 	@BeforeEach
-	void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
+	void clearInstituteLookupCache() {
 		InstituteLookupCache.clear();
 	}
 
 	@AfterAll
-	void cleanupDatabase() throws Exception {
+	void cleanupInstituteLookupCache() {
 		InstituteLookupCache.clear();
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
 	}
 
 	@Test
@@ -192,7 +185,7 @@ class FileImportCSVBeanTest {
 	@Test
 	void importFileToDatabase_shouldImportWithCopiedMoneyplexDefinition() throws Exception {
 		BankAccount account = createAccount("Moneyplex Zielkonto", "DE66666666666666666666", "66666666");
-		Path definitionFile = tempDir.resolve("moneyplex-" + System.nanoTime() + ".properties");
+		Path definitionFile = database.directory().resolve("moneyplex-" + System.nanoTime() + ".properties");
 		Files.writeString(definitionFile, """
 				[Buchung: Moneyplex Bank]
 				Datum=Buchungstag
@@ -227,7 +220,7 @@ class FileImportCSVBeanTest {
 	@Test
 	void importFileToDatabase_shouldResolveOrderedTwoDigitYearsUsing1990AsBoundary() throws Exception {
 		BankAccount account = createAccount("Datumsgrenze", "DE77777777777777777777", "77777777");
-		Path definitionFile = tempDir.resolve("date-boundary-" + System.nanoTime() + ".properties");
+		Path definitionFile = database.directory().resolve("date-boundary-" + System.nanoTime() + ".properties");
 		Files.writeString(definitionFile, """
 				[Buchung: Datumsgrenze]
 				Datum=Datum
@@ -277,7 +270,7 @@ class FileImportCSVBeanTest {
 	}
 
 	private Path writeCsv(String content) throws Exception {
-		Path csvFile = tempDir.resolve("import-" + System.nanoTime() + ".csv");
+		Path csvFile = database.directory().resolve("import-" + System.nanoTime() + ".csv");
 		Files.writeString(csvFile, content.stripIndent(), StandardCharsets.UTF_8);
 		return csvFile;
 	}

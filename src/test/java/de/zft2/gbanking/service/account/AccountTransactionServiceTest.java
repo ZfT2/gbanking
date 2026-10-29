@@ -11,8 +11,6 @@ import static org.mockito.Mockito.when;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.Month;
 import java.time.ZoneId;
@@ -25,10 +23,10 @@ import java.util.Properties;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.kapott.hbci.GV.HBCIJob;
 import org.kapott.hbci.GV_Result.GVRKUms.UmsLine;
 import org.kapott.hbci.GV_Result.HBCIJobResult;
@@ -55,7 +53,7 @@ import de.zft2.gbanking.db.dao.ImportHistory;
 import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.rebooking.DetectedRebookingPair;
 import de.zft2.gbanking.rebooking.MissingRebookingCreationSummary;
 import de.zft2.gbanking.rebooking.MissingRebookingRouteSummary;
@@ -69,13 +67,16 @@ import de.zft2.gbanking.testdata.TestDataFactory;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AccountTransactionServiceTest {
 
-	private Path tempDir;
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
 
 	private static final List<Class<? extends Service>> SERVICES_TO_STUB = List.of(BankAccessService.class);
 
+	private final DBController dbController = database.controller();
+
 	@BeforeEach
 	void setUp() {
-		clearDatabase();
+		InstituteLookupCache.clear();
 		ServiceStubbingUtil.initStubbedServicesInContext(SERVICES_TO_STUB);
 	}
 
@@ -84,22 +85,9 @@ class AccountTransactionServiceTest {
 		ServiceStubbingUtil.unloadStubbedServicesInContext(SERVICES_TO_STUB);
 	}
 
-	@BeforeAll
-	void setupDatabase() throws Exception {
-		tempDir = Files.createTempDirectory("gb_test_");
-		DBController.getInstance(tempDir.toString());
-	}
-
-	private void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
-		InstituteLookupCache.clear();
-	}
-
 	@AfterAll
-	void cleanupDatabase() throws Exception {
+	void cleanupInstituteLookupCache() {
 		InstituteLookupCache.clear();
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
 	}
 
 	@Test
@@ -113,7 +101,7 @@ class AccountTransactionServiceTest {
 		account.setSource(Source.IMPORT_INITIAL);
 		account.setAccountState(AccountState.ACTIVE);
 		account.setCurrency("EUR");
-		account = DBController.getInstance(tempDir.toString()).insertOrUpdate(account);
+		account = dbController.insertOrUpdate(account);
 
 		Recipient existingRecipient = new Recipient();
 		existingRecipient.setName("Max Mustermann");
@@ -122,7 +110,7 @@ class AccountTransactionServiceTest {
 		existingRecipient.setBlz("50010517");
 		existingRecipient.setAccountNumber("99887766");
 		existingRecipient.setSource(Source.ONLINE);
-		existingRecipient = DBController.getInstance(tempDir.toString()).insertOrUpdate(existingRecipient);
+		existingRecipient = dbController.insertOrUpdate(existingRecipient);
 
 		UmsLine bookingWithRecipient = createUmsLine(createKonto("Max Mustermann", "DE99999999999999999999", "TESTDEFFXXX", "99887766", "50010517"),
 				"Testbuchung 1", BigDecimal.valueOf(123.45));
@@ -130,10 +118,10 @@ class AccountTransactionServiceTest {
 
 		service.saveHbciBookingsForAccount(account, List.of(bookingWithRecipient, bookingWithoutRecipient));
 
-		List<Recipient> recipients = DBController.getInstance(tempDir.toString()).getAll(Recipient.class);
+		List<Recipient> recipients = dbController.getAll(Recipient.class);
 		assertEquals(1, recipients.size());
 
-		List<Booking> bookings = DBController.getInstance(tempDir.toString()).getAllByParentFull(Booking.class, account.getId());
+		List<Booking> bookings = dbController.getAllByParentFull(Booking.class, account.getId());
 		assertEquals(2, bookings.size());
 
 		Booking booking01 = bookings.stream().filter(booking -> booking.getRecipientId() > 0).findFirst().orElseThrow();
@@ -163,7 +151,6 @@ class AccountTransactionServiceTest {
 	@Test
 	void saveHbciBookingsForAccountShouldSkipImportedRebookingWhenOnlineRemovalMatchesRecipientAmountAndPurpose() {
 		AccountTransactionService service = new AccountTransactionService();
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		BankAccount crossAccount = createAccount("DE22222222222222222222", "22222222");
 		Recipient recipient = dbController.insertOrUpdate(createRecipient("Max Mustermann", "DE99999999999999999999", "TESTDEFFXXX", "99887766",
@@ -189,7 +176,6 @@ class AccountTransactionServiceTest {
 	@Test
 	void saveHbciBookingsForAccountShouldSetRecipientBankNameFromInstituteDatabase() {
 		AccountTransactionService service = new AccountTransactionService();
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		insertInstitute(dbController, "50010517", "TESTDEFFXXX", "Lookup Bank");
 
@@ -209,7 +195,6 @@ class AccountTransactionServiceTest {
 	@Test
 	void saveHbciBookingsForAccountShouldSkipImportedRebookingWhenOnlineDepositMatchesRecipientAmountAndPurpose() {
 		AccountTransactionService service = new AccountTransactionService();
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		BankAccount crossAccount = createAccount("DE22222222222222222222", "22222222");
 		Recipient recipient = dbController.insertOrUpdate(createRecipient("Max Mustermann", "DE99999999999999999999", "TESTDEFFXXX", "99887766",
@@ -235,7 +220,6 @@ class AccountTransactionServiceTest {
 	@Test
 	void saveHbciBookingsForAccountShouldSkipDuplicateOnlineBookingFromSameDay() {
 		AccountTransactionService service = new AccountTransactionService();
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		dbController.insertOrUpdate(createBooking(account, "Doppelte Onlinebuchung\n", new BigDecimal("42.00"), Source.ONLINE));
 
@@ -249,7 +233,6 @@ class AccountTransactionServiceTest {
 	@Test
 	void saveHbciBookingsForAccountShouldSkipImportedBookingWithMoneyplexPurposeVersionSuffix() {
 		AccountTransactionService service = new AccountTransactionService();
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		dbController.insertOrUpdate(createBooking(account, "Dauerauftrag  V00010", new BigDecimal("42.00"), Source.IMPORT));
 
@@ -264,7 +247,6 @@ class AccountTransactionServiceTest {
 	@Test
 	void saveHbciBookingsForAccountShouldStoreAdditionalIdenticalOnlineBookingFromSameDay() {
 		AccountTransactionService service = new AccountTransactionService();
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		dbController.insertOrUpdate(createBooking(account, "Identische Tagesbuchung", new BigDecimal("42.00"), Source.ONLINE));
 		UmsLine firstFetchedBooking = createUmsLine(null, "Identische Tagesbuchung", new BigDecimal("42.00"));
@@ -282,7 +264,6 @@ class AccountTransactionServiceTest {
 	@Test
 	void saveHbciBookingsForAccountShouldLinkNewOnlineBookingWithExistingCounterBooking() {
 		AccountTransactionService service = new AccountTransactionService();
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		BankAccount crossAccount = createAccount("DE22222222222222222222", "22222222");
 		Recipient crossRecipient = dbController.insertOrUpdate(createRecipient("Max Mustermann", "DE12345678901234567890", "TESTDEFFXXX",
@@ -312,7 +293,6 @@ class AccountTransactionServiceTest {
 	@Test
 	void saveHbciBookingsForAccountShouldIgnoreCounterBookingsOutsideRebookingSearchWindow() {
 		AccountTransactionService service = new AccountTransactionService();
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		LocalDate onlineDate = LocalDate.of(2026, Month.JUNE, 1);
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		BankAccount crossAccount = createAccount("DE22222222222222222222", "22222222");
@@ -353,7 +333,6 @@ class AccountTransactionServiceTest {
 			setStaticField(accountProcessorClass, "accountNumbersMap", staleAccountNumbersMap);
 
 			AccountTransactionService service = new AccountTransactionService();
-			DBController dbController = DBController.getInstance(tempDir.toString());
 			BankAccount account = createAccount("DE12345678901234567890", "12345678");
 			BankAccount crossAccount = createAccount("DE22222222222222222222", "22222222");
 			Recipient crossRecipient = dbController.insertOrUpdate(createRecipient("Max Mustermann", "DE12345678901234567890", "TESTDEFFXXX",
@@ -384,7 +363,6 @@ class AccountTransactionServiceTest {
 	@Test
 	void saveHbciBookingsForAccountShouldUseConfiguredTransferPropertiesForChangedCounterpartyAccount() {
 		AccountTransactionService service = new AccountTransactionService();
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		BankAccount crossAccount = createAccount("DE22222222222222222222", "22222222");
 		crossAccount.setAccountName("Tagesgeld fusioniert");
@@ -419,7 +397,6 @@ class AccountTransactionServiceTest {
 	@Test
 	void detectRebookingsShouldSummarizeSelectedAccountAndPersistOnlyAfterConfirmation() {
 		AccountTransactionService service = new AccountTransactionService();
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		LocalDate rebookingDate = LocalDate.of(2026, Month.JUNE, 1);
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		BankAccount crossAccount = createAccount("DE22222222222222222222", "22222222");
@@ -465,7 +442,6 @@ class AccountTransactionServiceTest {
 	@Test
 	void detectRebookingsShouldLinkMissingRecipientOnOfflineAccount() {
 		AccountTransactionService service = new AccountTransactionService();
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		LocalDate rebookingDate = LocalDate.of(2026, Month.JUNE, 1);
 		BankAccess fintsAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("50010517"));
 		BankAccount fintsAccount = createAccount("DE12345678901234567890", "12345678");
@@ -505,7 +481,6 @@ class AccountTransactionServiceTest {
 	@Test
 	void adjustRebookingsShouldSkipForeignCurrencyBookings() {
 		AccountTransactionService service = new AccountTransactionService();
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		BankAccount crossAccount = createAccount("DE22222222222222222222", "22222222");
 		LocalDate rebookingDate = LocalDate.of(2026, Month.JUNE, 1);
@@ -531,7 +506,6 @@ class AccountTransactionServiceTest {
 	@Test
 	void detectMissingRebookingsShouldCreateManualNewCounterBookingAfterConfirmation() {
 		AccountTransactionService service = new AccountTransactionService();
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		LocalDate rebookingDate = LocalDate.of(2026, Month.JUNE, 1);
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		BankAccount targetAccount = createAccount("DE22222222222222222222", "22222222");
@@ -575,7 +549,6 @@ class AccountTransactionServiceTest {
 	@Test
 	void persistDetectedRebookingLinksShouldSkipSameAccountPairWithoutCancellation() {
 		AccountTransactionService service = new AccountTransactionService();
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		Booking removal = dbController.insertOrUpdate(createBooking(account, "Selbstreferenz", new BigDecimal("-42.00"), Source.ONLINE));
 		Booking deposit = dbController.insertOrUpdate(createBooking(account, "Selbstreferenz", new BigDecimal("42.00"), Source.ONLINE));
@@ -594,7 +567,6 @@ class AccountTransactionServiceTest {
 	@Test
 	void persistDetectedRebookingLinksShouldAllowSameAccountCancellationPair() {
 		AccountTransactionService service = new AccountTransactionService();
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		Booking cancellation = createBooking(account, "Storno", new BigDecimal("-42.00"), Source.ONLINE);
 		cancellation.setBookingType(BookingType.CANCEL);
@@ -620,7 +592,6 @@ class AccountTransactionServiceTest {
 	@Test
 	void releaseRebookingLinksShouldClearOnlyCrossBookingIdsForSelectedBookingAndCounterBooking() {
 		AccountTransactionService service = new AccountTransactionService();
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = createAccount("DE12345678901234567890", "12345678");
 		BankAccount crossAccount = createAccount("DE22222222222222222222", "22222222");
 		Booking removal = dbController.insertOrUpdate(createBooking(account, "Umbuchung Tagesgeld", new BigDecimal("-42.00"), Source.ONLINE));
@@ -691,7 +662,7 @@ class AccountTransactionServiceTest {
 
 	private BankAccount createAccount(String iban, String number) {
 		BankAccount account = TestDataFactory.createImportedAccount(iban, number);
-		return DBController.getInstance(tempDir.toString()).insertOrUpdate(account);
+		return dbController.insertOrUpdate(account);
 	}
 
 	private static Booking createBooking(BankAccount account, String purpose, BigDecimal amount, Source source) {

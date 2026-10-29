@@ -9,54 +9,35 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.kapott.hbci.smartcardio.ChipTanCardService;
 import org.kapott.hbci.smartcardio.SmartCardService;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.Setting;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ChipTanUsbSupportTest {
 
-	private Path tempDir;
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
 
-	@BeforeAll
-	void setupDatabase() throws Exception {
-		tempDir = Files.createTempDirectory("gb_test_");
-		DBController.getInstance(tempDir.toString());
-	}
-
-	@BeforeEach
-	void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
-	}
-
-	@AfterAll
-	void cleanupDatabase() throws Exception {
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
-	}
+	private final DBController dbController = database.controller();
 
 	@Test
 	void shouldCreateChipTanSettingsOnlyOnce() {
 		ChipTanUsbSupport.ensureSettingsExist();
 		ChipTanUsbSupport.ensureSettingsExist();
 
-		long enabledCount = DBController.getInstance(tempDir.toString()).getAll(Setting.class).stream()
+		long enabledCount = dbController.getAll(Setting.class).stream()
 				.filter(setting -> ChipTanUsbSupport.SETTING_ENABLED.equals(setting.getAttribute()))
 				.count();
-		long readerCount = DBController.getInstance(tempDir.toString()).getAll(Setting.class).stream()
+		long readerCount = dbController.getAll(Setting.class).stream()
 				.filter(setting -> ChipTanUsbSupport.SETTING_READER_NAME.equals(setting.getAttribute()))
 				.count();
 
@@ -67,19 +48,19 @@ class ChipTanUsbSupportTest {
 	@Test
 	void shouldReadConfiguredSettings() {
 		ChipTanUsbSupport.ensureSettingsExist();
-		Setting enabled = DBController.getInstance(tempDir.toString()).getAll(Setting.class).stream()
+		Setting enabled = dbController.getAll(Setting.class).stream()
 				.filter(setting -> ChipTanUsbSupport.SETTING_ENABLED.equals(setting.getAttribute()))
 				.findFirst()
 				.orElseThrow();
-		Setting readerName = DBController.getInstance(tempDir.toString()).getAll(Setting.class).stream()
+		Setting readerName = dbController.getAll(Setting.class).stream()
 				.filter(setting -> ChipTanUsbSupport.SETTING_READER_NAME.equals(setting.getAttribute()))
 				.findFirst()
 				.orElseThrow();
 
 		enabled.setValue("true");
 		readerName.setValue("Reader 01");
-		DBController.getInstance(tempDir.toString()).insertOrUpdate(enabled);
-		DBController.getInstance(tempDir.toString()).insertOrUpdate(readerName);
+		dbController.insertOrUpdate(enabled);
+		dbController.insertOrUpdate(readerName);
 
 		assertTrue(ChipTanUsbSupport.isEnabled());
 		assertEquals("Reader 01", ChipTanUsbSupport.getConfiguredReaderName());
@@ -97,12 +78,12 @@ class ChipTanUsbSupportTest {
 	@Test
 	void shouldDelegateTanRequestToSmartCardServiceUsingConfiguredReader() {
 		ChipTanUsbSupport.ensureSettingsExist();
-		Setting readerName = DBController.getInstance(tempDir.toString()).getAll(Setting.class).stream()
+		Setting readerName = dbController.getAll(Setting.class).stream()
 				.filter(setting -> ChipTanUsbSupport.SETTING_READER_NAME.equals(setting.getAttribute()))
 				.findFirst()
 				.orElseThrow();
 		readerName.setValue("Reader 01");
-		DBController.getInstance(tempDir.toString()).insertOrUpdate(readerName);
+		dbController.insertOrUpdate(readerName);
 
 		ChipTanCardService cardService = mock(ChipTanCardService.class);
 		when(cardService.getTan("0FA1BC")).thenReturn("123456");
@@ -132,11 +113,11 @@ class ChipTanUsbSupportTest {
 	void shouldExposeReaderSettingMetadata() {
 		ChipTanUsbSupport.ensureSettingsExist();
 
-		Setting enabled = DBController.getInstance(tempDir.toString()).getAll(Setting.class).stream()
+		Setting enabled = dbController.getAll(Setting.class).stream()
 				.filter(setting -> ChipTanUsbSupport.SETTING_ENABLED.equals(setting.getAttribute()))
 				.findFirst()
 				.orElseThrow();
-		Setting readerName = DBController.getInstance(tempDir.toString()).getAll(Setting.class).stream()
+		Setting readerName = dbController.getAll(Setting.class).stream()
 				.filter(setting -> ChipTanUsbSupport.SETTING_READER_NAME.equals(setting.getAttribute()))
 				.findFirst()
 				.orElseThrow();

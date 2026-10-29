@@ -23,8 +23,6 @@ import static org.mockito.Mockito.when;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Month;
@@ -33,12 +31,11 @@ import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.kapott.hbci.GV.HBCIJob;
 import org.kapott.hbci.GV_Result.GVRDauerEdit;
 import org.kapott.hbci.GV_Result.GVRInstUebSEPA;
@@ -69,7 +66,7 @@ import de.zft2.gbanking.db.dao.MoneyTransferForeign;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
 import de.zft2.gbanking.messages.Messages;
@@ -85,36 +82,22 @@ import de.zft2.gbanking.testdata.HbciParameterTestDataFactory;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MoneyTransferExecutionServiceAdditionalTest {
 
-	private Path tempDir;
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
 
 	private static final List<Class<? extends Service>> SERVICES_TO_STUB = List.of(GBankingService.class, BankAccessService.class,
 			MoneyTransferService.class);
 
+	private final DBController dbController = database.controller();
+
 	@BeforeEach
 	void setUp() {
-		clearDatabase();
 		ServiceStubbingUtil.initStubbedServicesInContext(SERVICES_TO_STUB);
 	}
 
 	@AfterEach
 	void tearDown() {
 		ServiceStubbingUtil.unloadStubbedServicesInContext(SERVICES_TO_STUB);
-	}
-
-	@BeforeAll
-	void setupDatabase() throws Exception {
-		tempDir = Files.createTempDirectory("gb_test_");
-		DBController.getInstance(tempDir.toString());
-	}
-
-	private void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
-	}
-
-	@AfterAll
-	void cleanupDatabase() throws Exception {
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
 	}
 
 	@Test
@@ -537,7 +520,6 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void finTsStatusProtocolService_shouldResolveAcceptedOrderAndPersistReference() {
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = dbController.insertOrUpdate(new Recipient("Recipient Name", "DE12345678901234567890", "TESTDEFFXXX", null, null,
 				"Testbank", de.zft2.gbanking.db.dao.enu.Source.MONEYTRANSFER));
@@ -576,7 +558,6 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void instantPaymentStatusService_shouldRetrieveAndPersistFinalStatus() {
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = dbController.insertOrUpdate(new Recipient("Recipient Name", "DE12345678901234567890", "TESTDEFFXXX", null, null,
 				"Testbank", de.zft2.gbanking.db.dao.enu.Source.MONEYTRANSFER));
@@ -703,7 +684,6 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void persistExecutionResult_shouldFinalizeSuccessfulStandingOrderEdit() throws Exception {
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = dbController.insertOrUpdate(new Recipient("Recipient Name", "DE12345678901234567890", "TESTDEFFXXX", null, null,
 				"Testbank", de.zft2.gbanking.db.dao.enu.Source.MONEYTRANSFER));
@@ -758,7 +738,6 @@ class MoneyTransferExecutionServiceAdditionalTest {
 
 	@Test
 	void applyRecipientNameFromVoP_shouldPersistCorrectedRecipientAndAssignItToOrder() throws Exception {
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
 		Recipient originalRecipient = dbController.insertOrUpdate(new Recipient("Wrong Recipient", "DE12345678901234567890", "TESTDEFFXXX", null, null,
 				"Testbank", de.zft2.gbanking.db.dao.enu.Source.MANUELL));
@@ -781,7 +760,6 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		BankingCapabilityService bankingCapabilityService = mock(BankingCapabilityService.class);
 		ServiceRegistry.setService(BankingCapabilityService.class, bankingCapabilityService);
 
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccount bankAccount = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = dbController.insertOrUpdate(new Recipient("Recipient Name", "DE12345678901234567890", "TESTDEFFXXX", null, null,
 				"Testbank", de.zft2.gbanking.db.dao.enu.Source.MANUELL));
@@ -883,7 +861,6 @@ class MoneyTransferExecutionServiceAdditionalTest {
 	}
 
 	private BankAccess insertBankAccessWithBpd(String... businessCases) {
-		DBController dbController = DBController.getInstance(tempDir.toString());
 		BankAccess bankAccess = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("10020030"));
 		bankAccess.getFints().setBpd(HbciParameterTestDataFactory.buildCapabilityBpd(businessCases));
 		dbController.insertOrUpdatePD(bankAccess);

@@ -12,25 +12,22 @@ import java.io.File;
 import java.math.BigDecimal;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mockito.ArgumentCaptor;
 
 import de.zft2.core.util.CoreBookingUtil;
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Recipient;
@@ -45,31 +42,14 @@ class FileImportBeanTest extends CoreBookingUtil {
 	private FileImportBean fileImportBean;
 	private File exportFile;
 
-	private DBController dbController;
-	private Path tempDir;
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
+
+	private final DBController dbController = database.controller();
 	private Locale previousLocale;
-
-	@BeforeAll
-	void setupDatabase() throws Exception {
-
-		// Create fresh DBControllerForTest instance
-		tempDir = Files.createTempDirectory("gb_test_");
-		dbController = DBController.getInstance(tempDir.toString());
-	}
-
-	void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
-	}
-
-	@AfterAll
-	void cleanupDatabase() throws Exception {
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
-	}
 
 	@BeforeEach
 	void setUp() throws Exception {
-		clearDatabase();
 		previousLocale = Messages.getLocale();
 		Messages.setLocale(Locale.GERMAN);
 		fileImportBean = new FileImportBean(null);

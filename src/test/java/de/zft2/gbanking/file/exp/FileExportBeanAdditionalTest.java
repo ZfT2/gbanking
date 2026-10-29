@@ -4,19 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import de.zft2.gbanking.concurrent.ProgressReporter;
-import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.gui.BaseWorker;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
@@ -25,19 +21,8 @@ import de.zft2.gbanking.messages.Messages;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FileExportBeanAdditionalTest {
 
-	private Path tempDir;
-
-	@BeforeAll
-	void setupDatabase() throws Exception {
-		tempDir = Files.createTempDirectory("gb_test_");
-		DBController.getInstance(tempDir.toString());
-	}
-
-	@AfterAll
-	void cleanupDatabase() throws Exception {
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
-	}
+	@RegisterExtension
+	static final TestDatabaseExtension database = TestDatabaseExtension.withoutClearing();
 
 	@Test
 	void exportConstants_shouldResolveKnownDescriptionsAndExposeXmlTags() {

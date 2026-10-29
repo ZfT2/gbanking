@@ -16,17 +16,15 @@ import java.util.List;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.w3c.dom.Document;
 import org.xmlunit.builder.DiffBuilder;
 import org.xmlunit.diff.Diff;
 
-import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.exception.GBankingException;
@@ -41,29 +39,11 @@ class FileImportIntegrationTest {
 	private File importFile;
 	private File exportFile;
 
-	private Path tempDir;
-
-	@BeforeAll
-	void setupDatabase() throws Exception {
-
-		// Create fresh DBControllerForTest instance
-		tempDir = Files.createTempDirectory("gb_test_");
-		DBController.getInstance(tempDir.toString());
-	}
-
-	void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
-	}
-
-	@AfterAll
-	void cleanupDatabase() throws Exception {
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
-	}
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
 
 	@BeforeEach
 	void setUp() throws Exception {
-		clearDatabase();
 		fileImportBean = new FileImportBean(null);
 		fileExportBean = new FileExportXMLBean(null);
 
@@ -137,7 +117,7 @@ class FileImportIntegrationTest {
 	// ------------------------------------------------------------------------
 	@Test
 	void testExportFile_InvalidPath() throws Exception {
-		Path exportTargetDirectory = Files.createDirectory(tempDir.resolve("export_target_directory"));
+		Path exportTargetDirectory = Files.createDirectory(database.directory().resolve("export_target_directory"));
 		boolean result = fileExportBean.exportFileFromDatatbase(List.of(), exportTargetDirectory.toString());
 
 		assertFalse(result, "Export should fail for invalid output path");

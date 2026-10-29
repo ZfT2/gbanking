@@ -5,23 +5,20 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.Recipient;
@@ -38,32 +35,17 @@ class FileExportOrdersSepaBeanTest {
 	private static final String ACCOUNT_IBAN = "DE30120300000018884074";
 	private static final String RECIPIENT_IBAN = "DE73700202700005716977";
 
-	private DBController dbController;
-	private Path tempDir;
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
 
-	@BeforeAll
-	void setupDatabase() throws Exception {
-		tempDir = Files.createTempDirectory("gb_test_");
-		dbController = DBController.getInstance(tempDir.toString());
-	}
-
-	@BeforeEach
-	void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
-	}
-
-	@AfterAll
-	void cleanupDatabase() throws Exception {
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
-	}
+	private final DBController dbController = database.controller();
 
 	@Test
 	void exportFile_shouldWritePain00100109AndSkipUnsupportedOrderTypes() throws Exception {
 		BankAccount account = insertAccount();
 		insertTransfer(account, OrderType.TRANSFER, LocalDate.now(), "E2E-EXPORT", "GDDS", "Invoice 4711");
 		insertTransfer(account, OrderType.STANDING_ORDER, LocalDate.now(), "E2E-STANDING", null, "Standing order");
-		Path exportFile = tempDir.resolve("orders.xml");
+		Path exportFile = database.directory().resolve("orders.xml");
 
 		boolean exported = new FileExportOrdersSepaBean(null).exportFileFromDatatbase(List.of(account), exportFile.toString());
 
@@ -83,7 +65,7 @@ class FileExportOrdersSepaBeanTest {
 		LocalDate executionDate = LocalDate.now().plusDays(5);
 		insertTransfer(account, OrderType.SCHEDULED_TRANSFER, executionDate, "E2E-SCHEDULED", null, "Scheduled");
 		insertTransfer(account, OrderType.REALTIME_TRANSFER, executionDate, "E2E-INSTANT", null, "Instant");
-		Path exportFile = tempDir.resolve("grouped-orders.xml");
+		Path exportFile = database.directory().resolve("grouped-orders.xml");
 
 		new FileExportOrdersSepaBean(null).exportFileFromDatatbase(List.of(account), exportFile.toString());
 
@@ -98,7 +80,7 @@ class FileExportOrdersSepaBeanTest {
 	void exportFile_shouldRejectSelectionWithoutSupportedOrders() {
 		BankAccount account = insertAccount();
 		insertTransfer(account, OrderType.FOREIGN_TRANSFER, LocalDate.now(), "E2E-FOREIGN", null, "Foreign");
-		Path exportFile = tempDir.resolve("unsupported-orders.xml");
+		Path exportFile = database.directory().resolve("unsupported-orders.xml");
 		FileExportOrdersSepaBean exporter = new FileExportOrdersSepaBean(null);
 		List<BankAccount> accounts = List.of(account);
 		String fileName = exportFile.toString();

@@ -22,10 +22,11 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import de.zft2.gbanking.cache.InstituteLookupCache;
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.enu.InstituteStatus;
 
@@ -35,29 +36,26 @@ class InstituteFileImportSourceIsolationIntegrationTest {
 	private static final Path FIXTURE_DIRECTORY = Path.of("src", "test", "resources", "import");
 	private static final String SHARED_BIC = "MARKDEF1100";
 
-	private DBController dbController;
-	private Path tempDir;
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
+
+	private final DBController dbController = database.controller();
 	private Path basePath;
 
 	@BeforeAll
-	void setupDatabase() throws Exception {
-		tempDir = Files.createTempDirectory("gb_test_");
-		dbController = DBController.getInstance(tempDir.toString());
-		basePath = tempDir.resolve("source");
+	void setupBasePath() throws Exception {
+		basePath = database.directory().resolve("source");
 		Files.createDirectories(basePath.resolve("import/archive"));
 	}
 
 	@BeforeEach
-	void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
+	void clearInstituteLookupCache() {
 		InstituteLookupCache.clear();
 	}
 
 	@AfterAll
-	void cleanupDatabase() throws Exception {
+	void cleanupInstituteLookupCache() {
 		InstituteLookupCache.clear();
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
 	}
 
 	@Test

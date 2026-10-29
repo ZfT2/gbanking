@@ -10,14 +10,14 @@ import java.time.LocalDate;
 import java.time.Month;
 import java.util.List;
 
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.ImportHistory;
 import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.enu.InstituteStatus;
@@ -29,29 +29,22 @@ class InstituteFileImportDbbReachableIntegrationTest extends BaseInstituteFileIm
 	private static final String DBB_BIC = "AACSDE33";
 	private static final String SECOND_BIC = "AAAARSBG";
 
-	private DBController dbController;
-	private Path tempDir;
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
+
+	private final DBController dbController = database.controller();
 	private Path basePath;
 
 	@BeforeAll
-	void setupDatabase() throws Exception {
-		tempDir = Files.createTempDirectory("gb_test_");
-		dbController = DBController.getInstance(tempDir.toString());
-		basePath = tempDir.resolve("source");
+	void setupBasePath() throws Exception {
+		basePath = database.directory().resolve("source");
 		Files.createDirectories(basePath.resolve("import/archive"));
 	}
 
 	@BeforeEach
-	void clearDatabaseAndImportFiles() throws Exception {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
+	void deleteImportFiles() throws Exception {
 		Files.deleteIfExists(basePath.resolve("import").resolve(InstituteFileImportDbbReachable.DEFAULT_FILENAME));
 		Files.deleteIfExists(basePath.resolve("import/archive").resolve(InstituteFileImportDbbReachable.DEFAULT_FILENAME));
-	}
-
-	@AfterAll
-	void cleanupDatabase() throws Exception {
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
 	}
 
 	@Test

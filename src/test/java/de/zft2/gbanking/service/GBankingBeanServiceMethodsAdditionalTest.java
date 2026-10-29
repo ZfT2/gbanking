@@ -18,20 +18,17 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.Month;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Properties;
 
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.kapott.hbci.manager.BankInfo;
 import org.kapott.hbci.manager.HBCIHandler;
 import org.kapott.hbci.manager.HBCIUtils;
@@ -58,7 +55,7 @@ import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.db.dao.Upd;
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
 import de.zft2.gbanking.hbci.HbciProperties;
@@ -72,31 +69,20 @@ import de.zft2.gbanking.testdata.HbciParameterTestDataFactory;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class GBankingBeanServiceMethodsAdditionalTest {
 
-	private DBController dbController;
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
+
+	private final DBController dbController = database.controller();
 	private BookingService bookingService;
-	private Path tempDir;
 
 	@BeforeAll
-	void setupDatabase() throws Exception {
-		tempDir = Files.createTempDirectory("gb_test_");
-		dbController = DBController.getInstance(tempDir.toString());
+	void initServices() {
 		bookingService = new BookingService();
-	}
-
-	@BeforeEach
-	void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
 	}
 
 	@AfterEach
 	void resetServices() {
 		ServiceRegistry.removeService(BankAccessService.class);
-	}
-
-	@AfterAll
-	void cleanupDatabase() throws Exception {
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
 	}
 
 	@Test

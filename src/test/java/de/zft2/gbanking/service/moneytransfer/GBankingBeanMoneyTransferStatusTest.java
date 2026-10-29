@@ -3,18 +3,15 @@ package de.zft2.gbanking.service.moneytransfer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Month;
 import java.util.List;
 
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
@@ -25,7 +22,7 @@ import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.gui.dto.MoneyTransferForm;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.testdata.TestDataFactory;
@@ -33,30 +30,15 @@ import de.zft2.gbanking.testdata.TestDataFactory;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class GBankingBeanMoneyTransferStatusTest {
 
-	private Path tempDir;
-	private DBController dbController;
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
+
+	private final DBController dbController = database.controller();
 	private MoneyTransferService moneyTransferService;
 
 	@BeforeAll
-	void setup() throws Exception {
-		setupDatabase();
+	void setup() {
 		moneyTransferService = ServiceRegistry.getService(MoneyTransferService.class);
-	}
-
-	void setupDatabase() throws Exception {
-		tempDir = Files.createTempDirectory("gb_test_");
-		dbController = DBController.getInstance(tempDir.toString());
-	}
-
-	@BeforeEach
-	void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
-	}
-
-	@AfterAll
-	void cleanupDatabase() throws Exception {
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
 	}
 
 	@Test

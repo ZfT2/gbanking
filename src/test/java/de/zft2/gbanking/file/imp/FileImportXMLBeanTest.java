@@ -18,16 +18,16 @@ import java.util.Map;
 import java.util.concurrent.CancellationException;
 
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import de.zft2.fp3xmlextract.convert.Converter;
 import de.zft2.fp3xmlextract.data.Fp3XmlBankAccount;
 import de.zft2.gbanking.cache.InstituteLookupCache;
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
@@ -45,26 +45,19 @@ import de.zft2.gbanking.testdata.TestDataFactory;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FileImportXMLBeanTest {
 
-	private DBController dbController;
-	private Path tempDir;
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
 
-	@BeforeAll
-	void setupDatabase() throws Exception {
-		tempDir = Files.createTempDirectory("gb_test_");
-		dbController = DBController.getInstance(tempDir.toString());
-	}
+	private final DBController dbController = database.controller();
 
 	@BeforeEach
-	void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
+	void clearInstituteLookupCache() {
 		InstituteLookupCache.clear();
 	}
 
 	@AfterAll
-	void cleanupDatabase() throws Exception {
+	void cleanupInstituteLookupCache() {
 		InstituteLookupCache.clear();
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
 	}
 
 	@Test
@@ -140,7 +133,7 @@ class FileImportXMLBeanTest {
 		onlineBooking = dbController.insertOrUpdate(onlineBooking);
 
 		String xml = Files.readString(testResource("dummy_import.xml")).replace("Testbuchung</ZWECK>", "Testbuchung  V00010</ZWECK>");
-		Path importFile = tempDir.resolve("online-duplicate.xml");
+		Path importFile = database.directory().resolve("online-duplicate.xml");
 		Files.writeString(importFile, xml);
 		new FileImportBean(null).importFileToDatatbase(importFile.toString());
 
@@ -246,7 +239,7 @@ class FileImportXMLBeanTest {
 		if (removeBlz) {
 			xml = xml.replace("<BLZ>12345678</BLZ>", "<BLZ/>");
 		}
-		Path importFile = tempDir.resolve("missing-bank-name.xml");
+		Path importFile = database.directory().resolve("missing-bank-name.xml");
 		Files.writeString(importFile, xml);
 		new FileImportBean(null).importFileToDatatbase(importFile.toString());
 

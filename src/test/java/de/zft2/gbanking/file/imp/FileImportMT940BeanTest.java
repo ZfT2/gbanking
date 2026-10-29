@@ -9,14 +9,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingAdditionalDetails;
@@ -27,25 +25,10 @@ import de.zft2.gbanking.testdata.TestDataFactory;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FileImportMT940BeanTest {
 
-	private DBController dbController;
-	private Path tempDir;
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
 
-	@BeforeAll
-	void setupDatabase() throws Exception {
-		tempDir = Files.createTempDirectory("gb_test_");
-		dbController = DBController.getInstance(tempDir.toString());
-	}
-
-	@BeforeEach
-	void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
-	}
-
-	@AfterAll
-	void cleanupDatabase() throws Exception {
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
-	}
+	private final DBController dbController = database.controller();
 
 	@Test
 	void importFileToDatabase_shouldImportMt940BookingAndSkipDuplicateOnSecondImport() throws Exception {
@@ -96,7 +79,7 @@ class FileImportMT940BeanTest {
 	}
 
 	private Path writeMt940(String content) throws Exception {
-		Path mt940File = tempDir.resolve("import-" + System.nanoTime() + ".sta");
+		Path mt940File = database.directory().resolve("import-" + System.nanoTime() + ".sta");
 		Files.writeString(mt940File, content.stripIndent().replace("\n", "\r\n"), StandardCharsets.ISO_8859_1);
 		return mt940File;
 	}

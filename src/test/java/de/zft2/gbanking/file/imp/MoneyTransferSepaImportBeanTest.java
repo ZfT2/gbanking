@@ -9,14 +9,12 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import de.zft2.gbanking.db.DBController;
-import de.zft2.gbanking.db.DBControllerTestUtil;
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
@@ -29,25 +27,10 @@ class MoneyTransferSepaImportBeanTest {
 	private static final String MONEY_PLEX_ACCOUNT_IBAN = "DE30120300000018884074";
 	private static final String RECIPIENT_IBAN = "DE73700202700005716977";
 
-	private DBController dbController;
-	private Path tempDir;
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
 
-	@BeforeAll
-	void setupDatabase() throws Exception {
-		tempDir = Files.createTempDirectory("gb_test_");
-		dbController = DBController.getInstance(tempDir.toString());
-	}
-
-	@BeforeEach
-	void clearDatabase() {
-		DBControllerTestUtil.clearAllTables(DBController.getConnection());
-	}
-
-	@AfterAll
-	void cleanupDatabase() throws Exception {
-		DBControllerTestUtil.closeAndNullifyConnection();
-		DBControllerTestUtil.deleteTemporaryDir(tempDir);
-	}
+	private final DBController dbController = database.controller();
 
 	@Test
 	void importFile_shouldReadMoneyplexPain00100203ExampleIntoArchive() throws Exception {
@@ -141,7 +124,7 @@ class MoneyTransferSepaImportBeanTest {
 				    </CstmrCdtTrfInitn>
 				</Document>
 				""".formatted(paymentType, executionDate, MONEY_PLEX_ACCOUNT_IBAN, endToEndId, RECIPIENT_IBAN, purpose);
-		Path importFile = Files.createTempFile(tempDir, "pain001_", ".xml");
+		Path importFile = Files.createTempFile(database.directory(), "pain001_", ".xml");
 		Files.writeString(importFile, xml, StandardCharsets.UTF_8);
 		return importFile;
 	}
