@@ -4,6 +4,8 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.gui.util.DateFormatUtils;
@@ -22,6 +24,8 @@ final class AccountUpdatedAtColumn extends TableColumn<BankAccount, BankAccount>
 	private static final double HEADER_INSETS = 32;
 
 	private final Clock clock;
+	private Font measuredFont;
+	private List<String> measuredTexts = List.of();
 
 	AccountUpdatedAtColumn(String title) {
 		this(title, Clock.systemDefaultZone());
@@ -51,16 +55,22 @@ final class AccountUpdatedAtColumn extends TableColumn<BankAccount, BankAccount>
 	}
 
 	private void fitContent(Font font) {
+		List<String> texts = getTableView() != null
+				? getTableView().getItems().stream().map(account -> displayText(account)).toList() : List.of();
+		// updateItem runs for every cell, so only re-measure when font or displayed texts have changed
+		if (font.equals(measuredFont) && texts.equals(measuredTexts)) {
+			return;
+		}
+		measuredFont = font;
+		measuredTexts = texts;
 		Text header = new Text(getText());
 		header.setFont(Font.font(font.getFamily(), FontWeight.BOLD, font.getSize()));
 		double width = header.getLayoutBounds().getWidth() + HEADER_INSETS;
-		if (getTableView() != null) {
-			Text content = new Text();
-			content.setFont(font);
-			for (BankAccount account : getTableView().getItems()) {
-				content.setText(displayText(account));
-				width = Math.max(width, content.getLayoutBounds().getWidth() + CELL_INSETS);
-			}
+		Text content = new Text();
+		content.setFont(font);
+		for (String text : new HashSet<>(texts)) {
+			content.setText(text);
+			width = Math.max(width, content.getLayoutBounds().getWidth() + CELL_INSETS);
 		}
 		setPrefWidth(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.ceil(width))));
 	}
