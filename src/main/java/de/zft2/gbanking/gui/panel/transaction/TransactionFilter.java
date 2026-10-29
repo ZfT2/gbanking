@@ -3,8 +3,7 @@ package de.zft2.gbanking.gui.panel.transaction;
 import static de.zft2.gbanking.util.TextValues.trimToNull;
 
 import java.math.BigDecimal;
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.Locale;
 import java.util.regex.Pattern;
@@ -19,11 +18,6 @@ final class TransactionFilter {
 	static final int UNCATEGORIZED_ID = -1;
 
 	private static final Pattern GERMAN_GROUPED_AMOUNT = Pattern.compile("[-+]?\\d{1,3}(\\.\\d{3})+");
-	private static final ThreadLocal<DecimalFormat> GERMAN_AMOUNT_FORMAT = ThreadLocal.withInitial(() -> {
-		DecimalFormatSymbols symbols = DecimalFormatSymbols.getInstance(Locale.GERMANY);
-		symbols.setGroupingSeparator('.');
-		return new DecimalFormat("#,##0.00", symbols);
-	});
 
 	private TransactionFilter() {
 	}
@@ -57,11 +51,14 @@ final class TransactionFilter {
 		if (amount == null) {
 			return "";
 		}
-		try {
-			return GERMAN_AMOUNT_FORMAT.get().format(amount);
-		} finally {
-			GERMAN_AMOUNT_FORMAT.remove();
+		// Formatted manually: runs per booking while filtering, DecimalFormat is costly to create and not thread-safe.
+		String plain = amount.setScale(2, RoundingMode.HALF_EVEN).toPlainString();
+		StringBuilder formatted = new StringBuilder(plain.replace('.', ','));
+		int firstDigit = plain.startsWith("-") ? 1 : 0;
+		for (int groupStart = plain.length() - 6; groupStart > firstDigit; groupStart -= 3) {
+			formatted.insert(groupStart, '.');
 		}
+		return formatted.toString();
 	}
 
 	private static boolean matchesTextSearch(Booking booking, String filter) {

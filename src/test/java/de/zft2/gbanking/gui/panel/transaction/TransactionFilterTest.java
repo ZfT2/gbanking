@@ -111,6 +111,11 @@ class TransactionFilterTest {
 		assertEquals(new BigDecimal("1234"), TransactionFilter.parseGermanAmount("1.234"));
 		assertNull(TransactionFilter.parseGermanAmount(" "));
 		assertEquals("1.234,56", TransactionFilter.formatGermanAmount(new BigDecimal("1234.56")));
+		assertEquals("-1.234.567,89", TransactionFilter.formatGermanAmount(new BigDecimal("-1234567.891")));
+		assertEquals("-123,40", TransactionFilter.formatGermanAmount(new BigDecimal("-123.4")));
+		assertEquals("1.000,00", TransactionFilter.formatGermanAmount(new BigDecimal("999.995")));
+		assertEquals("0,12", TransactionFilter.formatGermanAmount(new BigDecimal("0.125")));
+		assertEquals("", TransactionFilter.formatGermanAmount(null));
 	}
 
 	private static boolean matchesText(Booking booking, String searchText) {
