@@ -3,13 +3,14 @@ package de.zft2.gbanking.update;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Comparator;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import de.zft2.gbanking.util.FileCleanup;
 
 final class UpdateBackupCleaner {
 
@@ -51,12 +52,8 @@ final class UpdateBackupCleaner {
 	}
 
 	private static void deleteTree(Path directory, Predicate<Path> filter) {
-		try (Stream<Path> paths = Files.walk(directory)) {
-			List<Path> pathsToDelete = paths.filter(filter).sorted(Comparator.reverseOrder()).toList();
-			for (Path path : pathsToDelete) {
-				Files.deleteIfExists(path);
-			}
-			if (!pathsToDelete.isEmpty()) {
+		try {
+			if (FileCleanup.deleteTree(directory, filter)) {
 				log.info("Removed application update files in {}", directory);
 			}
 		} catch (IOException exception) {

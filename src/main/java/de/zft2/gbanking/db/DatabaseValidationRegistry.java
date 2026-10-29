@@ -22,6 +22,7 @@ final class DatabaseValidationRegistry {
 	private static final int CONTENT_MARKER_SIZE = 4_096;
 	private static final long DEFAULT_TIME_TO_LIVE_NANOS = Duration.ofMinutes(5).toNanos();
 	private static final LinkOption[] NO_FOLLOW_LINKS = { LinkOption.NOFOLLOW_LINKS };
+	// The "-shm" file is only a volatile index of the WAL and is rebuilt by SQLite, so it is not part of the fingerprint.
 	private static final String[] SQLITE_SIDECAR_SUFFIXES = { "-wal", "-journal" };
 
 	private final int capacity;

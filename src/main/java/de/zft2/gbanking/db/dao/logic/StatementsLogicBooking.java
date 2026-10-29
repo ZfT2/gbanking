@@ -6,9 +6,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import de.zft2.gbanking.db.DaoSqlStatements;
 import de.zft2.gbanking.db.SqlErrors;
 import de.zft2.gbanking.db.StatementsConfig;
@@ -16,12 +13,9 @@ import de.zft2.gbanking.db.StatementsConfig.StatementType;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.mapper.AbstractDaoMapper;
 import de.zft2.gbanking.db.dao.mapper.BookingMapper;
-import de.zft2.gbanking.exception.GBankingException;
 
 public class StatementsLogicBooking extends StatementsLogicDefault<Booking> implements StatementsLogic<Booking> {
 
-	private static final Logger log = LogManager.getLogger(StatementsLogicBooking.class);
-	
 	@Override
 	public SqlParameter getSqlParameter(Booking bK) {
 		return new SqlParameter(null, null, false, true);
@@ -38,8 +32,7 @@ public class StatementsLogicBooking extends StatementsLogicDefault<Booking> impl
 			upsertBookingDetails(booking, mapper);
 		} catch (SQLException exception) {
 			String errorKey = statementType == StatementType.UPDATE ? SqlErrors.ERROR_DB_UPDATE : SqlErrors.ERROR_DB_INSERT;
-			log.error(getText(errorKey, booking.getId()), exception);
-			throw new GBankingException(getText(errorKey), exception);
+			throw databaseFailure(getText(errorKey, booking.getId()), exception);
 		}
 
 		return booking;
@@ -69,8 +62,7 @@ public class StatementsLogicBooking extends StatementsLogicDefault<Booking> impl
 			persistBookingDetails(bookings, updates, mapper);
 			return bookings;
 		} catch (SQLException exception) {
-			log.error(getText(SqlErrors.ERROR_DB), exception);
-			throw new GBankingException(getText(SqlErrors.ERROR_DB), exception);
+			throw databaseFailure(getText(SqlErrors.ERROR_DB), exception);
 		}
 	}
 

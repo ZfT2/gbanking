@@ -171,8 +171,7 @@ public class StatementsLogicBankAccess extends StatementsLogicDefault<BankAccess
 						return valuesByType;
 					});
 		} catch (SQLException exception) {
-			log.error(getText(SqlErrors.ERROR_DB), exception);
-			throw new GBankingException(getText(SqlErrors.ERROR_DB), exception);
+			throw databaseFailure(getText(SqlErrors.ERROR_DB), exception);
 		}
 	}
 
@@ -197,8 +196,7 @@ public class StatementsLogicBankAccess extends StatementsLogicDefault<BankAccess
 			upsertBankAccessParameterData(upserts);
 			deleteBankAccessParameterData(deletes);
 		} catch (SQLException exception) {
-			log.error(getText(SqlErrors.ERROR_DB), exception);
-			throw new GBankingException(getText(SqlErrors.ERROR_DB), exception);
+			throw databaseFailure(getText(SqlErrors.ERROR_DB), exception);
 		}
 	}
 

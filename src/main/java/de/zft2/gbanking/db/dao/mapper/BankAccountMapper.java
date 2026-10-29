@@ -1,6 +1,5 @@
 package de.zft2.gbanking.db.dao.mapper;
 
-import java.math.RoundingMode;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -112,8 +111,7 @@ public class BankAccountMapper extends AbstractDaoMapper<BankAccount, Void> {
 		account.setOfflineAccount(rs.getBoolean("isOfflineAccount"));
 		account.setAccountState(AccountState.forInt(rs.getInt("accountState")));
 
-		if (rs.getBigDecimal(SqlFields.BALANCE) != null)
-			account.setBalance(rs.getBigDecimal(SqlFields.BALANCE).setScale(2, RoundingMode.HALF_UP));
+		account.setBalance(getScaledBigDecimalNullable(SqlFields.BALANCE, rs));
 		account.setCreatedAt(TypeConverter.toLocalDateFromSqlDate(rs.getDate(SqlFields.DAO_CREATEDAT)));
 	}
 

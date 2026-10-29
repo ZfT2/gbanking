@@ -11,6 +11,14 @@ public final class FileMoves {
 	private FileMoves() {
 	}
 
+	public static void replaceAtomically(Path source, Path target) throws IOException {
+		try {
+			Files.move(source, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+		} catch (AtomicMoveNotSupportedException exception) {
+			throw new IOException("Atomic file replacement is not supported", exception);
+		}
+	}
+
 	public static void replaceAtomicallyIfSupported(Path source, Path target) throws IOException {
 		try {
 			Files.move(source, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);

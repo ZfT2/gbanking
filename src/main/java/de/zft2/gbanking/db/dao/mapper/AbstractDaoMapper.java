@@ -1,6 +1,7 @@
 package de.zft2.gbanking.db.dao.mapper;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -151,45 +152,30 @@ public abstract class AbstractDaoMapper<T extends Dao, V> {
 	}
 
 	protected Integer getIntegerNullable(final String field, ResultSet rs) throws SQLException {
-		Integer value = (rs.getInt(field));
-		if (rs.wasNull())
-			value = null;
-		return value;
+		return nullIfWasNull(rs.getInt(field), rs);
 	}
 
 	protected Boolean getBooleanNullable(final String field, ResultSet rs) throws SQLException {
-		Boolean value = (rs.getBoolean(field));
-		if (rs.wasNull())
-			value = null;
-		return value;
+		return nullIfWasNull(rs.getBoolean(field), rs);
 	}
 
 	protected Double getDoubleNullable(final String field, ResultSet rs) throws SQLException {
-		Double value = (rs.getDouble(field));
-		if (rs.wasNull())
-			value = null;
-		return value;
-	}
-
-	protected BigDecimal getBigDecimalNullable(final String field, ResultSet rs) throws SQLException {
-		BigDecimal value = rs.getBigDecimal(field);
-		if (rs.wasNull())
-			value = null;
-		return value;
-	}
-
-	protected Date getDateNullable(final String field, ResultSet rs) throws SQLException {
-		Date value = (rs.getDate(field));
-		if (rs.wasNull())
-			value = null;
-		return value;
+		return nullIfWasNull(rs.getDouble(field), rs);
 	}
 
 	protected <E extends Enum<E> & IdType> E getEnumNullable(final String field, Class<E> targetEnum, ResultSet rs) throws SQLException {
 		Integer value = getIntegerNullable(field, rs);
-		if (value != null)
-			return IdType.forId(targetEnum, value.intValue());
-		return null;
+		return value != null ? IdType.forId(targetEnum, value) : null;
+	}
+
+	protected BigDecimal getScaledBigDecimalNullable(String field, ResultSet rs) throws SQLException {
+		BigDecimal value = rs.getBigDecimal(field);
+		return value != null ? value.setScale(2, RoundingMode.HALF_UP) : null;
+	}
+
+	// Primitive JDBC getters return 0/false for SQL NULL, so the null state has to be read via wasNull().
+	private static <W> W nullIfWasNull(W value, ResultSet rs) throws SQLException {
+		return rs.wasNull() ? null : value;
 	}
 
 	T initResultDao(ResultSet rs) throws SQLException {

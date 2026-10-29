@@ -3,7 +3,6 @@ package de.zft2.gbanking.db.dao.mapper;
 import static de.zft2.gbanking.util.TextValues.hasText;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -198,7 +197,7 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 		booking.setDateBooking(TypeConverter.toLocalDateFromSqlDate(rs.getDate(SqlFields.BOOKING_DATEBOOKING)));
 		booking.setDateValue(TypeConverter.toLocalDateFromSqlDate(rs.getDate("dateValue")));
 		booking.setPurpose(rs.getString(SqlFields.BOOKING_PURPOSE));
-		booking.setAmount(rs.getBigDecimal(SqlFields.BOOKING_AMOUNT).setScale(2, RoundingMode.HALF_UP));
+		booking.setAmount(getScaledBigDecimalNullable(SqlFields.BOOKING_AMOUNT, rs));
 
 		if (resultType == ResultType.FULL) {
 			booking.setAccountName(rs.getString("accountName"));
@@ -335,9 +334,9 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 	}
 
 	private BookingForeignCurrencyDetails mapForeignCurrencyDetails(ResultSet rs) throws SQLException {
-		BigDecimal amount = getBigDecimalNullable("foreignAmount", rs);
+		BigDecimal amount = rs.getBigDecimal("foreignAmount");
 		Currency currency = getEnumNullable("foreignCurrency", Currency.class, rs);
-		BigDecimal exchangeRate = getBigDecimalNullable("exchangeRateToBaseCurrency", rs);
+		BigDecimal exchangeRate = rs.getBigDecimal("exchangeRateToBaseCurrency");
 		if (amount == null && currency == null && exchangeRate == null) {
 			return null;
 		}
@@ -349,7 +348,7 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 	}
 
 	private BookingFee mapFee(ResultSet rs) throws SQLException {
-		BigDecimal amount = getBigDecimalNullable("feeAmount", rs);
+		BigDecimal amount = rs.getBigDecimal("feeAmount");
 		Currency currency = getEnumNullable("feeCurrency", Currency.class, rs);
 		if (amount == null && currency == null) {
 			return null;
@@ -358,11 +357,6 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 		fee.setAmount(amount);
 		fee.setCurrency(currency);
 		return fee;
-	}
-
-	private BigDecimal getScaledBigDecimalNullable(String field, ResultSet rs) throws SQLException {
-		BigDecimal value = getBigDecimalNullable(field, rs);
-		return value != null ? value.setScale(2, RoundingMode.HALF_UP) : null;
 	}
 
 	private Integer resolveCategoryId(Booking booking) {

@@ -134,9 +134,7 @@ public abstract class DbExecutor extends DbConnectionHandler implements BaseMess
 			try {
 				return repositories().delete(entity, statementType) > 0;
 			} catch (SQLException exception) {
-				String message = getText(SqlErrors.ERROR_DB_DELETE);
-				log.error(message, exception);
-				throw new GBankingException(message, exception);
+				throw databaseFailure(getText(SqlErrors.ERROR_DB_DELETE, entity.getId()), exception);
 			}
 		});
 		invalidateCapabilityCache(entity);
@@ -296,9 +294,7 @@ public abstract class DbExecutor extends DbConnectionHandler implements BaseMess
 			return jdbc().update(sql,
 					dao == null ? null : statement -> getMapper(dao).setParamsDelete(dao, statement));
 		} catch (SQLException exception) {
-			String message = getText(SqlErrors.ERROR_DB_DELETE);
-			log.error(message, exception);
-			throw new GBankingException(message, exception);
+			throw databaseFailure(getText(SqlErrors.ERROR_DB_DELETE), exception);
 		}
 	}
 
@@ -315,9 +311,7 @@ public abstract class DbExecutor extends DbConnectionHandler implements BaseMess
 					(statement, dao) -> targetMapper.setParamsForUpdateSimpleField(dao, effectiveType, statement));
 			return countUpdatedRows(updateCounts);
 		} catch (SQLException exception) {
-			String message = getText(SqlErrors.ERROR_DB_UPDATE);
-			log.error(message, exception);
-			throw new GBankingException(message, exception);
+			throw databaseFailure(getText(SqlErrors.ERROR_DB_UPDATE), exception);
 		}
 	}
 
@@ -330,7 +324,8 @@ public abstract class DbExecutor extends DbConnectionHandler implements BaseMess
 		return updateTargets;
 	}
 
-	private static int countUpdatedRows(int[] updateCounts) {
+	/** Sums batch update counts; failed batches are already rejected by {@link JdbcOperations}. */
+	protected static int countUpdatedRows(int[] updateCounts) {
 		int updatedRows = 0;
 		for (int updateCount : updateCounts) {
 			updatedRows += updateCount == Statement.SUCCESS_NO_INFO ? 1 : updateCount;
@@ -343,9 +338,7 @@ public abstract class DbExecutor extends DbConnectionHandler implements BaseMess
 			return jdbc().update(sql,
 					statement -> setStatementParamsUpdateListWithId(pkIdList, targetDao, statement));
 		} catch (SQLException exception) {
-			String message = getText(SqlErrors.ERROR_DB_UPDATE);
-			log.error(message, exception);
-			throw new GBankingException(message, exception);
+			throw databaseFailure(getText(SqlErrors.ERROR_DB_UPDATE), exception);
 		}
 	}
 
@@ -359,9 +352,7 @@ public abstract class DbExecutor extends DbConnectionHandler implements BaseMess
 			return jdbc().update(sql,
 					statement -> mapStatementParams(daoList, mTable, mapperType, statement));
 		} catch (SQLException exception) {
-			String message = getText(SqlErrors.ERROR_DB_UPDATE);
-			log.error(message, exception);
-			throw new GBankingException(message, exception);
+			throw databaseFailure(getText(SqlErrors.ERROR_DB_UPDATE), exception);
 		}
 	}
 
@@ -370,9 +361,7 @@ public abstract class DbExecutor extends DbConnectionHandler implements BaseMess
 		try {
 			return repositories().executeWrite(entity, statementType);
 		} catch (SQLException exception) {
-			String errorMessage = getText(mode == SQLMode.UPDATE ? SqlErrors.ERROR_DB_UPDATE : SqlErrors.ERROR_DB_INSERT, entity.getId());
-			log.error(errorMessage, exception);
-			throw new GBankingException(errorMessage, exception);
+			throw databaseFailure(getText(mode == SQLMode.UPDATE ? SqlErrors.ERROR_DB_UPDATE : SqlErrors.ERROR_DB_INSERT, entity.getId()), exception);
 		}
 	}
 
@@ -388,13 +377,8 @@ public abstract class DbExecutor extends DbConnectionHandler implements BaseMess
 			AbstractDaoMapper<T, ?> mapper = getMapper(firstEntity);
 			jdbc().batch(sql, entitySet,
 					(statement, entity) -> mapper.setParamsFull(entity, statement));
-		} catch (SQLException exception) {
-			log.error(getText(SqlErrors.ERROR_DB), exception);
-			throw new GBankingException(getText(SqlErrors.ERROR_DB), exception);
-		} catch (RuntimeException exception) {
-			String message = getText(MessageConstants.ERROR_GENERAL, exception.getMessage());
-			log.error(message, exception);
-			throw new GBankingException(message, exception);
+		} catch (SQLException | RuntimeException exception) {
+			throw statementListFailure(exception);
 		}
 		return entitySet;
 	}
@@ -407,15 +391,15 @@ public abstract class DbExecutor extends DbConnectionHandler implements BaseMess
 			AbstractDaoMapper<T, ?> mapper = getMapper(mapperType);
 			jdbc().batch(sql, entitySet,
 					(statement, entityId) -> mapper.setParamsMn(mTable, entityId, statement));
-		} catch (SQLException exception) {
-			log.error(getText(SqlErrors.ERROR_DB), exception);
-			throw new GBankingException(getText(SqlErrors.ERROR_DB), exception);
-		} catch (RuntimeException exception) {
-			String message = getText(MessageConstants.ERROR_GENERAL, exception.getMessage());
-			log.error(message, exception);
-			throw new GBankingException(message, exception);
+		} catch (SQLException | RuntimeException exception) {
+			throw statementListFailure(exception);
 		}
 		return entitySet;
+	}
+
+	private GBankingException statementListFailure(Exception exception) {
+		return databaseFailure(exception instanceof SQLException ? getText(SqlErrors.ERROR_DB)
+				: getText(MessageConstants.ERROR_GENERAL, exception.getMessage()), exception);
 	}
 
 	protected <T extends Dao> T getResult(Class<T> type, int id, ResultType resultType) {
@@ -491,6 +475,10 @@ public abstract class DbExecutor extends DbConnectionHandler implements BaseMess
 		if (exception instanceof GBankingException bankingException) {
 			return bankingException;
 		}
+		return databaseFailure(message, exception);
+	}
+
+	protected static GBankingException databaseFailure(String message, Exception exception) {
 		log.error(message, exception);
 		return new GBankingException(message, exception);
 	}

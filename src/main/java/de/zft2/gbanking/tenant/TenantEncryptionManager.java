@@ -9,11 +9,9 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
@@ -34,6 +32,8 @@ import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import de.zft2.gbanking.BaseMessages;
+import de.zft2.gbanking.util.FileCleanup;
+import de.zft2.gbanking.util.FileMoves;
 
 public class TenantEncryptionManager implements BaseMessages {
 
@@ -132,18 +132,14 @@ public class TenantEncryptionManager implements BaseMessages {
 		try (OutputStream outputStream = new BufferedOutputStream(Files.newOutputStream(targetFile, StandardOpenOption.CREATE_NEW))) {
 			decryptContent(containerFile, dataKey, outputStream);
 		} catch (IOException | RuntimeException e) {
-			Files.deleteIfExists(targetFile);
+			FileCleanup.deleteAfterFailure(targetFile, e);
 			throw e;
 		}
 		forceFile(targetFile);
 	}
 
 	void moveAtomically(Path source, Path target) throws IOException {
-		try {
-			Files.move(source, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-		} catch (AtomicMoveNotSupportedException e) {
-			throw new IOException("Atomic replacement is not supported for tenant data", e);
-		}
+		FileMoves.replaceAtomically(source, target);
 	}
 
 	void updateContainerEnvelopes(TenantPaths tenantPaths, TenantProfile updatedProfile, TenantDataKey dataKey) throws IOException {

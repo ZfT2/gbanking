@@ -15,10 +15,10 @@ import java.util.Objects;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import de.zft2.gbanking.util.FileMoves;
-
 import de.zft2.gbanking.db.BuildInfo;
 import de.zft2.gbanking.util.AppPaths;
+import de.zft2.gbanking.util.FileCleanup;
+import de.zft2.gbanking.util.FileMoves;
 
 public final class DiagnosticPackageCreator {
 
@@ -56,7 +56,7 @@ public final class DiagnosticPackageCreator {
 			FileMoves.replaceAtomicallyIfSupported(temporaryFile, target);
 			return target;
 		} catch (IOException exception) {
-			deleteTemporaryFile(temporaryFile, exception);
+			FileCleanup.deleteAfterFailure(temporaryFile, exception);
 			throw exception;
 		}
 	}
@@ -121,13 +121,5 @@ public final class DiagnosticPackageCreator {
 
 	private static String fileName(Path file) {
 		return Objects.requireNonNull(file.getFileName(), "file name").toString();
-	}
-
-	private static void deleteTemporaryFile(Path temporaryFile, IOException originalFailure) {
-		try {
-			Files.deleteIfExists(temporaryFile);
-		} catch (IOException cleanupFailure) {
-			originalFailure.addSuppressed(cleanupFailure);
-		}
 	}
 }

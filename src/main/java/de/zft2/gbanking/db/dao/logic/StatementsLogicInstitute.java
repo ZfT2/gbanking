@@ -8,9 +8,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import de.zft2.gbanking.db.DaoSqlStatements;
 import de.zft2.gbanking.db.SqlErrors;
 import de.zft2.gbanking.db.StatementsConfig;
@@ -18,11 +15,8 @@ import de.zft2.gbanking.db.StatementsConfig.StatementType;
 import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.mapper.AbstractDaoMapper;
 import de.zft2.gbanking.db.dao.mapper.InstituteMapper;
-import de.zft2.gbanking.exception.GBankingException;
 
 public class StatementsLogicInstitute extends StatementsLogicDefault<Institute> implements StatementsLogic<Institute> {
-
-	private static final Logger log = LogManager.getLogger(StatementsLogicInstitute.class);
 
 	@Override
 	public Institute insertOrUpdateSingle(Institute institute) {
@@ -35,8 +29,7 @@ public class StatementsLogicInstitute extends StatementsLogicDefault<Institute> 
 			persistInstituteDetails(institute, statementType, mapper);
 		} catch (SQLException exception) {
 			String errorKey = statementType == StatementType.UPDATE ? SqlErrors.ERROR_DB_UPDATE : SqlErrors.ERROR_DB_INSERT;
-			log.error(getText(errorKey, institute.getId()), exception);
-			throw new GBankingException(getText(errorKey), exception);
+			throw databaseFailure(getText(errorKey, institute.getId()), exception);
 		}
 
 		return institute;
@@ -66,8 +59,7 @@ public class StatementsLogicInstitute extends StatementsLogicDefault<Institute> 
 			persistInstituteDetails(inserts, updates, mapper);
 			return institutes;
 		} catch (SQLException exception) {
-			log.error(getText(SqlErrors.ERROR_DB), exception);
-			throw new GBankingException(getText(SqlErrors.ERROR_DB), exception);
+			throw databaseFailure(getText(SqlErrors.ERROR_DB), exception);
 		}
 	}
 

@@ -3,7 +3,6 @@ package de.zft2.gbanking.db.dao.mapper;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Types;
 import java.time.LocalDateTime;
 
 import de.zft2.gbanking.db.StatementsConfig.ResultType;
@@ -26,11 +25,7 @@ public class MoneyTransferProtocolMapper extends AbstractDaoMapper<MoneyTransfer
 		ps.setInt(1, protocol.getMoneyTransferId());
 		ps.setInt(2, protocol.getMoneytransferStatus().getDbStateId());
 		ps.setString(3, format(protocol.getTimeStart()));
-		if (protocol.getTimeFinish() != null) {
-			ps.setString(4, format(protocol.getTimeFinish()));
-		} else {
-			ps.setNull(4, Types.VARCHAR);
-		}
+		ps.setString(4, format(protocol.getTimeFinish()));
 		ps.setString(5, protocol.getBankOrderId());
 		ps.setString(6, protocol.getHbciJobId());
 		setEnumNullable(7, protocol.getSepaOrderStatus(), ps);

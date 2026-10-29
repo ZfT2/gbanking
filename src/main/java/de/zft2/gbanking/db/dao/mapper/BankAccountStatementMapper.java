@@ -3,7 +3,6 @@ package de.zft2.gbanking.db.dao.mapper;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Types;
 
 import de.zft2.gbanking.db.StatementsConfig.ResultType;
 import de.zft2.gbanking.db.dao.BankAccountStatement;
@@ -33,11 +32,7 @@ public class BankAccountStatementMapper extends AbstractDaoMapper<BankAccountSta
 		ps.setString(index++, statement.getBic());
 		ps.setString(index++, statement.getSourceJob());
 		ps.setBoolean(index++, statement.isReceiptAvailable());
-		if (statement.getReceipt() != null) {
-			ps.setBytes(index++, statement.getReceipt());
-		} else {
-			ps.setNull(index++, Types.BLOB);
-		}
+		ps.setBytes(index++, statement.getReceipt());
 		ps.setBoolean(index++, statement.isAcknowledged());
 		ps.setString(index++, TypeConverter.toDateTimeString(statement.getAcknowledgedAt()));
 		ps.setTimestamp(index++, TypeConverter.toSqlTimestampNow());

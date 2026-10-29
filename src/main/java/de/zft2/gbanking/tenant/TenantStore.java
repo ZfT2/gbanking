@@ -4,14 +4,9 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
-import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -25,6 +20,8 @@ import org.apache.logging.log4j.Logger;
 import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.logging.SensitiveDataMasker;
 import de.zft2.gbanking.util.AppPaths;
+import de.zft2.gbanking.util.FileCleanup;
+import de.zft2.gbanking.util.FileMoves;
 import de.zft2.gbanking.util.PropertiesFileSupport;
 
 public class TenantStore implements BaseMessages {
@@ -265,7 +262,7 @@ public class TenantStore implements BaseMessages {
 
 		try {
 			log.debug("Deleting tenant directory: {}", normalizedDirectory);
-			Files.walkFileTree(normalizedDirectory, new DeleteDirectoryVisitor());
+			FileCleanup.deleteTree(normalizedDirectory);
 		} catch (IOException exception) {
 			throw new IllegalStateException(getText("UI_ERROR_TENANT_DELETE_DIRECTORY"), exception);
 		}
@@ -423,7 +420,7 @@ public class TenantStore implements BaseMessages {
 			try (FileChannel channel = FileChannel.open(tempRegistryFile, StandardOpenOption.WRITE)) {
 				channel.force(true);
 			}
-			moveRegistryFile(tempRegistryFile);
+			FileMoves.replaceAtomically(tempRegistryFile, registryFile);
 		} catch (IOException e) {
 			throw new IllegalStateException(getText("UI_ERROR_TENANT_SAVE"), e);
 		} finally {
@@ -432,32 +429,6 @@ public class TenantStore implements BaseMessages {
 			} catch (IOException e) {
 				log.warn("Could not delete temporary tenant registry file", e);
 			}
-		}
-	}
-
-	private void moveRegistryFile(Path tempRegistryFile) throws IOException {
-		try {
-			Files.move(tempRegistryFile, registryFile, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-		} catch (AtomicMoveNotSupportedException e) {
-			throw new IOException("Atomic tenant registry replacement is not supported", e);
-		}
-	}
-
-	private static final class DeleteDirectoryVisitor extends SimpleFileVisitor<Path> {
-
-		@Override
-		public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-			Files.deleteIfExists(file);
-			return FileVisitResult.CONTINUE;
-		}
-
-		@Override
-		public FileVisitResult postVisitDirectory(Path dir, IOException exception) throws IOException {
-			if (exception != null) {
-				throw exception;
-			}
-			Files.deleteIfExists(dir);
-			return FileVisitResult.CONTINUE;
 		}
 	}
 

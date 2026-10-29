@@ -3,15 +3,14 @@ package de.zft2.gbanking.tenant;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 
 import de.zft2.gbanking.db.DBController;
+import de.zft2.gbanking.db.SqliteSidecarFiles;
 
 public class TenantDatabaseLifecycleManager {
 
 	private static final ProgressReporter NO_PROGRESS = (completedSteps, totalSteps, messageKey) -> {
 	};
-	private static final List<String> SQLITE_SIDECAR_SUFFIXES = List.of("-journal", "-wal", "-shm");
 
 	private final TenantEncryptionManager encryptionManager;
 
@@ -73,8 +72,7 @@ public class TenantDatabaseLifecycleManager {
 	}
 
 	static void removeSqliteSidecars(Path databaseFile) throws IOException {
-		for (String suffix : SQLITE_SIDECAR_SUFFIXES) {
-			Path sidecar = databaseFile.resolveSibling(databaseFile.getFileName() + suffix);
+		for (Path sidecar : SqliteSidecarFiles.of(databaseFile)) {
 			Files.deleteIfExists(sidecar);
 			if (Files.exists(sidecar)) {
 				throw new IOException("SQLite sidecar file could not be removed: " + sidecar.getFileName());
@@ -83,12 +81,7 @@ public class TenantDatabaseLifecycleManager {
 	}
 
 	private boolean hasSqliteSidecars(Path databaseFile) {
-		for (String suffix : SQLITE_SIDECAR_SUFFIXES) {
-			if (Files.exists(databaseFile.resolveSibling(databaseFile.getFileName() + suffix))) {
-				return true;
-			}
-		}
-		return false;
+		return SqliteSidecarFiles.of(databaseFile).stream().anyMatch(sidecar -> Files.exists(sidecar));
 	}
 
 	public record OpenResult(boolean recoveredPlaintext, boolean sqliteRecoveryRequired) {

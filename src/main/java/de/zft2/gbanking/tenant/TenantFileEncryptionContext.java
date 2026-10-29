@@ -3,13 +3,13 @@ package de.zft2.gbanking.tenant;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Comparator;
 import java.util.Objects;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.util.AppPaths;
+import de.zft2.gbanking.util.FileCleanup;
 
 public final class TenantFileEncryptionContext {
 
@@ -89,13 +89,8 @@ public final class TenantFileEncryptionContext {
 	}
 
 	private static void clearDecryptedStatements() {
-		if (decryptedStatementsDirectory == null || !Files.exists(decryptedStatementsDirectory)) {
-			return;
-		}
-		try (var paths = Files.walk(decryptedStatementsDirectory)) {
-			for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
-				Files.deleteIfExists(path);
-			}
+		try {
+			FileCleanup.deleteTree(decryptedStatementsDirectory);
 		} catch (IOException exception) {
 			log.warn("Could not completely remove temporarily decrypted account statements", exception);
 		}

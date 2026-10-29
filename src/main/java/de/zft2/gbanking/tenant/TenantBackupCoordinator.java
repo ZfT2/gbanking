@@ -7,12 +7,10 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayDeque;
-import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -21,6 +19,7 @@ import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.DbRuntimeContext;
+import de.zft2.gbanking.util.FileCleanup;
 
 public final class TenantBackupCoordinator {
 
@@ -273,22 +272,11 @@ public final class TenantBackupCoordinator {
 
 	private static boolean deleteTreeQuietly(Path directory) {
 		try {
-			deleteTree(directory);
+			FileCleanup.deleteTree(directory);
 			return true;
 		} catch (IOException failure) {
 			log.warn("Could not delete temporary tenant restore directory {}", directory, failure);
 			return false;
-		}
-	}
-
-	private static void deleteTree(Path directory) throws IOException {
-		if (directory == null || !Files.exists(directory, LinkOption.NOFOLLOW_LINKS)) {
-			return;
-		}
-		try (Stream<Path> paths = Files.walk(directory)) {
-			for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
-				Files.deleteIfExists(path);
-			}
 		}
 	}
 
@@ -377,7 +365,7 @@ public final class TenantBackupCoordinator {
 			}
 			encryptionManager.moveAtomically(preparedBackup.statementsDirectory(), statementsDirectory);
 			rollbackSteps.push(() -> {
-				deleteTree(statementsDirectory);
+				FileCleanup.deleteTree(statementsDirectory);
 				if (!statementsExisted) {
 					Files.createDirectories(statementsDirectory);
 				}

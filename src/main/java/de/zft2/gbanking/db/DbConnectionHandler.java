@@ -24,6 +24,7 @@ import de.zft2.gbanking.db.repository.SqlTemplateRepository;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.tenant.TenantPaths;
 import de.zft2.gbanking.util.AppPaths;
+import de.zft2.gbanking.util.FileCleanup;
 import de.zft2.gbanking.util.FileMoves;
 
 abstract class DbConnectionHandler {
@@ -577,7 +578,7 @@ abstract class DbConnectionHandler {
 					update ? "Updated" : "Initialized", instituteDbFile);
 			return true;
 		} catch (IOException exception) {
-			deleteTemporaryInstituteDatabase(temporaryFile, exception);
+			FileCleanup.deleteAfterFailure(temporaryFile, exception);
 			log.error("Could not install bundled institute database at {}", instituteDbFile, exception);
 			return update;
 		}
@@ -611,14 +612,6 @@ abstract class DbConnectionHandler {
 		}
 		VALIDATIONS.remember(databaseFile, false, latestUpdate);
 		return Optional.ofNullable(latestUpdate);
-	}
-
-	private static void deleteTemporaryInstituteDatabase(Path temporaryFile, IOException originalFailure) {
-		try {
-			Files.deleteIfExists(temporaryFile);
-		} catch (IOException cleanupFailure) {
-			originalFailure.addSuppressed(cleanupFailure);
-		}
 	}
 
 	private static boolean ensureInstituteDatabaseSchema(Connection targetConnection) throws SQLException {

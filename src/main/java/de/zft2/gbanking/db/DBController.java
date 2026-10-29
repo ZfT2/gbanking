@@ -3,7 +3,6 @@ package de.zft2.gbanking.db;
 import java.nio.file.Path;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -323,8 +322,7 @@ public class DBController extends DbExecutor {
 							statement.setInt(3, recipientId);
 						});
 			} catch (SQLException exception) {
-				log.error(getText(SqlErrors.ERROR_DB_UPDATE), exception);
-				throw new GBankingException(getText(SqlErrors.ERROR_DB_UPDATE), exception);
+				throw databaseFailure(getText(SqlErrors.ERROR_DB_UPDATE), exception);
 			}
 		});
 	}
@@ -346,8 +344,7 @@ public class DBController extends DbExecutor {
 							statement -> statement.setInt(1, booking.getId()));
 				}
 			} catch (SQLException exception) {
-				log.error(getText(SqlErrors.ERROR_DB_UPDATE), exception);
-				throw new GBankingException(getText(SqlErrors.ERROR_DB_UPDATE), exception);
+				throw databaseFailure(getText(SqlErrors.ERROR_DB_UPDATE), exception);
 			}
 		});
 	}
@@ -375,10 +372,9 @@ public class DBController extends DbExecutor {
 							statement.setInt(2, categoryRule.getId());
 							statement.setInt(3, bookingId);
 						});
-				return sumUpdatedRows(updateCounts) > 0;
+				return countUpdatedRows(updateCounts) > 0;
 			} catch (SQLException exception) {
-				log.error(getText(SqlErrors.ERROR_DB_UPDATE), exception);
-				throw new GBankingException(getText(SqlErrors.ERROR_DB_UPDATE), exception);
+				throw databaseFailure(getText(SqlErrors.ERROR_DB_UPDATE), exception);
 			}
 		});
 	}
@@ -404,15 +400,14 @@ public class DBController extends DbExecutor {
 
 			try {
 				Timestamp updatedAt = TypeConverter.toSqlTimestampNow();
-				return sumUpdatedRows(jdbc().batch(sql, normalizedBookingIds, (statement, bookingId) -> {
+				return countUpdatedRows(jdbc().batch(sql, normalizedBookingIds, (statement, bookingId) -> {
 					statement.setTimestamp(1, updatedAt);
 					for (int index = 2; index <= bookingIdParameterCount + 1; index++) {
 						statement.setInt(index, bookingId);
 					}
 				}));
 			} catch (SQLException exception) {
-				log.error(getText(SqlErrors.ERROR_DB_UPDATE), exception);
-				throw new GBankingException(getText(SqlErrors.ERROR_DB_UPDATE), exception);
+				throw databaseFailure(getText(SqlErrors.ERROR_DB_UPDATE), exception);
 			}
 		});
 	}
@@ -429,19 +424,6 @@ public class DBController extends DbExecutor {
 		return normalizedIds;
 	}
 
-	private static int sumUpdatedRows(int[] updateCounts) {
-		int total = 0;
-		for (int updateCount : updateCounts) {
-			if (updateCount == Statement.EXECUTE_FAILED) {
-				throw new GBankingException("Database batch update failed");
-			}
-			if (updateCount > 0) {
-				total += updateCount;
-			}
-		}
-		return total;
-	}
-	
 	public void insertOrUpdatePD(BankAccess bankAccess) {
 		withDbTransaction(() -> {
 			StatementsLogic<BankAccess> logic = StatementsConfig.getLogicForDaoType(BankAccess.class);

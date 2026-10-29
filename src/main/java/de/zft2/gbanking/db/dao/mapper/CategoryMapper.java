@@ -17,11 +17,7 @@ public class CategoryMapper extends AbstractDaoMapper<Category, Void> {
 	@Override
 	public void setParamsFull(Category category, PreparedStatement ps) throws SQLException {
 		ps.setString(1, category.getName());
-		if (category.getParentId() != null) {
-			ps.setInt(2, category.getParentId());
-		} else {
-			ps.setNull(2, java.sql.Types.INTEGER);
-		}
+		setIntegerNullable(2, category.getParentId(), ps);
 		ps.setTimestamp(3, TypeConverter.toSqlTimestampNow());
 		if (category.getId() > 0)
 			ps.setInt(4, category.getId());
@@ -30,18 +26,15 @@ public class CategoryMapper extends AbstractDaoMapper<Category, Void> {
 	@Override
 	public void setParamsFind(Category category, PreparedStatement ps) throws SQLException {
 		ps.setString(1, category.getName());
-		if (category.getParentId() != null) {
-			ps.setInt(2, category.getParentId());
-		} else {
-			ps.setNull(2, java.sql.Types.INTEGER);
-		}
+		setIntegerNullable(2, category.getParentId(), ps);
 	}
 
 	@Override
 	void mapDao(Category category, ResultType resultType, ResultSet rs) throws SQLException {
 
-		if (rs.getInt("parent_id") > 0) {
-			category.setParentId(rs.getInt("parent_id"));
+		int parentId = rs.getInt("parent_id");
+		if (parentId > 0) {
+			category.setParentId(parentId);
 		}
 		String name = rs.getString("name");
 		if (name != null) {

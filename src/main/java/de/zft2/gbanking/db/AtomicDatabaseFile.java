@@ -6,11 +6,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.sql.SQLException;
-import java.util.List;
 
 final class AtomicDatabaseFile {
-
-	private static final List<String> SQLITE_SIDECAR_SUFFIXES = List.of("-journal", "-wal", "-shm");
 
 	private AtomicDatabaseFile() {
 	}
@@ -50,8 +47,8 @@ final class AtomicDatabaseFile {
 
 	private static void cleanup(Path stagingFile, Exception originalFailure) throws IOException {
 		IOException cleanupFailure = null;
-		for (String suffix : SQLITE_SIDECAR_SUFFIXES) {
-			cleanupFailure = delete(stagingFile.resolveSibling(stagingFile.getFileName() + suffix), cleanupFailure);
+		for (Path sidecar : SqliteSidecarFiles.of(stagingFile)) {
+			cleanupFailure = delete(sidecar, cleanupFailure);
 		}
 		cleanupFailure = delete(stagingFile, cleanupFailure);
 		if (cleanupFailure != null) {

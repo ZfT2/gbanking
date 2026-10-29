@@ -34,18 +34,10 @@ public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> 
 		ps.setString(6, moneytransfer.getEndToEndId());
 		ps.setBigDecimal(7, moneytransfer.getAmount());
 		ps.setString(8, TypeConverter.toDateStringShort(moneytransfer.getExecutionDate()));
-		if (moneytransfer.getExecutionDay() != null) {
-			ps.setInt(9, moneytransfer.getExecutionDay());
-		} else {
-			ps.setNull(9, java.sql.Types.INTEGER);
-		}
+		setIntegerNullable(9, moneytransfer.getExecutionDay(), ps);
 		ps.setInt(10, moneytransfer.getMoneytransferStatus().getDbStateId());
 		setEnumNullable(11, moneytransfer.getStandingorderMode(), ps);
-		if (moneytransfer.getHistoryorderId() != null) {
-			ps.setInt(12, moneytransfer.getHistoryorderId());
-		} else {
-			ps.setNull(12, java.sql.Types.INTEGER);
-		}
+		setIntegerNullable(12, moneytransfer.getHistoryorderId(), ps);
 		ps.setTimestamp(13, TypeConverter.toSqlTimestampNow());
 		if (moneytransfer.getId() > 0)
 			ps.setInt(14, moneytransfer.getId());
@@ -63,14 +55,12 @@ public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> 
 		Currency currency = getEnumNullable("currency", Currency.class, rs);
 		moneytransfer.setCurrency(currency != null ? currency.name() : null);
 		moneytransfer.setExecutionDate(TypeConverter.toLocalDateFromDateStrShort(rs.getString("executionDate")));
-		int executionDay = rs.getInt("executionDay");
-		moneytransfer.setExecutionDay(rs.wasNull() ? null : executionDay);
+		moneytransfer.setExecutionDay(getIntegerNullable("executionDay", rs));
 		moneytransfer.setMoneytransferStatus(MoneyTransferStatus.forInt(rs.getInt("moneytransferStatus")));
 		moneytransfer.setStandingorderMode(getEnumNullable("standingorderMode", StandingorderMode.class, rs));
 		moneytransfer.setBankOrderId(rs.getString("bankOrderId"));
 		moneytransfer.setSepaOrderStatus(getEnumNullable("sepaOrderStatus", SepaOrderStatus.class, rs));
-		int historyOrderId = rs.getInt("historyorder_id");
-		moneytransfer.setHistoryorderId(rs.wasNull() ? null : historyOrderId);
+		moneytransfer.setHistoryorderId(getIntegerNullable("historyorder_id", rs));
 
 		Recipient recipient = new Recipient();
 		recipient.setId(rs.getInt("r_id"));
