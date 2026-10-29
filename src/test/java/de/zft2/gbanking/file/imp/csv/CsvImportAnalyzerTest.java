@@ -3,17 +3,22 @@ package de.zft2.gbanking.file.imp.csv;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer.Analysis;
 import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer.Match;
 import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer.Problem;
@@ -315,6 +320,34 @@ class CsvImportAnalyzerTest {
 		Match match = analyzer.analyze(csv).matches().get(0);
 
 		assertEquals("Preis in €", analyzer.read(csv, match.definition()).rows().get(0).text("Zweck"));
+	}
+
+	@Test
+	void headerReaderShouldReadFileOnceAndValidateRowsLikeRead() throws Exception {
+		Path definitionFile = tempDir.resolve("header-reader.properties");
+		Files.writeString(definitionFile, """
+				[Buchung: Semicolon]
+				Betrag=Betrag
+				Zweck=Zweck
+
+				[Buchung: Comma]
+				Extra.Header=Betrag
+				Extra.Separator=,
+
+				[Buchung: Headerless]
+				Extra.Header=Betrag
+				""".stripIndent(), StandardCharsets.UTF_8);
+		Map<String, CsvImportDefinition> definitions = new CsvImportDefinitionRepository(definitionFile).load().stream()
+				.collect(Collectors.toMap(definition -> definition.getName(), Function.identity()));
+		Path csv = csv("Betrag;Zweck" + System.lineSeparator() + "12;Test");
+		CsvImportDataReader.HeaderReader headerReader = new CsvImportDataReader().headerReader(csv);
+
+		assertEquals(Set.of("Betrag", "Zweck"), headerReader.headers(definitions.get("Buchung: Semicolon")));
+		// Further formats are parsed from the content read before
+		Files.delete(csv);
+		assertEquals(Set.of("Betrag"), headerReader.headers(definitions.get("Buchung: Comma")));
+		CsvImportDefinition headerless = definitions.get("Buchung: Headerless");
+		assertThrows(GBankingException.class, () -> headerReader.headers(headerless));
 	}
 
 	private CsvImportAnalyzer analyzer(String definitions) throws Exception {

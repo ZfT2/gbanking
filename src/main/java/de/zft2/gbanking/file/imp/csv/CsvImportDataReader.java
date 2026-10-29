@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -28,11 +29,12 @@ public class CsvImportDataReader {
 	private static final Charset FALLBACK_CHARSET = Charset.forName("windows-1252");
 
 	public CsvImportData read(Path importFile, CsvImportDefinition definition) throws IOException {
-		String content = readText(importFile, definition.getCharset());
-		CSVFormat format = CSVFormat.DEFAULT.builder().setDelimiter(definition.getSeparator()).setTrim(true).get();
-		try (CSVParser parser = format.parse(new StringReader(content))) {
-			return mapRecords(parser.getRecords(), definition);
-		}
+		Layout layout = layout(parse(readText(importFile, definition.getCharset()), definition.getSeparator()), definition);
+		return new CsvImportData(nonBlankHeaders(layout.headers()), mapRows(layout.dataRecords(), layout.headers()));
+	}
+
+	HeaderReader headerReader(Path importFile) {
+		return new HeaderReader(importFile);
 	}
 
 	/**
@@ -45,7 +47,10 @@ public class CsvImportDataReader {
 	 * @throws IOException if the file cannot be read
 	 */
 	public static String readText(Path file, Charset charset) throws IOException {
-		byte[] content = Files.readAllBytes(file);
+		return decode(Files.readAllBytes(file), charset);
+	}
+
+	private static String decode(byte[] content, Charset charset) {
 		if (charset != null) {
 			return removeLeadingBom(new String(content, charset));
 		}
@@ -56,34 +61,38 @@ public class CsvImportDataReader {
 		}
 	}
 
-	private CsvImportData mapRecords(List<CSVRecord> allRecords, CsvImportDefinition definition) {
+	private static List<CSVRecord> parse(String content, char separator) throws IOException {
+		CSVFormat format = CSVFormat.DEFAULT.builder().setDelimiter(separator).setTrim(true).get();
+		try (CSVParser parser = format.parse(new StringReader(content))) {
+			return parser.getRecords();
+		}
+	}
+
+	/** Applies leading/trailing rows and the header of the definition and validates headers and column counts. */
+	private Layout layout(List<CSVRecord> allRecords, CsvImportDefinition definition) {
 		int firstRecord = Math.min(definition.getLeadingRows(), allRecords.size());
 		int lastRecord = Math.max(firstRecord, allRecords.size() - definition.getTrailingRows());
 		List<CSVRecord> records = allRecords.subList(firstRecord, lastRecord);
 		if (records.isEmpty()) {
-			return new CsvImportData(Set.of(), List.of());
+			return new Layout(List.of(), List.of());
 		}
 
-		List<String> headers;
-		int firstDataRecord;
-		if (definition.hasConfiguredHeader()) {
-			headers = definition.getExtraHeaders();
-			firstDataRecord = 0;
-		} else {
-			headers = values(records.get(0));
-			firstDataRecord = 1;
-		}
+		boolean configuredHeader = definition.hasConfiguredHeader();
+		List<String> headers = configuredHeader ? definition.getExtraHeaders() : values(records.get(0));
+		List<CSVRecord> dataRecords = records.subList(configuredHeader ? 0 : 1, records.size());
 		validateHeaders(headers, definition);
-		return new CsvImportData(nonBlankHeaders(headers), mapRows(records.subList(firstDataRecord, records.size()), headers, definition));
-	}
-
-	private List<CsvImportData.Row> mapRows(List<CSVRecord> records, List<String> headers, CsvImportDefinition definition) {
-		List<CsvImportData.Row> rows = new ArrayList<>(records.size());
-		for (CSVRecord csvRecord : records) {
+		for (CSVRecord csvRecord : dataRecords) {
 			if (csvRecord.size() > headers.size()) {
 				throw new GBankingException("CSV row " + csvRecord.getRecordNumber() + " contains more columns than definition '"
 						+ definition.getName() + "'.");
 			}
+		}
+		return new Layout(headers, dataRecords);
+	}
+
+	private List<CsvImportData.Row> mapRows(List<CSVRecord> records, List<String> headers) {
+		List<CsvImportData.Row> rows = new ArrayList<>(records.size());
+		for (CSVRecord csvRecord : records) {
 			Map<String, String> values = new LinkedHashMap<>();
 			for (int index = 0; index < headers.size(); index++) {
 				String header = headers.get(index);
@@ -117,6 +126,40 @@ public class CsvImportDataReader {
 			values.add(value.trim());
 		}
 		return List.copyOf(values);
+	}
+
+	private record Layout(List<String> headers, List<CSVRecord> dataRecords) {
+	}
+
+	private record Format(Charset charset, char separator) {
+	}
+
+	/**
+	 * Inspects one file with many definitions: the file is read once and parsed once per charset and separator,
+	 * and data rows are validated like in {@link CsvImportDataReader#read} but not mapped.
+	 */
+	final class HeaderReader {
+
+		private final Path importFile;
+		private final Map<Format, List<CSVRecord>> recordsByFormat = new HashMap<>();
+		private byte[] content;
+
+		private HeaderReader(Path importFile) {
+			this.importFile = importFile;
+		}
+
+		Set<String> headers(CsvImportDefinition definition) throws IOException {
+			Format format = new Format(definition.getCharset(), definition.getSeparator());
+			List<CSVRecord> records = recordsByFormat.get(format);
+			if (records == null) {
+				if (content == null) {
+					content = Files.readAllBytes(importFile);
+				}
+				records = parse(decode(content, format.charset()), format.separator());
+				recordsByFormat.put(format, records);
+			}
+			return nonBlankHeaders(layout(records, definition).headers());
+		}
 	}
 
 }

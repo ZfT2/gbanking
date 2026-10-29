@@ -44,10 +44,10 @@ public class CsvImportAnalyzer {
 
 	private Analysis analyze(Path importFile, Predicate<CsvImportDefinition> filter) throws IOException {
 		List<Match> inspected = new ArrayList<>();
+		CsvImportDataReader.HeaderReader headerReader = dataReader.headerReader(importFile);
 		for (CsvImportDefinition definition : repository.load().stream().filter(filter).toList()) {
 			try {
-				CsvImportData data = dataReader.read(importFile, definition);
-				inspected.add(toMatch(definition, data.headers()));
+				inspected.add(toMatch(definition, headerReader.headers(definition)));
 			} catch (GBankingException | UncheckedIOException exception) {
 				// A definition using another separator or a fixed header may not be able to parse this file.
 			}
@@ -67,7 +67,7 @@ public class CsvImportAnalyzer {
 	public Match match(Path importFile, String definitionName) throws IOException {
 		for (CsvImportDefinition definition : repository.load()) {
 			if (definition.getName().equals(definitionName)) {
-				return toMatch(definition, dataReader.read(importFile, definition).headers());
+				return toMatch(definition, dataReader.headerReader(importFile).headers(definition));
 			}
 		}
 		return null;
