@@ -3,7 +3,12 @@ package de.zft2.gbanking.db.enu;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 public final class IdTypeLookup {
+
+	private static final Logger log = LogManager.getLogger(IdTypeLookup.class);
 
 	private IdTypeLookup() {
 	}
@@ -21,6 +26,10 @@ public final class IdTypeLookup {
 			for (Object enumConstant : enumConstants) {
 				IdType idType = (IdType) enumConstant;
 
+				// 0 is reserved for "no value": ResultSet.getInt() returns 0 for SQL NULL.
+				if (idType.getDbStateId() <= 0) {
+					throw new IllegalStateException("Non-positive dbStateId " + idType.getDbStateId() + " in enum " + type.getName());
+				}
 				IdType previous = map.put(idType.getDbStateId(), idType);
 				if (previous != null) {
 					throw new IllegalStateException("Duplicate dbStateId " + idType.getDbStateId() + " in enum " + type.getName());
@@ -33,6 +42,9 @@ public final class IdTypeLookup {
 
 	public static <E extends Enum<E> & IdType> E forId(Class<E> enumClass, int id) {
 		IdType value = CACHE.get(enumClass).get(id);
-		return value == null ? null : enumClass.cast(value);
+		if (value == null && id != 0) {
+			log.warn("Unknown dbStateId {} for enum {}", id, enumClass.getName());
+		}
+		return enumClass.cast(value);
 	}
 }
