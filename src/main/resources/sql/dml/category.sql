@@ -17,9 +17,6 @@ WITH RECURSIVE category_tree (id, parent_id, "singleName", name, updatedAt)  AS 
 [SQL_SELECT_ALL_CATEGORIES_FULL]
 ${SQL_SELECT_CATEGORY_RECURSIVE_WITH} SELECT id, parent_id, singleName as name, name AS fullName, updatedAt FROM category_tree;
 
-[SQL_SELECT_ID_CATEGORY_BY_NAME]
-SELECT cg.id FROM category cg WHERE cg.name = ?;
-
 [SQL_INSERT_CATEGORY]
 INSERT INTO category (name, parent_id, updatedAt) VALUES (?, ?, ?);
 

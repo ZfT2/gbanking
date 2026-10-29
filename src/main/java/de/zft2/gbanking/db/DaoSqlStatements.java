@@ -152,7 +152,6 @@ public final class DaoSqlStatements {
     static final String SQL_SELECT_ID_BANKACCOUNT_STATEMENT_BY_ID = dml("SQL_SELECT_ID_BANKACCOUNT_STATEMENT_BY_ID");
     static final String SQL_SELECT_ID_BANK_MESSAGE_BY_ID = dml("SQL_SELECT_ID_BANK_MESSAGE_BY_ID");
     static final String SQL_SELECT_ID_CATEGORYRULE = dml("SQL_SELECT_ID_CATEGORYRULE");
-    static final String SQL_SELECT_ID_CATEGORY_BY_NAME = dml("SQL_SELECT_ID_CATEGORY_BY_NAME");
     static final String SQL_SELECT_ID_IMPORT_HISTORY_BY_ID = dml("SQL_SELECT_ID_IMPORT_HISTORY_BY_ID");
     static final String SQL_SELECT_ID_INSTIUTE_BY_ID = dml("SQL_SELECT_ID_INSTIUTE_BY_ID");
     static final String SQL_SELECT_ID_MONEYTRANSFER_BY_ID_AND_ACCOUNT_ID = dml("SQL_SELECT_ID_MONEYTRANSFER_BY_ID_AND_ACCOUNT_ID");
@@ -303,7 +302,6 @@ public final class DaoSqlStatements {
 
     static final Map<StatementType, String> CATEGORY_SQL = Map.of(
             StatementType.SELECT_ALL, SQL_SELECT_ALL_CATEGORIES_FULL,
-            StatementType.SELECT_ID, SQL_SELECT_ID_CATEGORY_BY_NAME,
             StatementType.SELECT_FIND, SQL_FIND_CATEGORY,
             StatementType.INSERT, SQL_INSERT_CATEGORY,
             StatementType.UPDATE, SQL_UPDATE_CATEGORY,

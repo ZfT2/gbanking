@@ -23,11 +23,6 @@ public class StatementsLogicCategory extends StatementsLogicDefault<Category> im
 	private static final Logger log = LogManager.getLogger(StatementsLogicCategory.class);
 
 	@Override
-	public SqlParameter getSqlParameter(Category cg) {
-		return new SqlParameter(cg.getFullName(), null);
-	}
-	
-	@Override
 	public Category insertOrUpdateSingle(Category category) {
 		log.debug("insertOrUpdate()");
 		return insertSubCategory(category);
