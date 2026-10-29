@@ -26,7 +26,6 @@ import org.kapott.hbci.status.HBCIExecStatus;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankMessage;
 import de.zft2.gbanking.hbci.HbciJobSupport;
-import de.zft2.gbanking.hbci.HbciStatusMessageExtractor;
 import de.zft2.gbanking.logging.GBankingLoggingHandler;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.HbciSessionRunner;
@@ -55,15 +54,8 @@ public class BankMessageService extends AbstractDbService {
 	}
 
 	public BankMessageRetrievalResult retrieveBankMessagesWithResult(BankAccess bankAccess, char[] pin) {
-		log.info("Starting HBCI bank message retrieval for bank access id {}", bankAccess != null ? bankAccess.getId() : null);
 		BankAccess retrievalAccess = initBankAccess(bankAccess, pin);
-		if (retrievalAccess == null) {
-			log.info("HBCI bank message retrieval skipped, no bank access available.");
-			HbciSessionRunner.clearSecret(pin);
-			return BankMessageRetrievalResult.failure();
-		}
-
-		return hbciSessionRunner.runGuarded("bank message retrieval for bank access id", retrievalAccess.getId(),
+		return hbciSessionRunner.runGuarded("bank message retrieval for bank access id", bankAccess != null ? bankAccess.getId() : null,
 				retrievalAccess, pin,
 				session -> {
 					BankMessageRetrievalResult result = retrieveBankMessages(retrievalAccess, session);
@@ -121,8 +113,7 @@ public class BankMessageService extends AbstractDbService {
 		List<BankMessage> savedMessages = saveInstitutionMessages(bankAccess, session.callback().drainInstitutionMessages());
 		if (!status.isOK()) {
 			log.error("HBCI institution message retrieval error, status: {}", status);
-			session.callback().handleFailure(status.getErrorString());
-			return HbciStatusMessageExtractor.containsWrongPinFeedback(status) ? BankMessageRetrievalResult.wrongPinFailure()
+			return session.reportFailure(status) ? BankMessageRetrievalResult.wrongPinFailure()
 					: BankMessageRetrievalResult.failure(savedMessages);
 		}
 		return BankMessageRetrievalResult.success(savedMessages);
@@ -137,11 +128,7 @@ public class BankMessageService extends AbstractDbService {
 		HBCIExecStatus status = session.handler().execute();
 		if (!status.isOK()) {
 			log.error("HBCI bank message overview error, status: {}", status);
-			session.callback().handleFailure(status.getErrorString());
-			if (HbciStatusMessageExtractor.containsWrongPinFeedback(status)) {
-				return BankMessageOverviewResult.wrongPinFailure();
-			}
-			return BankMessageOverviewResult.failure();
+			return session.reportFailure(status) ? BankMessageOverviewResult.wrongPinFailure() : BankMessageOverviewResult.failure();
 		}
 
 		GVRInfoList result = infoListJob.getJobResult();
@@ -169,11 +156,7 @@ public class BankMessageService extends AbstractDbService {
 		HBCIExecStatus status = session.handler().execute();
 		if (!status.isOK()) {
 			log.error("HBCI bank message details error, status: {}", status);
-			session.callback().handleFailure(status.getErrorString());
-			if (HbciStatusMessageExtractor.containsWrongPinFeedback(status)) {
-				return BankMessageDetailsResult.wrongPinFailure();
-			}
-			return BankMessageDetailsResult.failure(Map.of());
+			return session.reportFailure(status) ? BankMessageDetailsResult.wrongPinFailure() : BankMessageDetailsResult.failure(Map.of());
 		}
 
 		Map<String, String> messages = readDetailMessages(detailsJobs);

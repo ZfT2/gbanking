@@ -115,7 +115,6 @@ public class AccountTransactionService extends AbstractDbService {
 	}
 
 	private AccountTransactionRetrievalResult retrieveFintsAccountTransactions(BankAccount bankAccount, char[] pin) {
-		log.info("Starting HBCI account transaction retrieval for account id {}", bankAccount != null ? bankAccount.getId() : null);
 		String bankAccountId = getNullableBankAccountId(bankAccount);
 
 		try {
@@ -194,8 +193,7 @@ public class AccountTransactionService extends AbstractDbService {
 
 		if (!result) {
 			log.error("HBCI Error, Status: {}", status);
-			session.callback().handleFailure(status.getErrorString());
-			return toRetrievalResult(status);
+			return toRetrievalResult(status, session.reportFailure(status));
 		}
 
 		if (!hasSuccessfulUmsatzResult(umsatzJob)) {
@@ -271,9 +269,9 @@ public class AccountTransactionService extends AbstractDbService {
 		return pending.bookings().size();
 	}
 
-	private AccountTransactionRetrievalResult toRetrievalResult(HBCIExecStatus status) {
-		String errorMessage = toStoredError(status != null ? status.getErrorString() : null, ERROR_RETRIEVAL_FAILED);
-		return HbciStatusMessageExtractor.containsWrongPinFeedback(status) ? AccountTransactionRetrievalResult.wrongPinFailure(errorMessage)
+	private AccountTransactionRetrievalResult toRetrievalResult(HBCIExecStatus status, boolean wrongPin) {
+		String errorMessage = toStoredError(status.getErrorString(), ERROR_RETRIEVAL_FAILED);
+		return wrongPin ? AccountTransactionRetrievalResult.wrongPinFailure(errorMessage)
 				: AccountTransactionRetrievalResult.failure(errorMessage);
 	}
 

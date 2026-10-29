@@ -11,7 +11,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.kapott.hbci.GV.HBCIJob;
 import org.kapott.hbci.GV_Result.GVRStatus;
-import org.kapott.hbci.GV_Result.HBCIJobResult;
 import org.kapott.hbci.manager.HBCIHandler;
 import org.kapott.hbci.status.HBCIExecStatus;
 import org.kapott.hbci.status.HBCIRetVal;
@@ -47,7 +46,7 @@ class FinTsStatusProtocolService extends AbstractDbService {
 			LocalDateTime finish = LocalDateTime.now(ZoneId.systemDefault());
 			GVRStatus result = job.getJobResult();
 			GVRStatus.Entry entry = findEntry(result, normalizedJobId);
-			boolean requestSuccessful = entry != null && isBusinessResponseAvailable(executionStatus, result);
+			boolean requestSuccessful = entry != null && HbciExecutionAssessment.hasBusinessResponse(executionStatus, result);
 			MoneyTransferStatus resolvedStatus = requestSuccessful ? resolveTransferStatus(entry.retval) : null;
 			persistProtocol(moneyTransfer, normalizedJobId, start, finish, executionStatus, result, entry, resolvedStatus);
 			return new MoneyTransferStatusResolution(requestSuccessful, resolvedStatus);
@@ -84,11 +83,6 @@ class FinTsStatusProtocolService extends AbstractDbService {
 						&& Objects.equals(reference[2], entry.msgnum)
 						&& Objects.equals(reference[3], entry.retval.segref))
 				.findFirst().orElse(null);
-	}
-
-	private boolean isBusinessResponseAvailable(HBCIExecStatus executionStatus, HBCIJobResult result) {
-		return result != null && result.isOK()
-				&& (executionStatus != null && executionStatus.isOK() || HbciExecutionAssessment.isOnlyDialogEndFailure(executionStatus));
 	}
 
 	private MoneyTransferStatus resolveTransferStatus(HBCIRetVal returnValue) {

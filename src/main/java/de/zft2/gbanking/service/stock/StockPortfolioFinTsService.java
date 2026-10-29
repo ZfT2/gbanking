@@ -68,7 +68,6 @@ import de.zft2.gbanking.db.dao.stock.StockSecurityPriceSource;
 import de.zft2.gbanking.db.dao.stock.StockTransaction;
 import de.zft2.gbanking.db.dao.stock.StockTransactionSecurityLeg;
 import de.zft2.gbanking.exception.GBankingException;
-import de.zft2.gbanking.hbci.HbciStatusMessageExtractor;
 import de.zft2.gbanking.logging.GBankingLoggingHandler;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.HbciSessionRunner;
@@ -196,8 +195,7 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 		HBCIExecStatus status = session.handler().execute();
 		session.passport().saveChanges();
 		if (!status.isOK()) {
-			session.callback().handleFailure(status.getErrorString());
-			return HbciStatusMessageExtractor.containsWrongPinFeedback(status)
+			return session.reportFailure(status)
 					? StockPortfolioFinTsRetrievalResult.wrongPinFailure(status.getErrorString())
 					: StockPortfolioFinTsRetrievalResult.failure(status.getErrorString());
 		}

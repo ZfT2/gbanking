@@ -10,9 +10,11 @@ import org.kapott.hbci.exceptions.HBCI_Exception;
 import org.kapott.hbci.manager.HBCIHandler;
 import org.kapott.hbci.manager.HBCIUtils;
 import org.kapott.hbci.passport.HBCIPassport;
+import org.kapott.hbci.status.HBCIExecStatus;
 
 import de.zft2.gbanking.BaseMessagesDb;
 import de.zft2.gbanking.db.dao.BankAccess;
+import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
 import de.zft2.gbanking.hbci.HbciStatusMessageExtractor;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
@@ -44,34 +46,53 @@ public final class HbciSessionRunner {
 	 * service.
 	 *
 	 * <p>
-	 * An interrupted operation and a wrong PIN reported by the bank are the two failures that every
-	 * retrieval has to handle in the same way. The method takes over this handling, so that the
-	 * calling service only has to provide the results for these failures.
+	 * A missing bank access, an interrupted operation and a wrong PIN reported by the bank are the
+	 * failures that every retrieval has to handle in the same way. The method takes over this
+	 * handling, so that the calling service only has to provide the results for these failures.
 	 * </p>
 	 *
-	 * @param activity          the description of the running activity used for the log messages
-	 * @param entityId          the id of the affected entity used for the log messages
-	 * @param bankAccess        the bank access used for the session
-	 * @param secret            the secret of the bank access, it is cleared after the session
-	 * @param operation         the operation to execute within the session
-	 * @param wrongPinResult    the result used if the bank reported invalid PIN credentials
-	 * @param interruptedResult the result used if the operation was interrupted
+	 * @param activity       the description of the running activity used for the log messages
+	 * @param entityId       the id of the affected entity used for the log messages
+	 * @param bankAccess     the bank access used for the session, may be {@code null} if none is available
+	 * @param secret         the secret of the bank access, it is cleared after the session
+	 * @param operation      the operation to execute within the session
+	 * @param wrongPinResult the result used if the bank reported invalid PIN credentials
+	 * @param failureResult  the result used if no bank access is available or the operation was interrupted
 	 * @return the result of the operation or the result of the detected failure
 	 */
 	public <T> T runGuarded(String activity, Object entityId, BankAccess bankAccess, char[] secret,
-			HbciOperation<T> operation, Function<HBCI_Exception, T> wrongPinResult, Supplier<T> interruptedResult) {
+			HbciOperation<T> operation, Function<HBCI_Exception, T> wrongPinResult, Supplier<T> failureResult) {
+		log.info("Starting HBCI {} {}", activity, entityId);
+		if (bankAccess == null) {
+			log.info("HBCI {} {} skipped, no bank access available.", activity, entityId);
+			clearSecret(secret);
+			return failureResult.get();
+		}
 		try {
 			return run(bankAccess, secret, operation);
 		} catch (InterruptedException exception) {
 			log.error("Error handling HBCI {} {}", activity, entityId, exception);
 			Thread.currentThread().interrupt();
-			return interruptedResult.get();
+			return failureResult.get();
 		} catch (HBCI_Exception exception) {
 			if (HbciStatusMessageExtractor.containsWrongPinFeedback(exception)) {
 				log.warn("Stopping HBCI {} {} because the bank reported invalid PIN credentials.", activity, entityId);
 				return wrongPinResult.apply(exception);
 			}
 			throw exception;
+		}
+	}
+
+	/**
+	 * Runs an HBCI operation and converts an interruption into a {@link GBankingException} with the given message.
+	 */
+	public <T> T runOrFail(BankAccess bankAccess, char[] secret, HbciOperation<T> operation, String failureMessage) {
+		try {
+			return run(bankAccess, secret, operation);
+		} catch (InterruptedException exception) {
+			log.error("Interrupted HBCI operation: {}", failureMessage, exception);
+			Thread.currentThread().interrupt();
+			throw new GBankingException(failureMessage, exception);
 		}
 	}
 
@@ -118,6 +139,14 @@ public final class HbciSessionRunner {
 	}
 
 	public record HbciSession(GBankingHBCICallback callback, HBCIPassport passport, HBCIHandler handler) {
+
+		/**
+		 * Reports a failed execution in the status dialog and returns whether the bank reported invalid PIN credentials.
+		 */
+		public boolean reportFailure(HBCIExecStatus status) {
+			callback.handleFailure(status.getErrorString());
+			return HbciStatusMessageExtractor.containsWrongPinFeedback(status);
+		}
 	}
 
 	@FunctionalInterface

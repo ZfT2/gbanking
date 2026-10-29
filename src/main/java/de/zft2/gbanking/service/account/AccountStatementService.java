@@ -33,7 +33,6 @@ import org.kapott.hbci.passport.HBCIPassport;
 import org.kapott.hbci.status.HBCIExecStatus;
 import org.kapott.hbci.structures.Konto;
 
-import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.BankAccountStatement;
 import de.zft2.gbanking.db.dao.BusinessCase;
@@ -94,16 +93,9 @@ public class AccountStatementService extends AbstractDbService {
 	}
 
 	public AccountStatementRetrievalResult retrieveAccountStatementsWithResult(BankAccount bankAccount, char[] pin) {
-		log.info("Starting HBCI account statement retrieval for account id {}", bankAccount != null ? bankAccount.getId() : null);
-		BankAccess bankAccess = hbciSupport.initBankAccess(bankAccount, pin);
-		if (bankAccess == null) {
-			log.info("HBCI account statement retrieval skipped, no bank access available.");
-			HbciSessionRunner.clearSecret(pin);
-			return AccountStatementRetrievalResult.failure();
-		}
-
 		String bankAccountId = getNullableBankAccountId(bankAccount);
-		return hbciSessionRunner.runGuarded("account statement retrieval for account id", bankAccountId, bankAccess, pin,
+		return hbciSessionRunner.runGuarded("account statement retrieval for account id", bankAccountId,
+				hbciSupport.initBankAccess(bankAccount, pin), pin,
 				session -> {
 					AccountStatementRetrievalResult result = retrieveAccountStatements(bankAccount, session);
 					log.info("Finished HBCI account statement retrieval for account id {}, success={}, statements={}", bankAccountId,
@@ -115,17 +107,9 @@ public class AccountStatementService extends AbstractDbService {
 	}
 
 	public AccountStatementAcknowledgementResult acknowledgeAccountStatementsWithResult(BankAccount bankAccount, char[] pin) {
-		log.info("Starting HBCI account statement receipt acknowledgement for account id {}", bankAccount != null ? bankAccount.getId() : null);
-		BankAccess bankAccess = hbciSupport.initBankAccess(bankAccount, pin);
-		if (bankAccess == null) {
-			log.info("HBCI account statement receipt acknowledgement skipped, no bank access available.");
-			HbciSessionRunner.clearSecret(pin);
-			return AccountStatementAcknowledgementResult.failure();
-		}
-
 		String bankAccountId = getNullableBankAccountId(bankAccount);
 		return hbciSessionRunner.runGuarded("account statement receipt acknowledgement for account id", bankAccountId,
-				bankAccess, pin,
+				hbciSupport.initBankAccess(bankAccount, pin), pin,
 				session -> {
 					AccountStatementAcknowledgementResult result = acknowledgeAccountStatements(bankAccount, session);
 					log.info("Finished HBCI account statement receipt acknowledgement for account id {}, success={}, acknowledged={}", bankAccountId,
@@ -189,8 +173,7 @@ public class AccountStatementService extends AbstractDbService {
 		boolean resultOk = status.isOK();
 		if (!resultOk) {
 			log.error("HBCI account statement error, status: {}", status);
-			session.callback().handleFailure(status.getErrorString());
-			if (HbciStatusMessageExtractor.containsWrongPinFeedback(status)) {
+			if (session.reportFailure(status)) {
 				return StatementRetrievalBatchResult.wrongPinFailure();
 			}
 		}

@@ -131,16 +131,12 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 				return 0;
 			}
 
-			BankAccessService bankAccessService = ServiceRegistry.getService(BankAccessService.class);
-			BankAccess bankAccess = bankAccessService.initBankAccess(transferAccount, pin);
+			BankAccess bankAccess = ServiceRegistry.getService(BankAccessService.class).initBankAccess(transferAccount, pin);
 			if (bankAccess == null) {
 				return 0;
 			}
-			return hbciSessionRunner.run(bankAccess, pin,
-					session -> retrieveInstantPaymentStatuses(moneyTransfers, transferAccount, session));
-		} catch (InterruptedException exception) {
-			Thread.currentThread().interrupt();
-			throw new GBankingException(getText("EXCEPTION_MONEYTRANSFER_INSTANT_STATUS_RETRIEVAL"), exception);
+			return hbciSessionRunner.runOrFail(bankAccess, pin, session -> retrieveInstantPaymentStatuses(moneyTransfers, transferAccount, session),
+					getText("EXCEPTION_MONEYTRANSFER_INSTANT_STATUS_RETRIEVAL"));
 		} finally {
 			HbciSessionRunner.clearSecret(pin);
 		}

@@ -190,7 +190,7 @@ class InstantPaymentStatusService extends AbstractDbService {
 			HBCIExecStatus executionStatus = handler.execute();
 			LocalDateTime finish = LocalDateTime.now(ZoneId.systemDefault());
 			HBCIJobResult result = job.getJobResult();
-			StatusResponse response = toStatusResponse(result, bankOrderId, isSuccessful(executionStatus, result));
+			StatusResponse response = toStatusResponse(result, bankOrderId, HbciExecutionAssessment.hasBusinessResponse(executionStatus, result));
 			persistProtocol(moneyTransfer, start, finish, executionStatus, result, response);
 			return response;
 		} catch (RuntimeException exception) {
@@ -258,7 +258,7 @@ class InstantPaymentStatusService extends AbstractDbService {
 
 	private void persistProtocol(MoneyTransfer moneyTransfer, LocalDateTime start, LocalDateTime finish, HBCIExecStatus executionStatus,
 			HBCIJobResult result, StatusResponse response) {
-		boolean successful = isSuccessful(executionStatus, result);
+		boolean successful = HbciExecutionAssessment.hasBusinessResponse(executionStatus, result);
 		MoneyTransferStatus resolvedStatus = resolveTransferStatus(response);
 		MoneyTransferStatus status = resolvedStatus != null && moneyTransfer.getMoneytransferStatus() == MoneyTransferStatus.UNCERTAIN
 				? resolvedStatus : moneyTransfer.getMoneytransferStatus();
@@ -299,11 +299,6 @@ class InstantPaymentStatusService extends AbstractDbService {
 				response.sepaCancellationCode());
 		data.applyTo(protocol);
 		return protocol;
-	}
-
-	private boolean isSuccessful(HBCIExecStatus status, HBCIJobResult result) {
-		return result != null && result.isOK()
-				&& (status != null && status.isOK() || HbciExecutionAssessment.isOnlyDialogEndFailure(status));
 	}
 
 	private String createProtocolText(HBCIExecStatus executionStatus, HBCIJobResult result, StatusResponse response) {

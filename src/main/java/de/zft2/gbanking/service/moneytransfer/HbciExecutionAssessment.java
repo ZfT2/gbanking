@@ -2,6 +2,7 @@ package de.zft2.gbanking.service.moneytransfer;
 
 import java.util.List;
 
+import org.kapott.hbci.GV_Result.HBCIJobResult;
 import org.kapott.hbci.status.HBCIDialogStatus;
 import org.kapott.hbci.status.HBCIExecStatus;
 import org.kapott.hbci.status.HBCIMsgStatus;
@@ -9,6 +10,13 @@ import org.kapott.hbci.status.HBCIMsgStatus;
 final class HbciExecutionAssessment {
 
 	private HbciExecutionAssessment() {
+	}
+
+	/**
+	 * Checks whether the job delivered a successful business response, even if only the dialog end failed.
+	 */
+	static boolean hasBusinessResponse(HBCIExecStatus status, HBCIJobResult result) {
+		return result != null && result.isOK() && (status != null && status.isOK() || isOnlyDialogEndFailure(status));
 	}
 
 	static boolean isOnlyDialogEndFailure(HBCIExecStatus status) {

@@ -161,15 +161,8 @@ public class BankAccessService extends AbstractDbService {
 		log.info("Starting bank access setup for bank code {}",
 				bankAccess != null ? SensitiveDataMasker.maskIdentifier(bankAccess.getFints().getBlz()) : null);
 
-		try {
-			return new HbciSessionRunner().run(bankAccess, bankAccess != null ? bankAccess.getPin() : null,
-					session -> addNewBankAccess(bankAccess, session));
-		} catch (InterruptedException ex) {
-			log.error("Bank access setup failed for bank code {}",
-					bankAccess != null ? SensitiveDataMasker.maskIdentifier(bankAccess.getFints().getBlz()) : null, ex);
-			Thread.currentThread().interrupt();
-			throw new GBankingException(getText("EXCEPTION_ADD_BANKACCESS"), ex);
-		}
+		return new HbciSessionRunner().runOrFail(bankAccess, bankAccess != null ? bankAccess.getPin() : null,
+				session -> addNewBankAccess(bankAccess, session), getText("EXCEPTION_ADD_BANKACCESS"));
 	}
 
 	private boolean addNewBankAccess(BankAccess bankAccess, HbciSessionRunner.HbciSession session) {
@@ -221,13 +214,8 @@ public class BankAccessService extends AbstractDbService {
 		log.info("Starting BPD/UPD refresh for bank access id {}, bank code {}", refreshAccess::getId,
 				() -> SensitiveDataMasker.maskIdentifier(refreshAccess.getFints().getBlz()));
 
-		try {
-			return new HbciSessionRunner().run(refreshAccess, pin, session -> refreshBankAccessParameterData(bankAccess, refreshAccess, session));
-		} catch (InterruptedException ex) {
-			log.error("BPD/UPD refresh failed for bank access id {}", bankAccess.getId(), ex);
-			Thread.currentThread().interrupt();
-			throw new GBankingException(getText("ERROR_BANK_ACCESS_REFRESH"), ex);
-		}
+		return new HbciSessionRunner().runOrFail(refreshAccess, pin, session -> refreshBankAccessParameterData(bankAccess, refreshAccess, session),
+				getText("ERROR_BANK_ACCESS_REFRESH"));
 	}
 
 	private boolean refreshBankAccessParameterData(BankAccess targetBankAccess, BankAccess refreshAccess, HbciSessionRunner.HbciSession session) {
