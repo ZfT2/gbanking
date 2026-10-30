@@ -65,12 +65,48 @@ public class UpdateInstallerLauncher {
 				$instituteBackup = Join-Path $backup 'data/institute.db'
 				$script:instituteUpdateStarted = $false
 				$script:instituteExisted = $false
+				$script:lastOperation = 'Waiting for GBanking to exit'
 				$restartApplication = %s
 
 				function Write-UpdateLog {
 				    param([string]$Message)
 				    $line = ('{0} {1}' -f (Get-Date -Format o), $Message)
-				    Add-Content -LiteralPath $log -Value $line
+				    [System.IO.File]::AppendAllText($log, $line + [Environment]::NewLine, [System.Text.Encoding]::UTF8)
+				}
+
+				function Test-RetryableFileError {
+				    param([Exception]$Exception)
+				    while ($null -ne $Exception) {
+				        # A locked child file can also make a directory rename fail with access denied.
+				        if (($Exception.HResult -band 0xFFFF) -in @(5, 32, 33)) {
+				            return $true
+				        }
+				        $Exception = $Exception.InnerException
+				    }
+				    return $false
+				}
+
+				function Invoke-UpdateOperation {
+				    param([string]$Description, [scriptblock]$Action)
+				    $script:lastOperation = $Description
+				    Write-UpdateLog $Description
+				    $deadline = [DateTime]::UtcNow.AddSeconds(30)
+				    $retryLogged = $false
+				    while ($true) {
+				        try {
+				            & $Action
+				            return
+				        } catch {
+				            if (!(Test-RetryableFileError $_.Exception) -or [DateTime]::UtcNow -ge $deadline) {
+				                throw
+				            }
+				            if (!$retryLogged) {
+				                Write-UpdateLog ('Retrying blocked file operation: ' + $Description + ' (up to 30 seconds). ' + $_.Exception.Message)
+				                $retryLogged = $true
+				            }
+				            Start-Sleep -Milliseconds 500
+				        }
+				    }
 				}
 
 				function Restore-Backup {
@@ -79,18 +115,26 @@ public class UpdateInstallerLauncher {
 				        $targetPath = Join-Path $install $name
 				        if (Test-Path -LiteralPath $backupPath) {
 				            if (Test-Path -LiteralPath $targetPath) {
-				                Remove-Item -LiteralPath $targetPath -Recurse -Force
+				                Invoke-UpdateOperation "Removing incomplete update '$targetPath'." {
+				                    Remove-Item -LiteralPath $targetPath -Recurse -Force
+				                }
 				            }
-				            Move-Item -LiteralPath $backupPath -Destination $targetPath -Force
+				            Invoke-UpdateOperation "Restoring '$backupPath' to '$targetPath'." {
+				                [System.IO.Directory]::Move($backupPath, $targetPath)
+				            }
 				        }
 				    }
 				    if ($script:instituteUpdateStarted) {
 				        if (Test-Path -LiteralPath $instituteTarget) {
-				            Remove-Item -LiteralPath $instituteTarget -Force
+				            Invoke-UpdateOperation "Removing incomplete update '$instituteTarget'." {
+				                Remove-Item -LiteralPath $instituteTarget -Force
+				            }
 				        }
 				        if ($script:instituteExisted -and (Test-Path -LiteralPath $instituteBackup)) {
 				            New-Item -ItemType Directory -Path (Split-Path -Parent $instituteTarget) -Force | Out-Null
-				            Move-Item -LiteralPath $instituteBackup -Destination $instituteTarget -Force
+				            Invoke-UpdateOperation "Restoring '$instituteBackup' to '$instituteTarget'." {
+				                [System.IO.File]::Move($instituteBackup, $instituteTarget)
+				            }
 				        }
 				    }
 				}
@@ -100,41 +144,67 @@ public class UpdateInstallerLauncher {
 				    Wait-Process -Id %d -ErrorAction SilentlyContinue
 				    New-Item -ItemType Directory -Path $backup -Force | Out-Null
 
+				    # Atomic renames avoid the partial backup directories that Move-Item can leave on failure.
 				    foreach ($name in @('bin', 'lib')) {
 				        $currentPath = Join-Path $install $name
 				        $backupPath = Join-Path $backup $name
 				        if (Test-Path -LiteralPath $currentPath) {
-				            Move-Item -LiteralPath $currentPath -Destination $backupPath -Force
+				            Invoke-UpdateOperation "Backing up '$currentPath' to '$backupPath'." {
+				                [System.IO.Directory]::Move($currentPath, $backupPath)
+				            }
 				        }
 				    }
 
 				    foreach ($name in @('bin', 'lib')) {
-				        Copy-Item -LiteralPath (Join-Path $source $name) -Destination (Join-Path $install $name) -Recurse -Force
+				        $sourcePath = Join-Path $source $name
+				        Invoke-UpdateOperation "Installing '$sourcePath' into '$install'." {
+				            if (![System.IO.Directory]::Exists($sourcePath)) {
+				                throw [System.IO.DirectoryNotFoundException]::new("Update directory not found: $sourcePath")
+				            }
+				            Copy-Item -LiteralPath $sourcePath -Destination $install -Recurse -Force
+				        }
 				    }
 
 				    if (Test-Path -LiteralPath $instituteTarget) {
 				        $script:instituteExisted = $true
 				        New-Item -ItemType Directory -Path (Split-Path -Parent $instituteBackup) -Force | Out-Null
-				        Copy-Item -LiteralPath $instituteTarget -Destination $instituteBackup -Force
+				        Invoke-UpdateOperation "Backing up '$instituteTarget' to '$instituteBackup'." {
+				            [System.IO.File]::Copy($instituteTarget, $instituteBackup, $true)
+				        }
 				    }
 				    New-Item -ItemType Directory -Path (Split-Path -Parent $instituteTarget) -Force | Out-Null
 				    $script:instituteUpdateStarted = $true
-				    Copy-Item -LiteralPath $instituteSource -Destination $instituteTarget -Force
+				    Invoke-UpdateOperation "Installing '$instituteSource' to '$instituteTarget'." {
+				        [System.IO.File]::Copy($instituteSource, $instituteTarget, $true)
+				    }
 
 				    foreach ($name in $rootFiles) {
 				        $sourceFile = Join-Path $source $name
 				        if (Test-Path -LiteralPath $sourceFile) {
-				            Copy-Item -LiteralPath $sourceFile -Destination (Join-Path $install $name) -Force
+				            $targetFile = Join-Path $install $name
+				            Invoke-UpdateOperation "Installing '$sourceFile' to '$targetFile'." {
+				                [System.IO.File]::Copy($sourceFile, $targetFile, $true)
+				            }
 				        }
 				    }
 
+				    Write-UpdateLog 'Update installed successfully.'
 				    if ($restartApplication) {
+				        $script:lastOperation = 'Starting updated GBanking'
 				        Write-UpdateLog 'Starting updated GBanking.'
 				        Start-Process -FilePath (Join-Path (Join-Path $install 'bin') 'gbanking.bat') -WorkingDirectory $install
 				    }
 				} catch {
 				    Write-UpdateLog ('Update failed: ' + $_.Exception.Message)
-				    Restore-Backup
+				    Write-UpdateLog ('Failed operation: ' + $script:lastOperation)
+				    Write-UpdateLog ('Error location: ' + $_.InvocationInfo.PositionMessage)
+				    try {
+				        Restore-Backup
+				        Write-UpdateLog 'Rollback completed.'
+				    } catch {
+				        Write-UpdateLog ('Rollback failed: ' + $_.Exception.Message + '; operation: ' + $script:lastOperation)
+				        Write-UpdateLog ("Backup retained at '$backup'.")
+				    }
 				    exit 1
 				}
 				""".formatted(psQuote(preparedUpdate.installDirectory()), psQuote(preparedUpdate.sourceDirectory()), psQuote(backupDirectory),
@@ -243,6 +313,7 @@ public class UpdateInstallerLauncher {
 	private void startInstaller(Path script) throws IOException {
 		if (operatingSystem.isWindows()) {
 			new ProcessBuilder(POWERSHELL_EXECUTABLE, "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", script.toString())
+					.directory(script.getParent().toFile())
 					.start();
 			return;
 		}

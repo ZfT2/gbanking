@@ -329,6 +329,8 @@
 					<p><strong>File &gt; Restore backup</strong> replaces the current tenant state after confirmation. A recovery-point backup of the current state is created first. The database and statements from the selected backup are then validated and swapped in.</p>
 					<h3>Updates</h3>
 					<p><strong>About &gt; Check for updates</strong> searches for a newer GBanking version. In an extracted release distribution with <code>bin</code> and <code>lib</code> directories, the application can download the matching package, verify checksum and signature, start the installer and exit GBanking.</p>
+					<p><strong>Windows: file is being used by another process:</strong> After GBanking exits, the launcher or an antivirus scanner may briefly keep files open. The Windows updater retries an operation blocked by a file lock for up to 30 seconds instead of aborting immediately. Do not restart GBanking during this time.</p>
+					<p>If the lock persists, the update stops and attempts to restore the backed-up application files. The log at <code>.updates\gbanking-update-...\install-update.log</code> inside the installation directory records the operation, affected paths and rollback outcome. Close other GBanking instances or programs holding those files open. If rollback fails, do not delete the update directory or restart GBanking; first inspect the log and backup.</p>
 					<h3>Logs and diagnostics</h3>
 					<p><strong>About &gt; Open log directory</strong> opens local logs. <strong>Create diagnostic package</strong> collects relevant diagnostics and logs in a ZIP archive. Confidential identifiers are masked where designed, but review the contents before sharing.</p>
 					<h3 id="linux-card-reader">Card reader not detected on Linux</h3>
