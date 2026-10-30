@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-10-30
+
+### Fixed
+- Retry locked files safely during Windows updates
+- Strip whitespace from IBANs when saving payment orders
+
+### Documentation
+- Add IBAN and Linux card reader guidance to manuals
+
+### Maintenance
+- release: prepare next development version 0.11.1-SNAPSHOT
+
 ## [0.11.0] - 2026-10-29
 
 ### Fixed
@@ -447,19 +459,6 @@ All notable changes to this project will be documented in this file.
 ### Maintenance
 - automatic build on GitHub after commit
 - release: prepare next development version 0.11.2-SNAPSHOT
-- fix DB Controller singletons
-- release: prepare next development version 0.11.1-SNAPSHOT
-
-## [0.11.1] - 2026-07-01
-
-### Added
-- extend moneytransfer import/export for optional protocol
-- add optical TAN methods
-
-### Fixed
-- min. width for amount column
-
-### Maintenance
 - fix DB Controller singletons
 - release: prepare next development version 0.11.1-SNAPSHOT
 
