@@ -227,6 +227,7 @@
 						<li><strong>Speichern</strong> legt den Auftrag zunächst lokal an.</li>
 						<li><strong>Ausführen &gt; Aufträge ausführen</strong> sendet die markierten neuen oder geänderten Aufträge nach PIN-/TAN-Freigabe an die Bank.</li>
 					</ol>
+					<div class="note"><strong>IBAN mit Leerzeichen einfügen:</strong> In allen Auftragsformularen dürfen IBANs mit Leerzeichen eingegeben oder eingefügt werden. Beim Speichern werden sämtliche Leerzeichen, einschließlich geschützter Leerzeichen, entfernt. Nach erfolgreichem Speichern zeigt auch das Formular die bereinigte IBAN. Die Bereinigung erfolgt beim Speichern, nicht erst beim Versand oder Export.</div>
 					<p>Im Kopf des Eingabeformulars zeigt GBanking den aktuellen Kontostand des ausgewählten Auftraggeberkontos, sofern er ermittelt werden kann. Die farbliche Darstellung erleichtert die Einordnung positiver, negativer und ausgeglichener Salden.</p>
 					<p>Terminüberweisungs- und Dauerauftragsbestände werden über <strong>Ausführen &gt; Auftragsbestand</strong> abgerufen. Unterstützt die Bank Änderungen oder Löschungen, werden diese zunächst vorgemerkt und erst mit <strong>Aufträge ausführen</strong> gesendet. Die Löschvormerkung kann vorher zurückgenommen werden.</p>
 					<p>Jede Auftragsart besitzt eine aktive Liste und ein <strong>Archiv</strong>. Frühere, ersetzte, gelöschte oder nicht mehr im Bankbestand gefundene Fassungen bleiben nachvollziehbar. Das Kontextmenü zeigt das Ausführungsprotokoll mit interpretiertem Ergebnis, PIN-, SCA- und Empfängerprüfungsmerkmalen, einer möglichen Namenskorrektur sowie der Rückmeldung der Bank. Beim Ergebnis der Empfängerprüfung erläutert ein Tooltip die Werte Match, Close-Match, No-Match und Opt-out.</p>
@@ -318,6 +319,7 @@
 						<li><strong>Umgebungsspezifische Einstellungen:</strong> Datenverzeichnis, Verzeichnis für Import-Properties sowie getrennte zuletzt verwendete Import- und Exportverzeichnisse.</li>
 					</ul>
 					<p>Mandantenbezogene Einstellungen werden in der Datenbank geführt und mit den Import-Properties synchronisiert. Installationslokale Werte liegen in <code>properties/env.properties</code>; reine Fenster- und Layoutwerte in <code>properties/gui.properties</code>. Beim Umschalten der Kontoauszugsverschlüsselung werden bereits gespeicherte Auszüge entsprechend ver- oder entschlüsselt.</p>
+					<p>Fehlt ein angeschlossener chipTAN-USB-Leser in der Auswahl, folgen Sie der <a href="#kartenleser-linux">Kartenleser-Diagnose unter Linux</a>.</p>
 					<p class="back-to-top"><a href="#top">Nach oben</a></p>
 				</section>
 
@@ -330,6 +332,37 @@
 					<p><strong>Über &gt; Auf Updates prüfen</strong> sucht nach einer neueren GBanking-Version. In einer entpackten Release-Distribution mit <code>bin</code>- und <code>lib</code>-Verzeichnis kann die Anwendung das passende Paket herunterladen, Prüfsumme und Signatur kontrollieren, den Installer starten und GBanking dafür beenden.</p>
 					<h3>Protokolle und Diagnose</h3>
 					<p><strong>Über &gt; Logordner öffnen</strong> öffnet die lokalen Protokolle. <strong>Diagnosepaket erzeugen</strong> sammelt relevante Diagnose- und Logdaten in einem ZIP-Archiv. Vertrauliche Kennungen werden soweit vorgesehen maskiert; prüfen Sie den Inhalt trotzdem vor einer Weitergabe.</p>
+					<h3 id="kartenleser-linux">Kartenleser wird unter Linux nicht erkannt</h3>
+					<p>GBanking greift über Java und PC/SC auf Kartenleser zu. Dass ein Gerät über USB erkannt wird, reicht daher noch nicht aus. Führen Sie die folgenden Befehle als normaler Benutzer, nicht mit <code>sudo</code>, aus:</p>
+					<pre><code>lsusb
+pcsc_scan</code></pre>
+					<p><code>pcsc_scan</code> bleibt aktiv; nach der Leserauflistung oder Fehlermeldung können Sie es mit <strong>Strg+C</strong> beenden. Für die Leserauflistung muss keine Bankkarte eingelegt sein.</p>
+					<ul>
+						<li><strong>Der Leser fehlt bereits in <code>lsusb</code>:</strong> USB-Verbindung, Kabel und Anschluss prüfen und den Leser erneut anschließen.</li>
+						<li><strong><code>lsusb</code> zeigt den Leser, aber <code>pcsc_scan</code> wartet mit <code>Waiting for the first reader...</code>:</strong> PC/SC meldet keinen nutzbaren Leser. Prüfen Sie Dienst, Treiber und Zugriffsrechte, bevor Sie GBanking-Einstellungen ändern.</li>
+						<li><strong><code>pcsc_scan</code> zeigt den Leser:</strong> GBanking vollständig neu starten und den Leser in den Einstellungen auswählen. Bleibt die Auswahl leer, prüfen Sie die von GBanking verwendete Java-Version und das Anwendungsprotokoll; die USB-/PC/SC-Erkennung funktioniert dann bereits.</li>
+					</ul>
+					<p>Unter Mageia werden <code>pcsc-lite</code> und für den Diagnosebefehl <code>pcsc-tools</code> benötigt. Für einen REINER SCT cyberJack ist zusätzlich <code>pcsc-cyberjack</code> vorgesehen; andere Leser benötigen den jeweils passenden Treiber. Fehlende Pakete über die Paketverwaltung installieren. Installierte Pakete und Dienstmeldungen lassen sich so prüfen:</p>
+					<pre><code>rpm -qa | grep -Ei 'pcsc|cyberjack|ccid'
+systemctl status pcscd.service pcscd.socket --no-pager
+sudo journalctl -b -u pcscd.service --no-pager -n 60</code></pre>
+					<p>Falls PC/SC nicht erreichbar ist, kann der Dienst mit <code>sudo systemctl start pcscd.service</code> gestartet werden. Ein nach Inaktivität beendeter, bei Bedarf über einen Socket gestarteter Dienst ist dagegen nicht automatisch ein Fehler. Schließen Sie den Leser vor der Diagnose erneut an und lassen Sie <code>pcsc_scan</code> kurz laufen, damit aktuelle Meldungen vorliegen.</p>
+					<h4>Mageia 10 und cyberJack: Zugriff verweigert</h4>
+					<p>Nach einem Wechsel von Mageia 8 auf Mageia 10 wurde folgende Konstellation beobachtet: Der Treiber erkennt den Leser, meldet aber <code>RSCT: Error on libusb_open: -3</code>. Dieser Fehler bedeutet <strong>Zugriff verweigert</strong>. Der Dienst läuft als Benutzer <code>pcscd</code>, während das USB-Gerät nur für <code>root</code> und die Gruppe <code>cyberjack</code> les- und schreibbar ist.</p>
+					<p>Prüfen Sie Dienstbenutzer, Gruppen und Gerätedatei. Der Gerätepfad im folgenden Beispiel gehört zu <code>Bus 002 Device 007</code>; ersetzen Sie ihn durch die aktuellen Nummern aus <code>lsusb</code>. Die Gerätenummer kann sich beim erneuten Anschließen ändern.</p>
+					<pre><code>systemctl show pcscd.service -p User -p Group -p SupplementaryGroups
+id pcscd
+ls -l /dev/bus/usb/002/007</code></pre>
+					<p>Zeigt die Ausgabe <code>User=pcscd</code> und für das Gerät <code>crw-rw---- root cyberjack</code>, fehlt dem Dienst bei nicht vorhandener Gruppenzugehörigkeit der Zugriff. Geben Sie dann gezielt diesem Dienst die zusätzliche Gruppe über eine systemd-Ergänzung:</p>
+					<pre><code>sudo systemctl edit pcscd.service</code></pre>
+					<p>Den folgenden Abschnitt eintragen und speichern; vorhandene Einstellungen beibehalten:</p>
+					<pre><code>[Service]
+SupplementaryGroups=cyberjack</code></pre>
+					<p>Wenn keine andere Anwendung den Leser verwendet und kein Banking-Vorgang läuft, die Konfiguration neu laden und den Dienst neu starten:</p>
+					<pre><code>sudo systemctl daemon-reload
+sudo systemctl restart pcscd.service</code></pre>
+					<p>Anschließend <code>pcsc_scan</code> erneut als normaler Benutzer starten. Sobald der Leser erscheint, den Scanner beenden, GBanking vollständig neu starten und die Leserauswahl prüfen. Die lokale systemd-Ergänzung bleibt bei Paketupdates erhalten. In einer bereits geöffneten Root-Shell entfällt <code>sudo</code> bei den Verwaltungsbefehlen.</p>
+					<div class="warning"><strong>Rechte gezielt vergeben:</strong> Diese Lösung gilt für die beschriebene Kombination aus Dienstbenutzer, Gerätegruppe und Zugriffsfehler. Starten Sie GBanking nicht als root und vergeben Sie keine pauschalen Schreibrechte für alle Benutzer auf USB-Geräte. Prüfen Sie Protokolle vor einer Weitergabe auf persönliche Daten und Geräteseriennummern.</div>
 					<p class="back-to-top"><a href="#top">Nach oben</a></p>
 				</section>
 

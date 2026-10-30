@@ -226,6 +226,7 @@
 						<li><strong>Save</strong> first stores the order locally.</li>
 						<li><strong>Run &gt; Execute orders</strong> sends checked new or changed orders after PIN/TAN approval.</li>
 					</ol>
+					<div class="note"><strong>Pasting IBANs with spaces:</strong> All order forms accept IBANs entered or pasted with spaces. Saving removes all whitespace, including non-breaking spaces. After a successful save, the form also displays the cleaned IBAN. Cleaning happens when saving, not during transmission or export.</div>
 					<p>The input form header shows the current balance of the selected sender account whenever it can be determined. Colour coding distinguishes positive, negative and zero balances.</p>
 					<p>Scheduled-transfer and standing-order inventories are fetched through <strong>Run &gt; Order inventory</strong>. If supported by the bank, changes and deletions are first queued and sent only with <strong>Execute orders</strong>. A queued deletion can be cancelled beforehand.</p>
 					<p>Each order type has an active list and an <strong>Archive</strong>. Previous, superseded, deleted or no-longer-listed versions remain traceable. The context menu displays the execution protocol with its interpreted result, PIN, SCA and Verification of Payee indicators, any recipient-name correction, and the bank response. A tooltip explains the Match, Close-Match, No-Match and Opt-out verification results.</p>
@@ -317,6 +318,7 @@
 						<li><strong>Environment-specific settings:</strong> Data directory, import-properties directory and separate last-used import and export directories.</li>
 					</ul>
 					<p>Tenant-specific settings are held in the database and synchronised with import properties. Installation-local values are stored in <code>properties/env.properties</code>; window and layout values remain in <code>properties/gui.properties</code>. Changing statement encryption converts existing statement files accordingly.</p>
+					<p>If a connected chipTAN USB reader is missing from the list, follow the <a href="#linux-card-reader">Linux card reader troubleshooting steps</a>.</p>
 					<p class="back-to-top"><a href="#top">Back to top</a></p>
 				</section>
 
@@ -329,6 +331,37 @@
 					<p><strong>About &gt; Check for updates</strong> searches for a newer GBanking version. In an extracted release distribution with <code>bin</code> and <code>lib</code> directories, the application can download the matching package, verify checksum and signature, start the installer and exit GBanking.</p>
 					<h3>Logs and diagnostics</h3>
 					<p><strong>About &gt; Open log directory</strong> opens local logs. <strong>Create diagnostic package</strong> collects relevant diagnostics and logs in a ZIP archive. Confidential identifiers are masked where designed, but review the contents before sharing.</p>
+					<h3 id="linux-card-reader">Card reader not detected on Linux</h3>
+					<p>GBanking accesses card readers through Java and PC/SC. USB detection alone is therefore not sufficient. Run the following commands as your normal user, without <code>sudo</code>:</p>
+					<pre><code>lsusb
+pcsc_scan</code></pre>
+					<p><code>pcsc_scan</code> keeps running; stop it with <strong>Ctrl+C</strong> after the reader list or error appears. Listing readers does not require a bank card to be inserted.</p>
+					<ul>
+						<li><strong>The reader is missing from <code>lsusb</code>:</strong> Check the USB connection, cable and port, then reconnect the reader.</li>
+						<li><strong><code>lsusb</code> lists the reader, but <code>pcsc_scan</code> says <code>Waiting for the first reader...</code>:</strong> PC/SC reports no usable reader. Check the service, driver and access permissions before changing GBanking settings.</li>
+						<li><strong><code>pcsc_scan</code> lists the reader:</strong> Fully restart GBanking and select the reader in Settings. If the list remains empty, check the Java version used by GBanking and the application log; USB/PC/SC detection is already working.</li>
+					</ul>
+					<p>On Mageia, <code>pcsc-lite</code> is required, with <code>pcsc-tools</code> providing the diagnostic command. A REINER SCT cyberJack also uses <code>pcsc-cyberjack</code>; other readers need their corresponding driver. Install missing packages through the package manager. Check installed packages and service messages with:</p>
+					<pre><code>rpm -qa | grep -Ei 'pcsc|cyberjack|ccid'
+systemctl status pcscd.service pcscd.socket --no-pager
+sudo journalctl -b -u pcscd.service --no-pager -n 60</code></pre>
+					<p>If PC/SC is unavailable, start the service with <code>sudo systemctl start pcscd.service</code>. A socket-activated service that exits after inactivity is not necessarily faulty. Reconnect the reader and briefly run <code>pcsc_scan</code> before collecting diagnostics so that current messages are available.</p>
+					<h4>Mageia 10 and cyberJack: access denied</h4>
+					<p>The following configuration was observed after moving from Mageia 8 to Mageia 10: the driver detects the reader but reports <code>RSCT: Error on libusb_open: -3</code>. This means <strong>access denied</strong>. The service runs as user <code>pcscd</code>, while only <code>root</code> and the <code>cyberjack</code> group have read/write access to the USB device.</p>
+					<p>Check the service user, groups and device node. The example path below corresponds to <code>Bus 002 Device 007</code>; replace it with the current numbers from <code>lsusb</code>. The device number may change when the reader is reconnected.</p>
+					<pre><code>systemctl show pcscd.service -p User -p Group -p SupplementaryGroups
+id pcscd
+ls -l /dev/bus/usb/002/007</code></pre>
+					<p>If the output shows <code>User=pcscd</code> and device permissions <code>crw-rw---- root cyberjack</code>, the service needs access through that group if it is not already a member. Grant the additional group specifically to this service using a systemd override:</p>
+					<pre><code>sudo systemctl edit pcscd.service</code></pre>
+					<p>Add and save the following section, preserving any existing settings:</p>
+					<pre><code>[Service]
+SupplementaryGroups=cyberjack</code></pre>
+					<p>When no other application is using the reader and no banking operation is running, reload the configuration and restart the service:</p>
+					<pre><code>sudo systemctl daemon-reload
+sudo systemctl restart pcscd.service</code></pre>
+					<p>Run <code>pcsc_scan</code> again as your normal user. Once the reader appears, stop the scanner, fully restart GBanking and check the reader selection. The local systemd override is preserved across package updates. Omit <code>sudo</code> from the administrative commands if you are already in a root shell.</p>
+					<div class="warning"><strong>Grant permissions narrowly:</strong> This solution applies to the described combination of service user, device group and access error. Do not run GBanking as root or grant every user write access to USB devices. Review logs for personal information and device serial numbers before sharing them.</div>
 					<p class="back-to-top"><a href="#top">Back to top</a></p>
 				</section>
 
