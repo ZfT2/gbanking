@@ -1,5 +1,7 @@
 package de.zft2.gbanking.service.moneytransfer;
 
+import static de.zft2.gbanking.util.IbanCalculator.toElectronicFormat;
+
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
@@ -155,7 +157,8 @@ public class MoneyTransferService extends AbstractDbService {
 		}
 		MoneyTransferForeign foreignTransfer = mtf.getForeignTransfer();
 		Recipient recipient = dbController.resolveRecipient(
-				new Recipient(mtf.getRecipientName(), mtf.getIban(), mtf.getBic(), foreignTransfer != null ? foreignTransfer.getRecipientAccountNumber() : null,
+				new Recipient(mtf.getRecipientName(), toElectronicFormat(mtf.getIban()), mtf.getBic(),
+						foreignTransfer != null ? foreignTransfer.getRecipientAccountNumber() : null,
 						foreignTransfer != null ? foreignTransfer.getRecipientBankCode() : mtf.getRecipientBlz(), mtf.getBank(), Source.MONEYTRANSFER));
 		log.info("saveMoneyTransferToDB(): using Recipient with id: {}", recipient.getId());
 

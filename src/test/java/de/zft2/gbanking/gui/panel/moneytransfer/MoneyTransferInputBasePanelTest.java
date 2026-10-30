@@ -4,6 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -13,11 +17,60 @@ import org.junit.jupiter.api.Test;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
+import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
+import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.gui.JavaFxTestSupport;
+import de.zft2.gbanking.gui.dto.MoneyTransferForm;
+import de.zft2.gbanking.service.BankingCapabilityService;
+import de.zft2.gbanking.service.moneytransfer.BankOrderOperation;
+import de.zft2.gbanking.service.moneytransfer.MoneyTransferService;
 
 class MoneyTransferInputBasePanelTest {
+
+	@Test
+	void saveTransfer_shouldRemoveSpacesFromFieldOnlyAfterSuccessfulSave() {
+		JavaFxTestSupport.runFx(() -> {
+			BankAccount account = new BankAccount();
+			MoneyTransferDetailListTabPanel parent = mock(MoneyTransferDetailListTabPanel.class);
+			MoneyTransferService service = mock(MoneyTransferService.class);
+			BankingCapabilityService capabilities = mock(BankingCapabilityService.class);
+			when(parent.getSelectedAccount()).thenReturn(account);
+			when(capabilities.supportsBankOrderOperation(account, OrderType.REALTIME_TRANSFER, BankOrderOperation.CREATE)).thenReturn(true);
+			MoneyTransfer saved = new MoneyTransfer();
+			Recipient recipient = new Recipient();
+			recipient.setIban("DE89370400440532013000");
+			saved.setRecipient(recipient);
+			when(service.saveMoneyTransferToDB(any(MoneyTransferForm.class), isNull()))
+					.thenThrow(new IllegalStateException("Saving failed")).thenReturn(saved);
+			MoneyTransferInputBasePanel panel = new MoneyTransferInputBasePanel(parent, service, capabilities) {
+				@Override
+				protected void addSpecificFields() {
+					// No additional fields are needed for this test form.
+				}
+
+				@Override
+				public OrderType getOrderType() {
+					return OrderType.REALTIME_TRANSFER;
+				}
+			};
+			String formattedIban = "de89 3704\u00A00044 0532 0130 00";
+			panel.tfRecipientName.setText("Test Recipient");
+			panel.tfIBAN.setText(formattedIban);
+			panel.tfAmount.setText("12,34");
+			panel.tfPurpose.setText("Test transfer");
+
+			assertEquals(formattedIban, panel.tfIBAN.getText());
+			assertThrows(IllegalStateException.class, () -> panel.saveTransfer());
+			assertEquals(formattedIban, panel.tfIBAN.getText());
+
+			panel.saveTransfer();
+
+			assertEquals(recipient.getIban(), panel.tfIBAN.getText());
+		});
+	}
 
 	@Test
 	void isAccountNumberCandidate_shouldAcceptOnlyOneToTenDigits() {

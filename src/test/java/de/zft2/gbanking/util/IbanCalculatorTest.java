@@ -34,6 +34,25 @@ class IbanCalculatorTest {
 		assertTrue(IbanCalculator.isValidIban("DE89 3704 0044 0532 0130 00"));
 		assertTrue(IbanCalculator.isValidIban("gb29nwbk60161331926819"));
 		assertTrue(IbanCalculator.isValidIban("FR14\u00A02004\u00A01010\u00A00505\u00A00001\u00A03M02\u00A0606"));
+		assertTrue(IbanCalculator.isValidIban("de89\t3704\u202F0044\u20090532\n0130\r00"));
+	}
+
+	@Test
+	void toElectronicFormatShouldRemovePrintFormatting() {
+		assertEquals("DE89370400440532013000", IbanCalculator.toElectronicFormat(" DE89 3704 0044 0532 0130 00 "));
+		assertEquals("DE89370400440532013000", IbanCalculator.toElectronicFormat("DE89370400440532013000"));
+		assertEquals("DE89370400440532013000", IbanCalculator.toElectronicFormat("de89\t3704\u202F0044\u20090532\n0130\r00"));
+		assertEquals("GB29NWBK60161331926819", IbanCalculator.toElectronicFormat("gb29 nwbk 6016 1331 9268 19"));
+		assertEquals("FR1420041010050500013M02606", IbanCalculator.toElectronicFormat("FR14\u00A02004\u00A01010\u00A00505\u00A00001\u00A03M02\u00A0606"));
+	}
+
+	@Test
+	void toElectronicFormatShouldPreserveMissingOrInvalidIdentifiers() {
+		assertNull(IbanCalculator.toElectronicFormat(null));
+		assertEquals("", IbanCalculator.toElectronicFormat(" \u00A0 "));
+		assertEquals("4711", IbanCalculator.toElectronicFormat("4711"));
+		assertEquals("DE88370400440532013000", IbanCalculator.toElectronicFormat("DE88 3704 0044 0532 0130 00"));
+		assertEquals("DE89-3704-0044-0532-0130-00", IbanCalculator.toElectronicFormat("DE89-3704-0044-0532-0130-00"));
 	}
 
 	@Test

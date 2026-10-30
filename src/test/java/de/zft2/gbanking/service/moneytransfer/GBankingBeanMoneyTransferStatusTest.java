@@ -14,6 +14,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferProtocolResultStatus;
@@ -24,6 +26,7 @@ import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
+import de.zft2.gbanking.db.dao.enu.StandingorderMode;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.exception.GBankingException;
@@ -80,6 +83,33 @@ class GBankingBeanMoneyTransferStatusTest {
 		MoneyTransfer savedTransfer = moneyTransferService.saveMoneyTransferToDB(form);
 
 		assertEquals(MoneyTransferStatus.NEW, savedTransfer.getMoneytransferStatus());
+	}
+
+	@ParameterizedTest
+	@EnumSource(OrderType.class)
+	void saveMoneyTransferToDB_shouldStoreCompactIbanForNewAndEditedOrders(OrderType orderType) {
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
+		String formattedIban = " de89 3704 0044 0532 0130 00 ";
+		String electronicIban = "DE89370400440532013000";
+		Recipient recipient = new Recipient("Formatted Recipient", formattedIban, "COBADEFFXXX", null, null, "Testbank", Source.MONEYTRANSFER);
+		MoneyTransferForm form = new MoneyTransferForm(account, orderType, recipient, new BigDecimal("12.34"), "Formatted IBAN");
+		if (orderType == OrderType.STANDING_ORDER) {
+			form.setStandingorderInfo(15, StandingorderMode.MONTHLY);
+		}
+
+		MoneyTransfer saved = moneyTransferService.saveMoneyTransferToDB(form);
+
+		assertEquals(electronicIban, saved.getRecipient().getIban());
+		assertEquals(electronicIban, dbController.getById(Recipient.class, saved.getRecipientId()).getIban());
+		assertEquals(formattedIban, form.getIban());
+
+		form.setIban("de89\u00A03704\t0044\u202F0532\u20090130\n00");
+		MoneyTransfer edited = moneyTransferService.saveMoneyTransferToDB(form, saved);
+
+		assertEquals(saved.getId(), edited.getId());
+		assertEquals(saved.getRecipientId(), edited.getRecipientId());
+		assertEquals(1, dbController.getAll(Recipient.class).size());
+		assertEquals(electronicIban, dbController.getAllByParent(MoneyTransfer.class, account.getId()).get(0).getRecipient().getIban());
 	}
 
 	@Test

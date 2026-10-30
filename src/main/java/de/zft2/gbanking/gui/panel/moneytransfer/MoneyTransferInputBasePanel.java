@@ -229,6 +229,8 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 		MoneyTransferForm moneyTransfer = buildMoneyTransferForm(account);
 
 		currentMoneytransfer = moneyTransferService.saveMoneyTransferToDB(moneyTransfer, existingMoneyTransfer);
+		tfIBAN.setText(currentMoneytransfer.getRecipient().getIban());
+		updateIbanValidationStatus();
 		parentPanel.reloadListPanels();
 		updateDeleteButtonState();
 	}

@@ -1,7 +1,6 @@
 package de.zft2.gbanking.util;
 
 import java.util.LinkedHashMap;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -151,10 +150,7 @@ public class IbanStructure {
 	 * @return the normalized IBAN
 	 */
 	public static String normalizeIban(String iban) {
-		if (iban == null) {
-			return null;
-		}
-		String normalized = iban.trim().replace(" ", "").replace("\u00A0", "").toUpperCase(Locale.ROOT);
+		String normalized = IbanCalculator.toElectronicFormat(iban);
 		return IbanCalculator.isValidIban(normalized) ? normalized : null;
 	}
 

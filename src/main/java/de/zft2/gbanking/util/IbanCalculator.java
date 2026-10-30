@@ -5,6 +5,7 @@ import java.util.regex.Pattern;
 
 public class IbanCalculator {
 	private static final Pattern IBAN_PATTERN = Pattern.compile("[A-Z]{2}\\d{2}[A-Z0-9]{11,30}");
+	private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+", Pattern.UNICODE_CHARACTER_CLASS);
 
 	private IbanCalculator() {
 		/* This utility class should not be instantiated */
@@ -49,12 +50,19 @@ public class IbanCalculator {
 		return "DE" + String.format("%02d", checkDigits) + bban;
 	}
 
+	/**
+	 * Removes whitespace without validating or discarding invalid account identifiers.
+	 */
+	public static String toElectronicFormat(String iban) {
+		return iban == null ? null : WHITESPACE_PATTERN.matcher(iban).replaceAll("").toUpperCase(Locale.ROOT);
+	}
+
 	public static boolean isValidIban(String iban) {
 		if (iban == null) {
 			return false;
 		}
 
-		String normalizedIban = iban.trim().replace(" ", "").replace("\u00A0", "").toUpperCase(Locale.ROOT);
+		String normalizedIban = toElectronicFormat(iban);
 		if (!IBAN_PATTERN.matcher(normalizedIban).matches()) {
 			return false;
 		}
