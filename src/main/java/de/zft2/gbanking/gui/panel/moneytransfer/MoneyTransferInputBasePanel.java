@@ -401,9 +401,8 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 
 		bankNameLookupSuspendedUntilBankCodeFocus = false;
 		bankNameLookupField.clear();
-		if (!updateBankDataFromBankCodeField()) {
-			updateBankDataFromIban(true);
-		}
+		bankNameLookupField.setEntries(InstituteLookupCache.getEntriesForBankData(
+				bic, selectedRecipient.getBlz(), selectedRecipient.getIban()));
 	}
 
 	public void updatePanelFieldValues(BankAccount selectedAccount) {
@@ -565,28 +564,18 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 		return booking.getRecipientId() > 0 ? dbController.getByIdFull(Recipient.class, booking.getRecipientId()) : null;
 	}
 
-	private void updateBankDataFromIban(boolean ibanPrefilled) {
-		updateBankDataFromIban(ibanPrefilled, false);
-	}
-
-	private void updateBankDataFromIban(boolean ibanPrefilled, boolean replaceBlzWithLookupBic) {
+	private void updateBankDataFromIban(boolean replaceBlzWithLookupBic) {
 		if (bankNameLookupSuspendedUntilBankCodeFocus) {
 			return;
 		}
 
 		String blz = InstituteLookupCache.extractGermanBlzFromIban(tfIBAN.getText());
 		if (blz == null) {
-			if (ibanPrefilled && isBlank(bankNameLookupField.getSelectedBankName())) {
-				bankNameLookupField.clear();
-			}
 			return;
 		}
 
 		List<InstituteLookupEntry> entries = InstituteLookupCache.getEntriesForBlz(blz);
 		if (entries.isEmpty()) {
-			if (ibanPrefilled && isBlank(bankNameLookupField.getSelectedBankName())) {
-				bankNameLookupField.clear();
-			}
 			return;
 		}
 
@@ -594,15 +583,14 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 		applyLookupBicIfAllowed(entries.get(0), replaceBlzWithLookupBic);
 	}
 
-	private boolean updateBankDataFromBankCodeField() {
+	private void updateBankDataFromBankCodeField() {
 		List<InstituteLookupEntry> entries = InstituteLookupCache.getEntriesForBankCode(tfBIC.getText());
 		if (entries.isEmpty()) {
 			bankNameLookupField.clear();
-			return false;
+			return;
 		}
 
 		bankNameLookupField.setEntries(entries);
-		return true;
 	}
 
 	private void applyLookupBicIfAllowed(InstituteLookupEntry selectedEntry) {
@@ -652,7 +640,7 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 				getText("ALERT_IBAN_CALCULATION_HEADER"), getText("ALERT_IBAN_CALCULATION_TEXT", accountNumber, blz, calculatedIban), yesButton, noButton);
 		if (shouldApplyIban) {
 			tfIBAN.setText(calculatedIban);
-			updateBankDataFromIban(false, true);
+			updateBankDataFromIban(true);
 			updateIbanValidationStatus();
 		}
 	}

@@ -95,6 +95,7 @@ class InstituteLookupCacheTest {
 		assertEquals("BICBDEFFXXX", entries.get(0).bic());
 		assertEquals("Bank B", entries.get(1).bankName());
 		assertEquals("BICBDEFFXXX", entries.get(1).bic());
+		assertEquals(entries, InstituteLookupCache.getEntriesForBankData(" bicb deff xxx ", null, null));
 		assertTrue(InstituteLookupCache.getEntriesForBic(" ").isEmpty());
 	}
 
@@ -147,6 +148,13 @@ class InstituteLookupCacheTest {
 		assertEquals("Bank by BIC", InstituteLookupCache.findBankNameForBankData("BICADEFFXXX", "00000000").orElseThrow());
 		assertEquals("Bank by BIC", InstituteLookupCache.findBankNameForBankData("BICADEFFXXX", null).orElseThrow());
 		assertTrue(InstituteLookupCache.findBankNameForBankData(null, null).isEmpty());
+		assertEquals("Bank by BLZ", InstituteLookupCache.findBankNameForBankData(
+				"BICADEFFXXX", null, "DE44 5001 0517 5407 3249 31").orElseThrow());
+		assertEquals("Bank by BIC", InstituteLookupCache.findBankNameForBankData(
+				"BICBDEFFXXX", "50010518", "DE44 5001 0517 5407 3249 31").orElseThrow());
+		assertEquals("Bank by BIC", InstituteLookupCache.findBankNameForBankData(
+				"BICADEFFXXX", "00000000", "DE44 5001 0517 5407 3249 31").orElseThrow());
+		assertTrue(InstituteLookupCache.findBankNameForBankData(null, null, "DE12").isEmpty());
 	}
 
 	@Test

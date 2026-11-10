@@ -220,7 +220,7 @@
 					<h2>10. Payment orders</h2>
 					<p><strong>Orders</strong> provides tabs for SEPA transfers, scheduled transfers, standing orders and foreign transfers. The transfer tab may additionally offer real-time or urgent transfers. GBanking enables only order types supported by the selected account.</p>
 					<p>The active list and archive in the <strong>SEPA transfers</strong> tab show regular SEPA, urgent and instant transfers for the selected account together, regardless of the order type selected in the input form. The <strong>Type</strong> column between Date and Recipient identifies each transfer type.</p>
-					<p>In all order tables, the <strong>IBAN / Bank</strong> column shows the bank name on a second line below the IBAN. For standing orders, <strong>First execution</strong> precedes <strong>Next execution</strong>.</p>
+					<p>In all order tables, the <strong>IBAN / Bank</strong> column shows the bank name on a second line below the IBAN. The form and table use the same local bank directory lookup for missing bank names: first the stored German bank code (BLZ), or the code extracted from a German IBAN if none is stored; if no match is found, the BIC is used. Stored bank names take precedence. The table's resolved name is also used for searching and does not change stored orders. For standing orders, <strong>First execution</strong> precedes <strong>Next execution</strong>; both columns size themselves to fit their headings and any sort indicator.</p>
 					<ol>
 						<li>Select the sender account and order type.</li>
 						<li>Choose a contact from the address book or enter recipient data. For German account data, GBanking fills bank name/BIC and can suggest an IBAN from an account number and bank code.</li>

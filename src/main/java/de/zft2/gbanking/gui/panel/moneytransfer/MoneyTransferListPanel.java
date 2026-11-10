@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import de.zft2.gbanking.cache.InstituteLookupCache;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
@@ -43,6 +44,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.skin.TableColumnHeader;
 import javafx.stage.Stage;
 
 public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTransfer> {
@@ -56,7 +58,6 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 	private static final double AMOUNT_COLUMN_PREF_WIDTH = 120;
 	private static final double INSTANT_STATUS_COLUMN_MIN_WIDTH = 180;
 	private static final double INSTANT_STATUS_COLUMN_PREF_WIDTH = 230;
-	private static final double STANDING_EXECUTION_COLUMN_WIDTH = 160;
 
 	private final MoneyTransferDetailListTabPanel parentPanel;
 	private final OrderType orderType;
@@ -82,11 +83,29 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 		reload();
 	}
 
+	@Override
+	protected void layoutChildren() {
+		super.layoutChildren();
+		if (orderType == OrderType.STANDING_ORDER) {
+			// Native column headers are created during the table's first layout.
+			tableView.layout();
+			for (var node : tableView.lookupAll(".column-header")) {
+				if (node instanceof TableColumnHeader header && header.getTableColumn() instanceof TableColumn<?, ?> column
+						&& (getText("UI_TABLE_FIRST_EXECUTION_DATE").equals(column.getText())
+								|| getText("UI_TABLE_NEXT_EXECUTION_DATE").equals(column.getText()))) {
+					double contentWidth = header.getChildrenUnmodifiable().stream().filter(child -> child.isVisible())
+							.mapToDouble(child -> Math.ceil(child.prefWidth(-1))).sum();
+					FxTableUtils.setFixedWidth(column, Math.ceil(contentWidth + header.getInsets().getLeft() + header.getInsets().getRight()));
+				}
+			}
+		}
+	}
+
 	private List<TableColumn<MoneyTransfer, ?>> createColumns() {
 		TableColumn<MoneyTransfer, Boolean> selectedCol = createSelectAllSelectionColumn(
 				transfer -> transfer.isSelected(), (transfer, selected) -> transfer.setSelected(selected));
 		TableColumn<MoneyTransfer, java.time.LocalDate> dateCol = TableColumnFactory.createCalendarDateColumn(getText(executionDateColumnKey()),
-				MoneyTransfer::getExecutionDate, orderType == OrderType.STANDING_ORDER ? STANDING_EXECUTION_COLUMN_WIDTH : 95);
+				MoneyTransfer::getExecutionDate, 95);
 		TableColumn<MoneyTransfer, String> recipientCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_RECIPIENT"),
 				transfer -> transfer.getRecipient() != null ? transfer.getRecipient().getName() : "", RECIPIENT_COLUMN_MIN_WIDTH,
 				RECIPIENT_COLUMN_PREF_WIDTH);
@@ -120,8 +139,19 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 			return "";
 		}
 		String iban = trimToBlank(recipient.getIban());
-		String bank = trimToBlank(recipient.getBank());
+		String bank = recipientBankName(recipient);
 		return bank.isEmpty() ? iban : iban + "\n" + bank;
+	}
+
+	private static String recipientBankName(Recipient recipient) {
+		if (recipient == null) {
+			return "";
+		}
+		String bank = trimToBlank(recipient.getBank());
+		if (!bank.isEmpty()) {
+			return bank;
+		}
+		return InstituteLookupCache.findBankNameForBankData(recipient.getBic(), recipient.getBlz(), recipient.getIban()).orElse("");
 	}
 
 	/**
@@ -135,8 +165,7 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 	}
 
 	private TableColumn<MoneyTransfer, java.time.LocalDate> createNextExecutionDateColumn() {
-		return TableColumnFactory.createCalendarDateColumn(getText("UI_TABLE_NEXT_EXECUTION_DATE"), this::nextExecutionDate,
-				STANDING_EXECUTION_COLUMN_WIDTH);
+		return TableColumnFactory.createCalendarDateColumn(getText("UI_TABLE_NEXT_EXECUTION_DATE"), this::nextExecutionDate, 95);
 	}
 
 	private java.time.LocalDate nextExecutionDate(MoneyTransfer transfer) {
@@ -330,7 +359,7 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 	protected boolean matchesFilter(MoneyTransfer transfer, String filter) {
 		String recipientName = transfer.getRecipient() != null ? transfer.getRecipient().getName() : "";
 		String iban = transfer.getRecipient() != null ? transfer.getRecipient().getIban() : "";
-		String bank = transfer.getRecipient() != null ? transfer.getRecipient().getBank() : "";
+		String bank = recipientBankName(transfer.getRecipient());
 		String status = transfer.getMoneytransferStatus() != null ? transfer.getMoneytransferStatus().toString() : "";
 		String instantStatus = transfer.getSepaOrderStatus() != null ? transfer.getSepaOrderStatus().toString() : "";
 		String type = transfer.getOrderType() != null ? transfer.getOrderType().toString() : "";

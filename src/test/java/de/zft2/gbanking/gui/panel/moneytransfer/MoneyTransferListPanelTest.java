@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -16,9 +18,13 @@ import java.util.Locale;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.MockedStatic;
 
+import de.zft2.gbanking.cache.InstituteLookupCache;
+import de.zft2.gbanking.cache.InstituteLookupCache.InstituteLookupEntry;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
@@ -26,6 +32,7 @@ import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
 import de.zft2.gbanking.messages.Messages;
 import javafx.scene.Scene;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
@@ -62,10 +69,12 @@ class MoneyTransferListPanelTest {
 				assertEquals(column.getCellData(0), cell.getText());
 				assertTrue(cell.prefHeight(-1) <= table.getFixedCellSize());
 				assertTrue(panel.matchesFilter(transfer, "test bank"));
-				recipient.setBank(null);
-				assertEquals(recipient.getIban(), column.getCellData(0));
-				recipient.setIban(null);
-				assertEquals("", column.getCellData(0));
+				try (MockedStatic<InstituteLookupCache> lookup = mockStatic(InstituteLookupCache.class)) {
+					recipient.setBank(null);
+					assertEquals(recipient.getIban(), column.getCellData(0));
+					recipient.setIban(null);
+					assertEquals("", column.getCellData(0));
+				}
 				recipient.setBank("Test Bank");
 				assertEquals("\nTest Bank", column.getCellData(0));
 				transfer.setRecipient(null);
@@ -78,8 +87,66 @@ class MoneyTransferListPanelTest {
 	}
 
 	@ParameterizedTest
+	@CsvSource(value = {
+			"NULL, NULL, DE89370400440532013000, NULL, Lookup Bank",
+			"NULL, 37040044, NULL, TESTFRPPXXX, Lookup Bank",
+			"'  ', NULL, FR7630006000011234567890189, TESTFRPPXXX, BIC Bank",
+			"Saved Bank, NULL, DE89370400440532013000, TESTFRPPXXX, Saved Bank",
+			"Saved Bank, NULL, DE89370400440532013000, NULL, Saved Bank",
+			"NULL, NULL, DE12, NULL, NULL",
+			"NULL, 12345678, DE89370400440532013000, TESTFRPPXXX, BLZ Bank",
+			"NULL, NULL, DE89370400440532013000, TESTFRPPXXX, Lookup Bank",
+			"NULL, 99999999, DE89370400440532013000, TESTFRPPXXX, BIC Bank"
+	}, nullValues = "NULL")
+	void formAndTableShouldResolveTheSameBankNameWithoutChangingRecipient(String bank, String blz,
+			String iban, String bic, String expectedBank) {
+		JavaFxTestSupport.runFx(() -> {
+			try (MockedStatic<InstituteLookupCache> lookup = mockStatic(InstituteLookupCache.class)) {
+				lookup.when(() -> InstituteLookupCache.extractGermanBlzFromIban(any())).thenCallRealMethod();
+				lookup.when(() -> InstituteLookupCache.getEntriesForBankData(any(), any(), any())).thenCallRealMethod();
+				lookup.when(() -> InstituteLookupCache.findBankNameForBankData(any(), any(), any())).thenCallRealMethod();
+				lookup.when(() -> InstituteLookupCache.getEntriesForBankCode("37040044"))
+						.thenReturn(List.of(new InstituteLookupEntry("Lookup Bank", "LOOKDEFFXXX")));
+				lookup.when(() -> InstituteLookupCache.getEntriesForBankCode("12345678"))
+						.thenReturn(List.of(new InstituteLookupEntry("BLZ Bank", "BLZSDEFFXXX")));
+				lookup.when(() -> InstituteLookupCache.getEntriesForBankCode("TESTFRPPXXX"))
+						.thenReturn(List.of(new InstituteLookupEntry("BIC Bank", "TESTFRPPXXX"),
+								new InstituteLookupEntry("Alternative Bank", "TESTFRPPXXX")));
+				MoneyTransferListPanel panel = new MoneyTransferListPanel(OrderType.TRANSFER, mock(MoneyTransferDetailListTabPanel.class), false);
+				TableView<?> table = (TableView<?>) panel.getCenter();
+				TableColumn<?, ?> column = table.getColumns().stream()
+						.filter(candidate -> panel.getText("UI_TABLE_IBAN_BANK").equals(candidate.getText())).findFirst().orElseThrow();
+				MoneyTransfer transfer = transfer(OrderType.TRANSFER, MoneyTransferStatus.NEW);
+				Recipient recipient = new Recipient("Test Recipient", iban, bic, null, blz, bank, null);
+				transfer.setRecipient(recipient);
+				panel.updateModelMoneytransfer(List.of(transfer));
+				assertEquals((iban == null ? "" : iban) + (expectedBank == null ? "" : "\n" + expectedBank), column.getCellData(0));
+				assertEquals(expectedBank != null, panel.matchesFilter(transfer, "bank"));
+				MoneyTransferInputPanel input = new MoneyTransferInputPanel(mock(MoneyTransferDetailListTabPanel.class));
+				input.updatePanelFieldValues(recipient);
+				assertEquals(expectedBank == null ? "" : expectedBank, input.bankNameLookupField.getSelectedBankName());
+				if (bic != null) {
+					assertEquals(bic, input.tfBIC.getText());
+				}
+				if ("BIC Bank".equals(expectedBank)) {
+					ComboBox<?> choices = (ComboBox<?>) input.bankNameLookupField.lookup(".combo-box");
+					assertTrue(choices.isVisible());
+					assertEquals(2, choices.getItems().size());
+					choices.getSelectionModel().selectLast();
+					assertEquals("Alternative Bank", input.bankNameLookupField.getSelectedBankName());
+					assertEquals(bic, input.tfBIC.getText());
+				}
+				assertEquals(bank, recipient.getBank());
+				assertEquals(bic, recipient.getBic());
+				assertEquals(blz, recipient.getBlz());
+				assertEquals(iban, recipient.getIban());
+			}
+		});
+	}
+
+	@ParameterizedTest
 	@ValueSource(booleans = { false, true })
-	void standingOrderDatesShouldBeInChronologicalOrderWithReadableHeaders(boolean archive) {
+	void standingOrderDatesShouldBeInChronologicalOrderAndFitTheirHeaders(boolean archive) {
 		JavaFxTestSupport.runFx(() -> {
 			Locale previous = Messages.getLocale();
 			try {
@@ -94,26 +161,43 @@ class MoneyTransferListPanelTest {
 					Scene scene = new Scene(panel);
 					scene.getStylesheets().add(getClass().getResource("/css/gbanking-table.css").toExternalForm());
 					panel.resize(1800, 300);
-					panel.applyCss();
-					panel.layout();
 					assertEquals(panel.getText("UI_TABLE_FIRST_EXECUTION_DATE"), table.getColumns().get(1).getText());
 					assertEquals(panel.getText("UI_TABLE_NEXT_EXECUTION_DATE"), table.getColumns().get(2).getText());
 					assertEquals(transfer.getExecutionDate(), table.getColumns().get(1).getCellData(0));
-					for (int index : new int[] { 1, 2 }) {
-						TableColumn<?, ?> column = table.getColumns().get(index);
-						Label header = table.lookupAll(".column-header .label").stream()
-								.filter(node -> node instanceof Label label && column.getText().equals(label.getText()))
-								.map(node -> (Label) node).findFirst().orElseThrow();
-						Text text = new Text(header.getText());
-						text.setFont(header.getFont());
-						assertTrue(column.getWidth() > 95);
-						assertTrue(header.getWidth() >= text.getLayoutBounds().getWidth());
+					for (int fontSize : new int[] { 12, 16, 12 }) {
+						panel.setStyle("-fx-font-size: " + fontSize + "px;");
+						for (boolean sorted : new boolean[] { false, true }) {
+							if (sorted) {
+								sortDateColumns(table);
+							} else {
+								table.getSortOrder().clear();
+							}
+							panel.applyCss();
+							panel.layout();
+							for (int index : new int[] { 1, 2 }) {
+								TableColumn<?, ?> column = table.getColumns().get(index);
+								Label header = table.lookupAll(".column-header .label").stream()
+										.filter(node -> node instanceof Label label && column.getText().equals(label.getText()))
+										.map(node -> (Label) node).findFirst().orElseThrow();
+								Text text = new Text(header.getText());
+								text.setFont(header.getFont());
+								double textWidth = text.getLayoutBounds().getWidth();
+								assertTrue(header.getWidth() >= textWidth, header.getText() + ", font=" + fontSize
+										+ ", column=" + column.getWidth() + ", label=" + header.getWidth() + ", text=" + textWidth);
+								assertTrue(column.getWidth() <= Math.ceil(textWidth) + (sorted ? 24 : 8));
+							}
+						}
+						panel.updateModelMoneytransfer(List.of());
 					}
 				}
 			} finally {
 				Messages.setLocale(previous);
 			}
 		});
+	}
+
+	private <T> void sortDateColumns(TableView<T> table) {
+		table.getSortOrder().setAll(table.getColumns().subList(1, 3));
 	}
 
 	@ParameterizedTest

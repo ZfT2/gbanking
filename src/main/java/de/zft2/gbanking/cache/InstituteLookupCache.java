@@ -1,5 +1,6 @@
 package de.zft2.gbanking.cache;
 
+import static de.zft2.gbanking.util.TextValues.firstNonBlank;
 import static de.zft2.gbanking.util.TextValues.trimToNull;
 
 import java.util.LinkedHashMap;
@@ -63,7 +64,17 @@ public final class InstituteLookupCache {
 	}
 
 	public static Optional<String> findBankNameForBankData(String bic, String blz) {
-		return findBankNameForBankCode(blz).or(() -> findBankNameForBankCode(bic));
+		return findBankNameForBankData(bic, blz, null);
+	}
+
+	public static Optional<String> findBankNameForBankData(String bic, String blz, String iban) {
+		return getEntriesForBankData(bic, blz, iban).stream().map(entry -> entry.bankName()).findFirst();
+	}
+
+	public static List<InstituteLookupEntry> getEntriesForBankData(String bic, String blz, String iban) {
+		String lookupBlz = firstNonBlank(blz, extractGermanBlzFromIban(iban));
+		List<InstituteLookupEntry> entries = getEntriesForBankCode(lookupBlz);
+		return entries.isEmpty() ? getEntriesForBankCode(bic) : entries;
 	}
 
 	public static Optional<String> findBicForBlz(String blz) {
@@ -137,14 +148,6 @@ public final class InstituteLookupCache {
 		Map<String, List<InstituteLookupEntry>> entries = new LinkedHashMap<>();
 		grouped.forEach((key, names) -> entries.put(key, List.copyOf(names.values())));
 		return Map.copyOf(entries);
-	}
-
-	private static Optional<String> findBankNameForBankCode(String bankCode) {
-		return getEntriesForBankCode(bankCode).stream()
-				.map(InstituteLookupEntry::bankName)
-				.map(value -> trimToNull(value))
-				.filter(Objects::nonNull)
-				.findFirst();
 	}
 
 	private static String normalizeBicKey(String bic) {
