@@ -1,5 +1,7 @@
 package de.zft2.gbanking.gui.panel.moneytransfer;
 
+import static de.zft2.gbanking.util.TextValues.trimToBlank;
+
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -54,6 +56,7 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 	private static final double AMOUNT_COLUMN_PREF_WIDTH = 120;
 	private static final double INSTANT_STATUS_COLUMN_MIN_WIDTH = 180;
 	private static final double INSTANT_STATUS_COLUMN_PREF_WIDTH = 230;
+	private static final double STANDING_EXECUTION_COLUMN_WIDTH = 160;
 
 	private final MoneyTransferDetailListTabPanel parentPanel;
 	private final OrderType orderType;
@@ -70,7 +73,9 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 	private void createInnerMoneyTransfersListPanel() {
 		setPanelTitle("");
 		setColumns(createColumns());
-		configureTableLayout("moneyTransfers." + orderType.name() + "." + (archive ? "archive" : "active"));
+		String layoutKey = "moneyTransfers." + orderType.name() + "." + (archive ? "archive" : "active");
+		// Saved column widths and sort columns are positional.
+		configureTableLayout(layoutKey + ".ibanBank");
 		configureContextMenu();
 		tableView.setFixedCellSize(60);
 		onSelection(this::handleSelection);
@@ -81,7 +86,7 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 		TableColumn<MoneyTransfer, Boolean> selectedCol = createSelectAllSelectionColumn(
 				transfer -> transfer.isSelected(), (transfer, selected) -> transfer.setSelected(selected));
 		TableColumn<MoneyTransfer, java.time.LocalDate> dateCol = TableColumnFactory.createCalendarDateColumn(getText(executionDateColumnKey()),
-				MoneyTransfer::getExecutionDate, 95);
+				MoneyTransfer::getExecutionDate, orderType == OrderType.STANDING_ORDER ? STANDING_EXECUTION_COLUMN_WIDTH : 95);
 		TableColumn<MoneyTransfer, String> recipientCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_RECIPIENT"),
 				transfer -> transfer.getRecipient() != null ? transfer.getRecipient().getName() : "", RECIPIENT_COLUMN_MIN_WIDTH,
 				RECIPIENT_COLUMN_PREF_WIDTH);
@@ -90,10 +95,8 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 		TableColumn<MoneyTransfer, java.math.BigDecimal> amountCol = TableColumnFactory.createAmountColumn(getText("UI_TABLE_AMOUNT"),
 				MoneyTransfer::getAmount);
 		FxTableUtils.setPreferredWidth(amountCol, AMOUNT_COLUMN_MIN_WIDTH, AMOUNT_COLUMN_PREF_WIDTH);
-		TableColumn<MoneyTransfer, String> ibanCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_IBAN"),
-				transfer -> transfer.getRecipient() != null ? transfer.getRecipient().getIban() : "", 220, 240);
-		TableColumn<MoneyTransfer, String> bankCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_BANK"),
-				transfer -> transfer.getRecipient() != null ? transfer.getRecipient().getBank() : "", 150, 180);
+		TableColumn<MoneyTransfer, String> ibanCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_IBAN_BANK"),
+				transfer -> recipientBankDetails(transfer), 220, 240);
 		TableColumn<MoneyTransfer, String> statusCol = TableColumnFactory.createFixedTextColumn(getText("UI_TABLE_STATUS"),
 				transfer -> transfer.getMoneytransferStatus() != null ? transfer.getMoneytransferStatus().toString() : "", 120);
 		TableColumn<MoneyTransfer, String> instantStatusCol = TableColumnFactory.createTextColumn(getText("UI_TABLE_INSTANT_PAYMENT_STATUS"),
@@ -101,11 +104,24 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 				INSTANT_STATUS_COLUMN_PREF_WIDTH);
 
 		List<TableColumn<MoneyTransfer, ?>> columns = new ArrayList<>(
-				List.of(selectedCol, dateCol, recipientCol, purposeCol, amountCol, ibanCol, bankCol, statusCol, instantStatusCol));
-		if (orderType == OrderType.STANDING_ORDER) {
-			columns.add(1, createNextExecutionDateColumn());
+				List.of(selectedCol, dateCol, recipientCol, purposeCol, amountCol, ibanCol, statusCol, instantStatusCol));
+		if (MoneyTransferInputPanel.isTransferOrderType(orderType)) {
+			columns.add(2, TableColumnFactory.createTextColumn(getText("UI_TABLE_TRANSFER_TYPE"),
+					transfer -> transfer.getOrderType() != null ? transfer.getOrderType().toString() : "", 140, 180));
+		} else if (orderType == OrderType.STANDING_ORDER) {
+			columns.add(2, createNextExecutionDateColumn());
 		}
 		return columns;
+	}
+
+	private static String recipientBankDetails(MoneyTransfer transfer) {
+		Recipient recipient = transfer.getRecipient();
+		if (recipient == null) {
+			return "";
+		}
+		String iban = trimToBlank(recipient.getIban());
+		String bank = trimToBlank(recipient.getBank());
+		return bank.isEmpty() ? iban : iban + "\n" + bank;
 	}
 
 	/**
@@ -119,7 +135,8 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 	}
 
 	private TableColumn<MoneyTransfer, java.time.LocalDate> createNextExecutionDateColumn() {
-		return TableColumnFactory.createCalendarDateColumn(getText("UI_TABLE_NEXT_EXECUTION_DATE"), this::nextExecutionDate, 95);
+		return TableColumnFactory.createCalendarDateColumn(getText("UI_TABLE_NEXT_EXECUTION_DATE"), this::nextExecutionDate,
+				STANDING_EXECUTION_COLUMN_WIDTH);
 	}
 
 	private java.time.LocalDate nextExecutionDate(MoneyTransfer transfer) {
@@ -316,8 +333,9 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 		String bank = transfer.getRecipient() != null ? transfer.getRecipient().getBank() : "";
 		String status = transfer.getMoneytransferStatus() != null ? transfer.getMoneytransferStatus().toString() : "";
 		String instantStatus = transfer.getSepaOrderStatus() != null ? transfer.getSepaOrderStatus().toString() : "";
+		String type = transfer.getOrderType() != null ? transfer.getOrderType().toString() : "";
 
-		return matchesAny(filter, recipientName, transfer.getPurpose(), iban, bank, status, instantStatus);
+		return matchesAny(filter, recipientName, transfer.getPurpose(), iban, bank, status, instantStatus, type);
 	}
 
 	public void updateModelMoneytransfer(List<MoneyTransfer> orderList) {
@@ -341,11 +359,11 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 	}
 
 	private List<MoneyTransfer> filterByOrderTypeAndArchive(List<MoneyTransfer> orderList) {
-		OrderType effectiveOrderType = orderType == OrderType.TRANSFER ? parentPanel.getMoneyTransferInputPanel().getOrderType() : orderType;
 		Set<Integer> pendingChangePredecessorIds = orderList.stream()
 				.filter(transfer -> transfer.getMoneytransferStatus() == MoneyTransferStatus.CHANGED)
 				.map(transfer -> transfer.getHistoryorderId()).filter(historyOrderId -> historyOrderId != null).collect(Collectors.toSet());
-		return orderList.stream().filter(transfer -> transfer.getOrderType() == effectiveOrderType)
+		return orderList.stream().filter(transfer -> MoneyTransferInputPanel.isTransferOrderType(orderType)
+				? MoneyTransferInputPanel.isTransferOrderType(transfer.getOrderType()) : transfer.getOrderType() == orderType)
 				.filter(transfer -> !pendingChangePredecessorIds.contains(transfer.getId()))
 				.filter(transfer -> transfer.getMoneytransferStatus().isArchiveStatus() == archive).toList();
 	}

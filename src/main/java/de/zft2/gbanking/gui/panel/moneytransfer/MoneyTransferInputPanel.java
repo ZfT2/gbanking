@@ -27,10 +27,6 @@ public class MoneyTransferInputPanel extends MoneyTransferInputBasePanel {
 		transferTypeCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
 			if (newValue != null) {
 				refreshCapabilityState(currentAccount);
-				getParentPanel().getMoneyTransferListPanel().reload();
-				if (getParentPanel().getSelectedAccount() != null) {
-					getParentPanel().getMoneyTransferListPanel().updatePanelBorder(getParentPanel().getSelectedAccount().getAccountName());
-				}
 			}
 		});
 		initializeSpecificFields();
@@ -97,7 +93,7 @@ public class MoneyTransferInputPanel extends MoneyTransferInputBasePanel {
 	}
 
 	public static boolean isTransferOrderType(OrderType orderType) {
-		return TRANSFER_ORDER_TYPES.contains(orderType);
+		return orderType != null && TRANSFER_ORDER_TYPES.contains(orderType);
 	}
 
 	private ListCell<OrderType> createTransferTypeCell() {
