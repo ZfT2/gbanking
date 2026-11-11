@@ -136,26 +136,6 @@ SELECT 1500000 + n, 110001 + ((n - 1) % 75), NULL,
        '2026-01-01 00:00:00.000'
 FROM sequence;
 
-[SQL_BENCHMARK_SCALE_BOOKING_CATEGORY_RELATIONS]
-WITH RECURSIVE thousands(n) AS (
-    SELECT 1
-    UNION ALL
-    SELECT n + 1 FROM thousands WHERE n < 1000
-), hundreds(n) AS (
-    SELECT 0
-    UNION ALL
-    SELECT n + 1 FROM hundreds WHERE n < 99
-), rows(sequenceNumber) AS (
-    SELECT hundreds.n * 1000 + thousands.n FROM hundreds CROSS JOIN thousands
-)
-INSERT INTO booking_category (id, booking_id, category_id, categoryRuleMode, updatedAt)
-SELECT 1600000 + sequenceNumber, 1000000 + sequenceNumber,
-       CASE sequenceNumber % 5
-           WHEN 0 THEN 920021 WHEN 1 THEN 920022 WHEN 2 THEN 920031
-           WHEN 3 THEN 920041 ELSE 920050 END,
-       1, '2026-01-01 00:00:00.000'
-FROM rows;
-
 [SQL_BENCHMARK_SCALE_CATEGORY_RULE_RELATIONS]
 WITH RECURSIVE accounts(n) AS (
     SELECT 1
@@ -257,9 +237,6 @@ SELECT id FROM booking WHERE crossBooking_id = ?;
 [SQL_BENCHMARK_LOOKUP_BOOKING_ACCOUNT_CHILDREN]
 SELECT id FROM booking WHERE account_id = ? AND parentBooking_id IS NOT NULL;
 
-[SQL_BENCHMARK_LOOKUP_BOOKING_CATEGORY]
-SELECT booking_id FROM booking_category WHERE category_id = ?;
-
 [SQL_BENCHMARK_LOOKUP_CATEGORY_RULE_ACCOUNT]
 SELECT categoryRule_id FROM categoryRule_bankAccount WHERE account_id = ?;
 
@@ -290,9 +267,6 @@ DROP INDEX IF EXISTS idx_booking_recipient_usage;
 
 [SQL_BENCHMARK_DROP_BOOKING_CROSS]
 DROP INDEX IF EXISTS idx_booking_cross_booking;
-
-[SQL_BENCHMARK_DROP_BOOKING_CATEGORY]
-DROP INDEX IF EXISTS idx_booking_category_category;
 
 [SQL_BENCHMARK_DROP_CATEGORYRULE_BANKACCOUNT]
 DROP INDEX IF EXISTS idx_categoryrule_bankaccount_account;

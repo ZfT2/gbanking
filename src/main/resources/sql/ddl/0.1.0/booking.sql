@@ -38,11 +38,6 @@ DROP TABLE IF EXISTS bookingFee;
 
 ;
 
-[SQL_SETUP_DROP_BOOKING_CATEGORY]
-DROP TABLE IF EXISTS booking_category;
-
-;
-
 [SQL_SETUP_CREATE_BOOKING]
 CREATE TABLE booking (
    id INTEGER PRIMARY KEY,
@@ -237,22 +232,6 @@ CREATE INDEX IF NOT EXISTS idx_booking_cross_booking ON booking (crossBooking_id
 WHERE crossBooking_id IS NOT NULL;
 
 ;
-
-[SQL_SETUP_CREATE_BOOKING_CATEGORY]
-CREATE TABLE booking_category (
-  id INTEGER PRIMARY KEY,
-  booking_id INTEGER NOT NULL,
-  category_id INTEGER NOT NULL,
-  categoryRuleMode INTEGER NOT NULL,
-  updatedAt TEXT NOT NULL,
-  FOREIGN KEY(booking_id) REFERENCES booking(id) ON DELETE CASCADE,
-  FOREIGN KEY(category_id) REFERENCES category(id) ON DELETE CASCADE,
-  UNIQUE (booking_id, category_id),
-  CHECK (categoryRuleMode BETWEEN 1 AND 3));
-;
-
-[SQL_SETUP_CREATE_INDEX_BOOKING_CATEGORY_CATEGORY]
-CREATE INDEX IF NOT EXISTS idx_booking_category_category ON booking_category (category_id, booking_id);
 
 [SQL_SETUP_CREATE_TRIGGER_BOOKING_BLOCK_SYSTEM_CORE_UPDATE]
 CREATE TRIGGER IF NOT EXISTS block_system_booking_core_update

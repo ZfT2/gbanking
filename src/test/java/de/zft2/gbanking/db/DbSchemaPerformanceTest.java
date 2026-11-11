@@ -32,6 +32,18 @@ class DbSchemaPerformanceTest {
 	private static final String PERFORMANCE_MIGRATION_VERSION = "0.4.1";
 
 	@Test
+	void freshSchemaShouldNotCreateUnusedBookingCategoryRelation() throws Exception {
+		try (Connection connection = openConnection()) {
+			createBaseline(connection);
+			try (Statement statement = connection.createStatement();
+					ResultSet rows = statement.executeQuery(
+							"SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'booking_category'")) {
+				assertFalse(rows.next());
+			}
+		}
+	}
+
+	@Test
 	void performanceMigration_shouldConvergeWithFreshSchema() throws Exception {
 		try (Connection freshConnection = openConnection();
 				Connection migratedConnection = openConnection()) {
@@ -49,14 +61,14 @@ class DbSchemaPerformanceTest {
 			assertFalse(expectedIndexes.containsKey("idx_booking_account_root_effective_date"));
 			assertFalse(expectedIndexes.containsKey("idx_booking_parent"));
 			assertFalse(expectedIndexes.containsKey("idx_bankmessage_bankaccess"));
-			assertFalse(expectedIndexes.containsKey("uk_booking_category"));
-			assertTrue(readExplicitIndexes(migratedConnection).containsKey("uk_booking_category"));
+			assertFalse(expectedIndexes.containsKey("uk_bankaccount_businesscase"));
+			assertTrue(readExplicitIndexes(migratedConnection).containsKey("uk_bankaccount_businesscase"));
 
 			DbMigrationRunner.migrate(migratedConnection, null, List.of(findPerformanceMigration()));
 
 			Map<String, String> migratedIndexes = readExplicitIndexes(migratedConnection);
 			assertEquals(expectedIndexes, migratedIndexes);
-			assertFalse(migratedIndexes.containsKey("uk_booking_category"));
+			assertFalse(migratedIndexes.containsKey("uk_bankaccount_businesscase"));
 			assertFalse(migratedIndexes.containsKey("idx_moneytransferforeign_moneytransfer_id"));
 		}
 	}

@@ -1,7 +1,3 @@
-[SQL_MIGRATION_0_4_1_DROP_REDUNDANT_BOOKING_CATEGORY_INDEX]
-DROP INDEX IF EXISTS uk_booking_category;
-;
-
 [SQL_MIGRATION_0_4_1_DROP_REDUNDANT_BANKACCOUNT_BUSINESSCASE_INDEX]
 DROP INDEX IF EXISTS uk_bankaccount_businesscase;
 ;
@@ -56,10 +52,6 @@ ON booking (recipient_id, COALESCE(dateValue, dateBooking, updatedAt) DESC);
 [SQL_MIGRATION_0_4_1_CREATE_BOOKING_CROSS_BOOKING_INDEX]
 CREATE INDEX IF NOT EXISTS idx_booking_cross_booking ON booking (crossBooking_id)
 WHERE crossBooking_id IS NOT NULL;
-;
-
-[SQL_MIGRATION_0_4_1_CREATE_BOOKING_CATEGORY_CATEGORY_INDEX]
-CREATE INDEX IF NOT EXISTS idx_booking_category_category ON booking_category (category_id, booking_id);
 ;
 
 [SQL_MIGRATION_0_4_1_CREATE_CATEGORYRULE_BANKACCOUNT_ACCOUNT_INDEX]

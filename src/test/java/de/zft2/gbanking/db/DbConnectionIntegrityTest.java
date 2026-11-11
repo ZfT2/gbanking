@@ -75,9 +75,9 @@ class DbConnectionIntegrityTest {
 		try (var invalidConnection = DriverManager.getConnection("jdbc:sqlite:" + databaseFile);
 				Statement statement = invalidConnection.createStatement()) {
 			statement.executeUpdate("""
-					INSERT INTO booking_category
-						(booking_id, category_id, categoryRuleMode, updatedAt)
-					VALUES (2147483647, 2147483647, 1, datetime())
+					INSERT INTO categoryRule_bankAccount
+						(categoryRule_id, account_id, updatedAt)
+					VALUES (2147483647, 2147483647, datetime())
 					""");
 		}
 
@@ -101,9 +101,9 @@ class DbConnectionIntegrityTest {
 				Statement statement = invalidConnection.createStatement()) {
 			statement.execute("PRAGMA journal_mode=WAL");
 			statement.executeUpdate("""
-					INSERT INTO booking_category
-						(booking_id, category_id, categoryRuleMode, updatedAt)
-					VALUES (2147483647, 2147483647, 1, datetime())
+					INSERT INTO categoryRule_bankAccount
+						(categoryRule_id, account_id, updatedAt)
+					VALUES (2147483647, 2147483647, datetime())
 					""");
 
 			assertThrows(DatabaseIntegrityException.class,
@@ -128,9 +128,9 @@ class DbConnectionIntegrityTest {
 		try (var invalidConnection = DriverManager.getConnection("jdbc:sqlite:" + databaseFile);
 				Statement statement = invalidConnection.createStatement()) {
 			statement.executeUpdate("""
-					INSERT INTO booking_category
-						(booking_id, category_id, categoryRuleMode, updatedAt)
-					VALUES (2147483647, 2147483647, 1, datetime())
+					INSERT INTO categoryRule_bankAccount
+						(categoryRule_id, account_id, updatedAt)
+					VALUES (2147483647, 2147483647, datetime())
 					""");
 		}
 		assertEquals(originalSize, Files.size(databaseFile));
