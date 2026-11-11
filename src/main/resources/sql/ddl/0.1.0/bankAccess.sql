@@ -20,7 +20,6 @@ CREATE TABLE bankAccessFints (
   customerId TEXT,
   sysId TEXT,
   tanProcedure INTEGER NOT NULL,
-  allowedTwostepMechanisms TEXT,
   hbciVersion TEXT,
   bpdVersion TEXT NOT NULL,
   updVersion TEXT NOT NULL,
@@ -28,6 +27,20 @@ CREATE TABLE bankAccessFints (
   FOREIGN KEY(bankAccess_id) REFERENCES bankAccess(id) ON DELETE CASCADE,
   CHECK (tanProcedure BETWEEN 2 AND 20),
   CHECK (hbciFilterType BETWEEN 1 AND 2));
+;
+
+[SQL_SETUP_CREATE_BANKACCESS_TAN_MECHANISM]
+CREATE TABLE bankAccessTanMechanism (
+  bankAccess_id INTEGER NOT NULL,
+  mechanismCode TEXT NOT NULL,
+  description TEXT,
+  sortOrder INTEGER NOT NULL,
+  PRIMARY KEY (bankAccess_id, mechanismCode),
+  UNIQUE (bankAccess_id, sortOrder),
+  FOREIGN KEY(bankAccess_id) REFERENCES bankAccessFints(bankAccess_id) ON DELETE CASCADE,
+  CHECK (TRIM(mechanismCode) <> '' AND mechanismCode = TRIM(mechanismCode)),
+  CHECK (INSTR(mechanismCode, ':') = 0),
+  CHECK (sortOrder >= 0));
 ;
 
 [SQL_SETUP_CREATE_BANKACCESS_PAYPAL]

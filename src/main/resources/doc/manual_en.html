@@ -94,6 +94,7 @@
 					<p>Use <strong>Edit &gt; Bank accesses</strong> to configure a FinTS/HBCI access, an Enablebanking access or a PayPal connection.</p>
 					<h3>FinTS/HBCI</h3>
 					<p>A FinTS/HBCI access contains details such as bank code, user ID, FinTS address, protocol version and TAN procedure. During setup or update, GBanking fetches bank parameters (BPD), user parameters (UPD) and associated accounts.</p>
+					<p>Allowed TAN mechanisms are stored as individual records per FinTS access, with the bank's code, an optional description and their order. Codes not yet supported by the application are retained; the original BPD/UPD data remains stored separately.</p>
 					<ul>
 						<li><strong>Refresh BPD/UPD:</strong> Reloads capabilities and account information.</li>
 						<li><strong>Show BPD/UPD:</strong> Displays the technical data supplied by the bank.</li>

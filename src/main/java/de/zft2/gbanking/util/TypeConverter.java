@@ -6,9 +6,6 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -129,20 +126,6 @@ public class TypeConverter {
 
 	public static LocalDate toLocalDateFromSqlDate(java.sql.Date sqlDate) {
 		return sqlDate == null ? null : sqlDate.toLocalDate();
-	}
-
-	public static List<String> toList(String commaSeparatedString) {
-		if (commaSeparatedString != null) {
-			return Arrays.asList(commaSeparatedString.split(","));
-		}
-		return Collections.emptyList();
-	}
-
-	public static String toCommaSeparatedString(List<String> list) {
-		if (list != null) {
-			return String.join(",", list);
-		}
-		return null;
 	}
 
 	public static Boolean toBoolean(String boolValue) {

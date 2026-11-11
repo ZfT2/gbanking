@@ -22,7 +22,7 @@ import de.zft2.gbanking.testdata.TestDataFactory;
 class DBControllerBulkRelationTest extends DBControllerIntegrationBaseTest {
 
 	@Test
-	void fullBankAccessListShouldLoadAccountGraphsWithFourQueries() {
+	void fullBankAccessListShouldLoadAccountGraphsAndTanMechanismsWithFiveQueries() {
 		BankAccess firstAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("12345678"));
 		BankAccess secondAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("87654321"));
 		BankAccount firstAccount = db.insertOrUpdate(TestDataFactory.createSampleAccount(firstAccess.getId()));
@@ -34,8 +34,9 @@ class DBControllerBulkRelationTest extends DBControllerIntegrationBaseTest {
 		DatabaseQueryCounter.Measurement<List<BankAccess>> measurement =
 				DatabaseQueryCounter.measure(() -> db.getAllFull(BankAccess.class));
 
-		assertEquals(4, measurement.queryCount());
+		assertEquals(5, measurement.queryCount());
 		BankAccess storedFirstAccess = findById(measurement.result(), firstAccess.getId());
+		assertEquals(firstAccess.getFints().getAllowedTwostepMechanisms(), storedFirstAccess.getFints().getAllowedTwostepMechanisms());
 		assertEquals(Set.of(firstAccount.getId(), secondAccount.getId()), accountIds(storedFirstAccess.getAccounts()));
 		assertEquals(Set.of(thirdAccount.getId()),
 				accountIds(findById(measurement.result(), secondAccess.getId()).getAccounts()));

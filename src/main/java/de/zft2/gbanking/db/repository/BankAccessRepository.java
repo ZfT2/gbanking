@@ -8,10 +8,16 @@ import java.util.Map;
 
 import de.zft2.gbanking.db.DaoSqlStatements;
 import de.zft2.gbanking.db.DbSession;
+import de.zft2.gbanking.db.JdbcOperations;
+import de.zft2.gbanking.db.StatementsConfig;
 import de.zft2.gbanking.db.StatementsConfig.ResultType;
 import de.zft2.gbanking.db.dao.BankAccess;
+import de.zft2.gbanking.db.dao.BankAccessFints;
+import de.zft2.gbanking.db.dao.BankAccessTanMechanism;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Dao;
+import de.zft2.gbanking.db.dao.enu.BankAccessType;
+import de.zft2.gbanking.db.dao.mapper.AbstractDaoMapper;
 
 public final class BankAccessRepository extends JdbcDaoRepository<BankAccess> {
 
@@ -20,6 +26,50 @@ public final class BankAccessRepository extends JdbcDaoRepository<BankAccess> {
 	public BankAccessRepository(DbSession session, BankAccountRepository bankAccountRepository) {
 		super(BankAccess.class, session);
 		this.bankAccountRepository = bankAccountRepository;
+	}
+
+	@Override
+	public BankAccess findById(int id, ResultType resultType) throws SQLException {
+		return withTanMechanisms(super.findById(id, resultType));
+	}
+
+	@Override
+	public List<BankAccess> findAll(Query query, Dao criteria) throws SQLException {
+		List<BankAccess> bankAccesses = super.findAll(query, criteria);
+		loadTanMechanisms(bankAccesses);
+		return bankAccesses;
+	}
+
+	public BankAccess findFirst(String sql, JdbcOperations.StatementBinder binder) throws SQLException {
+		AbstractDaoMapper<BankAccess, ?> mapper = StatementsConfig.getMapperForDaoType(BankAccess.class);
+		BankAccess bankAccess = jdbc().query(sql, binder, resultSet -> resultSet.next()
+				? mapper.map(resultSet, ResultType.WITHOUT_RELATIONS) : null);
+		return withTanMechanisms(bankAccess);
+	}
+
+	private BankAccess withTanMechanisms(BankAccess bankAccess) throws SQLException {
+		if (bankAccess != null) {
+			loadTanMechanisms(List.of(bankAccess));
+		}
+		return bankAccess;
+	}
+
+	private void loadTanMechanisms(List<BankAccess> bankAccesses) throws SQLException {
+		Map<Integer, BankAccessFints> fintsById = new HashMap<>();
+		for (BankAccess bankAccess : bankAccesses) {
+			if (bankAccess.getAccessType() == BankAccessType.HBCI) {
+				bankAccess.getFints().setAllowedTwostepMechanisms(new ArrayList<>());
+				fintsById.put(bankAccess.getId(), bankAccess.getFints());
+			}
+		}
+		consumeByIds(DaoSqlStatements.SQL_SELECT_BANKACCESS_TAN_MECHANISMS_BY_IDS, fintsById.keySet(), resultSet -> {
+			while (resultSet.next()) {
+				BankAccessTanMechanism mechanism = new BankAccessTanMechanism(
+						resultSet.getString("mechanismCode"), resultSet.getString("description"));
+				fintsById.get(resultSet.getInt("bankAccess_id")).getAllowedTwostepMechanisms().add(mechanism.toBankValue());
+			}
+			return null;
+		});
 	}
 
 	@Override

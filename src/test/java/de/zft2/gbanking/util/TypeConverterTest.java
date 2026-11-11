@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Month;
-import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -45,12 +44,7 @@ class TypeConverterTest {
 	}
 
 	@Test
-	void shouldConvertListsAndBooleans() {
-		assertEquals(List.of("a", "b", "c"), TypeConverter.toList("a,b,c"));
-		assertTrue(TypeConverter.toList(null).isEmpty());
-		assertEquals("a,b,c", TypeConverter.toCommaSeparatedString(List.of("a", "b", "c")));
-		assertNull(TypeConverter.toCommaSeparatedString(null));
-
+	void shouldConvertBooleans() {
 		assertTrue(TypeConverter.toBoolean("yes"));
 		assertTrue(TypeConverter.toBoolean("Ja"));
 		assertTrue(TypeConverter.toBoolean("1"));

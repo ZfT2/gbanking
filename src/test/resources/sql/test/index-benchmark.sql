@@ -21,11 +21,11 @@ WITH RECURSIVE sequence(n) AS (
 )
 INSERT INTO bankAccessFints (
     bankAccess_id, country, blz, hbciURL, port, userId, customerId, sysId,
-    tanProcedure, allowedTwostepMechanisms, hbciVersion, bpdVersion, updVersion,
+    tanProcedure, hbciVersion, bpdVersion, updVersion,
     hbciFilterType
 )
 SELECT 100000 + n, 'DE', printf('%08d', n), NULL, 443,
-       'benchmark.user.' || n, NULL, NULL, 6, NULL, '300', '1', '1', 2
+       'benchmark.user.' || n, NULL, NULL, 6, '300', '1', '1', 2
 FROM sequence;
 
 [SQL_BENCHMARK_SCALE_BANK_ACCOUNTS]

@@ -9,10 +9,12 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.stream.IntStream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -24,6 +26,7 @@ import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccessEnablebanking;
 import de.zft2.gbanking.db.dao.BankAccessFints;
 import de.zft2.gbanking.db.dao.BankAccessPaypal;
+import de.zft2.gbanking.db.dao.BankAccessTanMechanism;
 import de.zft2.gbanking.db.dao.Bpd;
 import de.zft2.gbanking.db.dao.ParameterData;
 import de.zft2.gbanking.db.dao.ParameterDataBankAccess;
@@ -33,7 +36,6 @@ import de.zft2.gbanking.db.dao.enu.ParameterDataType;
 import de.zft2.gbanking.db.dao.mapper.AbstractDaoMapper;
 import de.zft2.gbanking.db.dao.mapper.ParameterDataBankAccessMapper;
 import de.zft2.gbanking.exception.GBankingException;
-import de.zft2.gbanking.util.TypeConverter;
 
 public class StatementsLogicBankAccess extends StatementsLogicDefault<BankAccess> implements StatementsLogic<BankAccess> {
 
@@ -90,11 +92,34 @@ public class StatementsLogicBankAccess extends StatementsLogicDefault<BankAccess
 			statement.setString(7, fints.getCustomerId());
 			statement.setString(8, fints.getSysId());
 			statement.setInt(9, fints.getTanProcedure().getDbStateId());
-			statement.setString(10, TypeConverter.toCommaSeparatedString(fints.getAllowedTwostepMechanisms()));
-			statement.setString(11, fints.getHbciVersion());
-			statement.setString(12, fints.getBpdVersion());
-			statement.setString(13, fints.getUpdVersion());
-			statement.setInt(14, fints.getFilterType().getDbStateId());
+			statement.setString(10, fints.getHbciVersion());
+			statement.setString(11, fints.getBpdVersion());
+			statement.setString(12, fints.getUpdVersion());
+			statement.setInt(13, fints.getFilterType().getDbStateId());
+		});
+		replaceTanMechanisms(bankAccess);
+	}
+
+	private void replaceTanMechanisms(BankAccess bankAccess) throws SQLException {
+		Map<String, BankAccessTanMechanism> byCode = new LinkedHashMap<>();
+		List<String> values = bankAccess.getFints().getAllowedTwostepMechanisms();
+		if (values != null) {
+			for (String value : values) {
+				if (value != null && !value.isBlank()) {
+					BankAccessTanMechanism mechanism = BankAccessTanMechanism.fromBankValue(value);
+					byCode.putIfAbsent(mechanism.code(), mechanism);
+				}
+			}
+		}
+		deleteDetail(DaoSqlStatements.SQL_DELETE_BANKACCESS_TAN_MECHANISMS, bankAccess);
+		List<BankAccessTanMechanism> mechanisms = new ArrayList<>(byCode.values());
+		executeCachedBatchExactlyOnce(DaoSqlStatements.SQL_INSERT_BANKACCESS_TAN_MECHANISM,
+				IntStream.range(0, mechanisms.size()).boxed().toList(), (index, statement) -> {
+			BankAccessTanMechanism mechanism = mechanisms.get(index);
+			statement.setInt(1, bankAccess.getId());
+			statement.setString(2, mechanism.code());
+			statement.setString(3, mechanism.description());
+			statement.setInt(4, index);
 		});
 	}
 

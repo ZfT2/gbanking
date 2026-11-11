@@ -14,13 +14,29 @@ UPDATE bankAccess SET bankName = ?, active = ?, updatedAt = ?, accessType = ? WH
 ;
 
 [SQL_UPSERT_BANKACCESS_FINTS]
-INSERT INTO bankAccessFints (bankAccess_id, country, blz, hbciURL, port, userId, customerId, sysId, tanProcedure, allowedTwostepMechanisms, hbciVersion, bpdVersion, updVersion, hbciFilterType)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO bankAccessFints (bankAccess_id, country, blz, hbciURL, port, userId, customerId, sysId, tanProcedure, hbciVersion, bpdVersion, updVersion, hbciFilterType)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(bankAccess_id) DO UPDATE SET country = excluded.country, blz = excluded.blz, hbciURL = excluded.hbciURL,
   port = excluded.port, userId = excluded.userId, customerId = excluded.customerId, sysId = excluded.sysId,
-  tanProcedure = excluded.tanProcedure, allowedTwostepMechanisms = excluded.allowedTwostepMechanisms,
+  tanProcedure = excluded.tanProcedure,
   hbciVersion = excluded.hbciVersion, bpdVersion = excluded.bpdVersion, updVersion = excluded.updVersion,
   hbciFilterType = excluded.hbciFilterType;
+;
+
+[SQL_INSERT_BANKACCESS_TAN_MECHANISM]
+INSERT INTO bankAccessTanMechanism (bankAccess_id, mechanismCode, description, sortOrder)
+VALUES (?, ?, ?, ?);
+;
+
+[SQL_DELETE_BANKACCESS_TAN_MECHANISMS]
+DELETE FROM bankAccessTanMechanism WHERE bankAccess_id = ?;
+;
+
+[SQL_SELECT_BANKACCESS_TAN_MECHANISMS_BY_IDS]
+SELECT bankAccess_id, mechanismCode, description
+FROM bankAccessTanMechanism
+WHERE bankAccess_id IN (%s)
+ORDER BY bankAccess_id, sortOrder;
 ;
 
 [SQL_UPSERT_BANKACCESS_PAYPAL]
@@ -54,7 +70,7 @@ DELETE FROM bankAccessEnablebanking WHERE bankAccess_id = ?;
 [SQL_SELECT_ALL_BANKACCESSES]
 SELECT ba.id, ba.bankName, ba.active, ba.updatedAt, ba.accessType,
   bf.country AS fintsCountry, bf.blz AS fintsBlz, bf.hbciURL, bf.port, bf.userId AS fintsUserId,
-  bf.customerId, bf.sysId, bf.tanProcedure, bf.allowedTwostepMechanisms, bf.hbciVersion,
+  bf.customerId, bf.sysId, bf.tanProcedure, bf.hbciVersion,
   bf.bpdVersion, bf.updVersion, bf.hbciFilterType,
   bp.userId AS paypalUserId, bp.apiUsername AS paypalApiUsername, bp.apiSignature AS paypalApiSignature,
   be.psd2ClientConfiguration_id, be.aspspName, be.aspspCountry, be.psuType, be.authMethod,
@@ -68,7 +84,7 @@ LEFT JOIN bankAccessEnablebanking be ON be.bankAccess_id = ba.id;
 [SQL_SELECT_BANKACCESS_BY_ID]
 SELECT ba.id, ba.bankName, ba.active, ba.updatedAt, ba.accessType,
   bf.country AS fintsCountry, bf.blz AS fintsBlz, bf.hbciURL, bf.port, bf.userId AS fintsUserId,
-  bf.customerId, bf.sysId, bf.tanProcedure, bf.allowedTwostepMechanisms, bf.hbciVersion,
+  bf.customerId, bf.sysId, bf.tanProcedure, bf.hbciVersion,
   bf.bpdVersion, bf.updVersion, bf.hbciFilterType,
   bp.userId AS paypalUserId, bp.apiUsername AS paypalApiUsername, bp.apiSignature AS paypalApiSignature,
   be.psd2ClientConfiguration_id, be.aspspName, be.aspspCountry, be.psuType, be.authMethod,
@@ -83,7 +99,7 @@ WHERE ba.id = ?;
 [SQL_SELECT_BANKACCESS_BY_BLZ]
 SELECT ba.id, ba.bankName, ba.active, ba.updatedAt, ba.accessType,
   bf.country AS fintsCountry, bf.blz AS fintsBlz, bf.hbciURL, bf.port, bf.userId AS fintsUserId,
-  bf.customerId, bf.sysId, bf.tanProcedure, bf.allowedTwostepMechanisms, bf.hbciVersion,
+  bf.customerId, bf.sysId, bf.tanProcedure, bf.hbciVersion,
   bf.bpdVersion, bf.updVersion, bf.hbciFilterType,
   bp.userId AS paypalUserId, bp.apiUsername AS paypalApiUsername, bp.apiSignature AS paypalApiSignature,
   be.psd2ClientConfiguration_id, be.aspspName, be.aspspCountry, be.psuType, be.authMethod,
@@ -98,7 +114,7 @@ WHERE bf.blz = ?;
 [SQL_SELECT_BANKACCESS_BY_BLZ_AND_USER_ID]
 SELECT ba.id, ba.bankName, ba.active, ba.updatedAt, ba.accessType,
   bf.country AS fintsCountry, bf.blz AS fintsBlz, bf.hbciURL, bf.port, bf.userId AS fintsUserId,
-  bf.customerId, bf.sysId, bf.tanProcedure, bf.allowedTwostepMechanisms, bf.hbciVersion,
+  bf.customerId, bf.sysId, bf.tanProcedure, bf.hbciVersion,
   bf.bpdVersion, bf.updVersion, bf.hbciFilterType,
   bp.userId AS paypalUserId, bp.apiUsername AS paypalApiUsername, bp.apiSignature AS paypalApiSignature,
   be.psd2ClientConfiguration_id, be.aspspName, be.aspspCountry, be.psuType, be.authMethod,
@@ -113,7 +129,7 @@ WHERE bf.blz = ? AND bf.userId = ?;
 [SQL_SELECT_BANKACCESS_PAYPAL_BY_USER_ID]
 SELECT ba.id, ba.bankName, ba.active, ba.updatedAt, ba.accessType,
   bf.country AS fintsCountry, bf.blz AS fintsBlz, bf.hbciURL, bf.port, bf.userId AS fintsUserId,
-  bf.customerId, bf.sysId, bf.tanProcedure, bf.allowedTwostepMechanisms, bf.hbciVersion,
+  bf.customerId, bf.sysId, bf.tanProcedure, bf.hbciVersion,
   bf.bpdVersion, bf.updVersion, bf.hbciFilterType,
   bp.userId AS paypalUserId, bp.apiUsername AS paypalApiUsername, bp.apiSignature AS paypalApiSignature,
   be.psd2ClientConfiguration_id, be.aspspName, be.aspspCountry, be.psuType, be.authMethod,

@@ -1,6 +1,7 @@
 package de.zft2.gbanking.db.dao;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
@@ -19,7 +20,7 @@ public class BankAccessFints implements Serializable {
 	private String customerId;
 	private String sysId;
 	private TanProcedure tanProcedure;
-	private List<String> allowedTwostepMechanisms;
+	private List<String> allowedTwostepMechanisms = new ArrayList<>();
 	private String hbciVersion;
 	private String bpdVersion;
 	private String updVersion;

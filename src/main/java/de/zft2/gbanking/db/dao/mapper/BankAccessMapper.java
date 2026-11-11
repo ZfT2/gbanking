@@ -61,7 +61,6 @@ public class BankAccessMapper extends AbstractDaoMapper<BankAccess, Void> {
 		fints.setCustomerId(rs.getString("customerId"));
 		fints.setSysId(rs.getString("sysId"));
 		fints.setTanProcedure(TanProcedure.forInt(rs.getInt("tanProcedure")));
-		fints.setAllowedTwostepMechanisms(TypeConverter.toList(rs.getString("allowedTwostepMechanisms")));
 		fints.setHbciVersion(rs.getString("hbciVersion"));
 		fints.setBpdVersion(rs.getString("bpdVersion"));
 		fints.setUpdVersion(rs.getString("updVersion"));

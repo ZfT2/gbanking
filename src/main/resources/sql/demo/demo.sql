@@ -11,11 +11,15 @@ INSERT INTO bankAccess (
 [SQL_DEMO_INSERT_BANK_ACCESS_FINTS]
 INSERT INTO bankAccessFints (
     bankAccess_id, country, blz, hbciURL, port, userId, customerId, sysId,
-    tanProcedure, allowedTwostepMechanisms, hbciVersion, bpdVersion, updVersion, hbciFilterType
+    tanProcedure, hbciVersion, bpdVersion, updVersion, hbciFilterType
 ) VALUES (
     900000, 'DE', '99999999', 'https://demo.invalid/fints', 443, 'demo.user',
-    'demo.customer', 'demo.system', 6, '940', '300', '1', '1', 2
+    'demo.customer', 'demo.system', 6, '300', '1', '1', 2
 );
+
+[SQL_DEMO_INSERT_BANK_ACCESS_TAN_MECHANISM]
+INSERT INTO bankAccessTanMechanism (bankAccess_id, mechanismCode, description, sortOrder)
+VALUES (900000, '940', NULL, 0);
 
 [SQL_DEMO_INSERT_BANK_ACCOUNTS]
 INSERT INTO bankAccount (

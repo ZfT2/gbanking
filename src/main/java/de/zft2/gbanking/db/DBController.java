@@ -40,6 +40,7 @@ import de.zft2.gbanking.db.dao.logic.StatementsLogic;
 import de.zft2.gbanking.db.dao.logic.StatementsLogicRecipient;
 import de.zft2.gbanking.db.dao.mapper.AbstractDaoMapper;
 import de.zft2.gbanking.db.dao.mapper.BookingMapper;
+import de.zft2.gbanking.db.repository.BankAccessRepository;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.logging.SensitiveDataMasker;
 import de.zft2.gbanking.util.TypeConverter;
@@ -514,35 +515,23 @@ public class DBController extends DbExecutor {
 	}
 	
 	public BankAccess getBankAccessById(int id) {
-		return getBankAccessByField(DaoSqlStatements.SQL_SELECT_BANKACCESS_BY_ID, id);
-
+		return getById(BankAccess.class, id);
 	}
 	
 	public BankAccess getBankAccessByBlz(String blz) {
-		return getBankAccessByField(DaoSqlStatements.SQL_SELECT_BANKACCESS_BY_BLZ, blz);
+		return readBankAccess(DaoSqlStatements.SQL_SELECT_BANKACCESS_BY_BLZ, statement -> statement.setString(1, blz));
 	}
 
 	public BankAccess getBankAccessByBlzAndUserId(String blz, String userId) {
-		return withDbAccess(() -> {
-			boolean paypal = "PAYPAL".equalsIgnoreCase(blz);
-			String sql = paypal ? DaoSqlStatements.SQL_SELECT_BANKACCESS_PAYPAL_BY_USER_ID
-					: DaoSqlStatements.SQL_SELECT_BANKACCESS_BY_BLZ_AND_USER_ID;
-			AbstractDaoMapper<BankAccess, ?> mapper = StatementsConfig.getMapperForDaoType(BankAccess.class);
-			try {
-				return jdbc().query(sql,
-						statement -> {
-							int index = 1;
-							if (!paypal) {
-								statement.setString(index++, blz);
-							}
-							statement.setString(index, userId);
-						},
-						resultSet -> resultSet.next()
-								? mapper.map(resultSet, ResultType.WITHOUT_RELATIONS)
-								: null);
-			} catch (SQLException | RuntimeException exception) {
-				throw databaseReadFailure("Error reading bank access", exception);
+		boolean paypal = "PAYPAL".equalsIgnoreCase(blz);
+		String sql = paypal ? DaoSqlStatements.SQL_SELECT_BANKACCESS_PAYPAL_BY_USER_ID
+				: DaoSqlStatements.SQL_SELECT_BANKACCESS_BY_BLZ_AND_USER_ID;
+		return readBankAccess(sql, statement -> {
+			int index = 1;
+			if (!paypal) {
+				statement.setString(index++, blz);
 			}
+			statement.setString(index, userId);
 		});
 	}
 	
@@ -610,15 +599,11 @@ public class DBController extends DbExecutor {
 		});
 	}
 	
-	private BankAccess getBankAccessByField(String sql, Object value) {
+	private BankAccess readBankAccess(String sql, JdbcOperations.StatementBinder binder) {
 		return withDbAccess(() -> {
-			AbstractDaoMapper<BankAccess, ?> mapper = StatementsConfig.getMapperForDaoType(BankAccess.class);
 			try {
-				return jdbc().query(sql,
-						statement -> statement.setObject(1, value),
-						resultSet -> resultSet.next()
-								? mapper.map(resultSet, ResultType.WITHOUT_RELATIONS)
-								: null);
+				BankAccessRepository repository = (BankAccessRepository) getSession().repositoryCatalog().repository(BankAccess.class);
+				return repository.findFirst(sql, binder);
 			} catch (SQLException | RuntimeException exception) {
 				throw databaseReadFailure(getText(SqlErrors.ERROR_DB_SELECT), exception);
 			}
