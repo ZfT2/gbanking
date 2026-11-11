@@ -60,9 +60,9 @@ class StockPortfolioOverviewPanelTest {
 		PositionSummary position = new PositionSummary(1, 2, "Neu AG", null, null, StockQuantityType.UNITS,
 				BigDecimal.TEN, null, null, null, null, Currency.EUR, null);
 		TransactionSummary oldTrade = new TransactionSummary(1, StockTransactionType.BUY, 1, "Alt AG", null, null,
-				LocalDate.of(2026, 1, 1), BigDecimal.TEN, null, null, Currency.EUR, 0, false);
+				LocalDate.of(2026, 1, 1), BigDecimal.TEN, null, null, Currency.EUR, 0, false, null);
 		TransactionSummary newTrade = new TransactionSummary(2, StockTransactionType.CORPORATE_ACTION, 2, "Neu AG", null, null,
-				LocalDate.of(2026, 2, 1), BigDecimal.TEN, null, null, Currency.EUR, 0, false);
+				LocalDate.of(2026, 2, 1), BigDecimal.TEN, null, null, Currency.EUR, 0, false, null);
 		when(service.getPortfolios()).thenReturn(List.of(portfolio));
 		when(service.getPositions(1)).thenReturn(List.of(position));
 		when(service.getTransactions(1)).thenReturn(List.of(oldTrade, newTrade));
@@ -167,7 +167,7 @@ class StockPortfolioOverviewPanelTest {
 			assertTrue(editButton.getStyleClass().contains("gbanking-form-button"));
 			assertEquals(4, GridPane.getRowIndex(editButton.getParent()));
 			GridPane portfolioDetails = (GridPane) tabs.getTabs().get(0).getContent();
-			assertEquals(4, portfolioDetails.lookupAll(".gbanking-form-button").size());
+			assertEquals(5, portfolioDetails.lookupAll(".gbanking-form-button").size());
 			assertTrue(portfolioDetails.lookupAll(".gbanking-button-bar").stream()
 					.allMatch(node -> Integer.valueOf(4).equals(GridPane.getRowIndex(node))));
 		});

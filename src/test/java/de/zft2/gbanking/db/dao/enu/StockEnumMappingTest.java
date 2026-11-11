@@ -18,6 +18,9 @@ class StockEnumMappingTest {
 	private static final List<Class<? extends Enum<?>>> ID_TYPES = List.of(
 			StockCashLegRole.class,
 			StockCouponRateStatus.class,
+			StockCorporateActionType.class,
+			StockCorporateActionOperation.class,
+			StockCorporateActionMemberRole.class,
 			StockCustodyType.class,
 			StockDataSourceType.class,
 			StockDayCountConvention.class,

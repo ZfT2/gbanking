@@ -95,12 +95,16 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		assertThrows(GBankingException.class, () -> service.deleteTransaction(outgoing.transactionId()));
 		assertTrue(importer.importFile(transactions, ExportType.STOCK_PP_TRANSACTIONS_CSV, portfolio).alreadyImported());
 		Path export = files.resolve("replacement-export.csv");
-		assertThrows(GBankingException.class, () -> new PortfolioPerformanceExportService().exportFile(
-				export, ExportType.STOCK_PP_TRANSACTIONS_CSV, portfolio));
-		assertFalse(Files.exists(export));
+		PortfolioPerformanceExportService exporter = new PortfolioPerformanceExportService();
+		assertTrue(exporter.losesCorporateActionAssociations(portfolio));
+		exporter.exportFile(export, ExportType.STOCK_PP_TRANSACTIONS_CSV, portfolio);
+		assertEquals(8, Files.readAllLines(export).size());
+		assertTrue(Files.readString(export).contains("2026-03-01T10:00;Einlieferung;900,00;EUR"));
+		assertTrue(Files.readString(export).contains("2026-03-01T12:00;Auslieferung;-900,00;EUR"));
 
 		service.unlinkSecurityExchange(incoming.transactionId());
 		assertTrue(db.getAll(StockSecurityExchangeLink.class).isEmpty());
+		assertFalse(exporter.losesCorporateActionAssociations(portfolio));
 		assertEquals(0, new BigDecimal("60").compareTo(service.getPositions(portfolio.portfolioId()).get(0).acquisitionPrice()));
 		service.deleteTransaction(outgoing.transactionId());
 		assertTrue(db.getById(StockTransaction.class, outgoing.transactionId()).isSettlementDateInferred());
@@ -123,6 +127,14 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 				successor.getId(), new BigDecimal("10"), LocalDate.of(2026, 3, 1), null));
 
 		assertNull(service.getPositions(portfolio.portfolioId()).get(0).acquisitionPrice());
+		Path export = files.resolve("manual-replacement-export.csv");
+		PortfolioPerformanceExportService exporter = new PortfolioPerformanceExportService();
+		assertTrue(exporter.losesCorporateActionAssociations(portfolio));
+		exporter.exportFile(export, ExportType.STOCK_PP_TRANSACTIONS_CSV, portfolio);
+		List<String> rows = Files.readAllLines(export);
+		assertEquals(5, rows.size());
+		assertTrue(rows.stream().anyMatch(row -> row.startsWith("2026-03-01T") && row.contains(";Auslieferung;") && row.contains("Alt AG")));
+		assertTrue(rows.stream().anyMatch(row -> row.startsWith("2026-03-01T") && row.contains(";Einlieferung;") && row.contains("Neu AG")));
 	}
 
 	@Test
@@ -155,6 +167,7 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		assertEquals(3, db.getAllByParent(Booking.class, portfolio.settlementAccountId()).size());
 
 		PortfolioPerformanceExportService exporter = new PortfolioPerformanceExportService();
+		assertFalse(exporter.losesCorporateActionAssociations(portfolio));
 		Path exportedTransactions = files.resolve("export-transactions.csv");
 		Path exportedAccounts = files.resolve("export-accounts.csv");
 		Path exportedSecurities = files.resolve("export-securities.csv");

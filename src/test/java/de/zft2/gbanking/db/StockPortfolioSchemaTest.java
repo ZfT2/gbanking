@@ -170,6 +170,72 @@ class StockPortfolioSchemaTest {
 		}
 	}
 
+	@Test
+	void corporateActionMembershipShouldRequirePrimaryAndRejectInvalidOrMutableMembers() throws Exception {
+		try (Connection connection = openDatabase(); Statement statement = connection.createStatement()) {
+			insertBankAccount(statement, 1, 16, "Depot");
+			insertBankAccount(statement, 2, 1, "Verrechnungskonto");
+			insertBankAccount(statement, 3, 16, "Anderes Depot");
+			insertPortfolio(connection, 1, 1, 1, 2);
+			insertPortfolio(connection, 2, 3, 2, 2);
+			insertSecurity(statement);
+			for (int id = 1; id <= 5; id++) {
+				String date = id == 3 ? "2026-01-03" : "2026-01-02";
+				insertPendingTransaction(statement, id, StockTransactionType.DELIVERY_IN, date);
+				if (id == 5) { statement.executeUpdate("UPDATE stockTransaction SET portfolio_id = 2 WHERE id = 5"); }
+				insertSecurityLeg(statement, id, 1, 1_000_000_000L, 1_000_000_000L);
+				if (id != 4) { settleTransaction(statement, id, date); }
+			}
+			statement.executeUpdate("""
+					INSERT INTO stockCorporateAction
+					    (id, name, actionType, underlyingSecurity_id, targetSecurity_id, allocationFromE9,
+					     allocationToE9, ratioFromE9, ratioToE9, currency, effectiveDate, createdAt)
+					VALUES (1, 'Capital reduction', 4, 1, 1, 1, 1, 1, 1, 1, '2026-01-02', '2026-01-02')
+					""");
+			String head = "INSERT INTO stockCorporateActionTransaction (id, action_id, operation, createdAt)"
+					+ " VALUES (%d, 1, 8, '2026-01-02')";
+			String member = "INSERT INTO stockCorporateActionMember (association_id, transaction_id, role) VALUES (%d, %d, %d)";
+			connection.setAutoCommit(false);
+			statement.executeUpdate(head.formatted(1));
+			assertThrows(SQLException.class, () -> connection.commit());
+			connection.rollback();
+			statement.executeUpdate(head.formatted(1));
+			statement.executeUpdate(member.formatted(1, 2, 2));
+			assertThrows(SQLException.class, () -> connection.commit());
+			connection.rollback();
+
+			statement.executeUpdate(head.formatted(1));
+			statement.executeUpdate(member.formatted(1, 2, 2));
+			assertThrows(SQLException.class, () -> statement.executeUpdate(member.formatted(1, 1, 3)));
+			assertThrows(SQLException.class, () -> statement.executeUpdate(member.formatted(1, 1, 2)));
+			assertThrows(SQLException.class, () -> statement.executeUpdate(member.formatted(1, 2, 1)));
+			assertThrows(SQLException.class, () -> statement.executeUpdate(member.formatted(1, 3, 1)));
+			assertThrows(SQLException.class, () -> statement.executeUpdate(member.formatted(1, 4, 1)));
+			assertThrows(SQLException.class, () -> statement.executeUpdate(member.formatted(1, 5, 1)));
+			statement.executeUpdate(member.formatted(1, 1, 1));
+			connection.commit();
+			assertThrows(SQLException.class,
+					() -> statement.executeUpdate("UPDATE stockCorporateActionMember SET transaction_id = 3 WHERE transaction_id = 2"));
+			assertThrows(SQLException.class,
+					() -> statement.executeUpdate("DELETE FROM stockCorporateActionMember WHERE transaction_id = 2"));
+			statement.executeUpdate(head.formatted(2));
+			assertThrows(SQLException.class, () -> statement.executeUpdate(member.formatted(2, 2, 2)));
+			connection.rollback();
+
+			statement.executeUpdate("DELETE FROM stockCorporateActionTransaction WHERE id = 1");
+			connection.commit();
+			try (var rows = statement.executeQuery("SELECT COUNT(*) FROM stockCorporateActionMember")) {
+				rows.next();
+				assertEquals(0, rows.getInt(1));
+			}
+			statement.executeUpdate(head.formatted(1));
+			statement.executeUpdate(member.formatted(1, 1, 1));
+			connection.commit();
+			assertThrows(SQLException.class, () -> statement.executeUpdate(member.formatted(1, 2, 2)));
+			connection.rollback();
+		}
+	}
+
 	private static Connection openDatabase() throws SQLException {
 		SQLiteConfig config = new SQLiteConfig();
 		config.enforceForeignKeys(true);

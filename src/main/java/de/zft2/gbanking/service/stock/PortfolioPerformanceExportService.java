@@ -29,10 +29,12 @@ import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.StockCashLegRole;
 import de.zft2.gbanking.db.dao.enu.StockIdentifierType;
 import de.zft2.gbanking.db.dao.enu.StockNumericValueType;
+import de.zft2.gbanking.db.dao.enu.StockSecurityLegRole;
 import de.zft2.gbanking.db.dao.enu.StockTransactionStatus;
 import de.zft2.gbanking.db.dao.enu.StockTransactionType;
 import de.zft2.gbanking.db.dao.stock.StockSecurity;
 import de.zft2.gbanking.db.dao.stock.StockSecurityExchangeLink;
+import de.zft2.gbanking.db.dao.stock.StockCorporateActionMember;
 import de.zft2.gbanking.db.dao.stock.StockSecurityIdentifier;
 import de.zft2.gbanking.db.dao.stock.StockSecurityPrice;
 import de.zft2.gbanking.db.dao.stock.StockSecurityPriceSource;
@@ -68,38 +70,67 @@ public class PortfolioPerformanceExportService extends AbstractDbService {
 		}
 	}
 
-	private void exportPortfolioTransactions(Path file, PortfolioSummary portfolio) throws IOException {
+	public boolean losesCorporateActionAssociations(PortfolioSummary portfolio) {
+		requirePortfolio(portfolio);
 		ExportContext context = context(portfolio);
 		Set<Integer> legIds = context.securityLegs().values().stream().flatMap(List::stream)
 				.map(StockTransactionSecurityLeg::getId).collect(Collectors.toSet());
-		if (context.transactions().stream().anyMatch(transaction -> transaction.getTransactionType() == StockTransactionType.CORPORATE_ACTION)
+		Set<Integer> transactionIds = context.transactions().stream().map(StockTransaction::getId).collect(Collectors.toSet());
+		return context.transactions().stream().anyMatch(transaction -> transaction.getTransactionType() == StockTransactionType.CORPORATE_ACTION)
+				|| dbController.getAll(StockCorporateActionMember.class).stream()
+						.anyMatch(member -> transactionIds.contains(member.getTransactionId()))
 				|| dbController.getAll(StockSecurityExchangeLink.class).stream()
-						.anyMatch(link -> legIds.contains(link.getSourceLegId()) || legIds.contains(link.getTargetLegId()))) {
-			throw new GBankingException("Der Portfolio-Performance-Transaktions-CSV-Export kann Gattungswechsel "
-					+ "nicht verlustfrei abbilden. Die Datei wurde nicht geschrieben");
-		}
+						.anyMatch(link -> legIds.contains(link.getSourceLegId()) || legIds.contains(link.getTargetLegId()));
+	}
+
+	private void exportPortfolioTransactions(Path file, PortfolioSummary portfolio) throws IOException {
+		ExportContext context = context(portfolio);
 		try (CSVPrinter printer = PortfolioPerformanceCsvSupport.printer(file, TRANSACTION_HEADERS)) {
 			for (StockTransaction transaction : context.transactions()) {
 				if (!isPortfolioTransaction(transaction.getTransactionType())) {
 					continue;
 				}
-				StockTransactionSecurityLeg securityLeg = context.securityLeg(transaction.getId());
-				if (securityLeg == null) {
-					continue;
-				}
-				StockSecurity security = context.securities().get(securityLeg.getSecurityId());
-				SecurityIdentifiers identifiers = context.identifiers().getOrDefault(securityLeg.getSecurityId(),
-						SecurityIdentifiers.EMPTY);
+				List<StockTransactionSecurityLeg> legs = context.securityLegs().getOrDefault(transaction.getId(), List.of()).stream()
+						.filter(leg -> leg.getLegRole() != StockSecurityLegRole.REFERENCE)
+						.sorted(Comparator.comparingInt(leg -> leg.getLegNumber())).toList();
 				CashSummary cash = context.cash(transaction.getId());
-				BigDecimal portfolioValue = portfolioValue(transaction.getTransactionType(), cash.netAmount());
-				printer.printRecord(PortfolioPerformanceCsvSupport.formatDateTime(transaction.getTradeAt()),
-						typeName(transaction.getTransactionType()), PortfolioPerformanceCsvSupport.formatMoney(portfolioValue),
-						currencyCode(cash.currency()), "", "", "", PortfolioPerformanceCsvSupport.formatMoney(cash.fees()),
-						PortfolioPerformanceCsvSupport.formatMoney(cash.taxes()),
-						PortfolioPerformanceCsvSupport.formatDecimal(quantity(securityLeg)), identifiers.isin(), identifiers.wkn(),
-						identifiers.ticker(), security != null ? security.getName() : "", context.note(transaction.getId()));
+				StockTransactionSecurityLeg cashLeg = cashLeg(legs, cash);
+				for (StockTransactionSecurityLeg leg : legs) {
+					CashSummary legCash = leg == cashLeg ? cash : CashSummary.EMPTY;
+					StockTransactionType type = portfolioType(transaction.getTransactionType(), leg, legCash);
+					printPortfolioTransaction(printer, context, transaction, leg, type, legCash);
+				}
 			}
 		}
+	}
+
+	private static StockTransactionSecurityLeg cashLeg(List<StockTransactionSecurityLeg> legs, CashSummary cash) {
+		if (legs.isEmpty() || cash.netAmount() == null) { return null; }
+		return legs.stream().filter(leg -> cash.netAmount().signum() > 0 ? leg.getQuantityE9() < 0 : leg.getQuantityE9() > 0)
+				.findFirst().orElse(legs.get(0));
+	}
+
+	private static StockTransactionType portfolioType(StockTransactionType type, StockTransactionSecurityLeg leg, CashSummary cash) {
+		if (type != StockTransactionType.CORPORATE_ACTION) { return type; }
+		if (cash.netAmount() != null) { return leg.getQuantityE9() > 0 ? StockTransactionType.BUY : StockTransactionType.SELL; }
+		return leg.getQuantityE9() > 0 ? StockTransactionType.DELIVERY_IN : StockTransactionType.DELIVERY_OUT;
+	}
+
+	private static void printPortfolioTransaction(CSVPrinter printer, ExportContext context, StockTransaction transaction,
+			StockTransactionSecurityLeg leg, StockTransactionType type, CashSummary cash) throws IOException {
+		StockSecurity security = context.securities().get(leg.getSecurityId());
+		SecurityIdentifiers identifiers = context.identifiers().getOrDefault(leg.getSecurityId(), SecurityIdentifiers.EMPTY);
+		Currency currency = cash.currency() != null ? cash.currency() : leg.getPriceCurrency();
+		if (currency == null && security != null) { currency = security.getDefaultQuoteCurrency(); }
+		BigDecimal value = cash.netAmount();
+		if (value == null && leg.getPriceE8() != null) {
+			value = StockPortfolioService.calculateValue(quantity(leg), fromScaled(leg.getPriceE8(), PRICE_SCALE), leg.getQuotationType());
+		}
+		printer.printRecord(PortfolioPerformanceCsvSupport.formatDateTime(transaction.getTradeAt()), typeName(type),
+				PortfolioPerformanceCsvSupport.formatMoney(portfolioValue(type, value)), currencyCode(currency), "", "", "",
+				PortfolioPerformanceCsvSupport.formatMoney(cash.fees()), PortfolioPerformanceCsvSupport.formatMoney(cash.taxes()),
+				PortfolioPerformanceCsvSupport.formatDecimal(quantity(leg)), identifiers.isin(), identifiers.wkn(), identifiers.ticker(),
+				security != null ? security.getName() : "", context.note(transaction.getId()));
 	}
 
 	private void exportAccountTransactions(Path file, PortfolioSummary portfolio) throws IOException {
@@ -244,6 +275,7 @@ public class PortfolioPerformanceExportService extends AbstractDbService {
 
 	private static boolean isPortfolioTransaction(StockTransactionType type) {
 		return type == StockTransactionType.BUY || type == StockTransactionType.SELL
+				|| type == StockTransactionType.CORPORATE_ACTION
 				|| type == StockTransactionType.DELIVERY_IN || type == StockTransactionType.DELIVERY_OUT
 				|| type == StockTransactionType.TRANSFER_IN || type == StockTransactionType.TRANSFER_OUT;
 	}

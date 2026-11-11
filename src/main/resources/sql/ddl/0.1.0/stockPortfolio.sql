@@ -1307,6 +1307,160 @@ BEGIN
   SELECT RAISE(FAIL, 'a security exchange cannot have cash legs');
 END;
 
+[SQL_SETUP_CREATE_STOCK_CORPORATE_ACTION]
+CREATE TABLE stockCorporateAction (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL CHECK (LENGTH(TRIM(name)) > 0),
+  actionType INTEGER NOT NULL CHECK (actionType BETWEEN 1 AND 4),
+  underlyingSecurity_id INTEGER NOT NULL REFERENCES stockSecurity(id),
+  rightsSecurity_id INTEGER REFERENCES stockSecurity(id),
+  targetSecurity_id INTEGER NOT NULL REFERENCES stockSecurity(id),
+  allocationFromE9 INTEGER NOT NULL CHECK (allocationFromE9 > 0),
+  allocationToE9 INTEGER NOT NULL CHECK (allocationToE9 > 0),
+  ratioFromE9 INTEGER NOT NULL CHECK (ratioFromE9 > 0),
+  ratioToE9 INTEGER NOT NULL CHECK (ratioToE9 > 0),
+  subscriptionPriceE8 INTEGER CHECK (subscriptionPriceE8 >= 0),
+  currency INTEGER NOT NULL CHECK (currency BETWEEN 1 AND 40),
+  effectiveDate TEXT NOT NULL,
+  endDate TEXT CHECK (endDate >= effectiveDate),
+  oldNominalE8 INTEGER CHECK (oldNominalE8 > 0),
+  newNominalE8 INTEGER CHECK (newNominalE8 >= 0),
+  createdAt TEXT NOT NULL,
+  CHECK (rightsSecurity_id IS NULL OR
+    (rightsSecurity_id <> underlyingSecurity_id AND rightsSecurity_id <> targetSecurity_id)),
+  CHECK (actionType <> 1 OR (rightsSecurity_id IS NOT NULL AND subscriptionPriceE8 IS NOT NULL)),
+  CHECK (actionType <> 3 OR (oldNominalE8 IS NOT NULL AND newNominalE8 IS NOT NULL AND newNominalE8 < oldNominalE8)));
+
+[SQL_SETUP_CREATE_STOCK_CORPORATE_ACTION_TRANSACTION]
+CREATE TABLE stockCorporateActionTransaction (
+  id INTEGER PRIMARY KEY,
+  action_id INTEGER NOT NULL REFERENCES stockCorporateAction(id),
+  primaryRole INTEGER NOT NULL DEFAULT 1 CHECK (primaryRole = 1),
+  booking_id INTEGER UNIQUE REFERENCES booking(id),
+  operation INTEGER NOT NULL CHECK (operation BETWEEN 1 AND 10),
+  basisAmountE8 INTEGER CHECK (basisAmountE8 >= 0),
+  referenceQuantityE9 INTEGER NOT NULL DEFAULT 0 CHECK (referenceQuantityE9 >= 0),
+  externalGrossMinor INTEGER,
+  externalFeesMinor INTEGER CHECK (externalFeesMinor >= 0),
+  externalTaxesMinor INTEGER CHECK (externalTaxesMinor >= 0),
+  createdAt TEXT NOT NULL,
+  CHECK (booking_id IS NOT NULL OR (externalGrossMinor IS NULL AND externalFeesMinor IS NULL AND externalTaxesMinor IS NULL)),
+  CHECK (booking_id IS NULL OR (externalGrossMinor IS NOT NULL AND externalFeesMinor IS NOT NULL AND externalTaxesMinor IS NOT NULL)),
+  CHECK (operation <> 1 OR referenceQuantityE9 > 0),
+  -- Require the primary member at commit, allowing head and members to be inserted atomically.
+  FOREIGN KEY (id, primaryRole) REFERENCES stockCorporateActionMember(association_id, role)
+    DEFERRABLE INITIALLY DEFERRED);
+
+[SQL_SETUP_CREATE_STOCK_CORPORATE_ACTION_MEMBER]
+CREATE TABLE stockCorporateActionMember (
+  id INTEGER PRIMARY KEY,
+  association_id INTEGER NOT NULL REFERENCES stockCorporateActionTransaction(id) ON DELETE CASCADE,
+  transaction_id INTEGER NOT NULL UNIQUE REFERENCES stockTransaction(id),
+  role INTEGER NOT NULL CHECK (role IN (1, 2)),
+  UNIQUE (association_id, role));
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_CORPORATE_ACTION_BLOCK_UPDATE]
+CREATE TRIGGER block_stockcorporateaction_update BEFORE UPDATE ON stockCorporateAction
+BEGIN
+  SELECT RAISE(FAIL, 'corporate action definitions are immutable');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_CORPORATE_ACTION_MEMBER_VALIDATE]
+CREATE TRIGGER validate_stockcorporateactionmember_insert
+BEFORE INSERT ON stockCorporateActionMember
+WHEN NOT EXISTS (SELECT 1 FROM stockTransaction t
+  WHERE t.id = NEW.transaction_id AND t.transactionStatus = 2
+    AND NOT EXISTS (SELECT 1 FROM stockCorporateActionMember member
+      JOIN stockTransaction other ON other.id = member.transaction_id
+      WHERE member.association_id = NEW.association_id
+        AND (other.portfolio_id <> t.portfolio_id OR SUBSTR(other.settledAt,1,10) <> SUBSTR(t.settledAt,1,10))))
+  -- Insert the optional related member first; the mandatory primary member seals membership.
+  OR EXISTS (SELECT 1 FROM stockCorporateActionMember
+    WHERE association_id = NEW.association_id AND role = 1)
+  OR EXISTS (SELECT 1 FROM stockSecurityExchangeLink link
+    JOIN stockTransactionSecurityLeg leg ON leg.id IN (link.sourceLeg_id, link.targetLeg_id)
+    WHERE leg.transaction_id = NEW.transaction_id)
+BEGIN
+  SELECT RAISE(FAIL, 'invalid corporate action member or sealed association');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_CORPORATE_ACTION_MEMBER_BLOCK_UPDATE]
+CREATE TRIGGER block_stockcorporateactionmember_update BEFORE UPDATE ON stockCorporateActionMember
+BEGIN
+  SELECT RAISE(FAIL, 'remove the corporate action association before replacing its members');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_CORPORATE_ACTION_MEMBER_BLOCK_DELETE]
+CREATE TRIGGER block_stockcorporateactionmember_delete BEFORE DELETE ON stockCorporateActionMember
+WHEN EXISTS (SELECT 1 FROM stockCorporateActionTransaction WHERE id = OLD.association_id)
+BEGIN
+  SELECT RAISE(FAIL, 'remove the corporate action association before deleting its members');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_CORPORATE_ACTION_ASSOCIATION_BLOCK_UPDATE]
+CREATE TRIGGER block_stockcorporateactiontransaction_update BEFORE UPDATE ON stockCorporateActionTransaction
+BEGIN
+  SELECT RAISE(FAIL, 'remove the corporate action association before replacing it');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_CORPORATE_ACTION_TRANSACTION_BLOCK_UPDATE]
+CREATE TRIGGER block_corporateaction_stocktransaction_update BEFORE UPDATE ON stockTransaction
+WHEN EXISTS (SELECT 1 FROM stockCorporateActionMember WHERE transaction_id = OLD.id)
+BEGIN
+  SELECT RAISE(FAIL, 'remove the corporate action association before changing its transaction');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_CORPORATE_ACTION_SECURITY_LEG_BLOCK_INSERT]
+CREATE TRIGGER block_corporateaction_stocksecurityleg_insert BEFORE INSERT ON stockTransactionSecurityLeg
+WHEN EXISTS (SELECT 1 FROM stockCorporateActionMember WHERE transaction_id = NEW.transaction_id)
+BEGIN
+  SELECT RAISE(FAIL, 'remove the corporate action association before changing its security legs');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_CORPORATE_ACTION_SECURITY_LEG_BLOCK_UPDATE]
+CREATE TRIGGER block_corporateaction_stocksecurityleg_update BEFORE UPDATE ON stockTransactionSecurityLeg
+WHEN EXISTS (SELECT 1 FROM stockCorporateActionMember WHERE transaction_id IN (OLD.transaction_id, NEW.transaction_id))
+BEGIN
+  SELECT RAISE(FAIL, 'remove the corporate action association before changing its security legs');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_CORPORATE_ACTION_SECURITY_LEG_BLOCK_DELETE]
+CREATE TRIGGER block_corporateaction_stocksecurityleg_delete BEFORE DELETE ON stockTransactionSecurityLeg
+WHEN EXISTS (SELECT 1 FROM stockCorporateActionMember WHERE transaction_id = OLD.transaction_id)
+BEGIN
+  SELECT RAISE(FAIL, 'remove the corporate action association before changing its security legs');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_CORPORATE_ACTION_CASH_LEG_BLOCK_INSERT]
+CREATE TRIGGER block_corporateaction_stockcashleg_insert BEFORE INSERT ON stockTransactionCashLeg
+WHEN EXISTS (SELECT 1 FROM stockCorporateActionMember WHERE transaction_id = NEW.transaction_id)
+BEGIN
+  SELECT RAISE(FAIL, 'remove the corporate action association before changing its cash legs');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_CORPORATE_ACTION_CASH_LEG_BLOCK_UPDATE]
+CREATE TRIGGER block_corporateaction_stockcashleg_update BEFORE UPDATE ON stockTransactionCashLeg
+WHEN EXISTS (SELECT 1 FROM stockCorporateActionMember WHERE transaction_id IN (OLD.transaction_id, NEW.transaction_id))
+BEGIN
+  SELECT RAISE(FAIL, 'remove the corporate action association before changing its cash legs');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_CORPORATE_ACTION_CASH_LEG_BLOCK_DELETE]
+CREATE TRIGGER block_corporateaction_stockcashleg_delete BEFORE DELETE ON stockTransactionCashLeg
+WHEN EXISTS (SELECT 1 FROM stockCorporateActionMember WHERE transaction_id = OLD.transaction_id)
+BEGIN
+  SELECT RAISE(FAIL, 'remove the corporate action association before changing its cash legs');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_CORPORATE_ACTION_EXCHANGE_LINK_BLOCK_INSERT]
+CREATE TRIGGER block_corporateaction_stockexchangelink_insert BEFORE INSERT ON stockSecurityExchangeLink
+WHEN EXISTS (SELECT 1 FROM stockCorporateActionMember member
+  JOIN stockTransactionSecurityLeg leg ON leg.transaction_id = member.transaction_id
+  WHERE leg.id IN (NEW.sourceLeg_id, NEW.targetLeg_id))
+BEGIN
+  SELECT RAISE(FAIL, 'a corporate action cannot also be a security exchange');
+END;
+
 [SQL_SETUP_CREATE_VIEW_STOCK_PORTFOLIO_POSITION]
 CREATE VIEW stockPortfolioPosition AS
 SELECT

@@ -35,6 +35,7 @@ import de.zft2.gbanking.gui.util.FileChooserSupport;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService;
+import de.zft2.gbanking.service.stock.PortfolioPerformanceExportService;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService.XmlImportPreview;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService.XmlImportAssignments;
 import javafx.scene.control.Alert;
@@ -194,7 +195,19 @@ final class FileTransferCoordinator implements BaseGui {
 		}
 		Path exportFile = chooseExportFile(exportType.getFileType());
 		if (exportFile != null) {
-			startStockFileOperation(exportFile, exportType, portfolio, false, null, null, overviewPanel);
+			try {
+				if (exportType == ExportType.STOCK_PP_TRANSACTIONS_CSV
+						&& ServiceRegistry.getService(PortfolioPerformanceExportService.class).losesCorporateActionAssociations(portfolio)
+						&& !DialogWindowSupport.showConfirmation(owner, Alert.AlertType.WARNING,
+								getText("UI_STOCK_PP_EXPORT_WARNING_TITLE"), null, getText("UI_STOCK_PP_EXPORT_ASSOCIATIONS_WARNING"),
+								ButtonType.OK, ButtonType.CANCEL)) {
+					return;
+				}
+				startStockFileOperation(exportFile, exportType, portfolio, false, null, null, overviewPanel);
+			} catch (RuntimeException exception) {
+				log.error("Portfolio Performance export preparation failed. type={}, file={}", exportType, fileName(exportFile), exception);
+				showWarning(owner, exception.getMessage());
+			}
 		}
 	}
 

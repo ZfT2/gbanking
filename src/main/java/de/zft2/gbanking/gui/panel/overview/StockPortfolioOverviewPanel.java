@@ -24,6 +24,7 @@ import de.zft2.gbanking.gui.dialog.stock.StockIncomeDialog;
 import de.zft2.gbanking.gui.dialog.stock.StockPortfolioTransferDialog;
 import de.zft2.gbanking.gui.dialog.stock.StockPositionTransferDialog;
 import de.zft2.gbanking.gui.dialog.stock.StockSecurityExchangeDialog;
+import de.zft2.gbanking.gui.dialog.stock.StockCorporateActionDialog;
 import de.zft2.gbanking.gui.dialog.stock.StockSettlementAccountDialog;
 import de.zft2.gbanking.gui.dialog.stock.StockTradeDialog;
 import de.zft2.gbanking.gui.dialog.stock.StockTransactionDialog;
@@ -110,6 +111,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	private final Button transactionEditButton = new Button();
 	private final Button transactionDeleteButton = new Button();
 	private final Button exchangeButton = new Button();
+	private final Button corporateButton = new Button();
 	private final CheckBox includePredecessors = new CheckBox();
 	private final Button showAllTransactions = new Button();
 	private final Label historyLabel = new Label();
@@ -259,7 +261,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		FormGridHelper.addFieldAbove(grid, getText("UI_STOCK_FIELD_SETTLEMENT_ACCOUNT"), portfolioSettlementValue, 1, 1, 2);
 		configureTransactionButtons();
 		grid.add(FormStyleUtils.createButtonBar(transactionNewButton, transactionEditButton,
-				transactionDeleteButton, exchangeButton), 0, 4, 3, 1);
+				transactionDeleteButton, exchangeButton, corporateButton), 0, 4, 3, 1);
 		return grid;
 	}
 
@@ -272,6 +274,14 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		transactionDeleteButton.setOnAction(event -> deleteSelectedTransaction());
 		exchangeButton.setText(getText("UI_STOCK_ACTION_EXCHANGE"));
 		exchangeButton.setOnAction(event -> openSecurityExchange(null, false));
+		corporateButton.setText(getText("UI_STOCK_CORPORATE_TITLE"));
+		corporateButton.setOnAction(event -> {
+			try {
+				new StockCorporateActionDialog(getOwnerWindow(), selectedPortfolio, this::refreshSelectedPortfolio).show();
+			} catch (RuntimeException exception) {
+				DialogWindowSupport.showAlert(getOwnerWindow(), Alert.AlertType.WARNING, exception.getMessage());
+			}
+		});
 		transactionTable.getSelectionModel().selectedItemProperty().addListener(
 				(observable, previous, selected) -> updateTransactionButtons());
 		updateTransactionButtons();
@@ -339,8 +349,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		transactionTable.getColumns().add(TableColumnFactory.createCalendarDateColumn(getText("UI_STOCK_COLUMN_DATE"),
 				TransactionSummary::date, 100));
 		transactionTable.getColumns().add(TableColumnFactory.createFixedTextColumn(getText("UI_STOCK_COLUMN_TRANSACTION"),
-				summary -> summary.transactionType() == StockTransactionType.CORPORATE_ACTION
-						? getText("UI_STOCK_EXCHANGE_TITLE") : transactionName(summary.transactionType()), 190));
+				summary -> transactionLabel(summary), 190));
 		transactionTable.getColumns().add(createSecurityLinkColumn(getText("UI_STOCK_COLUMN_SECURITY_NAME"),
 				TransactionSummary::securityName, TransactionSummary::securityId, TransactionSummary::currency, 180));
 		transactionTable.getColumns().add(TableColumnFactory.createFixedTextColumn(getText("UI_STOCK_COLUMN_ISIN"),
@@ -356,6 +365,12 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		transactionTable.getColumns().add(TableColumnFactory.createFixedTextColumn(getText("UI_STOCK_FIELD_CURRENCY"),
 				summary -> currencyName(summary.currency()), 80));
 		transactionTable.setRowFactory(table -> createTransactionRow());
+	}
+
+	private String transactionLabel(TransactionSummary summary) {
+		if (summary.corporateOperation() != null) { return summary.corporateOperation().toString(); }
+		return summary.transactionType() == StockTransactionType.CORPORATE_ACTION
+				? getText("UI_STOCK_EXCHANGE_TITLE") : transactionName(summary.transactionType());
 	}
 
 	private TableRow<TransactionSummary> createTransactionRow() {
@@ -756,6 +771,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		TransactionSummary selected = transactionTable.getSelectionModel().getSelectedItem();
 		transactionNewButton.setDisable(selectedPortfolio == null);
 		exchangeButton.setDisable(selectedPortfolio == null);
+		corporateButton.setDisable(selectedPortfolio == null);
 		transactionEditButton.setDisable(!canEdit(selected));
 		transactionDeleteButton.setDisable(selected == null);
 	}

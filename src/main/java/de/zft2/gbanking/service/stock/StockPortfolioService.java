@@ -44,6 +44,10 @@ import de.zft2.gbanking.db.dao.enu.StockStatementStatus;
 import de.zft2.gbanking.db.dao.enu.StockTransactionEditField;
 import de.zft2.gbanking.db.dao.enu.StockTransactionStatus;
 import de.zft2.gbanking.db.dao.enu.StockTransactionType;
+import de.zft2.gbanking.db.dao.enu.StockCorporateActionOperation;
+import de.zft2.gbanking.db.dao.stock.StockCorporateAction;
+import de.zft2.gbanking.db.dao.stock.StockCorporateActionMember;
+import de.zft2.gbanking.db.dao.stock.StockCorporateActionTransaction;
 import de.zft2.gbanking.db.dao.stock.StockDataSource;
 import de.zft2.gbanking.db.dao.stock.StockExchangeRate;
 import de.zft2.gbanking.db.dao.stock.StockExchangeRateSource;
@@ -153,6 +157,19 @@ public class StockPortfolioService extends AbstractDbService {
 		Map<Integer, StockSecurityPrice> prices = latestPricesBySecurity();
 		Map<PositionKey, AcquisitionPriceValue> finTsPrices = latestFinTsAcquisitionPrices(portfolioId);
 		Map<PositionKey, AcquisitionPriceState> calculatedPrices = acquisitionPricesByPosition(portfolioId);
+		Map<Integer, StockCorporateActionService.Event> events = new StockCorporateActionService().events(settledTransactions(portfolioId).transactions());
+		Set<Integer> economicSecurities = events.values().stream().flatMap(event -> event.securityIds().stream()).collect(Collectors.toSet());
+		for (StockCorporateActionService.Event event : events.values()) {
+			StockCorporateAction action = event.action();
+			StockSecurityPrice price = prices.get(action.getUnderlyingSecurityId());
+			if (event.association().getOperation() == StockCorporateActionOperation.CONSOLIDATION
+					&& action.getUnderlyingSecurityId() == action.getTargetSecurityId() && action.getRatioFromE9() != action.getRatioToE9()
+					&& price != null && price.getQuotedAt().toLocalDate().isBefore(event.trigger().getSettledAt().toLocalDate())) {
+				prices.remove(action.getUnderlyingSecurityId());
+			}
+		}
+		calculatedPrices.forEach((key, state) -> { if (state.economicBasis) { economicSecurities.add(key.securityId()); } });
+		finTsPrices.keySet().removeIf(key -> economicSecurities.contains(key.securityId()));
 		return dbController.getAllByParent(StockPortfolioPosition.class, portfolioId).stream()
 				.map(position -> createPositionSummary(position, securities.get(position.getSecurityId()),
 						identifiers.getOrDefault(position.getSecurityId(), SecurityIdentifiers.EMPTY),
@@ -168,6 +185,10 @@ public class StockPortfolioService extends AbstractDbService {
 		Map<Integer, StockDataSourceType> sourceTypes = dbController.getAll(StockDataSource.class).stream()
 				.collect(Collectors.toMap(StockDataSource::getId, StockDataSource::getSourceType));
 		List<TransactionSummary> result = new ArrayList<>();
+		Map<Integer, StockCorporateActionOperation> associationOperations = dbController.getAll(StockCorporateActionTransaction.class).stream()
+				.collect(Collectors.toMap(association -> association.getId(), association -> association.getOperation()));
+		Map<Integer, StockCorporateActionOperation> operations = dbController.getAll(StockCorporateActionMember.class).stream()
+				.collect(Collectors.toMap(member -> member.getTransactionId(), member -> associationOperations.get(member.getAssociationId())));
 		SettledTransactions settled = settledTransactions(portfolioId);
 		for (StockTransaction transaction : settled.transactions()) {
 			for (StockTransactionSecurityLeg leg : settled.legs(transaction)) {
@@ -175,7 +196,7 @@ public class StockPortfolioService extends AbstractDbService {
 				if (security != null) {
 					SecurityIdentifiers securityIdentifiers = identifiers.getOrDefault(security.getId(), SecurityIdentifiers.EMPTY);
 					result.add(createTransactionSummary(transaction, leg, security, securityIdentifiers,
-							sourceTypes.get(transaction.getSourceId())));
+							sourceTypes.get(transaction.getSourceId()), operations.get(transaction.getId())));
 				}
 			}
 		}
@@ -354,15 +375,18 @@ public class StockPortfolioService extends AbstractDbService {
 		requireNonNegativeExchangePositions(portfolioId, Set.of());
 	}
 
-	private void requireNonNegativeExchangePositions(int portfolioId, Set<Integer> additionalIds) {
+	void requireNonNegativeExchangePositions(int portfolioId, Set<Integer> additionalIds) {
 		Set<Integer> ids = securityExchanges(settledTransactions(portfolioId)).stream()
 				.flatMap(exchange -> List.of(exchange.source().getSecurityId(), exchange.target().getSecurityId()).stream())
 				.collect(Collectors.toSet());
 		ids.addAll(additionalIds);
+		new StockCorporateActionService().events(settledTransactions(portfolioId).transactions()).values()
+				.forEach(event -> ids.addAll(event.securityIds()));
 		if (dbController.getAllByParent(StockPortfolioPosition.class, portfolioId).stream()
 				.anyMatch(position -> ids.contains(position.getSecurityId()) && position.getQuantityE9() < 0)) {
-			throw new GBankingException("Die Änderung würde einen negativen Bestand in einer Gattungswechsel-Kette erzeugen");
+			throw new GBankingException("Die Änderung würde einen negativen Bestand einer verbundenen Kapitalmaßnahme erzeugen");
 		}
+		new StockCorporateActionService().getResults(portfolioId);
 	}
 
 	public List<TransactionPrefill> getReconciliationPrefills(int portfolioId) {
@@ -433,6 +457,9 @@ public class StockPortfolioService extends AbstractDbService {
 		}
 		if (linkedExchangeTransactionIds(transaction.getPortfolioId()).contains(transactionId)) {
 			throw new GBankingException("Bitte zuerst die Gattungswechsel-Zuordnung aufheben");
+		}
+		if (dbController.getAll(StockCorporateActionMember.class).stream().anyMatch(member -> member.getTransactionId() == transactionId)) {
+			throw new GBankingException("Bitte den Vorgang im Dialog Kapitalmaßnahmen löschen oder seine Zuordnung aufheben");
 		}
 		List<PositionKey> affectedPositions = dbController
 				.getAllByParent(StockTransactionSecurityLeg.class, transactionId).stream()
@@ -888,7 +915,7 @@ public class StockPortfolioService extends AbstractDbService {
 		dbController.insertOrUpdate(metadata);
 	}
 
-	private void removeManualSettlementBookings(StockTransaction transaction) {
+	void removeManualSettlementBookings(StockTransaction transaction) {
 		Set<Integer> bookingIds = dbController.getAllByParent(StockTransactionCashLeg.class, transaction.getId()).stream()
 				.map(StockTransactionCashLeg::getBookingId).filter(Objects::nonNull).collect(Collectors.toSet());
 		for (Integer bookingId : bookingIds) {
@@ -968,9 +995,17 @@ public class StockPortfolioService extends AbstractDbService {
 		Currency currency = price != null ? price.getQuoteCurrency() : security.getDefaultQuoteCurrency();
 		PositionKey key = new PositionKey(position.getSecurityId(), position.getQuantityType());
 		AcquisitionPriceValue finTsPrice = finTsPrices.get(key);
-		BigDecimal acquisitionPrice = resolveAcquisitionPrice(currency, finTsPrice, calculatedPrices.get(key));
+		AcquisitionPriceState calculated = calculatedPrices.get(key);
+		BigDecimal acquisitionPrice = resolveAcquisitionPrice(currency, finTsPrice, calculated);
+		if (calculated != null && calculated.economicBasis && calculated.quantity.compareTo(quantity) != 0) {
+			acquisitionPrice = null;
+		}
 		BigDecimal acquisitionValue = acquisitionPrice != null
 				? calculateValue(quantity, acquisitionPrice, security.getDefaultQuotationType()) : null;
+		if (finTsPrice == null && calculated != null && calculated.currency == currency
+				&& calculated.quantity.compareTo(quantity) == 0 && calculated.exactBasis != null) {
+			acquisitionValue = calculated.exactBasis;
+		}
 		return new PositionSummary(position.getPortfolioId(), security.getId(), security.getName(), identifiers.isin(),
 				identifiers.wkn(), position.getQuantityType(), quantity, acquisitionPrice,
 				acquisitionValue, unitPrice, totalValue, currency, calculatePerformance(unitPrice, acquisitionPrice));
@@ -1016,18 +1051,33 @@ public class StockPortfolioService extends AbstractDbService {
 	}
 
 	private Map<PositionKey, AcquisitionPriceState> acquisitionPricesByPosition(int portfolioId) {
+		return acquisitionPricesByPosition(portfolioId, new ArrayList<>());
+	}
+
+	Map<PositionKey, AcquisitionPriceState> acquisitionPricesByPosition(int portfolioId,
+			List<StockCorporateActionService.ActionResult> actionResults) {
 		Map<PositionKey, AcquisitionPriceState> result = new HashMap<>();
 		SettledTransactions settled = settledTransactions(portfolioId);
+		StockCorporateActionService corporate = new StockCorporateActionService();
+		Map<Integer, StockCorporateActionService.Event> events = corporate.events(settled.transactions());
 		List<StockTransaction> transactions = settled.transactions().stream()
 				.filter(transaction -> transaction.getTransactionType() != StockTransactionType.RECONCILIATION_ADJUSTMENT)
 				.sorted(SETTLED_TRANSACTION_ORDER)
 				.toList();
+		seedCorporateOpeningBalances(portfolioId, transactions, settled, events, result);
 		Map<Integer, SecurityExchange> exchangesByTransaction = new HashMap<>();
 		for (SecurityExchange exchange : securityExchanges(settled)) {
 			exchangesByTransaction.put(exchange.source().getTransactionId(), exchange);
 			exchangesByTransaction.put(exchange.target().getTransactionId(), exchange);
 		}
 		for (StockTransaction transaction : transactions) {
+			StockCorporateActionService.Event event = events.get(transaction.getId());
+			if (event != null) {
+				if (event.trigger().getId() == transaction.getId()) {
+					actionResults.add(corporate.apply(event, result));
+				}
+				continue;
+			}
 			SecurityExchange exchange = exchangesByTransaction.get(transaction.getId());
 			if (exchange == null) {
 				for (StockTransactionSecurityLeg leg : settled.legs(transaction)) {
@@ -1040,6 +1090,65 @@ public class StockPortfolioService extends AbstractDbService {
 			}
 		}
 		return result;
+	}
+
+	private void seedCorporateOpeningBalances(int portfolioId, List<StockTransaction> transactions,
+			SettledTransactions settled, Map<Integer, StockCorporateActionService.Event> events,
+			Map<PositionKey, AcquisitionPriceState> states) {
+		if (events.isEmpty()) { return; }
+		Set<Integer> securities = events.values().stream().flatMap(event -> event.securityIds().stream()).collect(Collectors.toSet());
+		Map<Integer, LocalDateTime> firstActivity = new HashMap<>();
+		for (StockTransaction transaction : transactions) {
+			for (StockTransactionSecurityLeg leg : settled.legs(transaction)) {
+				if (securities.contains(leg.getSecurityId())) {
+					firstActivity.putIfAbsent(leg.getSecurityId(), transaction.getSettledAt().toLocalDate().atStartOfDay());
+				}
+			}
+		}
+		List<StockPortfolioStatement> statements = dbController.getAllByParent(StockPortfolioStatement.class, portfolioId).stream()
+				.filter(statement -> statement.getStatementStatus() == StockStatementStatus.FINAL)
+				.sorted(Comparator.comparing(StockPortfolioStatement::getStatementAt).reversed()).toList();
+		for (Map.Entry<Integer, LocalDateTime> entry : firstActivity.entrySet()) {
+			StockPortfolioStatement statement = statements.stream().filter(s -> s.getStatementAt().isBefore(entry.getValue())).findFirst().orElse(null);
+			if (statement == null) { continue; }
+			dbController.getAllByParent(StockPortfolioStatementPosition.class, statement.getId()).stream()
+					.filter(position -> position.getSecurityId() == entry.getKey() && position.getQuantityType() == StockQuantityType.UNITS)
+					.forEach(position -> {
+						AcquisitionPriceState state = new AcquisitionPriceState();
+						state.apply(fromScaled(position.getQuantityE9(), QUANTITY_SCALE),
+								position.getReportedAcquisitionPriceE8() != null ? fromScaled(position.getReportedAcquisitionPriceE8(), PRICE_SCALE) : null,
+								position.getAcquisitionPriceCurrency());
+						states.put(positionKey(position), state);
+					});
+		}
+	}
+
+	public BigDecimal getBankReportedAcquisitionPrice(int portfolioId, int securityId, Currency currency) {
+		AcquisitionPriceValue value = latestFinTsAcquisitionPrices(portfolioId).get(new PositionKey(securityId, StockQuantityType.UNITS));
+		return value != null ? value.priceIn(currency) : null;
+	}
+
+	public Set<Integer> getCorporateActionSecurityIds(int portfolioId, int actionId) {
+		StockCorporateAction action = dbController.getById(StockCorporateAction.class, actionId);
+		if (action == null) { throw new GBankingException("Kapitalmaßnahme nicht gefunden"); }
+		Set<Integer> securities = new HashSet<>(List.of(action.getUnderlyingSecurityId(), action.getTargetSecurityId()));
+		if (action.getRightsSecurityId() != null) { securities.add(action.getRightsSecurityId()); }
+		List<SecurityExchange> exchanges = securityExchanges(settledTransactions(portfolioId));
+		boolean changed;
+		do {
+			changed = false;
+			for (SecurityExchange exchange : exchanges) {
+				if (securities.contains(exchange.source().getSecurityId()) || securities.contains(exchange.target().getSecurityId())) {
+					changed |= securities.addAll(List.of(exchange.source().getSecurityId(), exchange.target().getSecurityId()));
+				}
+			}
+		} while (changed);
+		return securities;
+	}
+
+	public List<TransactionSummary> getCorporateActionHistory(int portfolioId, int actionId) {
+		Set<Integer> securities = getCorporateActionSecurityIds(portfolioId, actionId);
+		return getTransactions(portfolioId).stream().filter(row -> securities.contains(row.securityId())).toList();
 	}
 
 	private static void applyAcquisitionLeg(Map<PositionKey, AcquisitionPriceState> prices,
@@ -1057,7 +1166,7 @@ public class StockPortfolioService extends AbstractDbService {
 		BigDecimal quantity = fromScaled(exchange.target().getQuantityE9(), QUANTITY_SCALE);
 		BigDecimal price = source.quantity.compareTo(quantity) >= 0 ? source.averagePrice : null;
 		Currency currency = source.currency;
-		if (price == null) {
+		if (price == null && !source.economicBasis) {
 			AcquisitionPriceValue reported = latestFinTsAcquisitionPrices(portfolioId, exchange.trigger().getSettledAt())
 					.get(positionKey(exchange.source()));
 			if (reported != null) {
@@ -1065,19 +1174,27 @@ public class StockPortfolioService extends AbstractDbService {
 				currency = reported.currency();
 			}
 		}
+		BigDecimal carriedBasis = source.exactBasis != null && source.quantity.compareTo(quantity) >= 0
+				? source.exactBasis.multiply(quantity).divide(source.quantity, 16, RoundingMode.HALF_UP) : null;
 		source.apply(quantity.negate(), null, null);
-		target.apply(quantity, price, currency);
+		if (source.economicBasis) {
+			StockCorporateActionService.credit(target, quantity, carriedBasis, currency);
+		} else {
+			target.apply(quantity, price, currency);
+		}
 	}
 
 	private List<SecurityExchange> securityExchanges(SettledTransactions settled) {
 		Map<Integer, StockTransactionSecurityLeg> legsById = new HashMap<>();
 		Map<Integer, StockTransaction> transactionsById = new HashMap<>();
 		List<SecurityExchange> result = new ArrayList<>();
+		Set<Integer> corporateIds = dbController.getAll(StockCorporateActionMember.class).stream()
+				.map(member -> member.getTransactionId()).collect(Collectors.toSet());
 		for (StockTransaction transaction : settled.transactions()) {
 			transactionsById.put(transaction.getId(), transaction);
 			List<StockTransactionSecurityLeg> legs = settled.legs(transaction);
 			legs.forEach(leg -> legsById.put(leg.getId(), leg));
-			if (transaction.getTransactionType() == StockTransactionType.CORPORATE_ACTION) {
+			if (transaction.getTransactionType() == StockTransactionType.CORPORATE_ACTION && !corporateIds.contains(transaction.getId())) {
 				result.add(manualSecurityExchange(transaction, legs));
 			}
 		}
@@ -1136,7 +1253,7 @@ public class StockPortfolioService extends AbstractDbService {
 	}
 
 	private TransactionSummary createTransactionSummary(StockTransaction transaction, StockTransactionSecurityLeg leg,
-			StockSecurity security, SecurityIdentifiers identifiers, StockDataSourceType sourceType) {
+			StockSecurity security, SecurityIdentifiers identifiers, StockDataSourceType sourceType, StockCorporateActionOperation operation) {
 		BigDecimal quantity = fromScaled(leg.getQuantityE9(), QUANTITY_SCALE);
 		if (transaction.getTransactionType() != StockTransactionType.CORPORATE_ACTION) {
 			quantity = quantity.abs();
@@ -1147,7 +1264,7 @@ public class StockPortfolioService extends AbstractDbService {
 				identifiers.isin(), identifiers.wkn(),
 				transaction.getTradeAt() != null ? transaction.getTradeAt().toLocalDate() : null,
 				quantity, unitPrice, totalPrice, leg.getPriceCurrency(), transaction.getEditableFieldMask(),
-				sourceType != null && sourceType != StockDataSourceType.MANUAL);
+				sourceType != null && sourceType != StockDataSourceType.MANUAL, operation);
 	}
 
 	private Map<Integer, StockSecurity> securitiesById() {
@@ -1236,7 +1353,7 @@ public class StockPortfolioService extends AbstractDbService {
 		return StockSources.getOrCreatePriceSource(dbController, securityId, source.getId(), null, null, 0);
 	}
 
-	private StockTransaction createPendingTransaction(int portfolioId, StockTransactionType type,
+	StockTransaction createPendingTransaction(int portfolioId, StockTransactionType type,
 			LocalDate tradeDate, LocalDate settlementDate) {
 		StockTransaction transaction = new StockTransaction();
 		transaction.setPortfolioId(portfolioId);
@@ -1250,7 +1367,7 @@ public class StockPortfolioService extends AbstractDbService {
 		return dbController.insertOrUpdate(transaction);
 	}
 
-	private StockTransactionSecurityLeg createPositionLeg(int transactionId, StockSecurity security, long quantityE9,
+	StockTransactionSecurityLeg createPositionLeg(int transactionId, StockSecurity security, long quantityE9,
 			Long priceE8, Currency priceCurrency) {
 		StockTransactionSecurityLeg leg = new StockTransactionSecurityLeg();
 		leg.setTransactionId(transactionId);
@@ -1267,7 +1384,7 @@ public class StockPortfolioService extends AbstractDbService {
 		return leg;
 	}
 
-	private void persistCashComponents(StockTransaction transaction, BankAccount account, LocalDate date,
+	void persistCashComponents(StockTransaction transaction, BankAccount account, LocalDate date,
 			List<CashComponent> cashComponents, String purpose) {
 		if (account == null) {
 			throw new GBankingException("Das Depot hat kein gültiges Verrechnungskonto");
@@ -1438,7 +1555,7 @@ public class StockPortfolioService extends AbstractDbService {
 		}
 	}
 
-	private static BigDecimal calculateValue(BigDecimal quantity, BigDecimal price, StockQuotationType quotationType) {
+	static BigDecimal calculateValue(BigDecimal quantity, BigDecimal price, StockQuotationType quotationType) {
 		BigDecimal value = quantity.multiply(price);
 		return quotationType == StockQuotationType.PERCENT_OF_NOMINAL ? value.movePointLeft(2) : value;
 	}
@@ -1485,7 +1602,7 @@ public class StockPortfolioService extends AbstractDbService {
 				StockDataSourceType.MANUAL, 100);
 	}
 
-	private void rebalanceReconciliationAdjustment(int portfolioId, PositionKey key) {
+	void rebalanceReconciliationAdjustment(int portfolioId, PositionKey key) {
 		StockPortfolioStatement statement = latestFinalStatement(portfolioId);
 		if (statement == null) {
 			return;
@@ -1747,9 +1864,9 @@ public class StockPortfolioService extends AbstractDbService {
 	public record TransactionSummary(int transactionId, StockTransactionType transactionType, int securityId,
 			String securityName, String isin, String wkn, LocalDate date, BigDecimal quantity,
 			BigDecimal unitPrice, BigDecimal totalPrice, Currency currency, int editableFieldMask,
-			boolean externalSource) {
+			boolean externalSource, StockCorporateActionOperation corporateOperation) {
 		public boolean editable() {
-			return editableFieldMask != 0;
+			return editableFieldMask != 0 && corporateOperation == null;
 		}
 	}
 
@@ -1808,10 +1925,10 @@ public class StockPortfolioService extends AbstractDbService {
 		private static final SecurityIdentifiers EMPTY = new SecurityIdentifiers(null, null);
 	}
 
-	private record CashComponent(StockCashLegRole role, BigDecimal amount, Integer exchangeRateId) {
+	record CashComponent(StockCashLegRole role, BigDecimal amount, Integer exchangeRateId) {
 	}
 
-	private record PositionKey(int securityId, StockQuantityType quantityType) {
+	record PositionKey(int securityId, StockQuantityType quantityType) {
 	}
 
 	private record SettledTransactions(List<StockTransaction> transactions,
@@ -1829,13 +1946,22 @@ public class StockPortfolioService extends AbstractDbService {
 		}
 	}
 
-	private static final class AcquisitionPriceState {
-		private BigDecimal quantity = BigDecimal.ZERO;
-		private BigDecimal averagePrice;
-		private Currency currency;
+	static final class AcquisitionPriceState {
+		BigDecimal quantity = BigDecimal.ZERO;
+		BigDecimal averagePrice;
+		BigDecimal exactBasis;
+		boolean economicBasis;
+		Currency currency;
 
-		private void apply(BigDecimal quantityChange, BigDecimal price, Currency priceCurrency) {
+		void apply(BigDecimal quantityChange, BigDecimal price, Currency priceCurrency) {
 			BigDecimal newQuantity = quantity.add(quantityChange);
+			if (exactBasis != null) {
+				if (quantityChange.signum() > 0) {
+					exactBasis = price != null && currency == priceCurrency ? exactBasis.add(price.multiply(quantityChange)) : null;
+				} else if (quantity.signum() > 0) {
+					exactBasis = exactBasis.multiply(newQuantity).divide(quantity, 16, RoundingMode.HALF_UP);
+				}
+			}
 			if (quantityChange.signum() > 0 && price == null) {
 				averagePrice = null;
 				currency = null;
@@ -1859,10 +1985,15 @@ public class StockPortfolioService extends AbstractDbService {
 			if (quantity.signum() <= 0) {
 				averagePrice = null;
 				currency = null;
+				exactBasis = null;
+			} else if (exactBasis != null) {
+				averagePrice = exactBasis.divide(quantity, PRICE_SCALE, RoundingMode.HALF_UP);
+			} else if (economicBasis && averagePrice != null) {
+				exactBasis = averagePrice.multiply(quantity);
 			}
 		}
 
-		private BigDecimal priceIn(Currency expectedCurrency) {
+		BigDecimal priceIn(Currency expectedCurrency) {
 			return currency == expectedCurrency ? averagePrice : null;
 		}
 	}
