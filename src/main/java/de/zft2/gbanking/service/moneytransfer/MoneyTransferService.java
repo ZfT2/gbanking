@@ -177,6 +177,7 @@ public class MoneyTransferService extends AbstractDbService {
 		moneyTransfer.setExecutionDate(mtf.getExecutionDate());
 		moneyTransfer.setExecutionDay(mtf.getExecutionDay());
 		moneyTransfer.setStandingorderMode(mtf.getStandingorderMode());
+		moneyTransfer.setExecutionDateNext(null);
 		moneyTransfer.setMoneytransferStatus(statusAfterSave);
 
 		MoneyTransfer persistedMoneyTransfer = dbController.insertOrUpdate(moneyTransfer);

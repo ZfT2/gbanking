@@ -3,6 +3,8 @@ package de.zft2.gbanking.gui.panel.moneytransfer;
 import static de.zft2.gbanking.util.TextValues.trimToBlank;
 
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -30,6 +32,7 @@ import de.zft2.gbanking.gui.enu.FileType;
 import de.zft2.gbanking.gui.panel.AbstractFilterableTablePanel;
 import de.zft2.gbanking.gui.panel.action.PinAskDialog;
 import de.zft2.gbanking.gui.progress.MoneyTransferImportProgressBarPanel;
+import de.zft2.gbanking.gui.util.DateFormatUtils;
 import de.zft2.gbanking.gui.util.FileChooserSupport;
 import de.zft2.gbanking.gui.util.FxTableUtils;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
@@ -38,18 +41,22 @@ import de.zft2.gbanking.service.moneytransfer.MoneyTransferService;
 import de.zft2.gbanking.util.StandingOrderSchedule;
 import javafx.collections.FXCollections;
 import javafx.concurrent.Task;
+import javafx.css.PseudoClass;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.skin.TableColumnHeader;
 import javafx.stage.Stage;
 
 public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTransfer> {
 
 	private static final Logger log = LogManager.getLogger(MoneyTransferListPanel.class);
+	private static final PseudoClass UNCONFIRMED_DATE = PseudoClass.getPseudoClass("unconfirmed-date");
 	private static final double RECIPIENT_COLUMN_MIN_WIDTH = 120;
 	private static final double RECIPIENT_COLUMN_PREF_WIDTH = 220;
 	private static final double PURPOSE_COLUMN_MIN_WIDTH = 140;
@@ -164,13 +171,32 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 		return orderType == OrderType.STANDING_ORDER ? "UI_TABLE_FIRST_EXECUTION_DATE" : "UI_TABLE_DATE";
 	}
 
-	private TableColumn<MoneyTransfer, java.time.LocalDate> createNextExecutionDateColumn() {
-		return TableColumnFactory.createCalendarDateColumn(getText("UI_TABLE_NEXT_EXECUTION_DATE"), this::nextExecutionDate, 95);
+	private TableColumn<MoneyTransfer, LocalDate> createNextExecutionDateColumn() {
+		TableColumn<MoneyTransfer, LocalDate> column = TableColumnFactory.createCalendarDateColumn(
+				getText("UI_TABLE_NEXT_EXECUTION_DATE"), this::nextExecutionDate, 95);
+		column.setCellFactory(ignored -> new TableCell<>() {
+			@Override
+			protected void updateItem(LocalDate date, boolean empty) {
+				super.updateItem(date, empty);
+				MoneyTransfer transfer = getTableRow() != null ? getTableRow().getItem() : null;
+				boolean calculated = transfer != null && transfer.getExecutionDateNext() == null;
+				boolean stale = date != null && date.isBefore(LocalDate.now(ZoneId.systemDefault()));
+				boolean marked = !empty && date != null && (calculated || stale);
+				setText(empty || date == null ? null : DateFormatUtils.formatShort(date) + (marked ? "*" : ""));
+				pseudoClassStateChanged(UNCONFIRMED_DATE, marked);
+				setTooltip(marked ? new Tooltip(MoneyTransferListPanel.this.getText(calculated
+						? "UI_TOOLTIP_STANDING_ORDER_DATE_CALCULATED" : "UI_TOOLTIP_STANDING_ORDER_DATE_STALE")) : null);
+			}
+		});
+		return column;
 	}
 
-	private java.time.LocalDate nextExecutionDate(MoneyTransfer transfer) {
+	private LocalDate nextExecutionDate(MoneyTransfer transfer) {
+		if (transfer.getExecutionDateNext() != null) {
+			return transfer.getExecutionDateNext();
+		}
 		return StandingOrderSchedule.nextExecutionDate(transfer.getExecutionDate(), transfer.getExecutionDay(), transfer.getStandingorderMode(),
-				java.time.LocalDate.now(java.time.ZoneId.systemDefault()));
+				LocalDate.now(ZoneId.systemDefault()));
 	}
 
 	private void configureContextMenu() {

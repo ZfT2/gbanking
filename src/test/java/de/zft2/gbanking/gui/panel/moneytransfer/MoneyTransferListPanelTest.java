@@ -12,7 +12,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -29,8 +31,11 @@ import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
+import de.zft2.gbanking.db.dao.enu.StandingorderMode;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
+import de.zft2.gbanking.gui.util.DateFormatUtils;
 import de.zft2.gbanking.messages.Messages;
+import de.zft2.gbanking.util.StandingOrderSchedule;
 import javafx.scene.Scene;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -198,6 +203,54 @@ class MoneyTransferListPanelTest {
 
 	private <T> void sortDateColumns(TableView<T> table) {
 		table.getSortOrder().setAll(table.getColumns().subList(1, 3));
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void nextExecutionShouldPreferBankDateAndMarkOnlyCalculatedOrPastDates(boolean archive) {
+		JavaFxTestSupport.runFx(() -> {
+			MoneyTransferListPanel panel = new MoneyTransferListPanel(OrderType.STANDING_ORDER,
+					mock(MoneyTransferDetailListTabPanel.class), archive);
+			TableView<?> table = (TableView<?>) panel.getCenter();
+			TableColumn<?, ?> column = table.getColumns().get(2);
+			Scene scene = new Scene(panel);
+			scene.getStylesheets().add(getClass().getResource("/css/gbanking-table.css").toExternalForm());
+			panel.resize(1800, 300);
+			LocalDate today = LocalDate.now(ZoneId.systemDefault());
+			LocalDate calculatedDate = StandingOrderSchedule.nextExecutionDate(today.minusMonths(1), 15, StandingorderMode.MONTHLY, today);
+			TableCell<?, ?> cell = null;
+			for (LocalDate bankDate : Arrays.asList(null, calculatedDate, null, today.minusDays(1), today, today.plusDays(2), null)) {
+				MoneyTransfer transfer = transfer(OrderType.STANDING_ORDER, archive ? MoneyTransferStatus.SENT : MoneyTransferStatus.NEW);
+				transfer.setExecutionDate(today.minusMonths(1));
+				transfer.setExecutionDay(15);
+				transfer.setStandingorderMode(StandingorderMode.MONTHLY);
+				transfer.setExecutionDateNext(bankDate);
+				panel.updateModelMoneytransfer(List.of(transfer));
+				panel.applyCss();
+				panel.layout();
+				LocalDate expected = bankDate != null ? bankDate
+						: StandingOrderSchedule.nextExecutionDate(transfer.getExecutionDate(), 15, StandingorderMode.MONTHLY, today);
+				boolean marked = bankDate == null || bankDate.isBefore(today);
+				assertEquals(expected, column.getCellData(0));
+				cell = table.lookupAll(".table-cell").stream().filter(node -> node instanceof TableCell<?, ?> candidate
+						&& candidate.getTableColumn() == column && candidate.getIndex() == 0).map(node -> (TableCell<?, ?>) node)
+						.findFirst().orElseThrow();
+				assertEquals(DateFormatUtils.formatShort(expected) + (marked ? "*" : ""), cell.getText());
+				assertEquals(marked, cell.getFont().getStyle().contains("Italic"));
+				if (marked) {
+					assertEquals(panel.getText(bankDate == null ? "UI_TOOLTIP_STANDING_ORDER_DATE_CALCULATED"
+							: "UI_TOOLTIP_STANDING_ORDER_DATE_STALE"), cell.getTooltip().getText());
+				} else {
+					assertNull(cell.getTooltip());
+				}
+			}
+			panel.updateModelMoneytransfer(List.of());
+			panel.applyCss();
+			panel.layout();
+			assertNull(cell.getText());
+			assertNull(cell.getTooltip());
+			assertFalse(cell.getFont().getStyle().contains("Italic"));
+		});
 	}
 
 	@ParameterizedTest

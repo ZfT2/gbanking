@@ -2,6 +2,7 @@ package de.zft2.gbanking.service.moneytransfer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -18,6 +19,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Month;
 import java.time.ZoneId;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
@@ -56,6 +58,7 @@ import de.zft2.gbanking.service.Service;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.ServiceStubbingUtil;
 import de.zft2.gbanking.testdata.TestDataFactory;
+import de.zft2.gbanking.util.TypeConverter;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MoneyTransferInventoryServiceTest {
@@ -122,10 +125,35 @@ class MoneyTransferInventoryServiceTest {
 		assertEquals(LocalDate.of(2026, Month.JUNE, 1), transfer.getExecutionDate());
 		assertEquals(31, transfer.getExecutionDay());
 		assertEquals(StandingorderMode.MONTHLY, transfer.getStandingorderMode());
+		assertEquals(TypeConverter.toLocalDate(entry.nextdate), transfer.getExecutionDateNext());
 		assertEquals("standing-order-1", transfer.getBankOrderId());
 		assertEquals("Standing Recipient", transfer.getRecipient().getName());
 		assertArrayCleared(firstPin);
 		assertArrayCleared(secondPin);
+	}
+
+	@Test
+	void saveRetrievedTransfers_shouldRefreshNextDateWithoutCreatingOrderVersions() {
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
+		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
+		int initialId = 0;
+		for (LocalDate nextDate : Arrays.asList(LocalDate.of(2026, 12, 31), LocalDate.of(2027, 1, 31), null)) {
+			MoneyTransfer transfer = inventoryTransfer(account, "Recipient", "DE11111111111111111111", new BigDecimal("12.34"));
+			transfer.setOrderType(OrderType.STANDING_ORDER);
+			transfer.setBankOrderId("standing-next-date");
+			transfer.setExecutionDay(31);
+			transfer.setStandingorderMode(StandingorderMode.MONTHLY);
+			transfer.setExecutionDateNext(nextDate);
+			service.saveRetrievedTransfers(account, OrderType.STANDING_ORDER, List.of(transfer));
+			List<MoneyTransfer> saved = dbController.getAllByParent(MoneyTransfer.class, account.getId());
+			assertEquals(1, saved.size());
+			assertEquals(nextDate, saved.get(0).getExecutionDateNext());
+			if (initialId == 0) {
+				initialId = saved.get(0).getId();
+			}
+			assertEquals(initialId, saved.get(0).getId());
+		}
+		assertNull(dbController.getAllByParent(MoneyTransfer.class, account.getId()).get(0).getHistoryorderId());
 	}
 
 	@Test
@@ -401,6 +429,7 @@ class MoneyTransferInventoryServiceTest {
 		entry.value = new Value(new BigDecimal("44.55"), "EUR");
 		entry.usage = new String[] { "Standing purpose", "Second line" };
 		entry.firstdate = toUtilDate(LocalDate.of(2026, Month.JUNE, 1));
+		entry.nextdate = toUtilDate(LocalDate.of(2026, Month.DECEMBER, 31));
 		entry.timeunit = "M";
 		entry.turnus = 1;
 		entry.execday = 31;

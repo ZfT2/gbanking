@@ -174,6 +174,7 @@ public class MoneyTransferInventoryService extends AbstractDbService {
 		transfer.setPurposeCode(trimToNull(entry.purposecode));
 		transfer.setExecutionDay(entry.execday > 0 ? Math.min(entry.execday, 31) : null);
 		transfer.setStandingorderMode(toStandingorderMode(entry.timeunit, entry.turnus));
+		transfer.setExecutionDateNext(TypeConverter.toLocalDate(entry.nextdate));
 		return transfer.getExecutionDate() != null && transfer.getExecutionDay() != null && transfer.getStandingorderMode() != null ? transfer : null;
 	}
 
@@ -321,6 +322,10 @@ public class MoneyTransferInventoryService extends AbstractDbService {
 			MoneyTransfer currentTransfer = current.get();
 			context.matchedCurrentIds().add(currentTransfer.getId());
 			if (isSameInventoryTransfer(currentTransfer, transfer)) {
+				if (!Objects.equals(currentTransfer.getExecutionDateNext(), transfer.getExecutionDateNext())) {
+					currentTransfer.setExecutionDateNext(transfer.getExecutionDateNext());
+					dbController.insertOrUpdate(currentTransfer);
+				}
 				return ReconciliationResult.UNCHANGED;
 			}
 			currentTransfer.setMoneytransferStatus(MoneyTransferStatus.SUPERSEDED);

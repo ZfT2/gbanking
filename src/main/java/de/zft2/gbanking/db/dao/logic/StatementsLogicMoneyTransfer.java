@@ -13,12 +13,14 @@ import de.zft2.gbanking.db.StatementsConfig.StatementType;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferForeign;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
+import de.zft2.gbanking.db.dao.MoneyTransferStandingorder;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.ForeignChargeBearer;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.mapper.AbstractDaoMapper;
 import de.zft2.gbanking.db.dao.mapper.MoneyTransferForeignMapper;
+import de.zft2.gbanking.db.dao.mapper.MoneyTransferStandingorderMapper;
 import de.zft2.gbanking.exception.GBankingException;
 
 public class StatementsLogicMoneyTransfer extends StatementsLogicDefault<MoneyTransfer> implements StatementsLogic<MoneyTransfer> {
@@ -32,22 +34,61 @@ public class StatementsLogicMoneyTransfer extends StatementsLogicDefault<MoneyTr
 
 	@Override
 	public MoneyTransfer insertOrUpdateSingle(MoneyTransfer moneyTransfer) {
-		MoneyTransferStatus existingStatus = validateAndGetExistingStatus(moneyTransfer);
+		ExistingTransfer existing = validateAndGetExistingTransfer(moneyTransfer);
 		MoneyTransfer persistedTransfer = null;
 		if (moneyTransfer != null) {
 			boolean insert = moneyTransfer.getId() <= 0;
+			validateStandingorder(moneyTransfer);
 			boolean initiallyReferencedInventory = !insert && moneyTransfer.getMoneytransferStatus() == MoneyTransferStatus.INVENTORY
-					&& existingStatus == MoneyTransferStatus.NEW;
+					&& existing != null && existing.status() == MoneyTransferStatus.NEW;
+			boolean existingStandingorder = existing != null && existing.orderType() == OrderType.STANDING_ORDER;
+			boolean newStandingorder = moneyTransfer.getOrderType() == OrderType.STANDING_ORDER
+					&& !existingStandingorder;
 			if (moneyTransfer.getId() > 0 && moneyTransfer.getOrderType() != OrderType.FOREIGN_TRANSFER) {
 				deleteForeignTransferDetails(moneyTransfer);
 			}
+			// Save existing details before archiving the parent; new details need the parent first.
+			if (existingStandingorder) {
+				persistStandingorderDetails(moneyTransfer);
+			}
 			persistedTransfer = super.insertOrUpdateSingle(moneyTransfer);
+			if (newStandingorder) {
+				persistStandingorderDetails(persistedTransfer);
+			}
 			if (insert || initiallyReferencedInventory) {
 				persistInitialBankOrderReference(persistedTransfer);
 			}
 		}
 		persistForeignTransferDetails(persistedTransfer);
 		return persistedTransfer;
+	}
+
+	private void validateStandingorder(MoneyTransfer transfer) {
+		if (transfer.getOrderType() == OrderType.STANDING_ORDER
+				&& (transfer.getExecutionDay() == null || transfer.getExecutionDay() < 1 || transfer.getExecutionDay() > 31
+						|| transfer.getStandingorderMode() == null)) {
+			throw new GBankingException("Standing orders require a valid execution day and interval");
+		}
+	}
+
+	private void persistStandingorderDetails(MoneyTransfer transfer) {
+		try {
+			if (transfer.getOrderType() == OrderType.STANDING_ORDER) {
+				MoneyTransferStandingorder details = transfer.getStandingorder();
+				details.setMoneyTransferId(transfer.getId());
+				MoneyTransferStandingorderMapper mapper = (MoneyTransferStandingorderMapper)
+						StatementsConfig.<MoneyTransferStandingorder, Void>getMapperForDaoType(MoneyTransferStandingorder.class);
+				executeCachedUpdate(DaoSqlStatements.SQL_UPSERT_MONEYTRANSFER_STANDINGORDER,
+						statement -> mapper.setParamsForUpsert(details, statement));
+			} else {
+				executeCachedUpdate(DaoSqlStatements.SQL_DELETE_MONEYTRANSFER_STANDINGORDER_BY_MONEYTRANSFER,
+						statement -> statement.setInt(1, transfer.getId()));
+				transfer.setStandingorder(null);
+			}
+		} catch (SQLException exception) {
+			log.error("Error saving standing order details for transfer id {}", transfer.getId(), exception);
+			throw new GBankingException("Error saving standing order details", exception);
+		}
 	}
 
 	private void persistInitialBankOrderReference(MoneyTransfer moneyTransfer) {
@@ -105,28 +146,32 @@ public class StatementsLogicMoneyTransfer extends StatementsLogicDefault<MoneyTr
 		}
 	}
 
-	private MoneyTransferStatus validateAndGetExistingStatus(MoneyTransfer moneyTransfer) {
+	private ExistingTransfer validateAndGetExistingTransfer(MoneyTransfer moneyTransfer) {
 		if (moneyTransfer == null || moneyTransfer.getId() <= 0) {
 			return null;
 		}
-		MoneyTransferStatus existingStatus = getExistingMoneyTransferStatus(moneyTransfer.getId());
-		if (existingStatus != null && existingStatus.isArchiveStatus()) {
+		ExistingTransfer existing = getExistingTransfer(moneyTransfer.getId());
+		if (existing != null && existing.status().isArchiveStatus()) {
 			throw new GBankingException("Archived money transfers must not be changed");
 		}
-		return existingStatus;
+		return existing;
 	}
 
-	private MoneyTransferStatus getExistingMoneyTransferStatus(int moneyTransferId) {
+	private ExistingTransfer getExistingTransfer(int moneyTransferId) {
 		try {
 			return executeCachedQuery(
 					DaoSqlStatements.SQL_SELECT_MONEYTRANSFER_STATUS_BY_ID,
 					statement -> statement.setInt(1, moneyTransferId),
 					resultSet -> resultSet.next()
-							? MoneyTransferStatus.forInt(resultSet.getInt("moneytransferStatus"))
+							? new ExistingTransfer(MoneyTransferStatus.forInt(resultSet.getInt("moneytransferStatus")),
+									OrderType.forInt(resultSet.getInt("moneytransferType")))
 							: null);
 		} catch (SQLException exception) {
 			throw new GBankingException("Error reading money transfer status", exception);
 		}
+	}
+
+	private record ExistingTransfer(MoneyTransferStatus status, OrderType orderType) {
 	}
 
 }

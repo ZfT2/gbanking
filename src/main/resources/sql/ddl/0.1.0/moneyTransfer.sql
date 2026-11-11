@@ -19,9 +19,7 @@ CREATE TABLE moneytransfer (
   endToEndId TEXT,
   amount REAL,
   executionDate TEXT,
-  executionDay INTEGER,
   moneytransferStatus INTEGER NOT NULL,
-  standingorderMode INTEGER,
   historyorder_id INTEGER,
   updatedAt TEXT NOT NULL,
   FOREIGN KEY(account_id) REFERENCES bankAccount(id) ON DELETE CASCADE,
@@ -30,10 +28,8 @@ CREATE TABLE moneytransfer (
   CHECK (moneytransferType BETWEEN 1 AND 6),
   CHECK (moneytransferStatus BETWEEN 1 AND 11),
   CHECK (amount IS NOT NULL AND amount > 0),
-  CHECK (executionDay IS NULL OR executionDay BETWEEN 1 AND 31),
-  CHECK (standingorderMode IS NULL OR standingorderMode BETWEEN 1 AND 5),
   CHECK (moneytransferType <> 3 OR executionDate IS NOT NULL),
-  CHECK (moneytransferType <> 4 OR (executionDate IS NOT NULL AND executionDay IS NOT NULL AND standingorderMode IS NOT NULL)));
+  CHECK (moneytransferType <> 4 OR executionDate IS NOT NULL));
 
 ;
 
@@ -108,6 +104,19 @@ CREATE TABLE moneytransferProtocol (
   CHECK (recipientNameCorrected IN (0, 1)));
 ;
 
+[SQL_SETUP_CREATE_MONEYTRANSFER_STANDINGORDER]
+CREATE TABLE moneytransferStandingorder (
+  id INTEGER PRIMARY KEY,
+  moneytransfer_id INTEGER NOT NULL UNIQUE,
+  executionDay INTEGER NOT NULL,
+  standingorderMode INTEGER NOT NULL,
+  executionDateNext TEXT,
+  updatedAt TEXT NOT NULL,
+  FOREIGN KEY(moneytransfer_id) REFERENCES moneytransfer(id) ON DELETE CASCADE,
+  CHECK (executionDay BETWEEN 1 AND 31),
+  CHECK (standingorderMode BETWEEN 1 AND 5));
+;
+
 [SQL_SETUP_CREATE_INDEX_MONEYTRANSFER_PROTOCOL_TRANSFER]
 CREATE INDEX IF NOT EXISTS idx_moneytransferprotocol_transfer
 ON moneytransferProtocol (moneytransfer_id, timeStart DESC, id DESC);
@@ -134,9 +143,8 @@ CREATE TRIGGER IF NOT EXISTS validate_moneytransfer_insert
 BEFORE INSERT ON moneytransfer
 WHEN NEW.amount IS NULL
     OR NEW.amount <= 0
-    OR NEW.executionDay NOT BETWEEN 1 AND 31 AND NEW.executionDay IS NOT NULL
     OR NEW.moneytransferType = 3 AND NEW.executionDate IS NULL
-    OR NEW.moneytransferType = 4 AND (NEW.executionDate IS NULL OR NEW.executionDay IS NULL OR NEW.standingorderMode IS NULL)
+    OR NEW.moneytransferType = 4 AND NEW.executionDate IS NULL
 BEGIN
   SELECT RAISE(FAIL, "invalid moneytransfer data");
 END;
@@ -146,11 +154,53 @@ CREATE TRIGGER IF NOT EXISTS validate_moneytransfer_update
 BEFORE UPDATE ON moneytransfer
 WHEN NEW.amount IS NULL
     OR NEW.amount <= 0
-    OR NEW.executionDay NOT BETWEEN 1 AND 31 AND NEW.executionDay IS NOT NULL
     OR NEW.moneytransferType = 3 AND NEW.executionDate IS NULL
-    OR NEW.moneytransferType = 4 AND (NEW.executionDate IS NULL OR NEW.executionDay IS NULL OR NEW.standingorderMode IS NULL)
+    OR NEW.moneytransferType = 4 AND NEW.executionDate IS NULL
 BEGIN
   SELECT RAISE(FAIL, "invalid moneytransfer data");
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_MONEYTRANSFER_STANDINGORDER_INSERT]
+CREATE TRIGGER IF NOT EXISTS validate_moneytransferstandingorder_insert
+BEFORE INSERT ON moneytransferStandingorder
+WHEN NOT EXISTS (
+  SELECT 1 FROM moneytransfer
+  WHERE id = NEW.moneytransfer_id AND moneytransferType = 4)
+BEGIN
+  SELECT RAISE(FAIL, "moneytransferStandingorder rows require a STANDING_ORDER parent");
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_MONEYTRANSFER_STANDINGORDER_UPDATE]
+CREATE TRIGGER IF NOT EXISTS validate_moneytransferstandingorder_update
+BEFORE UPDATE ON moneytransferStandingorder
+WHEN NOT EXISTS (
+  SELECT 1 FROM moneytransfer
+  WHERE id = NEW.moneytransfer_id AND moneytransferType = 4)
+    OR EXISTS (
+      SELECT 1 FROM moneytransfer
+      WHERE id = OLD.moneytransfer_id AND moneytransferStatus IN (2, 6, 7, 8, 9))
+BEGIN
+  SELECT RAISE(FAIL, "invalid or archived standing order details must not be changed");
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_MONEYTRANSFER_STANDINGORDER_DELETE]
+CREATE TRIGGER IF NOT EXISTS block_delete_moneytransferstandingorder
+BEFORE DELETE ON moneytransferStandingorder
+WHEN EXISTS (
+  SELECT 1 FROM moneytransfer
+  WHERE id = OLD.moneytransfer_id AND moneytransferStatus IN (2, 6, 8, 9))
+BEGIN
+  SELECT RAISE(FAIL, "archived standing order details must not be deleted");
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_MONEYTRANSFER_STANDINGORDER_PARENT_UPDATE]
+CREATE TRIGGER IF NOT EXISTS validate_moneytransfer_standingorder_parent_update
+BEFORE UPDATE OF moneytransferType ON moneytransfer
+WHEN NEW.moneytransferType <> 4
+    AND EXISTS (
+      SELECT 1 FROM moneytransferStandingorder WHERE moneytransfer_id = OLD.id)
+BEGIN
+  SELECT RAISE(FAIL, "STANDING_ORDER details must be removed before changing the moneytransfer type");
 END;
 
 [SQL_SETUP_CREATE_TRIGGER_MONEYTRANSFER_FOREIGN_INSERT]

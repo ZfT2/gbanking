@@ -20,13 +20,12 @@ public class MoneyTransfer extends Dao {
 	private BigDecimal amount;
 	private String currency;
 	private LocalDate executionDate;
-	private Integer executionDay;
 	private MoneyTransferStatus moneytransferStatus;
-	private StandingorderMode standingorderMode;
 	private String bankOrderId;
 	private SepaOrderStatus sepaOrderStatus;
 	private Integer historyorderId;
 	private MoneyTransferForeign foreignTransfer;
+	private MoneyTransferStandingorder standingorder;
 	
 	private Recipient recipient;
 	
@@ -121,11 +120,13 @@ public class MoneyTransfer extends Dao {
 	}
 
 	public Integer getExecutionDay() {
-		return executionDay;
+		return standingorder != null ? standingorder.getExecutionDay() : null;
 	}
 
 	public void setExecutionDay(Integer executionDay) {
-		this.executionDay = executionDay;
+		if (executionDay != null || standingorder != null) {
+			standingorderDetails().setExecutionDay(executionDay);
+		}
 	}
 
 	public MoneyTransferStatus getMoneytransferStatus() {
@@ -137,11 +138,38 @@ public class MoneyTransfer extends Dao {
 	}
 
 	public StandingorderMode getStandingorderMode() {
-		return standingorderMode;
+		return standingorder != null ? standingorder.getStandingorderMode() : null;
 	}
 
 	public void setStandingorderMode(StandingorderMode standingorderMode) {
-		this.standingorderMode = standingorderMode;
+		if (standingorderMode != null || standingorder != null) {
+			standingorderDetails().setStandingorderMode(standingorderMode);
+		}
+	}
+
+	public LocalDate getExecutionDateNext() {
+		return standingorder != null ? standingorder.getExecutionDateNext() : null;
+	}
+
+	public void setExecutionDateNext(LocalDate executionDateNext) {
+		if (executionDateNext != null || standingorder != null) {
+			standingorderDetails().setExecutionDateNext(executionDateNext);
+		}
+	}
+
+	public MoneyTransferStandingorder getStandingorder() {
+		return standingorder;
+	}
+
+	public void setStandingorder(MoneyTransferStandingorder standingorder) {
+		this.standingorder = standingorder;
+	}
+
+	private MoneyTransferStandingorder standingorderDetails() {
+		if (standingorder == null) {
+			standingorder = new MoneyTransferStandingorder();
+		}
+		return standingorder;
 	}
 
 	public String getBankOrderId() {

@@ -3,6 +3,8 @@ package de.zft2.gbanking.db;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
@@ -18,6 +20,8 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
@@ -25,11 +29,13 @@ import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BusinessCase;
 import de.zft2.gbanking.db.dao.Category;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
+import de.zft2.gbanking.db.dao.MoneyTransferStandingorder;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.StandingorderMode;
+import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.testdata.TestDataFactory;
 
 /**
@@ -312,8 +318,9 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 	// ------------------------------------------------------------
 	// Tests - MoneyTransfer
 	// ------------------------------------------------------------
-	@Test
-	void insertAndQueryMoneyTransfer_shouldWork() {
+	@ParameterizedTest
+	@EnumSource(value = OrderType.class, names = { "TRANSFER", "STANDING_ORDER" })
+	void insertAndQueryMoneyTransfer_shouldWork(OrderType orderType) {
 		BankAccess ba = TestDataFactory.createSampleBankAccess("77777777");
 		db.insertOrUpdate(ba);
 		BankAccount acc = TestDataFactory.createSampleAccount(ba.getId());
@@ -327,15 +334,18 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 
 		MoneyTransfer mt = new MoneyTransfer();
 		mt.setAccountId(acc.getId());
-		mt.setOrderType(OrderType.TRANSFER);
+		mt.setOrderType(orderType);
 		mt.setRecipientId(rec.getId());
 		mt.setPurpose("Rent");
 		mt.setPurposeCode("GDDS");
 		mt.setEndToEndId("E2E-DB-TEST");
 		mt.setAmount(new BigDecimal("750.00"));
 		mt.setExecutionDate(LocalDate.now(ZoneId.systemDefault()));
-		mt.setExecutionDay(15);
-		mt.setStandingorderMode(StandingorderMode.MONTHLY);
+		if (orderType == OrderType.STANDING_ORDER) {
+			mt.setExecutionDay(15);
+			mt.setStandingorderMode(StandingorderMode.MONTHLY);
+			mt.setExecutionDateNext(LocalDate.of(2027, 1, 15));
+		}
 		mt.setMoneytransferStatus(MoneyTransferStatus.NEW);
 		db.insertOrUpdate(mt);
 
@@ -344,8 +354,68 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 		assertEquals("Rent", transfers.get(0).getPurpose());
 		assertEquals("GDDS", transfers.get(0).getPurposeCode());
 		assertEquals("E2E-DB-TEST", transfers.get(0).getEndToEndId());
-		assertEquals(Integer.valueOf(15), transfers.get(0).getExecutionDay());
-		assertEquals(StandingorderMode.MONTHLY, transfers.get(0).getStandingorderMode());
+		if (orderType == OrderType.STANDING_ORDER) {
+			assertEquals(Integer.valueOf(15), transfers.get(0).getExecutionDay());
+			assertEquals(StandingorderMode.MONTHLY, transfers.get(0).getStandingorderMode());
+			assertEquals(LocalDate.of(2027, 1, 15), transfers.get(0).getExecutionDateNext());
+			assertEquals(mt.getId(), transfers.get(0).getStandingorder().getMoneyTransferId());
+			assertEquals(1, db.getAllByParent(MoneyTransferStandingorder.class, mt.getId()).size());
+			mt.setExecutionDateNext(null);
+			db.insertOrUpdate(mt);
+			assertNull(db.getByIdFull(MoneyTransfer.class, mt.getId()).getExecutionDateNext());
+			mt.setOrderType(OrderType.TRANSFER);
+			db.insertOrUpdate(mt);
+			assertTrue(db.getAllByParent(MoneyTransferStandingorder.class, mt.getId()).isEmpty());
+		} else {
+			assertNull(transfers.get(0).getStandingorder());
+			mt.setOrderType(OrderType.STANDING_ORDER);
+			mt.setExecutionDay(15);
+			mt.setStandingorderMode(StandingorderMode.MONTHLY);
+			db.insertOrUpdate(mt);
+			assertEquals(15, db.getById(MoneyTransfer.class, mt.getId()).getExecutionDay());
+		}
+	}
+
+	@Test
+	void invalidStandingOrderShouldNotLeaveAPartiallySavedTransfer() {
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(null));
+		Recipient recipient = db.insertOrUpdate(new Recipient("Payee", "DE11111111111111111111", null, null, null, null, Source.MONEYTRANSFER));
+		MoneyTransfer transfer = new MoneyTransfer(account.getId(), OrderType.STANDING_ORDER, recipient.getId(),
+				"Invalid schedule", new BigDecimal("12.34"), LocalDate.of(2027, 1, 1), MoneyTransferStatus.NEW);
+		transfer.setExecutionDay(32);
+		transfer.setStandingorderMode(StandingorderMode.MONTHLY);
+		assertThrows(GBankingException.class, () -> db.insertOrUpdate(transfer));
+		assertEquals(0, transfer.getId());
+		assertTrue(db.getAllByParent(MoneyTransfer.class, account.getId()).isEmpty());
+	}
+
+	@Test
+	void standingOrderDetailsShouldCascadeAndRespectArchivedParent() {
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(null));
+		Recipient recipient = db.insertOrUpdate(new Recipient("Payee", "DE11111111111111111111", null, null, null, null, Source.MONEYTRANSFER));
+		for (boolean archived : new boolean[] { false, true }) {
+			MoneyTransfer transfer = new MoneyTransfer(account.getId(), OrderType.STANDING_ORDER, recipient.getId(),
+					"Standing schedule", new BigDecimal("12.34"), LocalDate.of(2027, 1, 1), MoneyTransferStatus.NEW);
+			transfer.setExecutionDay(1);
+			transfer.setStandingorderMode(StandingorderMode.MONTHLY);
+			db.insertOrUpdate(transfer);
+			MoneyTransferStandingorder details = db.getAllByParent(MoneyTransferStandingorder.class, transfer.getId()).get(0);
+			details.setExecutionDay(2);
+			db.insertOrUpdate(details);
+			assertEquals(2, db.getById(MoneyTransfer.class, transfer.getId()).getExecutionDay());
+			transfer.setStandingorder(details);
+			if (archived) {
+				transfer.setMoneytransferStatus(MoneyTransferStatus.SUPERSEDED);
+				db.insertOrUpdate(transfer);
+				details.setExecutionDateNext(LocalDate.of(2027, 2, 1));
+				assertThrows(GBankingException.class, () -> db.insertOrUpdate(details));
+				assertThrows(GBankingException.class, () -> db.delete(details, null));
+				assertNull(db.getById(MoneyTransfer.class, transfer.getId()).getExecutionDateNext());
+			} else {
+				db.delete(transfer, null);
+				assertTrue(db.getAllByParent(MoneyTransferStandingorder.class, transfer.getId()).isEmpty());
+			}
+		}
 	}
 
 	// ------------------------------------------------------------

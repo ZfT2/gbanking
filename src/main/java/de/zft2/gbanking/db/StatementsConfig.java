@@ -15,6 +15,7 @@ import static de.zft2.gbanking.db.DaoSqlStatements.MN_DAO_SQL;
 import static de.zft2.gbanking.db.DaoSqlStatements.MONEY_TRANSFER_FOREIGN_SQL;
 import static de.zft2.gbanking.db.DaoSqlStatements.MONEY_TRANSFER_PROTOCOL_SQL;
 import static de.zft2.gbanking.db.DaoSqlStatements.MONEY_TRANSFER_SQL;
+import static de.zft2.gbanking.db.DaoSqlStatements.MONEY_TRANSFER_STANDINGORDER_SQL;
 import static de.zft2.gbanking.db.DaoSqlStatements.PARAMETER_DATA_SQL;
 import static de.zft2.gbanking.db.DaoSqlStatements.PSD2_CLIENT_CONFIGURATION_SQL;
 import static de.zft2.gbanking.db.DaoSqlStatements.RECIPIENT_SQL;
@@ -42,6 +43,7 @@ import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferForeign;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
+import de.zft2.gbanking.db.dao.MoneyTransferStandingorder;
 import de.zft2.gbanking.db.dao.ParameterData;
 import de.zft2.gbanking.db.dao.ParameterDataBankAccess;
 import de.zft2.gbanking.db.dao.Psd2ClientConfiguration;
@@ -77,6 +79,7 @@ import de.zft2.gbanking.db.dao.mapper.ImportHistoryMapper;
 import de.zft2.gbanking.db.dao.mapper.InstituteMapper;
 import de.zft2.gbanking.db.dao.mapper.MoneyTransferForeignMapper;
 import de.zft2.gbanking.db.dao.mapper.MoneyTransferProtocolMapper;
+import de.zft2.gbanking.db.dao.mapper.MoneyTransferStandingorderMapper;
 import de.zft2.gbanking.db.dao.mapper.MoneytransferMapper;
 import de.zft2.gbanking.db.dao.mapper.MtoNTableMapper;
 import de.zft2.gbanking.db.dao.mapper.ParameterDataBankAccessMapper;
@@ -241,6 +244,12 @@ public final class StatementsConfig {
                     new StatementsLogicMoneyTransferProtocol(),
                     "moneytransferProtocol",
 					MONEY_TRANSFER_PROTOCOL_SQL)),
+
+			Map.entry(MoneyTransferStandingorder.class, new DaoMetadata<>(
+					new MoneyTransferStandingorderMapper(),
+					new StatementsLogicDefault<>(),
+					"moneytransferStandingorder",
+					MONEY_TRANSFER_STANDINGORDER_SQL)),
 
             Map.entry(Recipient.class, new DaoMetadata<>(
                     new RecipientMapper(),

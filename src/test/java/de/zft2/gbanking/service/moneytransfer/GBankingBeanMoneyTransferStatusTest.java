@@ -1,6 +1,7 @@
 package de.zft2.gbanking.service.moneytransfer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -48,18 +49,28 @@ class GBankingBeanMoneyTransferStatusTest {
 		moneyTransferService = ServiceRegistry.getService(MoneyTransferService.class);
 	}
 
-	@Test
-	void saveMoneyTransferToDB_shouldMarkEditedInventoryTransferAsChanged() {
+	@ParameterizedTest
+	@EnumSource(value = OrderType.class, names = { "SCHEDULED_TRANSFER", "STANDING_ORDER" })
+	void saveMoneyTransferToDB_shouldMarkEditedInventoryTransferAsChanged(OrderType orderType) {
 		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = dbController
 				.insertOrUpdate(new Recipient("Inventory Recipient", "DE11111111111111111111", "TESTDEFFXXX", null, null, "Testbank", Source.MONEYTRANSFER));
 		MoneyTransfer inventoryTransfer = createInventoryTransfer(account.getId(), recipient.getId());
+		inventoryTransfer.setOrderType(orderType);
+		if (orderType == OrderType.STANDING_ORDER) {
+			inventoryTransfer.setExecutionDay(15);
+			inventoryTransfer.setStandingorderMode(StandingorderMode.MONTHLY);
+			inventoryTransfer.setExecutionDateNext(LocalDate.of(2026, 9, 15));
+		}
 		inventoryTransfer = dbController.insertOrUpdate(inventoryTransfer);
 		int inventoryTransferId = inventoryTransfer.getId();
 
 		Recipient changedRecipient = new Recipient("Inventory Recipient", "DE11111111111111111111", "TESTDEFFXXX", null, null, "TestBank", Source.ONLINE);
-		MoneyTransferForm changedForm = new MoneyTransferForm(account, OrderType.SCHEDULED_TRANSFER, changedRecipient, new BigDecimal("19.99"),
+		MoneyTransferForm changedForm = new MoneyTransferForm(account, orderType, changedRecipient, new BigDecimal("19.99"),
 				"Changed purpose", LocalDate.of(2026, Month.AUGUST, 15));
+		if (orderType == OrderType.STANDING_ORDER) {
+			changedForm.setStandingorderInfo(20, StandingorderMode.QUARTERLY);
+		}
 
 		MoneyTransfer savedTransfer = moneyTransferService.saveMoneyTransferToDB(changedForm, inventoryTransfer);
 
@@ -71,6 +82,12 @@ class GBankingBeanMoneyTransferStatusTest {
 				transfers.stream().filter(transfer -> transfer.getId() == savedTransfer.getId()).findFirst().orElseThrow().getPurpose());
 		assertEquals(MoneyTransferStatus.INVENTORY,
 				transfers.stream().filter(transfer -> transfer.getId() == inventoryTransferId).findFirst().orElseThrow().getMoneytransferStatus());
+		assertNull(savedTransfer.getExecutionDateNext());
+		assertEquals(inventoryTransfer.getExecutionDateNext(),
+				dbController.getById(MoneyTransfer.class, inventoryTransferId).getExecutionDateNext());
+		if (orderType == OrderType.STANDING_ORDER) {
+			assertEquals(20, dbController.getById(MoneyTransfer.class, savedTransfer.getId()).getExecutionDay());
+		}
 	}
 
 	@Test

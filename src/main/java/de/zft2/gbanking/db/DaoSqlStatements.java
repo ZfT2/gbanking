@@ -17,6 +17,7 @@ import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferForeign;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
+import de.zft2.gbanking.db.dao.MoneyTransferStandingorder;
 import de.zft2.gbanking.db.dao.ParameterData;
 import de.zft2.gbanking.db.dao.Psd2ClientConfiguration;
 import de.zft2.gbanking.db.dao.Recipient;
@@ -80,6 +81,8 @@ public final class DaoSqlStatements {
 	public static final String SQL_DELETE_INSTIUTE_ADDITIONAL = dml("SQL_DELETE_INSTITUTE_ADDITIONAL");
     static final String SQL_INSERT_MONEYTRANSFER = dml("SQL_INSERT_MONEYTRANSFER");
     public static final String SQL_UPSERT_MONEYTRANSFER_FOREIGN = dml("SQL_UPSERT_MONEYTRANSFER_FOREIGN");
+	public static final String SQL_UPSERT_MONEYTRANSFER_STANDINGORDER = dml("SQL_UPSERT_MONEYTRANSFER_STANDINGORDER");
+	public static final String SQL_DELETE_MONEYTRANSFER_STANDINGORDER_BY_MONEYTRANSFER = dml("SQL_DELETE_MONEYTRANSFER_STANDINGORDER_BY_MONEYTRANSFER");
     static final String SQL_INSERT_MONEYTRANSFER_PROTOCOL = dml("SQL_INSERT_MONEYTRANSFER_PROTOCOL");
     static final String SQL_INSERT_MONEYTRANSFER_FOREIGN = dml("SQL_INSERT_MONEYTRANSFER_FOREIGN");
     public static final String SQL_INSERT_PARAMETERDATA = dml("SQL_INSERT_PARAMETERDATA");
@@ -217,6 +220,7 @@ public final class DaoSqlStatements {
 			Map.entry(CategoryRule.class, dml("SQL_SELECT_CATEGORYRULE_BY_PRIMARY_ID")),
 			Map.entry(MoneyTransfer.class, dml("SQL_SELECT_MONEYTRANSFER_BY_PRIMARY_ID")),
 			Map.entry(MoneyTransferForeign.class, dml("SQL_SELECT_MONEYTRANSFER_FOREIGN_BY_PRIMARY_ID")),
+			Map.entry(MoneyTransferStandingorder.class, dml("SQL_SELECT_MONEYTRANSFER_STANDINGORDER_BY_PRIMARY_ID")),
 			Map.entry(MoneyTransferProtocol.class, dml("SQL_SELECT_MONEYTRANSFER_PROTOCOL_BY_PRIMARY_ID")),
 			Map.entry(Recipient.class, dml("SQL_SELECT_RECIPIENT_BY_PRIMARY_ID")),
 			Map.entry(ParameterData.class, dml("SQL_SELECT_PARAMETERDATA_BY_PRIMARY_ID")),
@@ -233,6 +237,7 @@ public final class DaoSqlStatements {
 			Map.entry(BankMessage.class, dml("SQL_DELETE_BANK_MESSAGE_BY_PRIMARY_ID")),
 			Map.entry(CategoryRule.class, dml("SQL_DELETE_CATEGORYRULE_BY_PRIMARY_ID")),
 			Map.entry(MoneyTransfer.class, dml("SQL_DELETE_MONEYTRANSFER_BY_PRIMARY_ID")),
+			Map.entry(MoneyTransferStandingorder.class, dml("SQL_DELETE_MONEYTRANSFER_STANDINGORDER_BY_PRIMARY_ID")),
 			Map.entry(MoneyTransferProtocol.class, dml("SQL_DELETE_MONEYTRANSFER_PROTOCOL_BY_PRIMARY_ID")),
 			Map.entry(Recipient.class, dml("SQL_DELETE_RECIPIENT_BY_PRIMARY_ID")),
 			Map.entry(ParameterData.class, dml("SQL_DELETE_PARAMETERDATA_BY_PRIMARY_ID")),
@@ -336,6 +341,12 @@ public final class DaoSqlStatements {
             StatementType.INSERT, SQL_INSERT_MONEYTRANSFER_FOREIGN,
             StatementType.UPDATE, SQL_UPDATE_MONEYTRANSFER_FOREIGN,
             StatementType.DELETE, SQL_DELETE_MONEYTRANSFER_FOREIGN_BY_MONEYTRANSFER);
+
+	static final Map<StatementType, String> MONEY_TRANSFER_STANDINGORDER_SQL = Map.of(
+			StatementType.SELECT_WITH_PARENT, dml("SQL_SELECT_MONEYTRANSFER_STANDINGORDER_BY_MONEYTRANSFER"),
+			StatementType.SELECT_ID, dml("SQL_SELECT_ID_MONEYTRANSFER_STANDINGORDER"),
+			StatementType.INSERT, dml("SQL_INSERT_MONEYTRANSFER_STANDINGORDER"),
+			StatementType.UPDATE, dml("SQL_UPDATE_MONEYTRANSFER_STANDINGORDER"));
 
     static final Map<StatementType, String> RECIPIENT_SQL = Map.of(
             StatementType.SELECT_ALL, SQL_SELECT_ALL_RECIPIENTS,

@@ -46,6 +46,10 @@
 }
 
 /* Tables */
+.table-cell:unconfirmed-date {
+    -fx-font-style: italic;
+}
+
 .table-row-cell:striped-white {
     -fx-background-color: white;
 }

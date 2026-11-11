@@ -26,6 +26,7 @@ import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferForeign;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
+import de.zft2.gbanking.db.dao.MoneyTransferStandingorder;
 import de.zft2.gbanking.db.dao.ParameterData;
 import de.zft2.gbanking.db.dao.ParameterDataBankAccess;
 import de.zft2.gbanking.db.dao.Psd2ClientConfiguration;
@@ -95,6 +96,7 @@ class DaoRepositoryCatalogTest {
 				MoneyTransfer.class,
 				MoneyTransferForeign.class,
 				MoneyTransferProtocol.class,
+				MoneyTransferStandingorder.class,
 				ParameterData.class,
 				Psd2ClientConfiguration.class,
 				Recipient.class,

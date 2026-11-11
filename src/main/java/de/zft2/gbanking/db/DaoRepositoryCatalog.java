@@ -14,6 +14,7 @@ import de.zft2.gbanking.db.dao.ImportHistory;
 import de.zft2.gbanking.db.dao.Institute;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
+import de.zft2.gbanking.db.dao.MoneyTransferStandingorder;
 import de.zft2.gbanking.db.dao.ParameterData;
 import de.zft2.gbanking.db.dao.Psd2ClientConfiguration;
 import de.zft2.gbanking.db.dao.Recipient;
@@ -53,6 +54,7 @@ final class DaoRepositoryCatalog {
 		registerSimple(MoneyTransfer.class);
 		register(new MoneyTransferForeignRepository(session));
 		registerSimple(MoneyTransferProtocol.class);
+		registerSimple(MoneyTransferStandingorder.class);
 		registerReadOnly(ParameterData.class);
 		registerSimple(Psd2ClientConfiguration.class);
 		registerSimple(Recipient.class);

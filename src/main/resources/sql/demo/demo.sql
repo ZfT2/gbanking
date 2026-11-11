@@ -404,30 +404,35 @@ INSERT INTO bookingFee (id, booking_id, amount, currency, updatedAt) VALUES
 [SQL_DEMO_INSERT_MONEY_TRANSFER_HISTORY]
 INSERT INTO moneytransfer (
 	 id, account_id, moneytransferType, recipient_id, purpose, purposeCode, amount,
-	 executionDate, executionDay, moneytransferStatus, standingorderMode,
+	 executionDate, moneytransferStatus,
 	 historyorder_id, updatedAt
 ) VALUES
 	 (940006, 900001, 4, 930002, 'Alter Stromabschlag', 'SUPP', 75.00,
-	  '10.01.26', 10, 8, 1, NULL, '2026-02-01 10:00:00.000');
+	  '10.01.26', 8, NULL, '2026-02-01 10:00:00.000');
 
 [SQL_DEMO_INSERT_MONEY_TRANSFERS]
 INSERT INTO moneytransfer (
 	 id, account_id, moneytransferType, recipient_id, purpose, purposeCode, amount,
-	 executionDate, executionDay, moneytransferStatus, standingorderMode,
+	 executionDate, moneytransferStatus,
 	 historyorder_id, updatedAt
 ) VALUES
 	 (940001, 900001, 1, 930004, 'Restzahlung Sommerurlaub', 'OTHR', 650.00,
-	  NULL, NULL, 1, NULL, NULL, '2026-06-25 10:00:00.000'),
+	  NULL, 1, NULL, '2026-06-25 10:00:00.000'),
 	 (940002, 900001, 2, 930005, 'Sofortige Kostenerstattung', 'GDDS', 42.50,
-	  NULL, NULL, 2, NULL, NULL, '2026-06-20 10:00:00.000'),
+	  NULL, 2, NULL, '2026-06-20 10:00:00.000'),
 	 (940003, 900001, 6, 930006, 'Dringende Ersatzteillieferung', 'GDSV', 185.75,
-	  NULL, NULL, 4, NULL, NULL, '2026-06-21 10:00:00.000'),
+	  NULL, 4, NULL, '2026-06-21 10:00:00.000'),
 	 (940004, 900001, 3, 930004, 'Anzahlung Winterurlaub', 'OTHR', 300.00,
-	  '15.09.26', NULL, 5, NULL, NULL, '2026-06-22 10:00:00.000'),
+	  '15.09.26', 5, NULL, '2026-06-22 10:00:00.000'),
 	 (940005, 900001, 4, 930002, 'Stromabschlag aktuell', 'SUPP', 82.00,
-	  '10.03.26', 10, 5, 1, 940006, '2026-06-23 10:00:00.000'),
+	  '10.03.26', 5, 940006, '2026-06-23 10:00:00.000'),
 	 (940007, 900001, 5, 930006, 'Internationale Warenlieferung', 'GDDS', 275.00,
-	  NULL, NULL, 1, NULL, NULL, '2026-06-24 10:00:00.000');
+	  NULL, 1, NULL, '2026-06-24 10:00:00.000');
+
+[SQL_DEMO_INSERT_STANDING_ORDER_DETAILS]
+INSERT INTO moneytransferStandingorder (moneytransfer_id, executionDay, standingorderMode, executionDateNext, updatedAt)
+VALUES (940006, 10, 1, NULL, '2026-02-01 10:00:00.000'),
+       (940005, 10, 1, NULL, '2026-06-23 10:00:00.000');
 
 [SQL_DEMO_INSERT_FOREIGN_TRANSFER_DETAILS]
 INSERT INTO moneytransferForeign (

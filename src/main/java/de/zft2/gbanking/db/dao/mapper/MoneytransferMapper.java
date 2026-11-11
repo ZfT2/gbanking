@@ -8,6 +8,7 @@ import de.zft2.gbanking.db.SqlFields;
 import de.zft2.gbanking.db.StatementsConfig.ResultType;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferForeign;
+import de.zft2.gbanking.db.dao.MoneyTransferStandingorder;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.ForeignChargeBearer;
@@ -34,13 +35,11 @@ public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> 
 		ps.setString(6, moneytransfer.getEndToEndId());
 		ps.setBigDecimal(7, moneytransfer.getAmount());
 		ps.setString(8, TypeConverter.toDateStringShort(moneytransfer.getExecutionDate()));
-		setIntegerNullable(9, moneytransfer.getExecutionDay(), ps);
-		ps.setInt(10, moneytransfer.getMoneytransferStatus().getDbStateId());
-		setEnumNullable(11, moneytransfer.getStandingorderMode(), ps);
-		setIntegerNullable(12, moneytransfer.getHistoryorderId(), ps);
-		ps.setTimestamp(13, TypeConverter.toSqlTimestampNow());
+		ps.setInt(9, moneytransfer.getMoneytransferStatus().getDbStateId());
+		setIntegerNullable(10, moneytransfer.getHistoryorderId(), ps);
+		ps.setTimestamp(11, TypeConverter.toSqlTimestampNow());
 		if (moneytransfer.getId() > 0)
-			ps.setInt(14, moneytransfer.getId());
+			ps.setInt(12, moneytransfer.getId());
 	}
 
 	@Override
@@ -55,9 +54,8 @@ public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> 
 		Currency currency = getEnumNullable("currency", Currency.class, rs);
 		moneytransfer.setCurrency(currency != null ? currency.name() : null);
 		moneytransfer.setExecutionDate(TypeConverter.toLocalDateFromDateStrShort(rs.getString("executionDate")));
-		moneytransfer.setExecutionDay(getIntegerNullable("executionDay", rs));
 		moneytransfer.setMoneytransferStatus(MoneyTransferStatus.forInt(rs.getInt("moneytransferStatus")));
-		moneytransfer.setStandingorderMode(getEnumNullable("standingorderMode", StandingorderMode.class, rs));
+		moneytransfer.setStandingorder(mapStandingorder(rs));
 		moneytransfer.setBankOrderId(rs.getString("bankOrderId"));
 		moneytransfer.setSepaOrderStatus(getEnumNullable("sepaOrderStatus", SepaOrderStatus.class, rs));
 		moneytransfer.setHistoryorderId(getIntegerNullable("historyorder_id", rs));
@@ -77,6 +75,20 @@ public class MoneytransferMapper extends AbstractDaoMapper<MoneyTransfer, Void> 
 		if (foreignTransfer != null) {
 			moneytransfer.setForeignTransfer(foreignTransfer);
 		}
+	}
+
+	private MoneyTransferStandingorder mapStandingorder(ResultSet rs) throws SQLException {
+		int id = rs.getInt("standingorder_id");
+		if (rs.wasNull()) {
+			return null;
+		}
+		MoneyTransferStandingorder standingorder = new MoneyTransferStandingorder();
+		standingorder.setId(id);
+		standingorder.setMoneyTransferId(rs.getInt("standingorder_moneytransfer_id"));
+		standingorder.setExecutionDay(getIntegerNullable("executionDay", rs));
+		standingorder.setStandingorderMode(getEnumNullable("standingorderMode", StandingorderMode.class, rs));
+		standingorder.setExecutionDateNext(TypeConverter.toLocalDateFromDateStrShort(rs.getString("executionDateNext")));
+		return standingorder;
 	}
 
 	private MoneyTransferForeign mapForeignTransfer(ResultSet rs) throws SQLException {
