@@ -284,7 +284,6 @@ public class SettingsDialog implements BaseMessages {
 				selectedGenericFeed.setName(current);
 			}
 		});
-		valueSupplierMap.put(requireSetting(QuoteProviderSettings.GENERIC_FEEDS), this::serializeGenericFeeds);
 		genericFeedSelector.setValue(genericFeedSelector.getItems().stream().findFirst().orElse(null));
 		loadGenericFeed(genericFeedSelector.getValue());
 	}
@@ -346,12 +345,6 @@ public class SettingsDialog implements BaseMessages {
 			showWarning(exception.getMessage());
 			return false;
 		}
-	}
-
-	private String serializeGenericFeeds() {
-		storeGenericFeed(selectedGenericFeed);
-		return QuoteProviderSettings.serializeGenericFeeds(
-				genericFeedSelector.getItems().stream().map(GenericFeedEditor::toFeed).toList());
 	}
 
 	private void storeGenericFeed(GenericFeedEditor editor) {
@@ -675,11 +668,20 @@ public class SettingsDialog implements BaseMessages {
 		if (!updateAccountStatementEncryption()) {
 			return false;
 		}
-		for (Map.Entry<Setting, Supplier<String>> entry : valueSupplierMap.entrySet()) {
-			Setting setting = entry.getKey();
-			String newValue = entry.getValue().get();
-			setting.setValue(newValue);
-			dbController.insertOrUpdate(setting);
+		try {
+			dbController.executeInTransaction(() -> {
+				for (Map.Entry<Setting, Supplier<String>> entry : valueSupplierMap.entrySet()) {
+					Setting setting = entry.getKey();
+					setting.setValue(entry.getValue().get());
+					dbController.insertOrUpdate(setting);
+				}
+				QuoteProviderSettings.saveGenericFeeds(
+						genericFeedSelector.getItems().stream().map(editor -> editor.toFeed()).toList());
+			});
+		} catch (RuntimeException exception) {
+			log.error("Could not save program settings", exception);
+			showWarning(exception.getMessage());
+			return false;
 		}
 
 		log.info("Saved {} program settings.", valueSupplierMap.size());

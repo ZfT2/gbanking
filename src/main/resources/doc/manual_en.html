@@ -335,6 +335,7 @@
 						<li><strong>Environment-specific settings:</strong> Data directory, import-properties directory and separate last-used import and export directories.</li>
 					</ul>
 					<p>Tenant-specific settings are held in the database and synchronised with import properties. Installation-local values are stored in <code>properties/env.properties</code>; window and layout values remain in <code>properties/gui.properties</code>. Changing statement encryption converts existing statement files accordingly.</p>
+					<p>Generic quote feeds are stored individually in <code>stockQuoteFeed</code> and linked directly to their data source. Renaming a feed preserves its ID and price associations. When deleting a feed, you can keep or delete its prices; the data source remains available for price history.</p>
 					<p>If a connected chipTAN USB reader is missing from the list, follow the <a href="#linux-card-reader">Linux card reader troubleshooting steps</a>.</p>
 					<p class="back-to-top"><a href="#top">Back to top</a></p>
 				</section>

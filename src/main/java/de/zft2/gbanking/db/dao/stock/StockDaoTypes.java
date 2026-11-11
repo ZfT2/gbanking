@@ -6,6 +6,7 @@ public final class StockDaoTypes {
 
 	private static final List<Class<? extends StockDao>> ALL = List.of(
 			StockDataSource.class,
+			StockQuoteFeed.class,
 			StockImportBatch.class,
 			StockImportRecord.class,
 			StockPortfolio.class,

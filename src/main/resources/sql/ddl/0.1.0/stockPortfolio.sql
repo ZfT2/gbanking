@@ -21,6 +21,29 @@ VALUES
   (3, 'PORTFOLIO_PERFORMANCE', 'Portfolio Performance', 3, 100, 1, datetime()),
   (4, 'GENERIC_FILE', 'Generischer Dateiimport', 3, 100, 1, datetime());
 
+[SQL_SETUP_CREATE_STOCK_QUOTE_FEED]
+CREATE TABLE stockQuoteFeed (
+  source_id INTEGER PRIMARY KEY,
+  uuid TEXT NOT NULL UNIQUE,
+  sortOrder INTEGER NOT NULL,
+  urlTemplate TEXT NOT NULL,
+  format TEXT NOT NULL,
+  secret TEXT NOT NULL,
+  headerName TEXT NOT NULL,
+  headerValue TEXT NOT NULL,
+  itemsPath TEXT NOT NULL,
+  datePath TEXT NOT NULL,
+  pricePath TEXT NOT NULL,
+  dateFormat TEXT NOT NULL,
+  csvDelimiter TEXT NOT NULL,
+  createdAt TEXT NOT NULL,
+  updatedAt TEXT NOT NULL,
+  FOREIGN KEY(source_id) REFERENCES stockDataSource(id) ON DELETE RESTRICT,
+  CHECK (LENGTH(uuid) = 36),
+  CHECK (sortOrder >= 0),
+  CHECK (format IN ('JSON', 'CSV')),
+  CHECK (LENGTH(csvDelimiter) = 1));
+
 [SQL_SETUP_CREATE_STOCK_IMPORT_BATCH]
 CREATE TABLE stockImportBatch (
   id INTEGER PRIMARY KEY,

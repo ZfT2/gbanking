@@ -1,7 +1,9 @@
 package de.zft2.gbanking.service.stock.quote;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -25,6 +27,7 @@ import de.zft2.gbanking.db.dao.enu.StockQuantityType;
 import de.zft2.gbanking.db.dao.enu.StockQuotationType;
 import de.zft2.gbanking.db.dao.enu.StockSecurityType;
 import de.zft2.gbanking.db.dao.stock.StockDataSource;
+import de.zft2.gbanking.db.dao.stock.StockQuoteFeed;
 import de.zft2.gbanking.db.dao.stock.StockSecurity;
 import de.zft2.gbanking.db.dao.stock.StockSecurityPrice;
 import de.zft2.gbanking.db.dao.stock.StockSecurityPriceSource;
@@ -92,6 +95,7 @@ class StockQuoteRetrievalServiceTest {
 		GenericQuoteFeed feed = genericFeed("First feed");
 		QuoteProviderSettings.saveGenericFeeds(List.of(feed, genericFeed("Second feed")));
 		StockSecurity security = retrieveGenericPrice(feed);
+		int sourceId = QuoteProviderSettings.requireGenericFeed(feed.id()).getSourceId();
 
 		StockQuoteRetrievalService service = new StockQuoteRetrievalService(mock(MarketDataClient.class));
 		assertEquals(0, service.deleteGenericFeed(feed.id(), false).deletedPrices());
@@ -99,6 +103,8 @@ class StockQuoteRetrievalServiceTest {
 		assertEquals(1, QuoteProviderSettings.getConfiguration().genericFeeds().size());
 		assertEquals("Second feed", QuoteProviderSettings.getConfiguration().genericFeeds().get(0).name());
 		assertEquals(1, new StockPortfolioService().getPrices(security.getId()).size());
+		assertNotNull(db.getById(StockDataSource.class, sourceId));
+		assertEquals(1, db.getAll(StockQuoteFeed.class).size());
 	}
 
 	@Test
@@ -106,6 +112,10 @@ class StockQuoteRetrievalServiceTest {
 		GenericQuoteFeed feed = genericFeed("Disposable feed");
 		QuoteProviderSettings.saveGenericFeeds(List.of(feed));
 		StockSecurity security = retrieveGenericPrice(feed);
+		int sourceId = QuoteProviderSettings.requireGenericFeed(feed.id()).getSourceId();
+		StockDataSource dataSource = db.getById(StockDataSource.class, sourceId);
+		dataSource.setSourceCode("RENAMED_SOURCE_CODE");
+		db.insertOrUpdate(dataSource);
 
 		StockQuoteRetrievalService service = new StockQuoteRetrievalService(mock(MarketDataClient.class));
 		assertEquals(1, service.deleteGenericFeed(feed.id(), true).deletedPrices());
@@ -113,6 +123,54 @@ class StockQuoteRetrievalServiceTest {
 		assertEquals(List.of(), QuoteProviderSettings.getConfiguration().genericFeeds());
 		assertEquals(List.of(), new StockPortfolioService().getPrices(security.getId()));
 		assertEquals(2, db.getAll(StockSecurityPrice.class).size());
+		assertNotNull(db.getById(StockDataSource.class, sourceId));
+		assertTrue(db.getAll(StockQuoteFeed.class).isEmpty());
+	}
+
+	@Test
+	void shouldUseTheLinkedSourceAndItsNameInsteadOfDerivingTheSourceFromTheFeedId() {
+		GenericQuoteFeed feed = genericFeed("Original name");
+		QuoteProviderSettings.saveGenericFeeds(List.of(feed));
+		StockSecurity security = retrieveGenericPrice(feed);
+		int sourceId = QuoteProviderSettings.requireGenericFeed(feed.id()).getSourceId();
+		StockDataSource dataSource = db.getById(StockDataSource.class, sourceId);
+		dataSource.setSourceCode("INDEPENDENT_SOURCE_CODE");
+		dataSource.setSourceName("Canonical name");
+		db.insertOrUpdate(dataSource);
+		GenericQuoteFeed loaded = QuoteProviderSettings.getConfiguration().genericFeeds().get(0);
+		QuoteSource source = QuoteSource.of(loaded);
+		MarketDataClient client = mock(MarketDataClient.class);
+		when(client.fetch(eq(source), any(), any())).thenReturn(
+				List.of(new MarketQuote(LocalDate.now().minusDays(1), new BigDecimal("11.00"))));
+		StockQuoteRetrievalService service = new StockQuoteRetrievalService(client);
+
+		assertEquals("Canonical name", loaded.name());
+		assertEquals("TEST", service.getSuggestedSymbol(security.getId(), source));
+		assertEquals(new RetrievalResult(1, 0, 1, 0), service.retrieve(security.getId(), source, "TEST"));
+		assertEquals(1, db.getAll(StockDataSource.class).size());
+		assertEquals(sourceId, db.getAll(StockSecurityPriceSource.class).get(0).getSourceId());
+		assertEquals("Canonical name", new StockPortfolioService().getPrices(security.getId()).get(0).sourceName());
+	}
+
+	@Test
+	void shouldNotRecreateAFeedDeletedWhilePricesAreBeingFetched() {
+		GenericQuoteFeed feed = genericFeed("Removed during retrieval");
+		QuoteProviderSettings.saveGenericFeeds(List.of(feed));
+		StockSecurity security = createSecurity();
+		QuoteSource source = QuoteSource.of(feed);
+		MarketDataClient client = mock(MarketDataClient.class);
+		StockQuoteRetrievalService service = new StockQuoteRetrievalService(client);
+		when(client.fetch(eq(source), any(), any())).thenAnswer(invocation -> {
+			service.deleteGenericFeed(feed.id(), false);
+			return List.of(new MarketQuote(LocalDate.now().minusDays(1), BigDecimal.TEN));
+		});
+
+		assertThrows(GBankingException.class, () -> service.retrieve(security.getId(), source, "TEST"));
+
+		assertTrue(db.getAll(StockQuoteFeed.class).isEmpty());
+		assertTrue(db.getAll(StockSecurityPrice.class).isEmpty());
+		assertTrue(db.getAll(StockSecurityPriceSource.class).isEmpty());
+		assertEquals(1, db.getAll(StockDataSource.class).size());
 	}
 
 	private StockSecurity retrieveGenericPrice(GenericQuoteFeed feed) {

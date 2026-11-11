@@ -336,6 +336,7 @@
 						<li><strong>Umgebungsspezifische Einstellungen:</strong> Datenverzeichnis, Verzeichnis für Import-Properties sowie getrennte zuletzt verwendete Import- und Exportverzeichnisse.</li>
 					</ul>
 					<p>Mandantenbezogene Einstellungen werden in der Datenbank geführt und mit den Import-Properties synchronisiert. Installationslokale Werte liegen in <code>properties/env.properties</code>; reine Fenster- und Layoutwerte in <code>properties/gui.properties</code>. Beim Umschalten der Kontoauszugsverschlüsselung werden bereits gespeicherte Auszüge entsprechend ver- oder entschlüsselt.</p>
+					<p>Generische Kursfeeds werden einzeln in <code>stockQuoteFeed</code> gespeichert und sind direkt mit ihrer Datenquelle verknüpft. Beim Umbenennen bleiben Feed-ID und Kurszuordnung erhalten. Beim Löschen eines Feeds können Sie dessen Kurse behalten oder löschen; die Datenquelle bleibt für die Kurshistorie erhalten.</p>
 					<p>Fehlt ein angeschlossener chipTAN-USB-Leser in der Auswahl, folgen Sie der <a href="#kartenleser-linux">Kartenleser-Diagnose unter Linux</a>.</p>
 					<p class="back-to-top"><a href="#top">Nach oben</a></p>
 				</section>

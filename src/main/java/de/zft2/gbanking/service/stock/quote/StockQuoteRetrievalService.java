@@ -1,5 +1,7 @@
 package de.zft2.gbanking.service.stock.quote;
 
+import static de.zft2.gbanking.service.stock.quote.QuoteProviderSettings.MARKET_DATA_PRIORITY;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -21,6 +23,7 @@ import de.zft2.gbanking.db.dao.enu.StockPriceBasis;
 import de.zft2.gbanking.db.dao.enu.StockPriceType;
 import de.zft2.gbanking.db.dao.enu.StockQuotationType;
 import de.zft2.gbanking.db.dao.stock.StockDataSource;
+import de.zft2.gbanking.db.dao.stock.StockQuoteFeed;
 import de.zft2.gbanking.db.dao.stock.StockSecurity;
 import de.zft2.gbanking.db.dao.stock.StockSecurityIdentifier;
 import de.zft2.gbanking.db.dao.stock.StockSecurityPrice;
@@ -36,8 +39,6 @@ import de.zft2.gbanking.service.stock.quote.QuoteProviderSettings.Configuration;
 public class StockQuoteRetrievalService extends AbstractDbService {
 
 	private static final int PRICE_SCALE = StockNumericValueType.PRICE.getScaleDigits();
-	private static final int MARKET_DATA_PRIORITY = 50;
-
 	private final MarketDataClient client;
 
 	public StockQuoteRetrievalService() {
@@ -105,26 +106,18 @@ public class StockQuoteRetrievalService extends AbstractDbService {
 	}
 
 	public FeedDeletionResult deleteGenericFeed(String feedId, boolean deletePrices) {
-		Configuration configuration = QuoteProviderSettings.getConfiguration();
-		GenericQuoteFeed feed = configuration.genericFeeds().stream().filter(candidate -> candidate.id().equals(feedId))
-				.findFirst().orElseThrow(() -> new GBankingException("Der generische Kursfeed wurde nicht gefunden"));
-		List<GenericQuoteFeed> remainingFeeds = configuration.genericFeeds().stream()
-				.filter(candidate -> !candidate.id().equals(feedId)).toList();
 		return dbController.executeInTransaction(() -> {
-			int deletedPrices = deletePrices ? deleteActivePrices(feed) : 0;
-			QuoteProviderSettings.saveGenericFeeds(remainingFeeds);
+			StockQuoteFeed feed = QuoteProviderSettings.requireGenericFeed(feedId);
+			int deletedPrices = deletePrices ? deleteActivePrices(feed.getSourceId()) : 0;
+			dbController.delete(feed, null);
 			return new FeedDeletionResult(deletedPrices);
 		});
 	}
 
-	private int deleteActivePrices(GenericQuoteFeed feed) {
-		StockDataSource source = findSource(QuoteSource.of(feed));
-		if (source == null) {
-			return 0;
-		}
+	private int deleteActivePrices(int sourceId) {
 		int deleted = 0;
 		for (StockSecurityPriceSource priceSource : dbController.getAll(StockSecurityPriceSource.class)) {
-			if (priceSource.getSourceId() == source.getId()) {
+			if (priceSource.getSourceId() == sourceId) {
 				deleted += deleteActivePrices(priceSource);
 			}
 		}
@@ -231,7 +224,7 @@ public class StockQuoteRetrievalService extends AbstractDbService {
 			return StockSources.createDataSource(dbController, quoteSource.sourceCode(), quoteSource.toString(),
 					StockDataSourceType.MARKET_DATA, MARKET_DATA_PRIORITY);
 		}
-		if (!quoteSource.toString().equals(source.getSourceName())) {
+		if (quoteSource.provider() != QuoteProvider.GENERIC && !quoteSource.toString().equals(source.getSourceName())) {
 			source.setSourceName(quoteSource.toString());
 			dbController.insertOrUpdate(source);
 		}
@@ -241,6 +234,11 @@ public class StockQuoteRetrievalService extends AbstractDbService {
 	private StockDataSource findSource(QuoteSource quoteSource) {
 		if (quoteSource == null) {
 			return null;
+		}
+		if (quoteSource.provider() == QuoteProvider.GENERIC) {
+			StockQuoteFeed feed = QuoteProviderSettings.requireGenericFeed(quoteSource.genericFeed().id());
+			return Objects.requireNonNull(dbController.getById(StockDataSource.class, feed.getSourceId()),
+					"Missing quote feed data source");
 		}
 		return StockSources.findDataSource(dbController.getAll(StockDataSource.class), quoteSource.sourceCode())
 				.orElse(null);

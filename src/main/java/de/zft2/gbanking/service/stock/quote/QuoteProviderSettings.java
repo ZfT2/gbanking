@@ -1,18 +1,22 @@
 package de.zft2.gbanking.service.stock.quote;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.enu.DataType;
+import de.zft2.gbanking.db.dao.enu.StockDataSourceType;
+import de.zft2.gbanking.db.dao.stock.StockDataSource;
+import de.zft2.gbanking.db.dao.stock.StockQuoteFeed;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.service.settings.SettingDefinition;
 import de.zft2.gbanking.service.settings.SettingsStore;
-import de.zft2.gbanking.util.SimpleJson;
+import de.zft2.gbanking.service.stock.StockSources;
 
 public final class QuoteProviderSettings {
 
@@ -20,30 +24,11 @@ public final class QuoteProviderSettings {
 	public static final String EODHD_API_TOKEN = "stock.quote.eodhd.api-token";
 	public static final String ALPACA_KEY_ID = "stock.quote.alpaca.key-id";
 	public static final String ALPACA_SECRET_KEY = "stock.quote.alpaca.secret-key";
-	public static final String GENERIC_FEEDS = "stock.quote.generic.feeds";
+	static final int MARKET_DATA_PRIORITY = 50;
 
-	private static final String LEGACY_URL_TEMPLATE = "stock.quote.generic.url-template";
-	private static final String LEGACY_FORMAT = "stock.quote.generic.format";
-	private static final String LEGACY_SECRET = "stock.quote.generic.secret";
-	private static final String LEGACY_HEADER_NAME = "stock.quote.generic.header-name";
-	private static final String LEGACY_HEADER_VALUE = "stock.quote.generic.header-value";
-	private static final String LEGACY_ITEMS_PATH = "stock.quote.generic.items-path";
-	private static final String LEGACY_DATE_PATH = "stock.quote.generic.date-path";
-	private static final String LEGACY_PRICE_PATH = "stock.quote.generic.price-path";
-	private static final String LEGACY_DATE_FORMAT = "stock.quote.generic.date-format";
-	private static final String LEGACY_CSV_DELIMITER = "stock.quote.generic.csv-delimiter";
-
-	private static final SettingDefinition GENERIC_FEEDS_DEFINITION = definition(GENERIC_FEEDS, "[]");
 	private static final List<SettingDefinition> DEFINITIONS = List.of(
 			definition(ALPHA_VANTAGE_API_KEY, ""), definition(EODHD_API_TOKEN, ""),
-			definition(ALPACA_KEY_ID, ""), definition(ALPACA_SECRET_KEY, ""), GENERIC_FEEDS_DEFINITION);
-	private static final List<SettingDefinition> LEGACY_DEFINITIONS = List.of(
-			definition(LEGACY_URL_TEMPLATE, ""), definition(LEGACY_FORMAT, GenericQuoteFeedFormat.JSON.name()),
-			definition(LEGACY_SECRET, ""), definition(LEGACY_HEADER_NAME, ""),
-			definition(LEGACY_HEADER_VALUE, ""), definition(LEGACY_ITEMS_PATH, ""),
-			definition(LEGACY_DATE_PATH, "date"), definition(LEGACY_PRICE_PATH, "close"),
-			definition(LEGACY_DATE_FORMAT, "uuuu-MM-dd"),
-			new SettingDefinition(LEGACY_CSV_DELIMITER, ",", DataType.CHAR, true, false, ""));
+			definition(ALPACA_KEY_ID, ""), definition(ALPACA_SECRET_KEY, ""));
 
 	private QuoteProviderSettings() {
 	}
@@ -51,43 +36,68 @@ public final class QuoteProviderSettings {
 	public static void ensureSettingsExist() {
 		SettingsStore settings = SettingsStore.current();
 		settings.ensure(DEFINITIONS.toArray(SettingDefinition[]::new));
-		settings.ensure(LEGACY_DEFINITIONS.toArray(SettingDefinition[]::new));
-		migrateLegacyFeed(settings);
 	}
 
 	public static Configuration getConfiguration() {
 		ensureSettingsExist();
 		SettingsStore settings = SettingsStore.current();
 		return new Configuration(value(settings, ALPHA_VANTAGE_API_KEY), value(settings, EODHD_API_TOKEN),
-				value(settings, ALPACA_KEY_ID), value(settings, ALPACA_SECRET_KEY), readGenericFeeds(settings));
+				value(settings, ALPACA_KEY_ID), value(settings, ALPACA_SECRET_KEY), readGenericFeeds());
 	}
 
 	public static void saveGenericFeeds(List<GenericQuoteFeed> feeds) {
-		saveGenericFeeds(new SettingsStore(DBController.getInstance(".")), feeds);
-	}
-
-	static void saveGenericFeeds(SettingsStore settings, List<GenericQuoteFeed> feeds) {
-		settings.save(GENERIC_FEEDS_DEFINITION, serializeGenericFeeds(feeds));
-	}
-
-	public static String serializeGenericFeeds(List<GenericQuoteFeed> feeds) {
-		return SimpleJson.write(feeds.stream().map(QuoteProviderSettings::serializeFeed).toList());
-	}
-
-	static List<GenericQuoteFeed> deserializeGenericFeeds(String json) {
-		try {
-			Object parsed = SimpleJson.parse(json != null && !json.isBlank() ? json : "[]");
-			if (!(parsed instanceof List<?> values)) {
-				throw new IllegalArgumentException("feed list expected");
+		List<GenericQuoteFeed> requested = List.copyOf(feeds);
+		DBController db = DBController.getInstance(".");
+		db.executeInTransaction(() -> {
+			Map<String, StockQuoteFeed> stored = db.getAll(StockQuoteFeed.class).stream()
+					.collect(Collectors.toMap(feed -> feed.getUuid(), feed -> feed));
+			Set<String> savedIds = new HashSet<>();
+			for (int index = 0; index < requested.size(); index++) {
+				GenericQuoteFeed feed = requested.get(index);
+				if (!savedIds.add(feed.id())) {
+					throw new GBankingException("Ein Kursfeed darf nur einmal gespeichert werden.");
+				}
+				saveGenericFeed(db, stored.remove(feed.id()), feed, index);
 			}
-			List<GenericQuoteFeed> result = new ArrayList<>();
-			for (Object value : values) {
-				result.add(deserializeFeed(value));
+			for (StockQuoteFeed removed : stored.values()) {
+				db.delete(removed, null);
 			}
-			return List.copyOf(result);
-		} catch (IllegalArgumentException exception) {
-			throw new GBankingException("Die Konfiguration der generischen Kursfeeds ist ungültig", exception);
+		});
+	}
+
+	static StockQuoteFeed requireGenericFeed(String uuid) {
+		return DBController.getInstance(".").getAll(StockQuoteFeed.class).stream()
+				.filter(feed -> feed.getUuid().equals(uuid)).findFirst()
+				.orElseThrow(() -> new GBankingException("Der generische Kursfeed wurde nicht gefunden"));
+	}
+
+	private static void saveGenericFeed(DBController db, StockQuoteFeed stored, GenericQuoteFeed feed, int sortOrder) {
+		StockDataSource source;
+		if (stored == null) {
+			source = StockSources.createDataSource(db, feed.sourceCode(), feed.name(),
+					StockDataSourceType.MARKET_DATA, MARKET_DATA_PRIORITY);
+			stored = new StockQuoteFeed();
+			stored.setSourceId(source.getId());
+			stored.setUuid(feed.id());
+		} else {
+			source = db.getById(StockDataSource.class, stored.getSourceId());
+			if (!feed.name().equals(source.getSourceName())) {
+				source.setSourceName(feed.name());
+				db.insertOrUpdate(source);
+			}
 		}
+		stored.setSortOrder(sortOrder);
+		stored.setUrlTemplate(feed.urlTemplate());
+		stored.setFormat(feed.format().name());
+		stored.setSecret(feed.secret());
+		stored.setHeaderName(feed.headerName());
+		stored.setHeaderValue(feed.headerValue());
+		stored.setItemsPath(feed.itemsPath());
+		stored.setDatePath(feed.datePath());
+		stored.setPricePath(feed.pricePath());
+		stored.setDateFormat(feed.dateFormat());
+		stored.setCsvDelimiter(Character.toString(feed.csvDelimiter()));
+		db.insertOrUpdate(stored);
 	}
 
 	private static SettingDefinition definition(String attribute, String defaultValue) {
@@ -99,79 +109,24 @@ public final class QuoteProviderSettings {
 		return value != null ? value.trim() : "";
 	}
 
-	private static List<GenericQuoteFeed> readGenericFeeds(SettingsStore settings) {
-		return deserializeGenericFeeds(settings.getString(GENERIC_FEEDS, "[]"));
+	private static List<GenericQuoteFeed> readGenericFeeds() {
+		DBController db = DBController.getInstance(".");
+		return db.executeInTransaction(() -> {
+			Map<Integer, String> sourceNames = db.getAll(StockDataSource.class).stream()
+					.collect(Collectors.toMap(source -> source.getId(), source -> source.getSourceName()));
+			return db.getAll(StockQuoteFeed.class).stream()
+					.sorted(Comparator.comparingInt(feed -> feed.getSortOrder()))
+					.map(feed -> toGenericFeed(feed, Objects.requireNonNull(sourceNames.get(feed.getSourceId()),
+							"Missing quote feed data source")))
+					.toList();
+		});
 	}
 
-	private static void migrateLegacyFeed(SettingsStore settings) {
-		String url = value(settings, LEGACY_URL_TEMPLATE);
-		if (url.isBlank()) {
-			return;
-		}
-		List<GenericQuoteFeed> feeds = new ArrayList<>(readGenericFeeds(settings));
-		feeds.add(new GenericQuoteFeed(UUID.randomUUID().toString(), "Generischer Kursfeed", url,
-				enumValue(settings, LEGACY_FORMAT), value(settings, LEGACY_SECRET), value(settings, LEGACY_HEADER_NAME),
-				value(settings, LEGACY_HEADER_VALUE), value(settings, LEGACY_ITEMS_PATH),
-				value(settings, LEGACY_DATE_PATH), value(settings, LEGACY_PRICE_PATH),
-				value(settings, LEGACY_DATE_FORMAT), delimiter(settings, LEGACY_CSV_DELIMITER)));
-		saveGenericFeeds(settings, feeds);
-		settings.save(LEGACY_DEFINITIONS.get(0), "");
-	}
-
-	private static GenericQuoteFeedFormat enumValue(SettingsStore settings, String attribute) {
-		try {
-			return GenericQuoteFeedFormat.valueOf(value(settings, attribute).toUpperCase(Locale.ROOT));
-		} catch (IllegalArgumentException exception) {
-			return GenericQuoteFeedFormat.JSON;
-		}
-	}
-
-	private static char delimiter(SettingsStore settings, String attribute) {
-		String value = value(settings, attribute);
-		return value.length() == 1 ? value.charAt(0) : ',';
-	}
-
-	private static Map<String, Object> serializeFeed(GenericQuoteFeed feed) {
-		Map<String, Object> value = new LinkedHashMap<>();
-		value.put("id", feed.id());
-		value.put("name", feed.name());
-		value.put("urlTemplate", feed.urlTemplate());
-		value.put("format", feed.format().name());
-		value.put("secret", feed.secret());
-		value.put("headerName", feed.headerName());
-		value.put("headerValue", feed.headerValue());
-		value.put("itemsPath", feed.itemsPath());
-		value.put("datePath", feed.datePath());
-		value.put("pricePath", feed.pricePath());
-		value.put("dateFormat", feed.dateFormat());
-		value.put("csvDelimiter", Character.toString(feed.csvDelimiter()));
-		return value;
-	}
-
-	private static GenericQuoteFeed deserializeFeed(Object value) {
-		if (!(value instanceof Map<?, ?> map)) {
-			throw new IllegalArgumentException("feed object expected");
-		}
-		String csvDelimiter = string(map, "csvDelimiter", ",");
-		return new GenericQuoteFeed(string(map, "id", ""), string(map, "name", ""),
-				string(map, "urlTemplate", ""), format(map), string(map, "secret", ""),
-				string(map, "headerName", ""), string(map, "headerValue", ""),
-				string(map, "itemsPath", ""), string(map, "datePath", "date"),
-				string(map, "pricePath", "close"), string(map, "dateFormat", "uuuu-MM-dd"),
-				csvDelimiter.length() == 1 ? csvDelimiter.charAt(0) : ',');
-	}
-
-	private static GenericQuoteFeedFormat format(Map<?, ?> map) {
-		try {
-			return GenericQuoteFeedFormat.valueOf(string(map, "format", "JSON").toUpperCase(Locale.ROOT));
-		} catch (IllegalArgumentException exception) {
-			return GenericQuoteFeedFormat.JSON;
-		}
-	}
-
-	private static String string(Map<?, ?> map, String key, String defaultValue) {
-		Object value = map.get(key);
-		return value != null ? value.toString() : defaultValue;
+	private static GenericQuoteFeed toGenericFeed(StockQuoteFeed feed, String name) {
+		return new GenericQuoteFeed(feed.getUuid(), name, feed.getUrlTemplate(),
+				GenericQuoteFeedFormat.valueOf(feed.getFormat()), feed.getSecret(), feed.getHeaderName(),
+				feed.getHeaderValue(), feed.getItemsPath(), feed.getDatePath(), feed.getPricePath(),
+				feed.getDateFormat(), feed.getCsvDelimiter().charAt(0));
 	}
 
 	public record Configuration(String alphaVantageApiKey, String eodhdApiToken,
