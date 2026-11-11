@@ -58,12 +58,43 @@ import de.zft2.gbanking.service.stock.StockPortfolioFinTsService;
 import de.zft2.gbanking.service.stock.StockPortfolioSettings;
 import de.zft2.gbanking.service.stock.StockPortfolioService;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
+import de.zft2.gbanking.service.stock.StockPortfolioService.SecurityExchangeRequest;
 import de.zft2.gbanking.service.stock.StockPortfolioService.TradeRequest;
 import de.zft2.gbanking.testdata.TestDataFactory;
 
 class StockPortfolioFinTsServiceTest extends DBControllerIntegrationBaseTest {
 
 	private static final LocalDate STATEMENT_DATE = LocalDate.of(2026, 9, 15);
+
+	@Test
+	void backfilledReplacementShouldCarryEarlierBankBasisAndRebalanceAlreadyRetrievedSuccessor() {
+		BankAccount depotAccount = createAccount("FinTS-Depot", AccountType.DEPOT);
+		BankAccount settlementAccount = createAccount("Girokonto", AccountType.CURRENT_ACCOUNT);
+		StockPortfolioFinTsService finTs = new StockPortfolioFinTsService();
+		PortfolioSummary portfolio = finTs.ensurePortfolio(depotAccount.getId(), settlementAccount.getId());
+		finTs.persistPortfolioStatement(portfolio.portfolioId(), depotAccount,
+				createStatement(new BigDecimal("10"), STATEMENT_DATE));
+		StockPortfolioService service = new StockPortfolioService();
+		int predecessorId = service.getPositions(portfolio.portfolioId()).get(0).securityId();
+		Entry successorStatement = createStatement(new BigDecimal("10"), STATEMENT_DATE.plusDays(2));
+		Gattung successorData = successorStatement.getEntries()[0];
+		successorData.isin = "DE000TEST002";
+		successorData.wkn = "TEST02";
+		successorData.name = "Nachfolger AG";
+		successorData.einstandspreis = null;
+		finTs.persistPortfolioStatement(portfolio.portfolioId(), depotAccount, successorStatement);
+		int successorId = service.getPositions(portfolio.portfolioId()).get(0).securityId();
+
+		service.recordSecurityExchange(portfolio, new SecurityExchangeRequest(predecessorId, successorId,
+				new BigDecimal("10"), STATEMENT_DATE.plusDays(2), null));
+
+		var holding = service.getPositions(portfolio.portfolioId()).get(0);
+		assertEquals(1, service.getPositions(portfolio.portfolioId()).size());
+		assertEquals(successorId, holding.securityId());
+		assertEquals(0, new BigDecimal("10").compareTo(holding.quantity()));
+		assertEquals(0, new BigDecimal("20").compareTo(holding.acquisitionPrice()));
+		assertTrue(service.getAccountTransactions(portfolio.settlementAccountId()).isEmpty());
+	}
 
 	@Test
 	void shouldConfigurePortfolioAndReconcileFinTsStatementsIdempotently() throws Exception {

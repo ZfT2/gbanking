@@ -8,9 +8,12 @@ import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -50,6 +53,7 @@ import de.zft2.gbanking.db.dao.stock.StockPortfolioSettlementAccount;
 import de.zft2.gbanking.db.dao.stock.StockPortfolioStatement;
 import de.zft2.gbanking.db.dao.stock.StockPortfolioStatementPosition;
 import de.zft2.gbanking.db.dao.stock.StockSecurity;
+import de.zft2.gbanking.db.dao.stock.StockSecurityExchangeLink;
 import de.zft2.gbanking.db.dao.stock.StockSecurityIdentifier;
 import de.zft2.gbanking.db.dao.stock.StockSecurityPrice;
 import de.zft2.gbanking.db.dao.stock.StockSecurityPriceSource;
@@ -67,6 +71,9 @@ public class StockPortfolioService extends AbstractDbService {
 	private static final int QUANTITY_SCALE = StockNumericValueType.QUANTITY.getScaleDigits();
 	private static final int PRICE_SCALE = StockNumericValueType.PRICE.getScaleDigits();
 	private static final int EXCHANGE_RATE_SCALE = StockNumericValueType.FACTOR.getScaleDigits();
+	private static final Comparator<StockTransaction> SETTLED_TRANSACTION_ORDER = Comparator
+			.comparing(StockTransaction::getSettledAt, Comparator.nullsLast(Comparator.naturalOrder()))
+			.thenComparingInt(StockTransaction::getId);
 	static final String SQL_SELECT_SECURITY_LEGS_BY_PORTFOLIO = "SQL_SELECT_STOCK_SECURITY_LEGS_BY_PORTFOLIO";
 	private static final String SQL_SELECT_SUPERSEDING_PRICE = "SQL_SELECT_STOCK_SECURITY_PRICE_SUPERSEDING";
 
@@ -178,11 +185,184 @@ public class StockPortfolioService extends AbstractDbService {
 	}
 
 	public List<SecuritySummary> getTransactionSecurities() {
+		Map<Integer, SecurityIdentifiers> identifiers = identifiersBySecurity();
 		return dbController.getAll(StockSecurity.class).stream()
 				.map(security -> new SecuritySummary(security.getId(), security.getName(),
-						security.getDefaultQuantityType(), security.getDefaultQuoteCurrency()))
+						security.getDefaultQuantityType(), security.getDefaultQuoteCurrency(),
+						identifiers.getOrDefault(security.getId(), SecurityIdentifiers.EMPTY).isin(),
+						identifiers.getOrDefault(security.getId(), SecurityIdentifiers.EMPTY).wkn()))
 				.sorted(Comparator.comparing(SecuritySummary::name, String.CASE_INSENSITIVE_ORDER))
 				.toList();
+	}
+
+	public void recordSecurityExchange(PortfolioSummary portfolio, SecurityExchangeRequest request) {
+		requirePortfolio(portfolio);
+		if (request == null || request.date() == null) {
+			throw new GBankingException("Das Umtauschdatum muss angegeben werden");
+		}
+		requirePositive(request.quantity(), "Die Umtauschmenge muss größer als null sein");
+		StockSecurity source = dbController.getById(StockSecurity.class, request.sourceSecurityId());
+		StockSecurity target = dbController.getById(StockSecurity.class, request.targetSecurityId());
+		requireExchangeSecurities(source, target);
+		long quantity = toScaledLong(request.quantity(), QUANTITY_SCALE, "Anzahl");
+		dbController.executeInTransaction(() -> {
+			SettledTransactions settled = settledTransactions(portfolio.portfolioId());
+			long available = exchangeSourceQuantity(settled, source.getId(), request.date(), false);
+			// A date-only exchange normally follows acquisitions recorded earlier on that day.
+			LocalDateTime effectiveAt = request.date().atTime(LocalTime.MAX);
+			if (available != quantity && exchangeSourceQuantity(settled, source.getId(), request.date(), true) == quantity) {
+				// Backfill before same-day reconciliation if the bank has already removed the predecessor.
+				effectiveAt = request.date().atStartOfDay();
+			} else if (available != quantity) {
+				throw new GBankingException("Der 1:1-Gattungswechsel muss den gesamten Bestand am Umtauschdatum umfassen. "
+						+ "Bereits importierte Aus-/Einbuchungen bitte zuordnen statt erneut buchen");
+			}
+			StockTransaction transaction = createPendingTransaction(portfolio.portfolioId(),
+					StockTransactionType.CORPORATE_ACTION, request.date(), request.date());
+			StockTransactionSecurityLeg outgoing = createPositionLeg(transaction.getId(), source, -quantity, null, null);
+			outgoing.setLegRole(StockSecurityLegRole.CORPORATE_ACTION_SOURCE);
+			dbController.insertOrUpdate(outgoing);
+			StockTransactionSecurityLeg incoming = createPositionLeg(transaction.getId(), target, quantity, null, null);
+			incoming.setLegNumber(2);
+			incoming.setLegRole(StockSecurityLegRole.CORPORATE_ACTION_TARGET);
+			dbController.insertOrUpdate(incoming);
+			persistNote(transaction.getId(), request.note());
+			transaction.setTradeAt(effectiveAt);
+			transaction.setSettlementDueAt(effectiveAt);
+			transaction.setCashValueAt(null);
+			transaction.setTransactionStatus(StockTransactionStatus.SETTLED);
+			transaction.setSettledAt(effectiveAt);
+			dbController.insertOrUpdate(transaction);
+			exchangePredecessors(securityExchanges(settledTransactions(portfolio.portfolioId())));
+			rebalanceReconciliationAdjustment(portfolio.portfolioId(), new PositionKey(source.getId(), StockQuantityType.UNITS));
+			rebalanceReconciliationAdjustment(portfolio.portfolioId(), new PositionKey(target.getId(), StockQuantityType.UNITS));
+			requireNonNegativeExchangePositions(portfolio.portfolioId());
+			if (currentQuantity(portfolio.portfolioId(), source.getId()).signum() != 0) {
+				throw new GBankingException("Der Vorgängerbestand ist nach dem Umtausch nicht leer. "
+						+ "Bitte Umtauschdatum und Bankbestände prüfen");
+			}
+			return null;
+		});
+	}
+
+	private static long exchangeSourceQuantity(SettledTransactions settled, int securityId, LocalDate date,
+			boolean excludeSameDayReconciliation) {
+		return settled.transactions().stream()
+				.filter(transaction -> !transaction.getSettledAt().toLocalDate().isAfter(date))
+				.filter(transaction -> !excludeSameDayReconciliation
+						|| transaction.getTransactionType() != StockTransactionType.RECONCILIATION_ADJUSTMENT
+						|| !transaction.getSettledAt().toLocalDate().equals(date))
+				.flatMap(transaction -> settled.legs(transaction).stream())
+				.filter(leg -> leg.getSecurityId() == securityId && leg.getQuantityType() == StockQuantityType.UNITS
+						&& leg.getLegRole() != StockSecurityLegRole.REFERENCE)
+				.mapToLong(StockTransactionSecurityLeg::getQuantityE9).reduce(0L, Math::addExact);
+	}
+
+	public List<TransactionSummary> getSecurityExchangeCandidates(int portfolioId, boolean outgoing) {
+		SettledTransactions settled = settledTransactions(portfolioId);
+		Set<Integer> linked = linkedExchangeTransactionIds(portfolioId);
+		Set<Integer> cashTransactions = dbController.getAllByParent(StockTransactionCashLeg.class, portfolioId,
+				"SQL_SELECT_STOCK_CASH_LEGS_BY_PORTFOLIO").stream()
+				.map(StockTransactionCashLeg::getTransactionId).collect(Collectors.toSet());
+		Set<Integer> eligible = settled.transactions().stream()
+				.filter(transaction -> transaction.getImportRecordId() != null
+						&& isExchangeDelivery(transaction.getTransactionType(), outgoing)
+						&& settled.legs(transaction).size() == 1
+						&& !linked.contains(transaction.getId()))
+				.filter(transaction -> !cashTransactions.contains(transaction.getId()))
+				.map(StockTransaction::getId).collect(Collectors.toSet());
+		return getTransactions(portfolioId).stream().filter(transaction -> eligible.contains(transaction.transactionId())).toList();
+	}
+
+	public void linkSecurityExchange(PortfolioSummary portfolio, int outgoingId, int incomingId) {
+		requirePortfolio(portfolio);
+		dbController.executeInTransaction(() -> {
+			StockTransaction source = requireTransaction(outgoingId);
+			StockTransaction target = requireTransaction(incomingId);
+			if (source.getPortfolioId() != portfolio.portfolioId() || target.getPortfolioId() != portfolio.portfolioId()
+					|| source.getTransactionStatus() != StockTransactionStatus.SETTLED
+					|| target.getTransactionStatus() != StockTransactionStatus.SETTLED) {
+				throw new GBankingException("Bitte zwei noch nicht zugeordnete importierte Aus-/Einbuchungen auswählen");
+			}
+			StockTransactionSecurityLeg sourceLeg = primarySecurityLeg(source);
+			StockTransactionSecurityLeg targetLeg = primarySecurityLeg(target);
+			requireExchangeSecurities(dbController.getById(StockSecurity.class, sourceLeg.getSecurityId()),
+					dbController.getById(StockSecurity.class, targetLeg.getSecurityId()));
+			if (!source.getSettledAt().toLocalDate().equals(target.getSettledAt().toLocalDate())
+					|| sourceLeg.getQuantityE9() >= 0 || targetLeg.getQuantityE9() <= 0
+					|| sourceLeg.getQuantityE9() != -targetLeg.getQuantityE9()) {
+				throw new GBankingException("Aus-/Einbuchung müssen dasselbe Wirksamkeitsdatum und dieselbe Stückzahl haben");
+			}
+			// The link's database guard also checks import origin, delivery types and cash/leg eligibility.
+			StockSecurityExchangeLink link = new StockSecurityExchangeLink();
+			link.setSourceLegId(sourceLeg.getId());
+			link.setTargetLegId(targetLeg.getId());
+			dbController.insertOrUpdate(link);
+			exchangePredecessors(securityExchanges(settledTransactions(portfolio.portfolioId())));
+			return null;
+		});
+	}
+
+	public Set<Integer> linkedExchangeTransactionIds(int portfolioId) {
+		return securityExchanges(settledTransactions(portfolioId)).stream().filter(exchange -> exchange.link() != null)
+				.flatMap(exchange -> List.of(exchange.source().getTransactionId(), exchange.target().getTransactionId()).stream())
+				.collect(Collectors.toSet());
+	}
+
+	public void unlinkSecurityExchange(int transactionId) {
+		StockTransaction transaction = requireTransaction(transactionId);
+		SecurityExchange exchange = securityExchanges(settledTransactions(transaction.getPortfolioId())).stream()
+				.filter(candidate -> candidate.link() != null && candidate.containsTransaction(transactionId))
+				.findFirst().orElseThrow(() -> new GBankingException("Die Transaktion hat keine Gattungswechsel-Zuordnung"));
+		dbController.delete(exchange.link(), StatementType.DELETE);
+	}
+
+	public PositionHistory getPositionHistory(int portfolioId, int securityId, boolean includePredecessors) {
+		Set<Integer> ids = new LinkedHashSet<>();
+		Map<Integer, Integer> predecessors = includePredecessors
+				? exchangePredecessors(securityExchanges(settledTransactions(portfolioId))) : Map.of();
+		Integer current = securityId;
+		while (current != null && ids.add(current)) {
+			current = predecessors.get(current);
+		}
+		Map<Integer, StockSecurity> securities = securitiesById();
+		return new PositionHistory(ids.stream().map(securities::get).filter(Objects::nonNull).map(StockSecurity::getName).toList(),
+				getTransactions(portfolioId).stream().filter(transaction -> ids.contains(transaction.securityId()))
+						.filter(transaction -> transaction.transactionType() != StockTransactionType.RECONCILIATION_ADJUSTMENT).toList());
+	}
+
+	private static boolean isExchangeDelivery(StockTransactionType type, boolean outgoing) {
+		return outgoing ? type == StockTransactionType.DELIVERY_OUT || type == StockTransactionType.TRANSFER_OUT
+				: type == StockTransactionType.DELIVERY_IN || type == StockTransactionType.TRANSFER_IN;
+	}
+
+	private static void requireExchangeSecurities(StockSecurity source, StockSecurity target) {
+		requireSecurity(source);
+		requireSecurity(target);
+		if (source.getId() == target.getId() || defaultQuantityType(source) != StockQuantityType.UNITS
+				|| defaultQuantityType(target) != StockQuantityType.UNITS
+				|| defaultQuotationType(source) != StockQuotationType.ABSOLUTE
+				|| defaultQuotationType(target) != StockQuotationType.ABSOLUTE
+				|| source.getDefaultQuoteCurrency() == null
+				|| source.getDefaultQuoteCurrency() != target.getDefaultQuoteCurrency()) {
+			throw new GBankingException("Der 1:1-Gattungswechsel benötigt unterschiedliche stücknotierte Wertpapiere "
+					+ "mit derselben Kurswährung");
+		}
+	}
+
+	private void requireNonNegativeExchangePositions(int portfolioId) {
+		requireNonNegativeExchangePositions(portfolioId, Set.of());
+	}
+
+	private void requireNonNegativeExchangePositions(int portfolioId, Set<Integer> additionalIds) {
+		Set<Integer> ids = securityExchanges(settledTransactions(portfolioId)).stream()
+				.flatMap(exchange -> List.of(exchange.source().getSecurityId(), exchange.target().getSecurityId()).stream())
+				.collect(Collectors.toSet());
+		ids.addAll(additionalIds);
+		if (dbController.getAllByParent(StockPortfolioPosition.class, portfolioId).stream()
+				.anyMatch(position -> ids.contains(position.getSecurityId()) && position.getQuantityE9() < 0)) {
+			throw new GBankingException("Die Änderung würde einen negativen Bestand in einer Gattungswechsel-Kette erzeugen");
+		}
 	}
 
 	public List<TransactionPrefill> getReconciliationPrefills(int portfolioId) {
@@ -251,6 +431,9 @@ public class StockPortfolioService extends AbstractDbService {
 		if (transaction.getTransactionStatus() != StockTransactionStatus.SETTLED) {
 			throw new GBankingException("Die Transaktion wurde bereits gelöscht oder ist nicht abgeschlossen");
 		}
+		if (linkedExchangeTransactionIds(transaction.getPortfolioId()).contains(transactionId)) {
+			throw new GBankingException("Bitte zuerst die Gattungswechsel-Zuordnung aufheben");
+		}
 		List<PositionKey> affectedPositions = dbController
 				.getAllByParent(StockTransactionSecurityLeg.class, transactionId).stream()
 				.filter(leg -> leg.getLegRole() != StockSecurityLegRole.REFERENCE)
@@ -267,6 +450,9 @@ public class StockPortfolioService extends AbstractDbService {
 				affectedPositions.forEach(key -> rebalanceReconciliationAdjustment(
 						transaction.getPortfolioId(), key));
 			}
+			requireNonNegativeExchangePositions(transaction.getPortfolioId(),
+					transaction.getTransactionType() == StockTransactionType.CORPORATE_ACTION
+							? affectedPositions.stream().map(PositionKey::securityId).collect(Collectors.toSet()) : Set.of());
 			return null;
 		});
 	}
@@ -517,6 +703,7 @@ public class StockPortfolioService extends AbstractDbService {
 			transaction.setSettledAt(null);
 			dbController.insertOrUpdate(transaction);
 			persistTrade(portfolio, security, trade, note);
+			requireNonNegativeExchangePositions(portfolio.portfolioId());
 			return null;
 		});
 	}
@@ -584,6 +771,7 @@ public class StockPortfolioService extends AbstractDbService {
 			if (isEditable(transaction, StockTransactionEditField.NOTE)) {
 				persistNote(transaction.getId(), request.note());
 			}
+			requireNonNegativeExchangePositions(portfolio.portfolioId());
 			return null;
 		});
 	}
@@ -797,12 +985,18 @@ public class StockPortfolioService extends AbstractDbService {
 	}
 
 	private Map<PositionKey, AcquisitionPriceValue> latestFinTsAcquisitionPrices(int portfolioId) {
+		return latestFinTsAcquisitionPrices(portfolioId, null);
+	}
+
+	private Map<PositionKey, AcquisitionPriceValue> latestFinTsAcquisitionPrices(int portfolioId, LocalDateTime before) {
 		Set<Integer> sourceIds = dbController.getAll(StockDataSource.class).stream()
 				.filter(source -> source.getSourceType() == StockDataSourceType.FINTS)
 				.map(StockDataSource::getId).collect(Collectors.toSet());
 		StockPortfolioStatement latestStatement = dbController.getAllByParent(StockPortfolioStatement.class, portfolioId).stream()
 				.filter(statement -> sourceIds.contains(statement.getSourceId()))
 				.filter(statement -> statement.getStatementStatus() == StockStatementStatus.FINAL)
+				.filter(statement -> before == null || statement.getStatementAt() != null
+						&& statement.getStatementAt().isBefore(before))
 				.max(Comparator.comparing(StockPortfolioStatement::getStatementAt,
 						Comparator.nullsFirst(Comparator.naturalOrder())).thenComparingInt(StockPortfolioStatement::getId))
 				.orElse(null);
@@ -826,21 +1020,114 @@ public class StockPortfolioService extends AbstractDbService {
 		SettledTransactions settled = settledTransactions(portfolioId);
 		List<StockTransaction> transactions = settled.transactions().stream()
 				.filter(transaction -> transaction.getTransactionType() != StockTransactionType.RECONCILIATION_ADJUSTMENT)
-				.sorted(Comparator.comparing(StockTransaction::getSettledAt,
-						Comparator.nullsLast(Comparator.naturalOrder())).thenComparingInt(StockTransaction::getId))
+				.sorted(SETTLED_TRANSACTION_ORDER)
 				.toList();
+		Map<Integer, SecurityExchange> exchangesByTransaction = new HashMap<>();
+		for (SecurityExchange exchange : securityExchanges(settled)) {
+			exchangesByTransaction.put(exchange.source().getTransactionId(), exchange);
+			exchangesByTransaction.put(exchange.target().getTransactionId(), exchange);
+		}
 		for (StockTransaction transaction : transactions) {
-			for (StockTransactionSecurityLeg leg : settled.legs(transaction)) {
-				if (leg.getLegRole() != StockSecurityLegRole.REFERENCE) {
-					PositionKey key = new PositionKey(leg.getSecurityId(), leg.getQuantityType());
-					BigDecimal price = isAcquisitionTransaction(transaction.getTransactionType()) && leg.getPriceE8() != null
-							? fromScaled(leg.getPriceE8(), PRICE_SCALE) : null;
-					result.computeIfAbsent(key, ignored -> new AcquisitionPriceState())
-							.apply(fromScaled(leg.getQuantityE9(), QUANTITY_SCALE), price, leg.getPriceCurrency());
+			SecurityExchange exchange = exchangesByTransaction.get(transaction.getId());
+			if (exchange == null) {
+				for (StockTransactionSecurityLeg leg : settled.legs(transaction)) {
+					if (leg.getLegRole() != StockSecurityLegRole.REFERENCE) {
+						applyAcquisitionLeg(result, transaction, leg);
+					}
 				}
+			} else if (exchange.trigger().getId() == transaction.getId()) {
+				applyAcquisitionExchange(portfolioId, result, exchange);
 			}
 		}
 		return result;
+	}
+
+	private static void applyAcquisitionLeg(Map<PositionKey, AcquisitionPriceState> prices,
+			StockTransaction transaction, StockTransactionSecurityLeg leg) {
+		BigDecimal price = isAcquisitionTransaction(transaction.getTransactionType()) && leg.getPriceE8() != null
+				? fromScaled(leg.getPriceE8(), PRICE_SCALE) : null;
+		prices.computeIfAbsent(positionKey(leg), ignored -> new AcquisitionPriceState())
+				.apply(fromScaled(leg.getQuantityE9(), QUANTITY_SCALE), price, leg.getPriceCurrency());
+	}
+
+	private void applyAcquisitionExchange(int portfolioId, Map<PositionKey, AcquisitionPriceState> prices,
+			SecurityExchange exchange) {
+		AcquisitionPriceState source = prices.computeIfAbsent(positionKey(exchange.source()), ignored -> new AcquisitionPriceState());
+		AcquisitionPriceState target = prices.computeIfAbsent(positionKey(exchange.target()), ignored -> new AcquisitionPriceState());
+		BigDecimal quantity = fromScaled(exchange.target().getQuantityE9(), QUANTITY_SCALE);
+		BigDecimal price = source.quantity.compareTo(quantity) >= 0 ? source.averagePrice : null;
+		Currency currency = source.currency;
+		if (price == null) {
+			AcquisitionPriceValue reported = latestFinTsAcquisitionPrices(portfolioId, exchange.trigger().getSettledAt())
+					.get(positionKey(exchange.source()));
+			if (reported != null) {
+				price = reported.price();
+				currency = reported.currency();
+			}
+		}
+		source.apply(quantity.negate(), null, null);
+		target.apply(quantity, price, currency);
+	}
+
+	private List<SecurityExchange> securityExchanges(SettledTransactions settled) {
+		Map<Integer, StockTransactionSecurityLeg> legsById = new HashMap<>();
+		Map<Integer, StockTransaction> transactionsById = new HashMap<>();
+		List<SecurityExchange> result = new ArrayList<>();
+		for (StockTransaction transaction : settled.transactions()) {
+			transactionsById.put(transaction.getId(), transaction);
+			List<StockTransactionSecurityLeg> legs = settled.legs(transaction);
+			legs.forEach(leg -> legsById.put(leg.getId(), leg));
+			if (transaction.getTransactionType() == StockTransactionType.CORPORATE_ACTION) {
+				result.add(manualSecurityExchange(transaction, legs));
+			}
+		}
+		for (StockSecurityExchangeLink link : dbController.getAll(StockSecurityExchangeLink.class)) {
+			StockTransactionSecurityLeg source = legsById.get(link.getSourceLegId());
+			StockTransactionSecurityLeg target = legsById.get(link.getTargetLegId());
+			if (source != null && target != null) {
+				StockTransaction sourceEntry = transactionsById.get(source.getTransactionId());
+				StockTransaction targetEntry = transactionsById.get(target.getTransactionId());
+				// The first delivery effects the atomic exchange; the later technical leg is not applied twice.
+				StockTransaction trigger = SETTLED_TRANSACTION_ORDER.compare(sourceEntry, targetEntry) < 0 ? sourceEntry : targetEntry;
+				result.add(new SecurityExchange(source, target, link, trigger));
+			}
+		}
+		return result;
+	}
+
+	private static SecurityExchange manualSecurityExchange(StockTransaction transaction, List<StockTransactionSecurityLeg> legs) {
+		StockTransactionSecurityLeg source = exchangeLeg(legs, StockSecurityLegRole.CORPORATE_ACTION_SOURCE);
+		StockTransactionSecurityLeg target = exchangeLeg(legs, StockSecurityLegRole.CORPORATE_ACTION_TARGET);
+		if (legs.size() != 2 || source.getSecurityId() == target.getSecurityId()
+				|| target.getQuantityE9() <= 0 || source.getQuantityE9() != -target.getQuantityE9()) {
+			throw new GBankingException("Die Kapitalmaßnahme ist kein unterstützter 1:1-Gattungswechsel");
+		}
+		return new SecurityExchange(source, target, null, transaction);
+	}
+
+	private static StockTransactionSecurityLeg exchangeLeg(List<StockTransactionSecurityLeg> legs, StockSecurityLegRole role) {
+		return legs.stream().filter(leg -> leg.getLegRole() == role).findFirst()
+				.orElseThrow(() -> new GBankingException("Quell- oder Zielbewegung der Kapitalmaßnahme fehlt"));
+	}
+
+	private static Map<Integer, Integer> exchangePredecessors(List<SecurityExchange> exchanges) {
+		Map<Integer, Integer> successors = new HashMap<>();
+		Map<Integer, Integer> predecessors = new HashMap<>();
+		for (SecurityExchange exchange : exchanges.stream()
+				.sorted(Comparator.comparing(SecurityExchange::trigger, SETTLED_TRANSACTION_ORDER)).toList()) {
+			int source = exchange.source().getSecurityId();
+			int target = exchange.target().getSecurityId();
+			Integer successor = successors.putIfAbsent(source, target);
+			Integer predecessor = predecessors.putIfAbsent(target, source);
+			if (successor != null && successor != target || predecessor != null && predecessor != source) {
+				throw new GBankingException("Ein 1:1-Gattungswechsel darf keine verzweigte Vorgänger-/Nachfolgerkette erzeugen");
+			}
+			// In date order, an already replaced target indicates a cycle or a backdated chain.
+			if (successors.containsKey(target)) {
+				throw new GBankingException("Gattungswechsel müssen zeitlich geordnet sein und dürfen keinen Kreis enthalten");
+			}
+		}
+		return predecessors;
 	}
 
 	private static boolean isAcquisitionTransaction(StockTransactionType type) {
@@ -850,7 +1137,10 @@ public class StockPortfolioService extends AbstractDbService {
 
 	private TransactionSummary createTransactionSummary(StockTransaction transaction, StockTransactionSecurityLeg leg,
 			StockSecurity security, SecurityIdentifiers identifiers, StockDataSourceType sourceType) {
-		BigDecimal quantity = fromScaled(leg.getQuantityE9(), QUANTITY_SCALE).abs();
+		BigDecimal quantity = fromScaled(leg.getQuantityE9(), QUANTITY_SCALE);
+		if (transaction.getTransactionType() != StockTransactionType.CORPORATE_ACTION) {
+			quantity = quantity.abs();
+		}
 		BigDecimal unitPrice = leg.getPriceE8() != null ? fromScaled(leg.getPriceE8(), PRICE_SCALE) : null;
 		BigDecimal totalPrice = unitPrice != null ? calculateValue(quantity, unitPrice, leg.getQuotationType()) : null;
 		return new TransactionSummary(transaction.getId(), transaction.getTransactionType(), security.getId(), security.getName(),
@@ -1463,7 +1753,15 @@ public class StockPortfolioService extends AbstractDbService {
 		}
 	}
 
-	public record SecuritySummary(int securityId, String name, StockQuantityType quantityType, Currency currency) {
+	public record PositionHistory(List<String> securityNames, List<TransactionSummary> transactions) {
+	}
+
+	public record SecuritySummary(int securityId, String name, StockQuantityType quantityType, Currency currency,
+			String isin, String wkn) {
+		public SecuritySummary(int securityId, String name, StockQuantityType quantityType, Currency currency) {
+			this(securityId, name, quantityType, currency, null, null);
+		}
+
 		@Override
 		public String toString() {
 			return name;
@@ -1538,6 +1836,10 @@ public class StockPortfolioService extends AbstractDbService {
 
 		private void apply(BigDecimal quantityChange, BigDecimal price, Currency priceCurrency) {
 			BigDecimal newQuantity = quantity.add(quantityChange);
+			if (quantityChange.signum() > 0 && price == null) {
+				averagePrice = null;
+				currency = null;
+			}
 			if (quantityChange.signum() > 0 && price != null) {
 				if (quantity.signum() == 0) {
 					averagePrice = price;
@@ -1551,6 +1853,7 @@ public class StockPortfolioService extends AbstractDbService {
 						currency = null;
 					}
 				}
+
 			}
 			quantity = newQuantity;
 			if (quantity.signum() <= 0) {
@@ -1561,6 +1864,18 @@ public class StockPortfolioService extends AbstractDbService {
 
 		private BigDecimal priceIn(Currency expectedCurrency) {
 			return currency == expectedCurrency ? averagePrice : null;
+		}
+	}
+
+	public record SecurityExchangeRequest(int sourceSecurityId, int targetSecurityId, BigDecimal quantity,
+			LocalDate date, String note) {
+	}
+
+	private record SecurityExchange(StockTransactionSecurityLeg source, StockTransactionSecurityLeg target,
+			StockSecurityExchangeLink link, StockTransaction trigger) {
+
+		private boolean containsTransaction(int transactionId) {
+			return source.getTransactionId() == transactionId || target.getTransactionId() == transactionId;
 		}
 	}
 }

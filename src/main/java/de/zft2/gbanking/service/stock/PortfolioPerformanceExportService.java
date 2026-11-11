@@ -32,6 +32,7 @@ import de.zft2.gbanking.db.dao.enu.StockNumericValueType;
 import de.zft2.gbanking.db.dao.enu.StockTransactionStatus;
 import de.zft2.gbanking.db.dao.enu.StockTransactionType;
 import de.zft2.gbanking.db.dao.stock.StockSecurity;
+import de.zft2.gbanking.db.dao.stock.StockSecurityExchangeLink;
 import de.zft2.gbanking.db.dao.stock.StockSecurityIdentifier;
 import de.zft2.gbanking.db.dao.stock.StockSecurityPrice;
 import de.zft2.gbanking.db.dao.stock.StockSecurityPriceSource;
@@ -69,6 +70,14 @@ public class PortfolioPerformanceExportService extends AbstractDbService {
 
 	private void exportPortfolioTransactions(Path file, PortfolioSummary portfolio) throws IOException {
 		ExportContext context = context(portfolio);
+		Set<Integer> legIds = context.securityLegs().values().stream().flatMap(List::stream)
+				.map(StockTransactionSecurityLeg::getId).collect(Collectors.toSet());
+		if (context.transactions().stream().anyMatch(transaction -> transaction.getTransactionType() == StockTransactionType.CORPORATE_ACTION)
+				|| dbController.getAll(StockSecurityExchangeLink.class).stream()
+						.anyMatch(link -> legIds.contains(link.getSourceLegId()) || legIds.contains(link.getTargetLegId()))) {
+			throw new GBankingException("Der Portfolio-Performance-Transaktions-CSV-Export kann Gattungswechsel "
+					+ "nicht verlustfrei abbilden. Die Datei wurde nicht geschrieben");
+		}
 		try (CSVPrinter printer = PortfolioPerformanceCsvSupport.printer(file, TRANSACTION_HEADERS)) {
 			for (StockTransaction transaction : context.transactions()) {
 				if (!isPortfolioTransaction(transaction.getTransactionType())) {

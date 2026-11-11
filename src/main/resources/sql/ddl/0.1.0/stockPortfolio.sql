@@ -731,7 +731,7 @@ CREATE TABLE stockTransaction (
   CHECK (settledAt IS NULL OR tradeAt <= settledAt),
   CHECK (settlementDateInferred IN (0, 1)),
   CHECK (editableFieldMask BETWEEN 0 AND 4095),
-  CHECK (settlementDateInferred = 0 OR settledAt IS NOT NULL),
+  CHECK (settlementDateInferred = 0 OR settledAt IS NOT NULL OR transactionStatus = 3),
   CHECK (reversalOfTransaction_id IS NULL OR reversalOfTransaction_id <> id),
   CHECK (importRecord_id IS NULL OR fingerprint IS NOT NULL));
 
@@ -1235,6 +1235,76 @@ BEFORE INSERT ON stockTransactionCashLeg
 WHEN EXISTS (SELECT 1 FROM stockImmutableTransaction immutable WHERE immutable.id = NEW.transaction_id)
 BEGIN
   SELECT RAISE(FAIL, 'cash leg of settled or imported transaction is immutable');
+END;
+
+[SQL_SETUP_CREATE_STOCK_SECURITY_EXCHANGE_LINK]
+CREATE TABLE stockSecurityExchangeLink (
+  id INTEGER PRIMARY KEY,
+  sourceLeg_id INTEGER NOT NULL UNIQUE,
+  targetLeg_id INTEGER NOT NULL UNIQUE,
+  createdAt TEXT NOT NULL,
+  FOREIGN KEY(sourceLeg_id) REFERENCES stockTransactionSecurityLeg(id) ON DELETE RESTRICT,
+  FOREIGN KEY(targetLeg_id) REFERENCES stockTransactionSecurityLeg(id) ON DELETE RESTRICT,
+  CHECK (sourceLeg_id <> targetLeg_id));
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_SECURITY_EXCHANGE_LINK_VALIDATE]
+CREATE TRIGGER validate_stocksecurityexchangelink_insert
+BEFORE INSERT ON stockSecurityExchangeLink
+WHEN NOT EXISTS (
+  SELECT 1
+  FROM stockTransactionSecurityLeg outgoing
+  JOIN stockTransaction sourceEntry ON sourceEntry.id = outgoing.transaction_id
+  JOIN stockTransactionSecurityLeg incoming ON incoming.id = NEW.targetLeg_id
+  JOIN stockTransaction targetEntry ON targetEntry.id = incoming.transaction_id
+  WHERE outgoing.id = NEW.sourceLeg_id
+    AND outgoing.security_id <> incoming.security_id
+    AND outgoing.quantityE9 < 0 AND incoming.quantityE9 = -outgoing.quantityE9
+    AND outgoing.quantityType = 1 AND incoming.quantityType = 1
+    AND outgoing.legRole = 1 AND incoming.legRole = 1
+    AND sourceEntry.portfolio_id = targetEntry.portfolio_id
+    AND sourceEntry.transactionStatus = 2 AND targetEntry.transactionStatus = 2
+    AND SUBSTR(sourceEntry.settledAt, 1, 10) = SUBSTR(targetEntry.settledAt, 1, 10)
+    AND sourceEntry.transactionType IN (4, 6) AND targetEntry.transactionType IN (3, 5)
+    AND sourceEntry.importRecord_id IS NOT NULL AND targetEntry.importRecord_id IS NOT NULL
+    AND NOT EXISTS (SELECT 1 FROM stockTransactionCashLeg cashLeg
+      WHERE cashLeg.transaction_id IN (sourceEntry.id, targetEntry.id))
+    AND NOT EXISTS (SELECT 1 FROM stockTransactionSecurityLeg otherLeg
+      WHERE otherLeg.transaction_id IN (sourceEntry.id, targetEntry.id)
+        AND otherLeg.id NOT IN (NEW.sourceLeg_id, NEW.targetLeg_id)))
+BEGIN
+  SELECT RAISE(FAIL, 'invalid imported 1:1 security exchange');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_SECURITY_EXCHANGE_LINK_BLOCK_UPDATE]
+CREATE TRIGGER block_stocksecurityexchangelink_update
+BEFORE UPDATE ON stockSecurityExchangeLink
+BEGIN
+  SELECT RAISE(FAIL, 'remove the security exchange link before replacing it');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_SECURITY_EXCHANGE_TRANSACTION_BLOCK_UPDATE]
+CREATE TRIGGER block_linked_stocktransaction_update
+BEFORE UPDATE ON stockTransaction
+WHEN (NEW.transactionStatus IS NOT OLD.transactionStatus
+    OR NEW.settledAt IS NOT OLD.settledAt OR NEW.tradeAt IS NOT OLD.tradeAt
+    OR NEW.portfolio_id IS NOT OLD.portfolio_id OR NEW.transactionType IS NOT OLD.transactionType)
+  AND EXISTS (
+    SELECT 1 FROM stockSecurityExchangeLink link
+    JOIN stockTransactionSecurityLeg leg ON leg.id IN (link.sourceLeg_id, link.targetLeg_id)
+    WHERE leg.transaction_id = OLD.id)
+BEGIN
+  SELECT RAISE(FAIL, 'remove the security exchange link before changing its transaction');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_SECURITY_EXCHANGE_CASH_LEG_BLOCK_INSERT]
+CREATE TRIGGER block_linked_stocktransactioncashleg_insert
+BEFORE INSERT ON stockTransactionCashLeg
+WHEN EXISTS (
+  SELECT 1 FROM stockSecurityExchangeLink link
+  JOIN stockTransactionSecurityLeg leg ON leg.id IN (link.sourceLeg_id, link.targetLeg_id)
+  WHERE leg.transaction_id = NEW.transaction_id)
+BEGIN
+  SELECT RAISE(FAIL, 'a security exchange cannot have cash legs');
 END;
 
 [SQL_SETUP_CREATE_VIEW_STOCK_PORTFOLIO_POSITION]

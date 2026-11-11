@@ -23,6 +23,7 @@ import de.zft2.gbanking.gui.dialog.stock.SecurityPriceDialog;
 import de.zft2.gbanking.gui.dialog.stock.StockIncomeDialog;
 import de.zft2.gbanking.gui.dialog.stock.StockPortfolioTransferDialog;
 import de.zft2.gbanking.gui.dialog.stock.StockPositionTransferDialog;
+import de.zft2.gbanking.gui.dialog.stock.StockSecurityExchangeDialog;
 import de.zft2.gbanking.gui.dialog.stock.StockSettlementAccountDialog;
 import de.zft2.gbanking.gui.dialog.stock.StockTradeDialog;
 import de.zft2.gbanking.gui.dialog.stock.StockTransactionDialog;
@@ -37,6 +38,7 @@ import de.zft2.gbanking.service.BankingCapabilityService;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.StockPortfolioService;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
+import de.zft2.gbanking.service.stock.StockPortfolioService.PositionHistory;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PositionSummary;
 import de.zft2.gbanking.service.stock.StockPortfolioService.SecuritySummary;
 import de.zft2.gbanking.service.stock.StockPortfolioService.TransactionPrefill;
@@ -69,6 +71,7 @@ import javafx.scene.control.TreeTableColumn;
 import javafx.scene.control.TreeTableRow;
 import javafx.scene.control.TreeTableView;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -106,6 +109,12 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	private final Button transactionNewButton = new Button();
 	private final Button transactionEditButton = new Button();
 	private final Button transactionDeleteButton = new Button();
+	private final Button exchangeButton = new Button();
+	private final CheckBox includePredecessors = new CheckBox();
+	private final Button showAllTransactions = new Button();
+	private final Label historyLabel = new Label();
+	private Integer historySecurityId;
+	private Set<Integer> linkedExchangeIds = Set.of();
 	private final Button settlementEditButton = new Button();
 	private List<PortfolioSummary> portfolios = List.of();
 	private PortfolioSummary selectedPortfolio;
@@ -132,7 +141,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		detailTabs.getSelectionModel().selectedItemProperty().addListener((observable, previous, selected) -> updateTableMode());
 
 		VBox positionSection = createTableSection("UI_STOCK_POSITIONS", positionTable);
-		VBox transactionSection = createTableSection("UI_STOCK_PORTFOLIO_TRANSACTIONS", transactionTable);
+		VBox transactionSection = createTransactionSection();
 		portfolioTables = new SplitPane(positionSection, transactionSection);
 		portfolioTables.setOrientation(javafx.geometry.Orientation.VERTICAL);
 		portfolioTables.setDividerPositions(TABLE_DIVIDER);
@@ -250,7 +259,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		FormGridHelper.addFieldAbove(grid, getText("UI_STOCK_FIELD_SETTLEMENT_ACCOUNT"), portfolioSettlementValue, 1, 1, 2);
 		configureTransactionButtons();
 		grid.add(FormStyleUtils.createButtonBar(transactionNewButton, transactionEditButton,
-				transactionDeleteButton), 0, 4, 3, 1);
+				transactionDeleteButton, exchangeButton), 0, 4, 3, 1);
 		return grid;
 	}
 
@@ -261,6 +270,8 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		transactionNewButton.setOnAction(event -> openNewTransaction());
 		transactionEditButton.setOnAction(event -> openSelectedTransaction());
 		transactionDeleteButton.setOnAction(event -> deleteSelectedTransaction());
+		exchangeButton.setText(getText("UI_STOCK_ACTION_EXCHANGE"));
+		exchangeButton.setOnAction(event -> openSecurityExchange(null, false));
 		transactionTable.getSelectionModel().selectedItemProperty().addListener(
 				(observable, previous, selected) -> updateTransactionButtons());
 		updateTransactionButtons();
@@ -317,14 +328,19 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		income.setOnAction(event -> openIncome(row.getItem()));
 		MenuItem transfer = new MenuItem(getText("UI_STOCK_ACTION_TRANSFER_POSITION"));
 		transfer.setOnAction(event -> openPositionTransfer(row.getItem()));
-		return new ContextMenu(trade, income, transfer);
+		MenuItem exchange = new MenuItem(getText("UI_STOCK_ACTION_EXCHANGE"));
+		exchange.setOnAction(event -> openSecurityExchange(row.getItem(), false));
+		MenuItem history = new MenuItem(getText("UI_STOCK_POSITION_HISTORY"));
+		history.setOnAction(event -> showPositionHistory(row.getItem().securityId()));
+		return new ContextMenu(trade, income, transfer, exchange, history);
 	}
 
 	private void configureTransactionTable() {
 		transactionTable.getColumns().add(TableColumnFactory.createCalendarDateColumn(getText("UI_STOCK_COLUMN_DATE"),
 				TransactionSummary::date, 100));
 		transactionTable.getColumns().add(TableColumnFactory.createFixedTextColumn(getText("UI_STOCK_COLUMN_TRANSACTION"),
-				summary -> transactionName(summary.transactionType()), 190));
+				summary -> summary.transactionType() == StockTransactionType.CORPORATE_ACTION
+						? getText("UI_STOCK_EXCHANGE_TITLE") : transactionName(summary.transactionType()), 190));
 		transactionTable.getColumns().add(createSecurityLinkColumn(getText("UI_STOCK_COLUMN_SECURITY_NAME"),
 				TransactionSummary::securityName, TransactionSummary::securityId, TransactionSummary::currency, 180));
 		transactionTable.getColumns().add(TableColumnFactory.createFixedTextColumn(getText("UI_STOCK_COLUMN_ISIN"),
@@ -349,6 +365,9 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 			if (item != null && item.transactionType() == StockTransactionType.RECONCILIATION_ADJUSTMENT) {
 				row.getStyleClass().add(MUTED_TRANSACTION_STYLE);
 			}
+			row.setContextMenu(item != null ? createTransactionContextMenu(item) : null);
+			row.setTooltip(item != null && linkedExchangeIds.contains(item.transactionId())
+					? new Tooltip(getText("UI_STOCK_EXCHANGE_LINKED")) : null);
 		});
 		row.setOnMouseClicked(event -> {
 			if (event.getClickCount() == 2 && !row.isEmpty() && canEdit(row.getItem())
@@ -357,6 +376,83 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 			}
 		});
 		return row;
+	}
+
+	private ContextMenu createTransactionContextMenu(TransactionSummary transaction) {
+		MenuItem history = new MenuItem(getText("UI_STOCK_POSITION_HISTORY"));
+		history.setOnAction(event -> showPositionHistory(transaction.securityId()));
+		MenuItem link = new MenuItem(getText("UI_STOCK_EXCHANGE_USE_IMPORTED"));
+		link.setOnAction(event -> openSecurityExchange(null, true));
+		link.setDisable(!transaction.externalSource());
+		MenuItem unlink = new MenuItem(getText("UI_STOCK_EXCHANGE_UNLINK"));
+		unlink.setDisable(!linkedExchangeIds.contains(transaction.transactionId()));
+		unlink.setOnAction(event -> unlinkSecurityExchange(transaction.transactionId()));
+		return new ContextMenu(history, link, unlink);
+	}
+
+	private VBox createTransactionSection() {
+		includePredecessors.setText(getText("UI_STOCK_INCLUDE_PREDECESSORS"));
+		includePredecessors.setSelected(true);
+		includePredecessors.selectedProperty().addListener((observable, previous, selected) -> updateTransactionHistory());
+		showAllTransactions.setText(getText("UI_STOCK_ALL_TRANSACTIONS"));
+		showAllTransactions.setOnAction(event -> {
+			historySecurityId = null;
+			updateTransactionHistory();
+		});
+		historyLabel.setWrapText(true);
+		historyLabel.getStyleClass().add("gbanking-form-section-title");
+		VBox section = createTableSection("UI_STOCK_PORTFOLIO_TRANSACTIONS", transactionTable);
+		HBox header = new HBox(10, historyLabel, includePredecessors, showAllTransactions);
+		header.setAlignment(Pos.CENTER_LEFT);
+		HBox.setHgrow(historyLabel, Priority.ALWAYS);
+		section.getChildren().set(0, header);
+		return section;
+	}
+
+	private void showPositionHistory(int securityId) {
+		historySecurityId = securityId;
+		updateTransactionHistory();
+	}
+
+	private void updateTransactionHistory() {
+		boolean filtered = selectedPortfolio != null && historySecurityId != null;
+		includePredecessors.setVisible(filtered);
+		includePredecessors.setManaged(filtered);
+		showAllTransactions.setVisible(filtered);
+		showAllTransactions.setManaged(filtered);
+		if (!filtered) {
+			historyLabel.setText(getText("UI_STOCK_PORTFOLIO_TRANSACTIONS"));
+			transactionTable.setItems(FXCollections.observableArrayList(selectedPortfolio != null
+					? service.getTransactions(selectedPortfolio.portfolioId()) : List.of()));
+			return;
+		}
+		PositionHistory history = service.getPositionHistory(selectedPortfolio.portfolioId(), historySecurityId, includePredecessors.isSelected());
+		historyLabel.setText(String.join(" <- ", history.securityNames()));
+		transactionTable.setItems(FXCollections.observableArrayList(history.transactions()));
+	}
+
+	private void openSecurityExchange(PositionSummary position, boolean linkImported) {
+		if (selectedPortfolio != null) {
+			try {
+				new StockSecurityExchangeDialog(getOwnerWindow(), service, selectedPortfolio, position, linkImported,
+						this::refreshSelectedPortfolio).show();
+			} catch (RuntimeException exception) {
+				DialogWindowSupport.showAlert(getOwnerWindow(), Alert.AlertType.WARNING, exception.getMessage());
+			}
+		}
+	}
+
+	private void unlinkSecurityExchange(int transactionId) {
+		if (DialogWindowSupport.showConfirmation(getOwnerWindow(), Alert.AlertType.CONFIRMATION,
+				getText("UI_STOCK_EXCHANGE_UNLINK"), getText("UI_STOCK_EXCHANGE_UNLINK"),
+				getText("UI_STOCK_EXCHANGE_UNLINK_TEXT"), ButtonType.OK, ButtonType.CANCEL)) {
+			try {
+				service.unlinkSecurityExchange(transactionId);
+				refreshSelectedPortfolio();
+			} catch (RuntimeException exception) {
+				DialogWindowSupport.showAlert(getOwnerWindow(), Alert.AlertType.WARNING, exception.getMessage());
+			}
+		}
 	}
 
 	private static boolean isHyperlinkTarget(Object target) {
@@ -609,16 +705,21 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	}
 
 	private void selectPortfolio(PortfolioSummary portfolio) {
+		if (selectedPortfolio == null || portfolio == null || selectedPortfolio.portfolioId() != portfolio.portfolioId()) {
+			historySecurityId = null;
+		}
 		selectedPortfolio = portfolio;
 		updateDetails();
 		if (portfolio == null) {
 			positionTable.getItems().clear();
 			transactionTable.getItems().clear();
 			accountTransactionTable.getItems().clear();
+			updateTransactionHistory();
 			return;
 		}
 		positionTable.setItems(FXCollections.observableArrayList(service.getPositions(portfolio.portfolioId())));
-		transactionTable.setItems(FXCollections.observableArrayList(service.getTransactions(portfolio.portfolioId())));
+		linkedExchangeIds = service.linkedExchangeTransactionIds(portfolio.portfolioId());
+		updateTransactionHistory();
 		accountTransactionTable.setItems(FXCollections.observableArrayList(
 				service.getAccountTransactions(portfolio.settlementAccountId())));
 	}
@@ -654,6 +755,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	private void updateTransactionButtons() {
 		TransactionSummary selected = transactionTable.getSelectionModel().getSelectedItem();
 		transactionNewButton.setDisable(selectedPortfolio == null);
+		exchangeButton.setDisable(selectedPortfolio == null);
 		transactionEditButton.setDisable(!canEdit(selected));
 		transactionDeleteButton.setDisable(selected == null);
 	}

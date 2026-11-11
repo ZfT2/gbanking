@@ -18,21 +18,28 @@ import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.Currency;
+import de.zft2.gbanking.db.dao.enu.StockQuantityType;
+import de.zft2.gbanking.db.dao.enu.StockTransactionType;
 import de.zft2.gbanking.gui.GuiContext;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
 import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.service.BankingCapabilityService;
 import de.zft2.gbanking.service.stock.StockPortfolioService;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
+import de.zft2.gbanking.service.stock.StockPortfolioService.PositionHistory;
+import de.zft2.gbanking.service.stock.StockPortfolioService.PositionSummary;
+import de.zft2.gbanking.service.stock.StockPortfolioService.TransactionSummary;
 import javafx.beans.property.BooleanProperty;
 import javafx.geometry.Orientation;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TreeTableView;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
@@ -43,6 +50,49 @@ class StockPortfolioOverviewPanelTest {
 	void closeDatabase() {
 		GuiContext.setOnlyOnlineAccountsVisible(false);
 		DBControllerTestUtil.closeAndNullifyConnection();
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void positionHistoryShouldIncludePredecessorsByDefaultAndAllowReturningToPortfolio() {
+		StockPortfolioService service = mock(StockPortfolioService.class);
+		PortfolioSummary portfolio = portfolio(1, "Depot");
+		PositionSummary position = new PositionSummary(1, 2, "Neu AG", null, null, StockQuantityType.UNITS,
+				BigDecimal.TEN, null, null, null, null, Currency.EUR, null);
+		TransactionSummary oldTrade = new TransactionSummary(1, StockTransactionType.BUY, 1, "Alt AG", null, null,
+				LocalDate.of(2026, 1, 1), BigDecimal.TEN, null, null, Currency.EUR, 0, false);
+		TransactionSummary newTrade = new TransactionSummary(2, StockTransactionType.CORPORATE_ACTION, 2, "Neu AG", null, null,
+				LocalDate.of(2026, 2, 1), BigDecimal.TEN, null, null, Currency.EUR, 0, false);
+		when(service.getPortfolios()).thenReturn(List.of(portfolio));
+		when(service.getPositions(1)).thenReturn(List.of(position));
+		when(service.getTransactions(1)).thenReturn(List.of(oldTrade, newTrade));
+		when(service.getPositionHistory(1, 2, true)).thenReturn(new PositionHistory(List.of("Neu AG", "Alt AG"), List.of(oldTrade, newTrade)));
+		when(service.getPositionHistory(1, 2, false)).thenReturn(new PositionHistory(List.of("Neu AG"), List.of(newTrade)));
+
+		JavaFxTestSupport.runFx(() -> {
+			StockPortfolioOverviewPanel panel = new StockPortfolioOverviewPanel(service, mock(BankingCapabilityService.class));
+			panel.refreshOnShow();
+			SplitPane main = (SplitPane) panel.getChildren().get(1);
+			VBox right = (VBox) main.getItems().get(1);
+			SplitPane tables = (SplitPane) ((StackPane) right.getChildren().get(1)).getChildren().get(0);
+			TableView<PositionSummary> positions = (TableView<PositionSummary>) ((VBox) tables.getItems().get(0)).getChildren().get(1);
+			TableView<TransactionSummary> transactions = (TableView<TransactionSummary>) ((VBox) tables.getItems().get(1)).getChildren().get(1);
+			var row = positions.getRowFactory().call(positions);
+			row.setItem(position);
+			row.getContextMenu().getItems().stream()
+					.filter(item -> item.getText().equals(BaseMessages.getTextStatic("UI_STOCK_POSITION_HISTORY")))
+					.findFirst().orElseThrow().fire();
+
+			HBox header = (HBox) ((VBox) tables.getItems().get(1)).getChildren().get(0);
+			CheckBox include = (CheckBox) header.getChildren().get(1);
+			assertTrue(include.isSelected());
+			assertEquals(List.of(oldTrade, newTrade), List.copyOf(transactions.getItems()));
+			include.fire();
+			assertEquals(List.of(newTrade), List.copyOf(transactions.getItems()));
+			((Button) header.getChildren().get(2)).fire();
+			assertEquals(List.of(oldTrade, newTrade), List.copyOf(transactions.getItems()));
+			assertFalse(include.isVisible());
+		});
 	}
 
 	@Test
@@ -117,7 +167,7 @@ class StockPortfolioOverviewPanelTest {
 			assertTrue(editButton.getStyleClass().contains("gbanking-form-button"));
 			assertEquals(4, GridPane.getRowIndex(editButton.getParent()));
 			GridPane portfolioDetails = (GridPane) tabs.getTabs().get(0).getContent();
-			assertEquals(3, portfolioDetails.lookupAll(".gbanking-form-button").size());
+			assertEquals(4, portfolioDetails.lookupAll(".gbanking-form-button").size());
 			assertTrue(portfolioDetails.lookupAll(".gbanking-button-bar").stream()
 					.allMatch(node -> Integer.valueOf(4).equals(GridPane.getRowIndex(node))));
 		});

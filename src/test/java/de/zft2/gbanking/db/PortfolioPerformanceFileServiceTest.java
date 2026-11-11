@@ -2,6 +2,8 @@ package de.zft2.gbanking.db;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
@@ -20,10 +22,16 @@ import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.StockDataSourceType;
+import de.zft2.gbanking.db.dao.enu.StockTransactionStatus;
+import de.zft2.gbanking.db.dao.enu.StockTransactionType;
 import de.zft2.gbanking.db.dao.stock.StockDataSource;
 import de.zft2.gbanking.db.dao.stock.StockPortfolio;
 import de.zft2.gbanking.db.dao.stock.StockPortfolioSettlementAccount;
 import de.zft2.gbanking.db.dao.stock.StockSecurity;
+import de.zft2.gbanking.db.dao.stock.StockSecurityExchangeLink;
+import de.zft2.gbanking.db.dao.stock.StockTransaction;
+import de.zft2.gbanking.db.dao.stock.StockTransactionSecurityLeg;
+import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer;
 import de.zft2.gbanking.file.imp.csv.CsvImportDefinitionRepository;
@@ -38,6 +46,84 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 
 	@TempDir
 	Path files;
+
+	@Test
+	void importedReplacementShouldLinkOriginalDeliveriesWithoutDuplicatingOrRevaluingThem() throws Exception {
+		PortfolioSummary portfolio = createPortfolio();
+		createSource();
+		Path transactions = write("replacement.csv", transactionHeader()
+				+ "2026-01-02T12:00;Kauf;200,00;EUR;;;;;;10;DE0000000001;ABC123;;Alt AG;Erstkauf\n"
+				+ "2026-01-03T12:00;Kauf;300,00;EUR;;;;;;10;DE0000000002;DEF456;;Neu AG;Bestand\n"
+				+ "2026-03-01T10:00;Einlieferung;900,00;EUR;;;;;;10;DE0000000002;DEF456;;Neu AG;Umtausch\n"
+				+ "2026-03-01T11:00;Verkauf;175,00;EUR;;;;;;5;DE0000000002;DEF456;;Neu AG;Teilverkauf\n"
+				+ "2026-03-01T12:00;Auslieferung;900,00;EUR;;;;;;10;DE0000000001;ABC123;;Alt AG;Umtausch\n"
+				+ "2026-03-01T10:00;Einlieferung;900,00;EUR;;;;;;5;DE0000000003;GHI789;;Z Menge AG;\n"
+				+ "2026-03-02T10:00;Einlieferung;900,00;EUR;;;;;;10;DE0000000004;JKL012;;Z Datum AG;\n");
+		PortfolioPerformanceImportService importer = new PortfolioPerformanceImportService();
+		importer.importFile(transactions, ExportType.STOCK_PP_TRANSACTIONS_CSV, portfolio);
+		StockPortfolioService service = new StockPortfolioService();
+		var outgoing = service.getSecurityExchangeCandidates(portfolio.portfolioId(), true).get(0);
+		var incoming = service.getSecurityExchangeCandidates(portfolio.portfolioId(), false).stream()
+				.filter(transaction -> transaction.securityName().equals("Neu AG")).findFirst().orElseThrow();
+		List<Long> originalPrices = db.getAll(StockTransactionSecurityLeg.class).stream()
+				.map(StockTransactionSecurityLeg::getPriceE8).toList();
+		int transactionCount = db.getAll(StockTransaction.class).size();
+		int bookingCount = db.getAll(Booking.class).size();
+
+		assertEquals(3, bookingCount);
+		assertThrows(GBankingException.class, () -> service.linkSecurityExchange(portfolio, incoming.transactionId(), outgoing.transactionId()));
+		for (var invalid : service.getSecurityExchangeCandidates(portfolio.portfolioId(), false)) {
+			if (invalid.transactionId() != incoming.transactionId()) {
+				assertThrows(GBankingException.class, () -> service.linkSecurityExchange(portfolio, outgoing.transactionId(), invalid.transactionId()));
+			}
+		}
+		service.linkSecurityExchange(portfolio, outgoing.transactionId(), incoming.transactionId());
+
+		assertEquals(0, new BigDecimal("25").compareTo(service.getPositions(portfolio.portfolioId()).get(0).acquisitionPrice()));
+		assertEquals(transactionCount, db.getAll(StockTransaction.class).size());
+		assertEquals(bookingCount, db.getAll(Booking.class).size());
+		assertEquals(originalPrices, db.getAll(StockTransactionSecurityLeg.class).stream()
+				.map(StockTransactionSecurityLeg::getPriceE8).toList());
+		StockSecurityExchangeLink link = db.getAll(StockSecurityExchangeLink.class).get(0);
+		assertThrows(GBankingException.class, () -> db.insertOrUpdate(link));
+		StockTransaction linkedSource = db.getById(StockTransaction.class, outgoing.transactionId());
+		linkedSource.setTransactionStatus(StockTransactionStatus.CANCELLED);
+		linkedSource.setSettledAt(null);
+		assertThrows(GBankingException.class, () -> db.insertOrUpdate(linkedSource));
+		assertEquals(5, service.getPositionHistory(portfolio.portfolioId(), incoming.securityId(), true).transactions().size());
+		assertThrows(GBankingException.class, () -> service.linkSecurityExchange(portfolio, outgoing.transactionId(), incoming.transactionId()));
+		assertThrows(GBankingException.class, () -> service.deleteTransaction(outgoing.transactionId()));
+		assertTrue(importer.importFile(transactions, ExportType.STOCK_PP_TRANSACTIONS_CSV, portfolio).alreadyImported());
+		Path export = files.resolve("replacement-export.csv");
+		assertThrows(GBankingException.class, () -> new PortfolioPerformanceExportService().exportFile(
+				export, ExportType.STOCK_PP_TRANSACTIONS_CSV, portfolio));
+		assertFalse(Files.exists(export));
+
+		service.unlinkSecurityExchange(incoming.transactionId());
+		assertTrue(db.getAll(StockSecurityExchangeLink.class).isEmpty());
+		assertEquals(0, new BigDecimal("60").compareTo(service.getPositions(portfolio.portfolioId()).get(0).acquisitionPrice()));
+		service.deleteTransaction(outgoing.transactionId());
+		assertTrue(db.getById(StockTransaction.class, outgoing.transactionId()).isSettlementDateInferred());
+		assertThrows(GBankingException.class, () -> service.linkSecurityExchange(portfolio, outgoing.transactionId(), incoming.transactionId()));
+	}
+
+	@Test
+	void replacementWithUnknownBasisShouldNotReuseSuccessorPriceOrImportedValuation() throws Exception {
+		PortfolioSummary portfolio = createPortfolio();
+		createSource();
+		Path transactions = write("unknown-replacement.csv", transactionHeader()
+				+ "2026-01-02;Einlieferung;;EUR;;;;;;10;DE0000000001;ABC123;;Alt AG;\n"
+				+ "2026-01-02;Kauf;100,00;EUR;;;;;;10;DE0000000002;DEF456;;Neu AG;\n");
+		new PortfolioPerformanceImportService().importFile(transactions, ExportType.STOCK_PP_TRANSACTIONS_CSV, portfolio);
+		StockPortfolioService service = new StockPortfolioService();
+		var securities = db.getAll(StockSecurity.class);
+		StockSecurity original = securities.stream().filter(security -> security.getName().equals("Alt AG")).findFirst().orElseThrow();
+		StockSecurity successor = securities.stream().filter(security -> security.getName().equals("Neu AG")).findFirst().orElseThrow();
+		service.recordSecurityExchange(portfolio, new StockPortfolioService.SecurityExchangeRequest(original.getId(),
+				successor.getId(), new BigDecimal("10"), LocalDate.of(2026, 3, 1), null));
+
+		assertNull(service.getPositions(portfolio.portfolioId()).get(0).acquisitionPrice());
+	}
 
 	@Test
 	void csvFormatsShouldImportIdempotentlyAndExport() throws Exception {

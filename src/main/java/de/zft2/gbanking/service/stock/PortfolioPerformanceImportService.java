@@ -1008,6 +1008,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		return switch (type) {
 		case BUY, REMOVAL, FEE, TAX -> absolute.negate();
 		case SELL, DEPOSIT, DIVIDEND, INTEREST, TAX_REFUND -> absolute;
+		case DELIVERY_IN, DELIVERY_OUT -> null;
 		default -> data.value();
 		};
 	}

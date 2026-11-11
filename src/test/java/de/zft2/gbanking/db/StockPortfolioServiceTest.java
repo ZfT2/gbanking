@@ -37,6 +37,7 @@ import de.zft2.gbanking.service.stock.StockPortfolioService;
 import de.zft2.gbanking.service.stock.StockPortfolioService.IncomeRequest;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PositionSummary;
+import de.zft2.gbanking.service.stock.StockPortfolioService.SecurityExchangeRequest;
 import de.zft2.gbanking.service.stock.StockPortfolioService.TradeRequest;
 import de.zft2.gbanking.service.stock.StockPortfolioService.TransactionEditRequest;
 import de.zft2.gbanking.service.stock.StockSecurityAdministrationService;
@@ -46,6 +47,81 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 
 	private static final LocalDate TRADE_DATE = LocalDate.of(2026, 9, 10);
 	private static final LocalDate SETTLEMENT_DATE = LocalDate.of(2026, 9, 14);
+
+	@Test
+	void replacementShouldCarryBasisAndHistoryAcrossMultipleSecuritiesWithoutCashFlow() {
+		PortfolioSummary portfolio = createPortfolio(100, 200, "Depot A", "Verrechnung A", new BigDecimal("1000.00"));
+		StockSecurity original = createSecurity("Original AG");
+		StockSecurity successor = createSecurity("Nachfolger AG");
+		StockSecurity current = createSecurity("Aktuell AG");
+		StockPortfolioService service = new StockPortfolioService();
+		service.recordTrade(portfolio, position(portfolio, original), new TradeRequest(StockTransactionType.BUY,
+				TRADE_DATE, SETTLEMENT_DATE, new BigDecimal("10"), new BigDecimal("20"),
+				Currency.EUR, BigDecimal.ONE, null, null, null));
+		service.recordIncome(portfolio, service.getPositions(portfolio.portfolioId()).get(0),
+				new IncomeRequest(StockTransactionType.DIVIDEND, SETTLEMENT_DATE, new BigDecimal("5"), null, Currency.EUR, BigDecimal.ONE));
+		BigDecimal balance = db.getById(BankAccount.class, portfolio.settlementAccountId()).getBalance();
+		int bookings = db.getAll(Booking.class).size();
+
+		assertThrows(GBankingException.class, () -> service.recordSecurityExchange(portfolio,
+				new SecurityExchangeRequest(original.getId(), successor.getId(), new BigDecimal("5"), SETTLEMENT_DATE.plusDays(1), null)));
+		service.recordSecurityExchange(portfolio, new SecurityExchangeRequest(original.getId(), successor.getId(),
+				new BigDecimal("10"), SETTLEMENT_DATE.plusDays(1), "Umtauschbeleg"));
+		service.recordSecurityExchange(portfolio, new SecurityExchangeRequest(successor.getId(), current.getId(),
+				new BigDecimal("10"), SETTLEMENT_DATE.plusDays(2), null));
+		service.savePrice(current.getId(), null, SETTLEMENT_DATE.plusDays(3), new BigDecimal("30"), Currency.EUR);
+
+		PositionSummary holding = service.getPositions(portfolio.portfolioId()).get(0);
+		assertEquals(current.getId(), holding.securityId());
+		assertEquals(0, new BigDecimal("200").compareTo(holding.acquisitionValue()));
+		assertEquals(0, new BigDecimal("50").compareTo(holding.performancePercent()));
+		assertEquals(balance, db.getById(BankAccount.class, portfolio.settlementAccountId()).getBalance());
+		assertEquals(bookings, db.getAll(Booking.class).size());
+		assertEquals(List.of("Aktuell AG", "Nachfolger AG", "Original AG"),
+				service.getPositionHistory(portfolio.portfolioId(), current.getId(), true).securityNames());
+		assertEquals(6, service.getPositionHistory(portfolio.portfolioId(), current.getId(), true).transactions().size());
+		assertEquals(1, service.getPositionHistory(portfolio.portfolioId(), current.getId(), false).transactions().size());
+		assertTrue(service.getPositionHistory(portfolio.portfolioId(), current.getId(), true).transactions().stream()
+				.anyMatch(transaction -> transaction.date().equals(TRADE_DATE) && transaction.securityId() == original.getId()));
+		int transactionCount = db.getAll(StockTransaction.class).size();
+		assertThrows(GBankingException.class, () -> service.recordSecurityExchange(portfolio,
+				new SecurityExchangeRequest(current.getId(), original.getId(), new BigDecimal("10"), SETTLEMENT_DATE.plusDays(4), null)));
+		assertEquals(transactionCount, db.getAll(StockTransaction.class).size());
+		var firstExchange = service.getTransactions(portfolio.portfolioId()).stream()
+				.filter(transaction -> transaction.transactionType() == StockTransactionType.CORPORATE_ACTION
+						&& transaction.securityId() == original.getId()).findFirst().orElseThrow();
+		assertTrue(firstExchange.quantity().signum() < 0);
+		assertThrows(GBankingException.class, () -> service.deleteTransaction(firstExchange.transactionId()));
+		assertThrows(GBankingException.class, () -> service.unlinkSecurityExchange(firstExchange.transactionId()));
+		service.deleteTransaction(service.getTransactions(portfolio.portfolioId()).stream()
+				.filter(transaction -> transaction.securityId() == current.getId()
+						&& transaction.transactionType() == StockTransactionType.CORPORATE_ACTION).findFirst().orElseThrow().transactionId());
+		assertEquals(successor.getId(), service.getPositions(portfolio.portfolioId()).get(0).securityId());
+		assertEquals(0, new BigDecimal("200").compareTo(service.getPositions(portfolio.portfolioId()).get(0).acquisitionValue()));
+	}
+
+	@Test
+	void replacementShouldMergeBasisWithExistingSuccessorHoldingsAndLaterPurchases() {
+		PortfolioSummary portfolio = createPortfolio(100, 200, "Depot A", "Verrechnung A", new BigDecimal("1000.00"));
+		StockSecurity original = createSecurity("Alt AG");
+		StockSecurity successor = createSecurity("Neu AG");
+		StockPortfolioService service = new StockPortfolioService();
+		for (StockSecurity security : List.of(original, successor)) {
+			service.recordTrade(portfolio, position(portfolio, security), new TradeRequest(StockTransactionType.BUY,
+					TRADE_DATE, SETTLEMENT_DATE, new BigDecimal("10"),
+					security == original ? new BigDecimal("10") : new BigDecimal("30"),
+					Currency.EUR, BigDecimal.ONE, null, null, null));
+		}
+		service.recordSecurityExchange(portfolio, new SecurityExchangeRequest(original.getId(), successor.getId(),
+				new BigDecimal("10"), SETTLEMENT_DATE, null));
+		service.recordTrade(portfolio, service.getPositions(portfolio.portfolioId()).get(0),
+				new TradeRequest(StockTransactionType.BUY, SETTLEMENT_DATE.plusDays(2), SETTLEMENT_DATE.plusDays(2),
+						new BigDecimal("10"), new BigDecimal("50"), Currency.EUR, BigDecimal.ONE, null, null, null));
+
+		PositionSummary holding = service.getPositions(portfolio.portfolioId()).get(0);
+		assertEquals(0, new BigDecimal("30").compareTo(holding.quantity()));
+		assertEquals(0, new BigDecimal("30").compareTo(holding.acquisitionPrice()));
+	}
 
 	@Test
 	void tradeShouldCreatePositionCashComponentsAndSettlementBooking() {
