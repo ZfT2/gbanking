@@ -8,6 +8,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -68,6 +70,23 @@ class FileImportMT940BeanTest {
 		assertEquals(1, statistics.getExistingBookings());
 		assertEquals(0, statistics.getAddedBookings());
 		assertEquals(1, statistics.getSkippedBookings());
+
+		Path looseFile = writeMt940(Files.readString(mt940File, StandardCharsets.ISO_8859_1)
+				.replace("INSTREF1", "INSTREF2").replace("MT940 Zweck", "Different purpose"));
+		FileImportMT940Bean looseImport = new FileImportMT940Bean(null);
+		AtomicInteger reviews = new AtomicInteger();
+		looseImport.setDuplicateReviewHandler(matches -> {
+			reviews.incrementAndGet();
+			assertEquals(1, matches.size());
+			assertEquals(importedBooking.getId(), matches.get(0).existing().getId());
+			return Set.of();
+		});
+		looseImport.importFileToDatabase(looseFile.toString());
+		assertEquals(1, reviews.get());
+		assertEquals(1, dbController.getAll(Booking.class).size());
+		looseImport.setDuplicateReviewHandler(matches -> Set.of(matches.get(0).incoming()));
+		looseImport.importFileToDatabase(looseFile.toString());
+		assertEquals(2, dbController.getAll(Booking.class).size());
 	}
 
 	private BankAccount createAccount(String name, String iban, String number) {

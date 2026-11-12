@@ -15,6 +15,7 @@ import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.file.BaseFileTask;
 import de.zft2.gbanking.file.imp.FileImportCSVBean.RejectedRow;
 import de.zft2.gbanking.gui.enu.ExportType;
+import de.zft2.gbanking.gui.dialog.BookingDuplicateReviewDialog;
 
 public class FileImportTask extends BaseFileTask {
 
@@ -68,6 +69,7 @@ public class FileImportTask extends BaseFileTask {
 
 	private void importBookingsXml() {
 		FileImportBean fileImportBean = new FileImportBean(this, null, false, bankNameCorrectionHandler);
+		fileImportBean.setDuplicateReviewHandler(new BookingDuplicateReviewDialog(null));
 		fileImportBean.importFile(fileName);
 		importSummaryText = fileImportBean.getImportSummaryText();
 		importStatistics = fileImportBean.getImportStatistics();
@@ -75,6 +77,7 @@ public class FileImportTask extends BaseFileTask {
 
 	private void importBookingsCsv() throws IOException {
 		FileImportCSVBean fileImportBean = new FileImportCSVBean(this, contextAccount, csvDefinitionName, bankNameCorrectionHandler);
+		fileImportBean.setDuplicateReviewHandler(new BookingDuplicateReviewDialog(null));
 		fileImportBean.importFileToDatabase(fileName);
 		importStatistics = fileImportBean.getImportStatistics();
 		rejectedRows = fileImportBean.getRejectedRows();
@@ -82,6 +85,7 @@ public class FileImportTask extends BaseFileTask {
 
 	private void importBookingsFp3() {
 		FileImportBean fileImportBean = new FileImportBean(this, contextAccount, true, bankNameCorrectionHandler);
+		fileImportBean.setDuplicateReviewHandler(new BookingDuplicateReviewDialog(null));
 		fileImportBean.importFile(fileName);
 		importSummaryText = fileImportBean.getImportSummaryText();
 		importStatistics = fileImportBean.getImportStatistics();
@@ -89,6 +93,7 @@ public class FileImportTask extends BaseFileTask {
 
 	private void importBookingsMt940() throws IOException {
 		FileImportMT940Bean fileImportBean = new FileImportMT940Bean(this, contextAccount, bankNameCorrectionHandler);
+		fileImportBean.setDuplicateReviewHandler(new BookingDuplicateReviewDialog(null));
 		fileImportBean.importFileToDatabase(fileName);
 		importStatistics = fileImportBean.getImportStatistics();
 	}

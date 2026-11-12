@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -13,6 +14,8 @@ import java.time.LocalDate;
 import java.time.Month;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.AfterAll;
@@ -20,6 +23,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import de.zft2.gbanking.cache.InstituteLookupCache;
 import de.zft2.gbanking.db.DBController;
@@ -44,6 +49,84 @@ class FileImportCSVBeanTest {
 	static final TestDatabaseExtension database = new TestDatabaseExtension();
 
 	private final DBController dbController = database.controller();
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void shouldReviewAllLooseMatchesOnceAfterStrictFiltering(boolean accept) throws Exception {
+		BankAccount account = createAccount("Review", "DE11111111111111111111", "11111111");
+		LocalDate date = LocalDate.of(2026, 4, 10);
+		Booking strict = new Booking(account.getId(), date, date, "Strict", new BigDecimal("5"), BookingType.DEPOSIT, 0);
+		strict.setSource(Source.ONLINE);
+		dbController.insertOrUpdate(strict);
+		Booking loose = new Booking(account.getId(), date.minusDays(1), date, "Account purpose", new BigDecimal("10"), BookingType.DEPOSIT, 0);
+		loose.setSource(Source.ONLINE);
+		dbController.insertOrUpdate(loose);
+		Path file = writeCsv("""
+				BUCHUNGSDATUM;WERTSTELLUNG;BETRAG;VERWENDUNGSZWECK;EMPFAENGER_NAME;EMPFAENGER_IBAN
+				10.04.2026;10.04.2026;5.00;Strict;;
+				10.04.2026;11.04.2026;10.00;First file purpose;Recipient;DE99999999999999999999
+				10.04.2026;12.04.2026;10.00;Second file purpose;;
+				15.04.2026;15.04.2026;20.00;New booking;;
+				""");
+		FileImportCSVBean importer = new FileImportCSVBean(null, account);
+		AtomicInteger calls = new AtomicInteger();
+		importer.setDuplicateReviewHandler(matches -> {
+			calls.incrementAndGet();
+			assertEquals(2, matches.size());
+			assertEquals(loose.getId(), matches.get(0).existing().getId());
+			assertEquals("Recipient", matches.get(0).incoming().getRecipient().getName());
+			assertEquals(2, dbController.getAll(Booking.class).size());
+			return accept ? Set.of(matches.get(0).incoming()) : Set.of();
+		});
+		importer.importFileToDatabase(file.toString());
+		assertEquals(1, calls.get());
+		assertEquals(accept ? 4 : 3, dbController.getAll(Booking.class).size());
+		assertEquals(accept ? 2 : 1, importer.getImportStatistics().get(0).getAddedBookings());
+	}
+
+	@Test
+	void cancellingDuplicateReviewShouldRollBackNewAccountsAndBookings() throws Exception {
+		BankAccount account = createAccount("Review", "DE11111111111111111111", "11111111");
+		Booking existing = new Booking(account.getId(), LocalDate.of(2026, 4, 10), null, "Account", BigDecimal.TEN, BookingType.DEPOSIT, 0);
+		existing.setSource(Source.ONLINE);
+		dbController.insertOrUpdate(existing);
+		Path file = writeCsv("""
+				KONTO_NAME;KONTO_IBAN;KONTO_NR;BUCHUNGSDATUM;BETRAG;VERWENDUNGSZWECK
+				New;DE22222222222222222222;22222222;12.04.2026;3.00;New account booking
+				Review;DE11111111111111111111;11111111;10.04.2026;10.00;File purpose
+				""");
+		FileImportCSVBean importer = new FileImportCSVBean(null);
+		assertThrows(GBankingException.class, () -> importer.importFileToDatabase(file.toString()));
+		assertEquals(1, dbController.getAll(BankAccount.class).size());
+		importer.setDuplicateReviewHandler(matches -> {
+			throw new CancellationException("Cancel import");
+		});
+		assertThrows(CancellationException.class, () -> importer.importFileToDatabase(file.toString()));
+		assertEquals(1, dbController.getAll(BankAccount.class).size());
+		assertEquals(1, dbController.getAll(Booking.class).size());
+		assertTrue(dbController.getAll(Recipient.class).isEmpty());
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void repeatedStableReferenceShouldFollowTheReviewedFirstOccurrence(boolean accept) throws Exception {
+		BankAccount account = createAccount("Review", "DE11111111111111111111", "11111111");
+		Booking existing = new Booking(account.getId(), LocalDate.of(2026, 4, 10), null, "Account", BigDecimal.TEN, BookingType.DEPOSIT, 0);
+		existing.setSource(Source.MANUELL);
+		dbController.insertOrUpdate(existing);
+		Path file = writeCsv("""
+				BUCHUNGSDATUM;BETRAG;VERWENDUNGSZWECK;SEPA_END_TO_END
+				10.04.2026;10.00;File purpose;UNIQUE-REFERENCE
+				10.04.2026;10.00;Repeated reference;UNIQUE-REFERENCE
+				""");
+		FileImportCSVBean importer = new FileImportCSVBean(null, account);
+		importer.setDuplicateReviewHandler(matches -> {
+			assertEquals(1, matches.size());
+			return accept ? Set.of(matches.get(0).incoming()) : Set.of();
+		});
+		importer.importFileToDatabase(file.toString());
+		assertEquals(accept ? 2 : 1, dbController.getAll(Booking.class).size());
+	}
 
 	@BeforeEach
 	void clearInstituteLookupCache() {

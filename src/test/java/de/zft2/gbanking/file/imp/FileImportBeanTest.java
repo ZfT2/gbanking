@@ -16,6 +16,8 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -250,6 +252,12 @@ class FileImportBeanTest extends CoreBookingUtil {
 
 		xmlBankAccount02.setBookings(Arrays.asList(xmlBookingAccount0203, xmlBookingAccount0204));
 
+		fileImportBean.setDuplicateReviewHandler(matches -> {
+			assertEquals(2, matches.size());
+			var accepted = Collections.newSetFromMap(new IdentityHashMap<Booking, Boolean>());
+			matches.forEach(match -> accepted.add(match.incoming()));
+			return accepted;
+		});
 		fileImportBean.writeBookingsToDB(Arrays.asList(xmlBankAccount02));
 
 		dbAccountList = dbController.getAllFull(BankAccount.class);

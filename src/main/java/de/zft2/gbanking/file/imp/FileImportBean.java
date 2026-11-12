@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -343,6 +344,16 @@ public class FileImportBean extends AbstractBookingImportBean {
 		updateWorkerStateBookings(importedBookingsCount, "UI_PROGRESS_IMPORT_BOOKINGS");
 
 		Collection<Booking> allBookings = new ArrayList<>();
+		Map<de.zft2.fp3xmlextract.data.Fp3XmlBooking, Booking> mappedBookings = new IdentityHashMap<>();
+		List<Booking> reviewBookings = new ArrayList<>();
+		for (de.zft2.fp3xmlextract.data.Fp3XmlBankAccount account : bankAccountList) {
+			for (de.zft2.fp3xmlextract.data.Fp3XmlBooking incoming : account.getBookings()) {
+				Booking booking = mapBooking(account.getNamePP(), incoming);
+				mappedBookings.put(incoming, booking);
+				reviewBookings.add(booking);
+			}
+		}
+		reviewBookings(reviewBookings);
 
 		for (de.zft2.fp3xmlextract.data.Fp3XmlBankAccount bankAccountXml : bankAccountList) {
 			String accountName = bankAccountXml.getNamePP();
@@ -355,7 +366,7 @@ public class FileImportBean extends AbstractBookingImportBean {
 			updateWorkerStateBookings(importedBookingsCount, "UI_PROGRESS_IMPORT_BOOKINGS_ACCOUNT_COUNT", accountName, bookingsList.size());
 
 			importedBookingsCount = writeBookingsForAccount(crossBookingMap, accountName, bookingsList, bookingDaoList,
-					accountStatistics, importedBookingsCount);
+					accountStatistics, importedBookingsCount, mappedBookings);
 
 			log.info("Imported bookings for accountId={}: written={}, skippedDuplicates={}", accountId, bookingDaoList.size(),
 					accountStatistics.getSkippedBookings());
@@ -371,24 +382,26 @@ public class FileImportBean extends AbstractBookingImportBean {
 
 	private long writeBookingsForAccount(Map<de.zft2.core.dto.Booking, Integer> crossBookingMap, String accountName,
 			List<de.zft2.fp3xmlextract.data.Fp3XmlBooking> bookingsList, List<Booking> bookingDaoList, ImportAccountStatistics accountStatistics,
-			long importedBookingsCount) {
+			long importedBookingsCount, Map<de.zft2.fp3xmlextract.data.Fp3XmlBooking, Booking> mappedBookings) {
 
 		for (de.zft2.fp3xmlextract.data.Fp3XmlBooking xmlBooking : bookingsList) {
-			ImportedBookingResult importResult = writeBookingForAccount(crossBookingMap, accountName, xmlBooking);
+			ImportedBookingResult importResult = writeBookingForAccount(crossBookingMap, xmlBooking, mappedBookings.get(xmlBooking));
 			applyImportResult(bookingDaoList, accountStatistics, importResult);
 			updateBookingProgress(++importedBookingsCount);
 		}
 		return importedBookingsCount;
 	}
 
-	private ImportedBookingResult writeBookingForAccount(Map<de.zft2.core.dto.Booking, Integer> crossBookingMap, String accountName,
-			de.zft2.fp3xmlextract.data.Fp3XmlBooking xmlBooking) {
-
+	private Booking mapBooking(String accountName, de.zft2.fp3xmlextract.data.Fp3XmlBooking xmlBooking) {
 		int accountId = ImportedAccountResolver.resolveAccountId(accountName, xmlBooking, accountIdMapByAccountname);
 		Integer crossAccountId = ImportedAccountResolver.resolveCrossAccountId(xmlBooking, accountId, accountIdMapByAccountname,
 				crossAccountIdMapByIdentifier);
-		Booking bookingDao = ImportDaoMapper.maptoBookingDao(xmlBooking, accountId, crossAccountId, Source.IMPORT_INITIAL,
+		return ImportDaoMapper.maptoBookingDao(xmlBooking, accountId, crossAccountId, Source.IMPORT_INITIAL,
 				baseCurrencyByAccountId.getOrDefault(accountId, Currency.EUR));
+	}
+
+	private ImportedBookingResult writeBookingForAccount(Map<de.zft2.core.dto.Booking, Integer> crossBookingMap,
+			de.zft2.fp3xmlextract.data.Fp3XmlBooking xmlBooking, Booking bookingDao) {
 		ImportedBookingPersistence.Result persistenceResult = getBookingPersistence().persist(bookingDao);
 		boolean existing = persistenceResult.existing();
 		Booking resolvedBooking = persistenceResult.booking();
@@ -443,6 +456,7 @@ public class FileImportBean extends AbstractBookingImportBean {
 	private Collection<Booking> persistImportedBookings(Collection<Booking> bookingDaoList) {
 		Collection<Booking> persistedBookings = new ArrayList<>();
 		getBookingPersistence().reset();
+		reviewBookings(bookingDaoList);
 		totalBookings = bookingDaoList.size();
 		long importedBookingsCount = 0L;
 		updateWorkerStateBookings(importedBookingsCount, "UI_PROGRESS_IMPORT_BOOKINGS");

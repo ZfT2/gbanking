@@ -15,13 +15,17 @@ import java.time.LocalDate;
 import java.time.Month;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import de.zft2.fp3xmlextract.convert.Converter;
 import de.zft2.fp3xmlextract.data.Fp3XmlBankAccount;
@@ -49,6 +53,36 @@ class FileImportXMLBeanTest {
 	static final TestDatabaseExtension database = new TestDatabaseExtension();
 
 	private final DBController dbController = database.controller();
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void xmlAndFp3ShouldReviewPotentialDuplicatesBeforeWriting(boolean fp3) throws Exception {
+		BankAccount account;
+		if (fp3) {
+			account = importFp3File();
+		} else {
+			new FileImportBean(null).importFileToDatatbase(testResource("dummy_import.xml").toString());
+			account = dbController.getAll(BankAccount.class).get(0);
+		}
+		List<Booking> before = dbController.getAllByParentFull(Booking.class, account.getId());
+		Booking original = findBookingWithAmount(before, fp3 ? "8.97" : "123.45");
+		dbController.delete(original, null);
+		Booking existing = new Booking(account.getId(), null, original.getDateBooking(), "Different account purpose",
+				original.getAmount(), original.getBookingType(), 0);
+		existing.setSource(Source.MANUELL);
+		dbController.insertOrUpdate(existing);
+		AtomicInteger calls = new AtomicInteger();
+		FileImportBean importer = new FileImportBean(null, fp3 ? account : null, fp3, null);
+		importer.setDuplicateReviewHandler(matches -> {
+			calls.incrementAndGet();
+			assertEquals(1, matches.size());
+			assertEquals(existing.getId(), matches.get(0).existing().getId());
+			return Set.of();
+		});
+		importer.importFileToDatatbase(testResource(fp3 ? "fp100.xml" : "dummy_import.xml").toString());
+		assertEquals(1, calls.get());
+		assertEquals(before.size(), dbController.getAllByParentFull(Booking.class, account.getId()).size());
+	}
 
 	@BeforeEach
 	void clearInstituteLookupCache() {

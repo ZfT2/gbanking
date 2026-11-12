@@ -2,6 +2,7 @@ package de.zft2.gbanking.file.imp;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -26,6 +27,7 @@ import de.zft2.gbanking.file.imp.dto.ImportBooking;
 import de.zft2.gbanking.mapper.ImportDaoMapper;
 import de.zft2.gbanking.rebooking.RebookingRules;
 import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.service.account.BookingDuplicateReviewHandler;
 import de.zft2.gbanking.service.importproperties.ImportPropertiesSynchronizationService;
 import de.zft2.gbanking.util.AppPaths;
 
@@ -54,6 +56,15 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 	private final Map<String, BankAccount> accountsByName = new HashMap<>();
 	private final Map<String, BankAccount> accountsByBlzAndNumber = new HashMap<>();
 	private int currentProgress = -1;
+	private BookingDuplicateReviewHandler duplicateReviewHandler;
+
+	public void setDuplicateReviewHandler(BookingDuplicateReviewHandler handler) {
+		duplicateReviewHandler = handler;
+	}
+
+	protected void reviewBookings(Collection<Booking> bookings) {
+		bookingPersistence.review(bookings, duplicateReviewHandler);
+	}
 
 	protected AbstractBookingImportBean(ProgressReporter progressReporter, BankAccount contextAccount) {
 		this(progressReporter, contextAccount, null);
@@ -162,18 +173,29 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 
 		processBookingsWithBookingCore(importAccounts);
 		Map<de.zft2.core.dto.Booking, Integer> crossBookingMap = new IdentityHashMap<>();
-
+		Map<ImportBooking, Booking> mappedBookings = new IdentityHashMap<>();
+		List<Booking> reviewBookings = new ArrayList<>();
 		for (ImportBankAccount importAccount : importAccounts) {
 			BankAccount account = accountsByImportAccount.get(importAccount);
 			if (account == null) {
 				throw new GBankingException("No database account resolved for imported account " + importAccount.getAccountName() + ".");
 			}
+			for (ImportBooking incoming : importAccount.getBookings()) {
+				Booking booking = ImportDaoMapper.maptoBookingDao(incoming, account.getId(),
+						resolveCrossAccountId(incoming, account.getId()), incoming.getSource(), account.getBaseCurrency());
+				mappedBookings.put(incoming, booking);
+				reviewBookings.add(booking);
+			}
+		}
+		reviewBookings(reviewBookings);
+
+		for (ImportBankAccount importAccount : importAccounts) {
+			BankAccount account = accountsByImportAccount.get(importAccount);
 			FileImportBean.ImportAccountStatistics statistics = statisticsFor(account.getAccountName(),
 					bookingPersistence.existingBookingCount(account.getId()));
 
 			for (ImportBooking importBooking : importAccount.getBookings()) {
-				Booking bookingDao = ImportDaoMapper.maptoBookingDao(importBooking, account.getId(), resolveCrossAccountId(importBooking, account.getId()),
-						importBooking.getSource(), account.getBaseCurrency());
+				Booking bookingDao = mappedBookings.get(importBooking);
 				importBooking(crossBookingMap, importBooking, bookingDao, importedBookings, statistics);
 			}
 		}

@@ -2,7 +2,9 @@ package de.zft2.gbanking.file;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.concurrent.CancellationException;
 
+import de.zft2.gbanking.gui.dialog.BookingDuplicateReviewDialog;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceExportService;
@@ -58,11 +60,13 @@ public class PortfolioPerformanceFileTask extends BaseFileTask {
 		setProcessingState(importOperation ? "Portfolio-Performance-Datei wird importiert" : "Portfolio-Performance-Datei wird exportiert");
 		if (importOperation) {
 			PortfolioPerformanceImportService service = ServiceRegistry.getService(PortfolioPerformanceImportService.class);
-			importResult = assignments != null
-					? service.importFile(Path.of(fileName), exportType, portfolio, assignments)
-					: csvDefinitionName != null
-							? service.importFile(Path.of(fileName), exportType, portfolio, csvDefinitionName)
-							: service.importFile(Path.of(fileName), exportType, portfolio, importAdditionalAccounts);
+			try {
+				importResult = service.importFile(Path.of(fileName), exportType, portfolio, importAdditionalAccounts,
+						assignments, csvDefinitionName, new BookingDuplicateReviewDialog(null));
+			} catch (CancellationException exception) {
+				cancel();
+				return null;
+			}
 		} else {
 			ServiceRegistry.getService(PortfolioPerformanceExportService.class)
 					.exportFile(Path.of(fileName), exportType, portfolio);

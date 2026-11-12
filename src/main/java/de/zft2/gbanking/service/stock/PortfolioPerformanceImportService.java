@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 import java.time.DateTimeException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.concurrent.CancellationException;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -62,6 +63,8 @@ import de.zft2.gbanking.db.dao.stock.StockTransactionCashLeg;
 import de.zft2.gbanking.db.dao.stock.StockTransactionMetadata;
 import de.zft2.gbanking.db.dao.stock.StockTransactionSecurityLeg;
 import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.file.imp.ImportedBookingPersistence;
+import de.zft2.gbanking.service.account.BookingDuplicateReviewHandler;
 import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer;
 import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer.Analysis;
 import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer.Match;
@@ -79,7 +82,6 @@ import de.zft2.gbanking.service.stock.PortfolioPerformanceData.Portfolio;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceData.Security;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceData.Transaction;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
-import de.zft2.gbanking.util.Amounts;
 import de.zft2.gbanking.util.Hashes;
 
 public class PortfolioPerformanceImportService extends AbstractDbService {
@@ -121,6 +123,12 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 
 	private ImportResult importFile(Path file, ExportType importType, PortfolioSummary portfolio,
 			boolean importAdditionalAccounts, XmlImportAssignments assignments, String csvDefinitionName) throws IOException {
+		return importFile(file, importType, portfolio, importAdditionalAccounts, assignments, csvDefinitionName, null);
+	}
+
+	public ImportResult importFile(Path file, ExportType importType, PortfolioSummary portfolio,
+			boolean importAdditionalAccounts, XmlImportAssignments assignments, String csvDefinitionName,
+			BookingDuplicateReviewHandler reviewHandler) throws IOException {
 		if (portfolio != null || importType != ExportType.STOCK_PP_XML) {
 			requirePortfolio(portfolio);
 		}
@@ -138,11 +146,13 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 			Counters counters = new Counters();
 			try {
 				importByType(file, importType, portfolio, source, record, counters,
-						importAdditionalAccounts, assignments, csvDefinitionName);
+						importAdditionalAccounts, assignments, csvDefinitionName, reviewHandler);
 				batch.setImportStatus(StockImportStatus.IMPORTED);
 				batch.setCompletedAt(LocalDateTime.now());
 				dbController.insertOrUpdate(batch);
 				return counters.result(false);
+			} catch (CancellationException exception) {
+				throw exception;
 			} catch (RuntimeException | IOException exception) {
 				throw new GBankingException("Portfolio-Performance-Import fehlgeschlagen: " + exception.getMessage(), exception);
 			}
@@ -151,7 +161,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 
 	private void importByType(Path file, ExportType importType, PortfolioSummary portfolio, StockDataSource source,
 			StockImportRecord record, Counters counters, boolean importAdditionalAccounts,
-			XmlImportAssignments assignments, String csvDefinitionName) throws IOException {
+			XmlImportAssignments assignments, String csvDefinitionName, BookingDuplicateReviewHandler reviewHandler) throws IOException {
 		ImportLookups lookups = new ImportLookups();
 		switch (importType) {
 		case STOCK_PP_XML -> importDocument(new PortfolioPerformanceXmlReader().read(file), portfolio, source, record,
@@ -169,6 +179,8 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 				lookups);
 		default -> throw new GBankingException("Unbekanntes Portfolio-Performance-Importformat: " + importType);
 		}
+		lookups.bookingPersistence.review(lookups.proposedBookings, reviewHandler);
+		lookups.pendingTransactions.forEach(operation -> operation.run());
 	}
 
 	public XmlImportPreview previewXml(Path file) throws IOException {
@@ -330,9 +342,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		for (Transaction transaction : accountTransactions(account)) {
 			ImportedType type = ImportedType.from(transaction.type());
 			if (type.generalBookingOnly() || (type == ImportedType.INTEREST && !hasSecurity(transaction))) {
-				if (saveGeneralBooking(accountId, transaction, type, lookups)) {
-					counters.bookings++;
-				}
+				prepareGeneralBooking(accountId, transaction, type, lookups, counters);
 				continue;
 			}
 			List<ImportedPortfolio> candidates = linkedPortfolios.stream()
@@ -441,9 +451,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 				throw new GBankingException("Die Buchungswährung " + transaction.bookingCurrency()
 						+ " passt nicht zur Währung des Kontos '" + data.name() + "'");
 			}
-			if (saveGeneralBooking(account.getId(), transaction, type, lookups)) {
-				counters.bookings++;
-			}
+			prepareGeneralBooking(account.getId(), transaction, type, lookups, counters);
 		}
 		updateImportedAccountBalance(data, account);
 	}
@@ -673,9 +681,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 			if (accountFile && (type.generalBookingOnly()
 					|| (type == ImportedType.INTEREST && !hasSecurity(data)))) {
 				validateBookingCurrency(portfolio, data);
-				if (saveGeneralBooking(portfolio.settlementAccountId(), data, type, lookups)) {
-					counters.bookings++;
-				}
+				prepareGeneralBooking(portfolio.settlementAccountId(), data, type, lookups, counters);
 				continue;
 			}
 			if (!type.stockTransaction()) {
@@ -687,11 +693,13 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 							.contains(transactionFingerprint(portfolio, data, type, security))) {
 				continue;
 			}
-			if (saveStockTransaction(portfolio, data, type, security, source, record, lookups)) {
+			validateTransaction(data, type, portfolio, security);
+			if (lookups.fingerprints(portfolio.portfolioId()).add(transactionFingerprint(portfolio, data, type, security))) {
+				Booking proposed = proposeBooking(portfolio.settlementAccountId(), data.date(), accountAmount(data, type), type,
+						bookingPurpose(type, security.getName(), data.note()), lookups);
+				lookups.pendingTransactions.add(() -> saveStockTransaction(portfolio, data, type, security, source, record,
+						lookups.persistBooking(proposed, counters)));
 				counters.transactions++;
-				if (hasCashValue(data, type)) {
-					counters.bookings++;
-				}
 			}
 		}
 	}
@@ -818,13 +826,9 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 				security.getId(), source.getId(), null, null, source.getDefaultPriority()));
 	}
 
-	private boolean saveStockTransaction(PortfolioSummary portfolio, Transaction data, ImportedType importedType,
-			StockSecurity security, StockDataSource source, StockImportRecord record, ImportLookups lookups) {
-		validateTransaction(data, importedType, portfolio, security);
+	private void saveStockTransaction(PortfolioSummary portfolio, Transaction data, ImportedType importedType,
+			StockSecurity security, StockDataSource source, StockImportRecord record, Booking booking) {
 		String fingerprint = transactionFingerprint(portfolio, data, importedType, security);
-		if (!lookups.fingerprints(portfolio.portfolioId()).add(fingerprint)) {
-			return false;
-		}
 		StockTransaction transaction = new StockTransaction();
 		transaction.setPortfolioId(portfolio.portfolioId());
 		transaction.setSourceId(source.getId());
@@ -842,7 +846,6 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		transaction = dbController.insertOrUpdate(transaction);
 
 		createSecurityLeg(transaction, security, data, importedType);
-		Booking booking = createTransactionBooking(portfolio, data, importedType, security, lookups);
 		createCashLegs(transaction, portfolio, data, importedType, booking);
 		if (data.note() != null) {
 			StockTransactionMetadata metadata = new StockTransactionMetadata();
@@ -850,7 +853,6 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 			metadata.setNote(data.note());
 			dbController.insertOrUpdate(metadata);
 		}
-		return true;
 	}
 
 	private void createSecurityLeg(StockTransaction transaction, StockSecurity security, Transaction data,
@@ -871,16 +873,6 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 			leg.setQuotationType(StockQuotationType.ABSOLUTE);
 		}
 		dbController.insertOrUpdate(leg);
-	}
-
-	private Booking createTransactionBooking(PortfolioSummary portfolio, Transaction data, ImportedType type,
-			StockSecurity security, ImportLookups lookups) {
-		BigDecimal amount = accountAmount(data, type);
-		if (amount == null || amount.signum() == 0) {
-			return null;
-		}
-		return createBooking(portfolio.settlementAccountId(), data.date(), amount, type,
-				bookingPurpose(type, security.getName(), data.note()), lookups);
 	}
 
 	private void createCashLegs(StockTransaction transaction, PortfolioSummary portfolio, Transaction data,
@@ -927,24 +919,19 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		}
 	}
 
-	private boolean saveGeneralBooking(int accountId, Transaction data, ImportedType type, ImportLookups lookups) {
-		BigDecimal amount = accountAmount(data, type);
-		if (amount == null || amount.signum() == 0) {
-			return false;
-		}
+	private void prepareGeneralBooking(int accountId, Transaction data, ImportedType type, ImportLookups lookups, Counters counters) {
 		String purpose = data.note() != null ? data.note() : type.displayName();
-		boolean exists = lookups.importedBookings(accountId).stream()
-				.anyMatch(booking -> Objects.equals(booking.getDate(), data.date().toLocalDate())
-						&& Amounts.sameAmount(booking.getAmount(), amount) && Objects.equals(booking.getPurpose(), purpose));
-		if (exists) {
-			return false;
+		Booking proposed = proposeBooking(accountId, data.date(), accountAmount(data, type), type, purpose, lookups);
+		if (proposed != null) {
+			lookups.pendingTransactions.add(() -> lookups.persistBooking(proposed, counters));
 		}
-		createBooking(accountId, data.date(), amount, type, purpose, lookups);
-		return true;
 	}
 
-	private Booking createBooking(int accountId, LocalDateTime date, BigDecimal amount, ImportedType type, String purpose,
+	private Booking proposeBooking(int accountId, LocalDateTime date, BigDecimal amount, ImportedType type, String purpose,
 			ImportLookups lookups) {
+		if (amount == null || amount.signum() == 0) {
+			return null;
+		}
 		Booking booking = new Booking();
 		booking.setAccountId(accountId);
 		booking.setDateBooking(date.toLocalDate());
@@ -953,7 +940,8 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		booking.setPurpose(purpose);
 		booking.setBookingType(type == ImportedType.INTEREST_CHARGE ? BookingType.INTEREST_CHARGE : BookingType.fromAmount(amount));
 		booking.setSource(Source.IMPORT_NEW);
-		return lookups.registerBooking(dbController.insertOrUpdate(booking));
+		lookups.proposedBookings.add(booking);
+		return booking;
 	}
 
 	private void validateTransaction(Transaction data, ImportedType type, PortfolioSummary portfolio,
@@ -1011,11 +999,6 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		case DELIVERY_IN, DELIVERY_OUT -> null;
 		default -> data.value();
 		};
-	}
-
-	private static boolean hasCashValue(Transaction data, ImportedType type) {
-		BigDecimal value = accountAmount(data, type);
-		return value != null && value.signum() != 0;
 	}
 
 	private static String bookingPurpose(ImportedType type, String securityName, String note) {
@@ -1250,8 +1233,21 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		private final List<StockSecurity> securities = new ArrayList<>(dbController.getAll(StockSecurity.class));
 		private final Map<StockIdentifierType, Set<String>> identifierValues = new EnumMap<>(StockIdentifierType.class);
 		private final Map<Integer, Set<String>> fingerprintsByPortfolio = new HashMap<>();
-		private final Map<Integer, List<Booking>> importedBookingsByAccount = new HashMap<>();
+		private final ImportedBookingPersistence bookingPersistence = new ImportedBookingPersistence(dbController);
+		private final List<Booking> proposedBookings = new ArrayList<>();
+		private final List<Runnable> pendingTransactions = new ArrayList<>();
 		private PriceImportCache priceCache;
+
+		private Booking persistBooking(Booking proposed, Counters counters) {
+			if (proposed == null) {
+				return null;
+			}
+			ImportedBookingPersistence.Result result = bookingPersistence.persist(proposed);
+			if (!result.existing() && !result.skipped()) {
+				counters.bookings++;
+			}
+			return result.booking();
+		}
 
 		private ImportLookups() {
 			Map<Integer, StockSecurity> securitiesById = new HashMap<>();
@@ -1284,21 +1280,6 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 						.forEach(fingerprint -> fingerprints.add(fingerprint));
 				return fingerprints;
 			});
-		}
-
-		private List<Booking> importedBookings(int accountId) {
-			return importedBookingsByAccount.computeIfAbsent(accountId, id -> new ArrayList<>(
-					dbController.getAllByParent(Booking.class, id).stream()
-							.filter(booking -> booking.getSource() != null && booking.getSource().getGroup() == Source.IMPORT.getGroup())
-							.toList()));
-		}
-
-		private Booking registerBooking(Booking booking) {
-			List<Booking> bookings = importedBookingsByAccount.get(booking.getAccountId());
-			if (bookings != null) {
-				bookings.add(booking);
-			}
-			return booking;
 		}
 
 		private PriceImportCache priceCache() {

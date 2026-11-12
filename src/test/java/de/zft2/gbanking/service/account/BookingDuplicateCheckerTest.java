@@ -1,5 +1,6 @@
 package de.zft2.gbanking.service.account;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -10,6 +11,8 @@ import java.time.Month;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingAdditionalDetails;
@@ -22,6 +25,39 @@ class BookingDuplicateCheckerTest {
 	private static final LocalDate BOOKING_DATE = LocalDate.of(2026, Month.JUNE, 1);
 
 	private final BookingDuplicateChecker checker = new BookingDuplicateChecker();
+
+	@ParameterizedTest
+	@CsvSource({ "true,true", "true,false", "false,true", "false,false" })
+	void potentialDuplicatesShouldAcceptEveryDatePairWithoutChangingStrictMatching(boolean incomingBookingDate, boolean existingBookingDate) {
+		Booking incoming = createBooking(Source.IMPORT, "File purpose");
+		Booking existing = createBooking(Source.MANUELL, "Different account purpose");
+		incoming.setDateBooking(incomingBookingDate ? BOOKING_DATE : null);
+		incoming.setDateValue(incomingBookingDate ? null : BOOKING_DATE);
+		existing.setDateBooking(existingBookingDate ? BOOKING_DATE : null);
+		existing.setDateValue(existingBookingDate ? null : BOOKING_DATE);
+
+		assertEquals(List.of(existing), checker.findPotentialDuplicates(incoming, new Candidates(List.of(existing))));
+		assertFalse(isDuplicate(incoming, List.of(existing), List.of()));
+		existing.setAccountId(incoming.getAccountId() + 1);
+		assertTrue(checker.findPotentialDuplicates(incoming, new Candidates(List.of(existing))).isEmpty());
+		existing.setAccountId(incoming.getAccountId());
+		existing.setAmount(incoming.getAmount().negate());
+		assertTrue(checker.findPotentialDuplicates(incoming, new Candidates(List.of(existing))).isEmpty());
+	}
+
+	@Test
+	void potentialDuplicatesShouldNotMatchMissingOrDifferentDates() {
+		Booking incoming = createBooking(Source.IMPORT, "File");
+		Booking existing = createBooking(Source.ONLINE, "Account");
+		existing.setDateBooking(BOOKING_DATE.plusDays(2));
+		existing.setDateValue(BOOKING_DATE.plusDays(3));
+		assertTrue(checker.findPotentialDuplicates(incoming, new Candidates(List.of(existing))).isEmpty());
+		incoming.setDateBooking(null);
+		incoming.setDateValue(null);
+		existing.setDateBooking(null);
+		existing.setDateValue(null);
+		assertTrue(checker.findPotentialDuplicates(incoming, new Candidates(List.of(existing))).isEmpty());
+	}
 
 	@Test
 	void shouldDetectDuplicateByNormalizedStableReference() {

@@ -13,6 +13,9 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -24,6 +27,7 @@ import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Currency;
+import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.StockDataSourceType;
 import de.zft2.gbanking.db.dao.enu.StockTransactionStatus;
 import de.zft2.gbanking.db.dao.enu.StockTransactionType;
@@ -51,6 +55,56 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 
 	@TempDir
 	Path files;
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void accountCsvShouldUseStrictCheckerThenReviewLooseMatches(boolean accept) throws Exception {
+		PortfolioSummary portfolio = createPortfolio();
+		createSource();
+		LocalDate date = LocalDate.of(2026, 1, 2);
+		Booking existing = new Booking(portfolio.settlementAccountId(), date, date, "Strict", BigDecimal.TEN, BookingType.DEPOSIT, 0);
+		existing.setSource(Source.ONLINE);
+		db.insertOrUpdate(existing);
+		Path file = write("review.csv", transactionHeader()
+				+ "2026-01-02T12:00;Einlage;10,00;EUR;;;;;;0;;;;;Strict\n"
+				+ "2026-01-02T12:00;Einlage;10,00;EUR;;;;;;0;;;;;Different purpose\n");
+		AtomicInteger calls = new AtomicInteger();
+		var result = new PortfolioPerformanceImportService().importFile(file, ExportType.STOCK_PP_ACCOUNT_TRANSACTIONS_CSV,
+				portfolio, false, null, null, matches -> {
+					calls.incrementAndGet();
+					assertEquals(1, matches.size());
+					assertEquals("Different purpose", matches.get(0).incoming().getPurpose());
+					return accept ? Set.of(matches.get(0).incoming()) : Set.of();
+				});
+		assertEquals(1, calls.get());
+		assertEquals(accept ? 1 : 0, result.bookings());
+		assertEquals(accept ? 2 : 1, db.getAll(Booking.class).size());
+	}
+
+	@Test
+	void cancellingPortfolioDuplicateReviewShouldRollBackSecuritiesAndImportMarkers() throws Exception {
+		PortfolioSummary portfolio = createPortfolio();
+		createSource();
+		Booking existing = new Booking(portfolio.settlementAccountId(), LocalDate.of(2026, 1, 2), null,
+				"Account purpose", new BigDecimal("-200"), BookingType.REMOVAL, 0);
+		existing.setSource(Source.ONLINE);
+		db.insertOrUpdate(existing);
+		Path file = write("cancel.csv", transactionHeader()
+				+ "2026-01-02T12:00;Kauf;200,00;EUR;;;;;;10;DE0000000001;;;Aktie;\n");
+		PortfolioPerformanceImportService importer = new PortfolioPerformanceImportService();
+		assertThrows(CancellationException.class, () -> importer.importFile(file, ExportType.STOCK_PP_TRANSACTIONS_CSV,
+				portfolio, false, null, null, matches -> {
+					throw new CancellationException("Cancel import");
+				}));
+		assertTrue(db.getAll(StockSecurity.class).isEmpty());
+		assertTrue(db.getAll(StockTransaction.class).isEmpty());
+		var result = importer.importFile(file, ExportType.STOCK_PP_TRANSACTIONS_CSV, portfolio, false, null, null, matches -> Set.of());
+		assertFalse(result.alreadyImported());
+		assertEquals(1, result.transactions());
+		assertEquals(0, result.bookings());
+		assertEquals(1, db.getAll(Booking.class).size());
+		assertNull(db.getAll(StockTransactionCashLeg.class).get(0).getBookingId());
+	}
 
 	@Test
 	void importedReplacementShouldLinkOriginalDeliveriesWithoutDuplicatingOrRevaluingThem() throws Exception {
@@ -360,6 +414,18 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		assertEquals(1, accountsOfType(AccountType.CURRENT_ACCOUNT).size());
 		assertTrue(importer.previewXml(xml).portfolios().stream()
 				.allMatch(portfolio -> portfolio.suggestedTargetId() != null));
+		Path reviewFile = write("review-multiple.xml", Files.readString(xml)
+				.replace("<type>DEPOSIT</type>", "<note>Different file purpose</note><type>DEPOSIT</type>"));
+		AtomicInteger reviews = new AtomicInteger();
+		var reviewed = importer.importFile(reviewFile, ExportType.STOCK_PP_XML, null, false, assignments, null, matches -> {
+			reviews.incrementAndGet();
+			assertEquals(3, matches.size());
+			matches.forEach(match -> assertEquals(match.existing().getAccountId(), match.incoming().getAccountId()));
+			return Set.of(matches.get(0).incoming());
+		});
+		assertEquals(1, reviews.get());
+		assertEquals(1, reviewed.bookings());
+		assertEquals(4, db.getAll(Booking.class).size());
 	}
 
 	@Test

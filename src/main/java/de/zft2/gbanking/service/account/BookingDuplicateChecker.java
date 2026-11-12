@@ -52,6 +52,15 @@ public final class BookingDuplicateChecker {
 				: findFingerprintMatch(newBooking, existing, countFingerprintMatches(newBooking, processed));
 	}
 
+	public List<Booking> findPotentialDuplicates(Booking incoming, Candidates existingBookings) {
+		return existingBookings.withSameAmount(incoming).stream()
+				.filter(existing -> incoming.getAccountId() == existing.getAccountId()
+						&& (hasCompatibleBookingDate(incoming, existing)
+								|| sameDate(incoming.getDateBooking(), existing.getDateValue())
+								|| sameDate(incoming.getDateValue(), existing.getDateBooking())))
+				.toList();
+	}
+
 	private Booking findStableReferenceMatch(Booking newBooking, Collection<Booking> existingBookings) {
 		for (Booking existingBooking : existingBookings) {
 			if (isStableReferenceDuplicate(newBooking, existingBooking)) {
