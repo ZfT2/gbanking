@@ -48,12 +48,15 @@ public class BookingService extends AbstractDbService {
 					return deleteFromDate ? !bookingDate.isBefore(referenceDate) : !bookingDate.isAfter(referenceDate);
 				}).toList();
 
-		int deletedCount = 0;
-		for (Booking booking : bookingsToDelete) {
-			if (deleteBooking(booking)) {
-				deletedCount++;
+		int deletedCount = dbController.executeInTransaction(() -> {
+			int count = 0;
+			for (Booking booking : bookingsToDelete) {
+				if (deleteBooking(booking)) {
+					count++;
+				}
 			}
-		}
+			return count;
+		});
 		log.info("Deleted {} bookings in block for account id {}, direction={}", deletedCount, referenceBooking.getAccountId(),
 				deleteFromDate ? "from-date" : "until-date");
 		return deletedCount;

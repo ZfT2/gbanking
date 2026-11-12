@@ -33,11 +33,13 @@ import de.zft2.gbanking.db.dao.stock.StockPortfolioSettlementAccount;
 import de.zft2.gbanking.db.dao.stock.StockSecurity;
 import de.zft2.gbanking.db.dao.stock.StockSecurityExchangeLink;
 import de.zft2.gbanking.db.dao.stock.StockTransaction;
+import de.zft2.gbanking.db.dao.stock.StockTransactionCashLeg;
 import de.zft2.gbanking.db.dao.stock.StockTransactionSecurityLeg;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer;
 import de.zft2.gbanking.file.imp.csv.CsvImportDefinitionRepository;
+import de.zft2.gbanking.service.booking.BookingService;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceExportService;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService.XmlImportAssignments;
@@ -220,6 +222,29 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		assertEquals(1, result.securities());
 		assertEquals(1, result.transactions());
 		assertEquals("Konfiguriert AG", db.getAll(StockSecurity.class).get(0).getName());
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void deletingImportedBookingsShouldRetainPortfolioHistory(boolean deleteFromDate) throws Exception {
+		PortfolioSummary portfolio = createPortfolio();
+		createSource();
+		Path csv = write("delete-bookings.csv", transactionHeader()
+				+ "2026-01-02T12:00;Kauf;200,00;EUR;;;;;;10;DE0000000001;;;Aktie;\n"
+				+ "2026-01-03T12:00;Kauf;300,00;EUR;;;;;;10;DE0000000001;;;Aktie;\n");
+		new PortfolioPerformanceImportService().importFile(csv, ExportType.STOCK_PP_TRANSACTIONS_CSV, portfolio);
+		var before = new StockPortfolioService().getPositions(portfolio.portfolioId());
+		var cash = db.getAll(StockTransactionCashLeg.class).get(0);
+		cash.setBookingId(null);
+		assertThrows(GBankingException.class, () -> db.insertOrUpdate(cash));
+		Booking reference = db.getAll(Booking.class).stream()
+				.filter(booking -> booking.getDateBooking().equals(LocalDate.of(2026, 1, deleteFromDate ? 2 : 3)))
+				.findFirst().orElseThrow();
+		assertEquals(2, new BookingService().deleteBookingsInBlock(reference, deleteFromDate));
+		assertTrue(db.getAll(Booking.class).isEmpty());
+		assertEquals(2, db.getAll(StockTransaction.class).size());
+		assertEquals(before, new StockPortfolioService().getPositions(portfolio.portfolioId()));
+		assertTrue(db.getAll(StockTransactionCashLeg.class).stream().allMatch(leg -> leg.getBookingId() == null));
 	}
 
 	@ParameterizedTest

@@ -11,6 +11,7 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.db.dao.stock.StockCorporateActionTransaction;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.service.AbstractDbService;
 
@@ -59,6 +60,10 @@ public class BookingSplitService extends AbstractDbService {
 	public boolean deleteBookingWithSplits(Booking booking) {
 		if (booking == null || booking.getId() <= 0) {
 			return false;
+		}
+		if (!dbController.getAllByParent(StockCorporateActionTransaction.class, booking.getId(),
+				"SQL_SELECT_STOCK_CORPORATE_ACTIONS_BY_BOOKING").isEmpty()) {
+			throw new GBankingException(getText("ALERT_BOOKING_DELETE_CORPORATE_ACTION"));
 		}
 		if (booking.getParentBookingId() != null) {
 			deleteSplitBooking(booking.getId());

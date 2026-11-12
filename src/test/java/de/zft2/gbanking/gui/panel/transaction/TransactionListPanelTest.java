@@ -2,6 +2,14 @@ package de.zft2.gbanking.gui.panel.transaction;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -11,15 +19,28 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.Booking;
+import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
+import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.panel.overview.AccountsTransactionsOverviewPanel;
 import de.zft2.gbanking.gui.panel.overview.AllTransactionsOverviewPanel;
+import de.zft2.gbanking.service.BankingCapabilityService;
+import de.zft2.gbanking.service.account.AccountTransactionService;
+import de.zft2.gbanking.service.booking.BookingCategoryService;
+import de.zft2.gbanking.service.booking.BookingService;
+import de.zft2.gbanking.service.booking.BookingSplitService;
+import javafx.collections.FXCollections;
 import javafx.geometry.Bounds;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
@@ -43,6 +64,36 @@ class TransactionListPanelTest {
 			listPanel.updateModelBooking(List.of(createBooking("Miete"), createBooking("Tafel")));
 
 			assertEquals(expectedCount("UI_PANEL_TRANSACTIONS_COUNT", 2), transactionCountLabel(listPanel).getText());
+		});
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "false,false", "false,true", "true,false" })
+	void deletionFailureShouldShowWarningWithoutReloading(boolean singleDelete, boolean deleteFromDate) {
+		JavaFxTestSupport.runFx(() -> {
+			TransactionListPanel panel = mock(TransactionListPanel.class);
+			Booking booking = createBooking("Depot");
+			booking.setSource(singleDelete ? Source.MANUELL : Source.IMPORT);
+			when(panel.getSelectedItem()).thenReturn(booking);
+			when(panel.getMasterData()).thenReturn(FXCollections.observableArrayList(booking));
+			BookingService bookings = mock(BookingService.class);
+			BookingSplitService splits = mock(BookingSplitService.class);
+			String message = BaseMessages.getTextStatic("ALERT_BOOKING_DELETE_CORPORATE_ACTION");
+			when(bookings.deleteBookingsInBlock(booking, deleteFromDate)).thenThrow(new GBankingException(message));
+			when(splits.deleteBookingWithSplits(booking)).thenThrow(new GBankingException(message));
+			TransactionListPanelContextMenu menu = new TransactionListPanelContextMenu(panel, mock(BankingCapabilityService.class),
+					bookings, mock(BookingCategoryService.class), splits, mock(AccountTransactionService.class));
+			try (var dialogs = mockStatic(DialogWindowSupport.class)) {
+				dialogs.when(() -> DialogWindowSupport.showConfirmation(any(), eq(Alert.AlertType.CONFIRMATION),
+						anyString(), anyString(), anyString(), eq(ButtonType.OK), eq(ButtonType.CANCEL))).thenReturn(true);
+				if (singleDelete) {
+					menu.deleteBookingItem.fire();
+				} else {
+					(deleteFromDate ? menu.deleteFromDateItem : menu.deleteUntilDateItem).fire();
+				}
+				dialogs.verify(() -> DialogWindowSupport.showAlert(null, Alert.AlertType.WARNING, message));
+				verify(panel, never()).reload();
+			}
 		});
 	}
 

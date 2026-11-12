@@ -4,12 +4,16 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import de.zft2.gbanking.BaseMessagesBean;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Category;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.gui.enu.PageContext;
@@ -33,6 +37,8 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 
 class TransactionListPanelContextMenu extends ContextMenu implements BaseMessagesBean {
+
+	private static final Logger log = LogManager.getLogger(TransactionListPanelContextMenu.class);
 
 	private final BankingCapabilityService bankingCapabilityService;
 	private final BookingService bookingService;
@@ -207,8 +213,7 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 			return;
 		}
 
-		bookingSplitService.deleteBookingWithSplits(selectedBooking);
-		reloadAfterDeletion();
+		deleteBookings(selectedBooking, () -> bookingSplitService.deleteBookingWithSplits(selectedBooking));
 	}
 
 	private void handleDeleteBookingBlock(boolean deleteFromDate) {
@@ -225,8 +230,17 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 			return;
 		}
 
-		bookingService.deleteBookingsInBlock(selectedBooking, deleteFromDate);
-		reloadAfterDeletion();
+		deleteBookings(selectedBooking, () -> bookingService.deleteBookingsInBlock(selectedBooking, deleteFromDate));
+	}
+
+	private void deleteBookings(Booking selectedBooking, Runnable deletion) {
+		try {
+			deletion.run();
+			reloadAfterDeletion();
+		} catch (GBankingException exception) {
+			log.warn("Booking deletion failed. accountId={}", selectedBooking.getAccountId(), exception);
+			DialogWindowSupport.showAlert(panelTransactionList.getTableWindow(), Alert.AlertType.WARNING, exception.getMessage());
+		}
 	}
 
 	private void handleApplyCategoryRules() {

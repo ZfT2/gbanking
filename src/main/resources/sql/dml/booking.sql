@@ -173,6 +173,9 @@ DELETE FROM bookingFee WHERE booking_id = ?;
 [SQL_DELETE_BOOKING]
 DELETE FROM booking WHERE id = ?;
 
+[SQL_SELECT_STOCK_CORPORATE_ACTIONS_BY_BOOKING]
+SELECT * FROM stockCorporateActionTransaction WHERE booking_id = ?;
+
 [SQL_UPDATE_BOOKINGS_SOURCE]
 UPDATE booking SET bookingSource = ?, updatedAt = ? WHERE account_id = ? AND id = ?;
 

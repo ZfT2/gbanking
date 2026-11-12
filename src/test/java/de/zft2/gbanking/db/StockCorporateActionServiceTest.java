@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.apache.commons.csv.CSVFormat;
 
+import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.AccountType;
@@ -51,6 +52,7 @@ import de.zft2.gbanking.db.dao.stock.StockSecurity;
 import de.zft2.gbanking.db.dao.stock.StockTransaction;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.enu.ExportType;
+import de.zft2.gbanking.service.booking.BookingService;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceExportService;
 import de.zft2.gbanking.service.stock.StockCorporateActionService;
 import de.zft2.gbanking.service.stock.StockCorporateActionService.OperationRequest;
@@ -231,6 +233,35 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		amount("8970", db.getById(BankAccount.class, portfolio.settlementAccountId()).getBalance());
 		assertEquals("Originalbankumsatz", db.getById(Booking.class, booking.getId()).getPurpose());
 		amount("2", service.getResults(portfolio.portfolioId()).get(1).realizedResult());
+	}
+
+	@Test
+	void blockedCorporateActionBookingShouldRollBackTheEntireBookingDeletionBlock() {
+		PortfolioSummary portfolio = portfolio();
+		StockSecurity stock = security("Aktie"), rights = security("Recht");
+		buy(portfolio, stock, "10", "10");
+		StockCorporateAction action = definition(stock, rights, stock, StockCorporateActionType.RIGHTS_ISSUE);
+		record(portfolio, action, StockCorporateActionOperation.RIGHTS_ALLOCATION, "10", null, "0", DATE);
+		Booking protectedBooking = new Booking(portfolio.settlementAccountId(), DATE.plusDays(1), DATE.plusDays(1),
+				"Rights sale", n("2"), BookingType.DEPOSIT, 0);
+		protectedBooking.setSource(Source.IMPORT);
+		db.insertOrUpdate(protectedBooking);
+		service.record(portfolio, new OperationRequest(action.getId(), StockCorporateActionOperation.RIGHTS_SALE,
+				DATE.plusDays(1), n("1"), n("2"), null, null, null, protectedBooking.getId()));
+		GBankingException databaseFailure = assertThrows(GBankingException.class, () -> db.delete(protectedBooking, null));
+		assertTrue(databaseFailure.getMessage().contains("SQLITE_CONSTRAINT_FOREIGNKEY"));
+		Booking ordinary = new Booking(portfolio.settlementAccountId(), DATE, DATE, "Deposit", n("1"), BookingType.DEPOSIT, 0);
+		ordinary.setSource(Source.IMPORT_NEW);
+		db.insertOrUpdate(ordinary);
+		GBankingException exception = assertThrows(GBankingException.class,
+				() -> new BookingService().deleteBookingsInBlock(protectedBooking, false));
+		assertEquals(BaseMessages.getTextStatic("ALERT_BOOKING_DELETE_CORPORATE_ACTION"), exception.getMessage());
+		assertNotNull(db.getById(Booking.class, ordinary.getId()));
+		assertNotNull(db.getById(Booking.class, protectedBooking.getId()));
+		amount("9", holding(portfolio, rights).quantity());
+		service.unlink(service.getResults(portfolio.portfolioId()).get(1).associationId());
+		assertEquals(2, new BookingService().deleteBookingsInBlock(protectedBooking, false));
+		amount("10", holding(portfolio, rights).quantity());
 	}
 
 	@Test
