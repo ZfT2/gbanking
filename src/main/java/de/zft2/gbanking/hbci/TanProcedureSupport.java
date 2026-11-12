@@ -69,6 +69,13 @@ public final class TanProcedureSupport {
 				.or(() -> Optional.ofNullable(TanProcedure.forCode(tanCode)));
 	}
 
+	public static Optional<TanProcedure> resolveProcedureForCode(String code, String description, BankAccess access) {
+		return parseCode(code)
+				.filter(value -> description != null && !description.isBlank())
+				.flatMap(value -> TanProcedure.forCodeAndDescription(value, description).stream().findFirst())
+				.or(() -> resolveProcedureForCode(code, access));
+	}
+
 	private static List<SupportedTanProcedure> toSupportedProcedures(List<TanMechanism> mechanisms, List<TanProcedure> fallbackProcedures) {
 		if (mechanisms.isEmpty()) {
 			return fallbackProcedures.stream()

@@ -37,6 +37,10 @@ public final class ChipTanUsbSupport {
 		return Boolean.parseBoolean(getSettingValue(SETTING_ENABLED, "false"));
 	}
 
+	public static void enable() {
+		SettingsStore.current().save(ENABLED, "true");
+	}
+
 	public static String getConfiguredReaderName() {
 		return normalize(getSettingValue(SETTING_READER_NAME, ""));
 	}

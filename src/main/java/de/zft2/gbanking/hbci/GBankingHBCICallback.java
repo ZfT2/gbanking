@@ -415,12 +415,26 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 		options.forEach(option -> TanProcedureSupport.warnIfUnsupportedProcedure(option.value(), option.label()));
 
 		String selection = requestSelection(message, rawOptions, "UI_DIALOG_HBCI_FEEDBACK_SELECT_SECMECH");
-		if (selection != null && options.stream().anyMatch(option -> selection.equals(option.value()))) {
+		options.stream().filter(option -> option.value().equals(selection)).findFirst().ifPresent(option -> {
 			rememberSecurityMechanism(selection);
-			TanProcedureSupport.resolveProcedureForCode(selection, bankAccess)
-					.ifPresent(bankAccess.getFints()::setTanProcedure);
-		}
+			TanProcedureSupport.resolveProcedureForCode(selection, option.label(), bankAccess).ifPresent(procedure -> {
+				bankAccess.getFints().setTanProcedure(procedure);
+				offerChipTanReaderActivation(procedure);
+			});
+		});
 		return selection;
+	}
+
+	private void offerChipTanReaderActivation(TanProcedure procedure) {
+		if (bankAccess.getId() > 0 || (procedure != TanProcedure.CHIP_TAN && procedure != TanProcedure.CHIP_TAN_OPTICAL
+				&& procedure != TanProcedure.CHIP_TAN_USB) || ChipTanUsbSupport.isEnabled()) {
+			return;
+		}
+		if (statusDialog.requestConfirmation(getText("UI_DIALOG_HBCI_CHIPTAN_DISABLED"),
+				getText("UI_DIALOG_HBCI_CHIPTAN_ENABLE_PROMPT"), getText("UI_DIALOG_HBCI_CHIPTAN_ENABLE"),
+				getText("UI_BUTTON_CONTINUE"))) {
+			ChipTanUsbSupport.enable();
+		}
 	}
 
 	private String cachedSecurityMechanism(List<HbciCallbackMessageDialog.DialogOption> options) {

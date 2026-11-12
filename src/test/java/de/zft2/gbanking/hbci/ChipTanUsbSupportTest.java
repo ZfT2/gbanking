@@ -67,6 +67,22 @@ class ChipTanUsbSupportTest {
 	}
 
 	@Test
+	void shouldPersistReaderActivationWithoutChangingReaderName() {
+		ChipTanUsbSupport.ensureSettingsExist();
+		Setting reader = dbController.getAll(Setting.class).stream()
+				.filter(setting -> ChipTanUsbSupport.SETTING_READER_NAME.equals(setting.getAttribute()))
+				.findFirst().orElseThrow();
+		reader.setValue("Reader 01");
+		dbController.insertOrUpdate(reader);
+
+		assertFalse(ChipTanUsbSupport.isEnabled());
+		ChipTanUsbSupport.enable();
+
+		assertTrue(ChipTanUsbSupport.isEnabled());
+		assertEquals("Reader 01", ChipTanUsbSupport.getConfiguredReaderName());
+	}
+
+	@Test
 	void shouldRecognizeValidChipTanPayloads() {
 		assertTrue(ChipTanUsbSupport.isChipTanPayload("0FA1BC"));
 		assertTrue(ChipTanUsbSupport.isChipTanPayload(" 0fa1bc "));

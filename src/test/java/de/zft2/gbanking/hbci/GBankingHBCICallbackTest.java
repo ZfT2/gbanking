@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.kapott.hbci.GV.HBCIJob;
 import org.kapott.hbci.exceptions.HBCI_Exception;
 import org.mockito.MockedConstruction;
@@ -132,6 +134,44 @@ class GBankingHBCICallbackTest {
 		BankAccess access = new BankAccess();
 		access.setId(id);
 		return access;
+	}
+
+	@ParameterizedTest
+	@CsvSource({
+			"912, chipTAN USB,          0, false, true,  true,  false",
+			"912, chipTAN USB,          0, false, false, true,  false",
+			"912, chipTAN optisch / USB,0, false, true,  true,  false",
+			"910, chipTAN,              0, false, true,  true,  true",
+			"912, chipTAN USB,          0, true,  true,  false, false",
+			"912, chipTAN USB,         42, false, true,  false, false",
+			"907, App TAN,              0, false, true,  false, false",
+			"913, chipTAN QR,           0, false, true,  false, false",
+			"910, chipTAN manuell,      0, false, true,  false, false"
+	})
+	void shouldOfferReaderActivationOnlyForNewChipTanAccess(String code, String description, int accessId,
+			boolean enabled, boolean accepted, boolean expectedPrompt, boolean singleOption) {
+		try (MockedStatic<DialogWindowSupport> dialogSupportMock = mockStatic(DialogWindowSupport.class);
+				MockedStatic<ChipTanUsbSupport> chipTanMock = mockStatic(ChipTanUsbSupport.class);
+				MockedConstruction<HbciCallbackMessageDialog> dialogConstruction = Mockito.mockConstruction(
+						HbciCallbackMessageDialog.class, (dialog, context) -> {
+							when(dialog.requestSelection(Mockito.anyString(), Mockito.anyString(), Mockito.anyList(),
+									Mockito.anyString(), Mockito.anyString())).thenReturn(code);
+							when(dialog.requestConfirmation(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(),
+									Mockito.anyString())).thenReturn(accepted);
+						})) {
+			dialogSupportMock.when(DialogWindowSupport::findBestOwnerWindow).thenReturn(Optional.empty());
+			chipTanMock.when(ChipTanUsbSupport::isEnabled).thenReturn(enabled);
+			GBankingHBCICallback callback = new GBankingHBCICallback(bankAccess(accessId));
+			StringBuffer result = new StringBuffer(code + ":" + description + (singleOption ? "" : "|906:iTAN-Card"));
+
+			callback.callback(null, GBankingHBCICallback.NEED_PT_SECMECH, "Sicherheitsverfahren", 0, result);
+
+			assertEquals(code, result.toString());
+			verify(dialogConstruction.constructed().get(0), Mockito.times(expectedPrompt ? 1 : 0))
+					.requestConfirmation(Mockito.anyString(), Mockito.contains("hbci.chiptanusb.enabled"),
+							Mockito.anyString(), Mockito.anyString());
+			chipTanMock.verify(() -> ChipTanUsbSupport.enable(), Mockito.times(expectedPrompt && accepted ? 1 : 0));
+		}
 	}
 
 	@Test
