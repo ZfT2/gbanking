@@ -165,7 +165,11 @@ abstract class BaseFileProgressBarPanel implements BaseMessages {
 					Platform.runLater(() -> taskOutput.appendText("Error: " + ex.getMessage() + System.lineSeparator()));
 				}
 				onTaskFailed(ex);
-				closeDialog();
+				if (keepDialogOpenOnFailure()) {
+					enableCloseButton();
+				} else {
+					closeDialog();
+				}
 			}
 			case CANCELLED -> {
 				durationLabel.stop();
@@ -196,11 +200,19 @@ abstract class BaseFileProgressBarPanel implements BaseMessages {
 		return false;
 	}
 
+	protected boolean keepDialogOpenOnFailure() {
+		return false;
+	}
+
 	protected void showCloseButton() {
 		progressBar.progressProperty().unbind();
 		progressBar.setProgress(1d);
 		progressLabel.textProperty().unbind();
 		progressLabel.setText("100 %");
+		enableCloseButton();
+	}
+
+	private void enableCloseButton() {
 		FxNodeSupport.setVisibleManaged(closeButton, true);
 		closeButton.requestFocus();
 		dialogStage.sizeToScene();

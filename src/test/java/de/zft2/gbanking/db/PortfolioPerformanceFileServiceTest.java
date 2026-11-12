@@ -15,11 +15,14 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.io.TempDir;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.AccountType;
+import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.StockDataSourceType;
 import de.zft2.gbanking.db.dao.enu.StockTransactionStatus;
@@ -219,20 +222,35 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		assertEquals("Konfiguriert AG", db.getAll(StockSecurity.class).get(0).getName());
 	}
 
-	@Test
-	void totalXmlShouldImportSecuritiesTransactionsAccountBookingsAndPrices() throws Exception {
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void totalXmlShouldImportSecuritiesTransactionsAccountBookingsAndPrices(boolean mapped) throws Exception {
 		PortfolioSummary portfolio = createPortfolio();
 		createSource();
 		Path xml = write("portfolio.xml", """
 				<client><version>70</version><securities><security><uuid>security-1</uuid><name>XML AG</name><currencyCode>EUR</currencyCode><isin>DE0000000002</isin><prices><price t="2026-04-02" v="1500000000"/></prices></security></securities><accounts><account><uuid>account-1</uuid><name>Konto</name><currencyCode>EUR</currencyCode><transactions><account-transaction><uuid>deposit-1</uuid><date>2026-04-01T00:00</date><currencyCode>EUR</currencyCode><amount>10000</amount><shares>0</shares><type>DEPOSIT</type></account-transaction><account-transaction><uuid>dividend-1</uuid><date>2026-04-03T00:00</date><currencyCode>EUR</currencyCode><amount>800</amount><security reference="../../../../../securities/security"/><shares>1000000000</shares><units><unit type="TAX"><amount currency="EUR" amount="200"/></unit></units><type>DIVIDENDS</type></account-transaction></transactions></account></accounts><portfolios><portfolio><uuid>portfolio-1</uuid><name>Depot</name><transactions><portfolio-transaction><uuid>buy-1</uuid><date>2026-04-01T12:00</date><currencyCode>EUR</currencyCode><amount>10200</amount><security reference="../../../../securities/security"/><shares>1000000000</shares><units><unit type="FEE"><amount currency="EUR" amount="200"/></unit></units><type>BUY</type></portfolio-transaction></transactions></portfolio></portfolios></client>
 				""");
 
-		var result = new PortfolioPerformanceImportService().importFile(xml, ExportType.STOCK_PP_XML, portfolio);
+		Files.writeString(xml, Files.readString(xml).replace("</transactions></account>", """
+				<account-transaction><uuid>interest-charge</uuid><date>2026-04-04T00:00</date>
+				<currencyCode>EUR</currencyCode><amount>1234</amount><shares>0</shares>
+				<type>INTEREST_CHARGE</type></account-transaction></transactions></account>
+				"""));
+		PortfolioPerformanceImportService importer = new PortfolioPerformanceImportService();
+		var result = mapped
+				? importer.importFile(xml, ExportType.STOCK_PP_XML, portfolio, new XmlImportAssignments(
+						Map.of("portfolio-1", portfolio.portfolioId()), Map.of("account-1", portfolio.settlementAccountId())))
+				: importer.importFile(xml, ExportType.STOCK_PP_XML, portfolio);
 
 		assertEquals(1, result.securities());
 		assertEquals(2, result.transactions());
-		assertEquals(3, result.bookings());
+		assertEquals(4, result.bookings());
 		assertEquals(1, result.prices());
+		Booking interestCharge = db.getAll(Booking.class).stream()
+				.filter(booking -> booking.getBookingType() == BookingType.INTEREST_CHARGE).findFirst().orElseThrow();
+		assertEquals(0, new BigDecimal("-12.34").compareTo(interestCharge.getAmount()));
+		assertEquals("Sollzinsen", interestCharge.getPurpose());
+		assertEquals(portfolio.settlementAccountId(), interestCharge.getAccountId());
 		assertEquals("XML AG", db.getAll(StockSecurity.class).get(0).getName());
 		assertEquals(0, new BigDecimal("10").compareTo(
 				new StockPortfolioService().getPositions(portfolio.portfolioId()).get(0).quantity()));
@@ -249,7 +267,7 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 				</transactions></account>
 				<account><uuid>independent-1</uuid><name>Tagesgeld PP</name><currencyCode>EUR</currencyCode><transactions>
 				<account-transaction><uuid>extra-deposit</uuid><date>2026-01-02T00:00</date><currencyCode>EUR</currencyCode><amount>10000</amount><shares>0</shares><type>DEPOSIT</type></account-transaction>
-				<account-transaction><uuid>extra-fee</uuid><date>2026-01-03T00:00</date><currencyCode>EUR</currencyCode><amount>500</amount><shares>0</shares><type>FEES</type></account-transaction>
+				<account-transaction><uuid>extra-interest</uuid><date>2026-01-03T00:00</date><currencyCode>EUR</currencyCode><amount>500</amount><shares>0</shares><type>INTEREST_CHARGE</type></account-transaction>
 				</transactions></account>
 				</accounts><portfolios><portfolio><uuid>portfolio-1</uuid><name>Depot</name>
 				<referenceAccount reference="../../../accounts/account"/><transactions/></portfolio></portfolios></client>
@@ -273,6 +291,8 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		assertTrue(imported.isOfflineAccount());
 		assertEquals(0, new BigDecimal("95.00").compareTo(imported.getBalance()));
 		assertEquals(2, db.getAllByParent(Booking.class, imported.getId()).size());
+		assertTrue(db.getAllByParent(Booking.class, imported.getId()).stream()
+				.anyMatch(booking -> booking.getBookingType() == BookingType.INTEREST_CHARGE));
 	}
 
 	@Test

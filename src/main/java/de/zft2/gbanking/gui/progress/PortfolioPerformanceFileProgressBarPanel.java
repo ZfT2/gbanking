@@ -68,6 +68,11 @@ public class PortfolioPerformanceFileProgressBarPanel extends BaseFileProgressBa
 	}
 
 	@Override
+	protected boolean keepDialogOpenOnFailure() {
+		return true;
+	}
+
+	@Override
 	protected void onTaskSucceeded() {
 		if (successCallback != null) {
 			successCallback.run();

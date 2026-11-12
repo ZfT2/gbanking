@@ -879,7 +879,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		if (amount == null || amount.signum() == 0) {
 			return null;
 		}
-		return createBooking(portfolio.settlementAccountId(), data.date(), amount,
+		return createBooking(portfolio.settlementAccountId(), data.date(), amount, type,
 				bookingPurpose(type, security.getName(), data.note()), lookups);
 	}
 
@@ -939,11 +939,11 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		if (exists) {
 			return false;
 		}
-		createBooking(accountId, data.date(), amount, purpose, lookups);
+		createBooking(accountId, data.date(), amount, type, purpose, lookups);
 		return true;
 	}
 
-	private Booking createBooking(int accountId, LocalDateTime date, BigDecimal amount, String purpose,
+	private Booking createBooking(int accountId, LocalDateTime date, BigDecimal amount, ImportedType type, String purpose,
 			ImportLookups lookups) {
 		Booking booking = new Booking();
 		booking.setAccountId(accountId);
@@ -951,7 +951,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		booking.setDateValue(date.toLocalDate());
 		booking.setAmount(amount);
 		booking.setPurpose(purpose);
-		booking.setBookingType(BookingType.fromAmount(amount));
+		booking.setBookingType(type == ImportedType.INTEREST_CHARGE ? BookingType.INTEREST_CHARGE : BookingType.fromAmount(amount));
 		booking.setSource(Source.IMPORT_NEW);
 		return lookups.registerBooking(dbController.insertOrUpdate(booking));
 	}
@@ -1006,7 +1006,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		}
 		BigDecimal absolute = data.value().abs();
 		return switch (type) {
-		case BUY, REMOVAL, FEE, TAX -> absolute.negate();
+		case BUY, REMOVAL, FEE, TAX, INTEREST_CHARGE -> absolute.negate();
 		case SELL, DEPOSIT, DIVIDEND, INTEREST, TAX_REFUND -> absolute;
 		case DELIVERY_IN, DELIVERY_OUT -> null;
 		default -> data.value();
@@ -1316,6 +1316,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		DELIVERY_OUT(StockTransactionType.DELIVERY_OUT, true, -1, "Auslieferung"),
 		DIVIDEND(StockTransactionType.DIVIDEND, false, 0, "Dividende"),
 		INTEREST(StockTransactionType.INTEREST, false, 0, "Zinsen"),
+		INTEREST_CHARGE(null, false, 0, "Sollzinsen"),
 		DEPOSIT(null, false, 0, "Einlage"),
 		REMOVAL(null, false, 0, "Entnahme"),
 		FEE(null, false, 0, "Gebühren"),
@@ -1343,6 +1344,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 			case "DELIVERY_OUTBOUND", "DELIVERY_OUT", "AUSLIEFERUNG" -> DELIVERY_OUT;
 			case "DIVIDENDS", "DIVIDEND", "DIVIDENDE" -> DIVIDEND;
 			case "INTEREST", "ZINSEN" -> INTEREST;
+			case "INTEREST_CHARGE", "SOLLZINSEN" -> INTEREST_CHARGE;
 			case "DEPOSIT", "EINLAGE" -> DEPOSIT;
 			case "REMOVAL", "ENTNAHME" -> REMOVAL;
 			case "FEES", "FEE", "GEBÜHREN", "GEBUEHREN" -> FEE;

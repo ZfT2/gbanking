@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 
@@ -46,6 +48,37 @@ class BaseFileProgressBarPanelTest {
 		FileExportProgressBarPanel panel = new FileExportProgressBarPanel(null, List.of());
 
 		assertTrue(panel.keepDialogOpenOnSuccess());
+	}
+
+	@Test
+	void portfolioPerformanceFailureShouldRemainVisibleUntilClosed() throws Exception {
+		PortfolioPerformanceFileProgressBarPanel panel = new PortfolioPerformanceFileProgressBarPanel(null, null, true, null);
+		CountDownLatch failed = new CountDownLatch(1);
+		JavaFxTestSupport.runFx(() -> {
+			panel.createNewFileImportProgressBarWindow().show();
+			panel.task = new BaseFileTask("invalid.xml") {
+				@Override
+				protected Void call() {
+					throw new IllegalArgumentException("Unsupported transaction type");
+				}
+			};
+			panel.task.setOnFailed(event -> failed.countDown());
+			panel.startTaskDirectly("test-pp-import-failure");
+		});
+		try {
+			assertTrue(failed.await(10, TimeUnit.SECONDS));
+			JavaFxTestSupport.runFx(() -> {
+				assertTrue(panel.dialogStage.isShowing());
+				assertTrue(panel.taskOutput.getText().contains("Unsupported transaction type"));
+				assertTrue(panel.closeButton.isVisible());
+				assertTrue(panel.closeButton.isManaged());
+				assertFalse(panel.progressLabel.getText().equals("100 %"));
+				panel.closeButton.fire();
+			});
+			JavaFxTestSupport.runFx(() -> assertFalse(panel.dialogStage.isShowing()));
+		} finally {
+			JavaFxTestSupport.runFx(() -> panel.dialogStage.close());
+		}
 	}
 
 	private static final class TestProgressPanel extends BaseFileProgressBarPanel {
