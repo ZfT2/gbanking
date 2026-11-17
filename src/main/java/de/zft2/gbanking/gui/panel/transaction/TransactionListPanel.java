@@ -615,7 +615,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 		TransactionFilter.Criteria criteria = new TransactionFilter.Criteria(filter, dateFromFilter.getValue(), dateToFilter.getValue(),
 				amountFromFilterValue, amountToFilterValue, getSelectedFilterValue(categoryFilter),
 				bookingState != null ? bookingState.value() : TransactionFilter.BookingState.ALL);
-		return booking -> TransactionFilter.matches(booking, criteria);
+		return TransactionFilter.createPredicate(criteria);
 	}
 
 	@Override

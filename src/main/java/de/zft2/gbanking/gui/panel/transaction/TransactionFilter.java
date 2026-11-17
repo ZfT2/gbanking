@@ -3,7 +3,9 @@ package de.zft2.gbanking.gui.panel.transaction;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Locale;
+import java.util.function.Predicate;
 
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingForeignCurrencyDetails;
@@ -22,11 +24,14 @@ final class TransactionFilter {
 	}
 
 	static boolean matches(Booking booking, Criteria criteria) {
-		if (booking == null) {
-			return false;
-		}
+		return createPredicate(criteria).test(booking);
+	}
+
+	static Predicate<Booking> createPredicate(Criteria criteria) {
 		Criteria effectiveCriteria = criteria != null ? criteria : Criteria.empty();
-		return matchesTextSearch(booking, effectiveCriteria.searchText()) && matchesDateRange(booking, effectiveCriteria)
+		List<String> terms = effectiveCriteria.searchText().isBlank() ? List.of() : List.of(effectiveCriteria.searchText().split("\\s+"));
+		return booking -> booking != null && terms.stream().allMatch(term -> matchesTextSearch(booking, term))
+				&& matchesDateRange(booking, effectiveCriteria)
 				&& matchesAmountRange(booking, effectiveCriteria) && matchesCategory(booking, effectiveCriteria.categoryId())
 				&& matchesBookingState(booking, effectiveCriteria.bookingState());
 	}
@@ -46,9 +51,6 @@ final class TransactionFilter {
 	}
 
 	private static boolean matchesTextSearch(Booking booking, String filter) {
-		if (filter.isBlank()) {
-			return true;
-		}
 		String categoryName = booking.getCategory() != null ? booking.getCategory().getFullName() : null;
 		String sourceDescription = booking.getSource() != null ? booking.getSource().toString() : null;
 		String sourceSymbol = booking.getSource() != null ? booking.getSource().getSymbol() : null;

@@ -112,7 +112,7 @@ class TransactionListPanelTest {
 				}
 			});
 
-			filterText(listPanel).setText("miete");
+			filterText(listPanel).setText("miete 15.01.26");
 
 			// The search is debounced, so the count only changes after the typing pause.
 			assertEquals(expectedCount("UI_PANEL_TRANSACTIONS_COUNT", 2), countLabel.getText());

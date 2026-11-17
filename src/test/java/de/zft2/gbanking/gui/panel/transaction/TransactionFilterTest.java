@@ -10,6 +10,10 @@ import java.time.Month;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingNoteDetails;
@@ -18,6 +22,58 @@ import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.db.dao.enu.Source;
 
 class TransactionFilterTest {
+
+	@ParameterizedTest
+	@ValueSource(strings = { "26 Grundbesitzabgaben", "Grundbesitz 2026", "Grundbesitz 2026 11", "Stadtkasse 11 26",
+			"DE1234567891012", "Musterstadt HELADEF1822", "118259", "  grundbesitz\tSTADTKASSE   26  " })
+	void matches_shouldFindAllTermsAcrossFieldsInBothExampleBookings(String search) {
+		assertTrue(matchesText(municipalBooking(LocalDate.of(2026, Month.NOVEMBER, 16)), search));
+		assertTrue(matchesText(municipalBooking(LocalDate.of(2026, Month.AUGUST, 15)), search));
+	}
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', textBlock = """
+			16.11.2026           | true
+			16.11.26             | true
+			16.11.2026 Stadtkasse | true
+			Stadtkasse 16.11.26   | true
+			15.08.2026           | false
+			15.08.26             | false
+			15.08.2026 Stadtkasse | false
+			Stadtkasse 15.08.26   | false
+			""")
+	void matches_shouldCombineFullDatesWithTermsFromOtherFields(String search, boolean november) {
+		assertEquals(november, matchesText(municipalBooking(LocalDate.of(2026, Month.NOVEMBER, 16)), search));
+		assertEquals(!november, matchesText(municipalBooking(LocalDate.of(2026, Month.AUGUST, 15)), search));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "Stadtkasse fehlt", "17.11.26 Stadtkasse", "Grundbesitz 2025", "118259 DE9999" })
+	void matches_shouldRejectBookingsWhenAnyTermIsMissing(String search) {
+		assertFalse(matchesText(municipalBooking(LocalDate.of(2026, Month.NOVEMBER, 16)), search));
+	}
+
+	@ParameterizedTest
+	@NullAndEmptySource
+	@ValueSource(strings = { "   ", "\t\n" })
+	void matches_shouldKeepBlankSearchesAndMissingFieldsSupported(String search) {
+		assertTrue(matchesText(new Booking(), search));
+		assertFalse(matchesText(null, search));
+	}
+
+	@Test
+	void matches_shouldCombineExistingSearchFieldsWithAmountAndValueDate() {
+		Booking booking = municipalBooking(LocalDate.of(2026, Month.NOVEMBER, 16));
+		booking.setDateValue(LocalDate.of(2026, Month.NOVEMBER, 18));
+		booking.setCategory(new Category(7, "Steuern"));
+		BookingNoteDetails note = new BookingNoteDetails();
+		note.setNote("Rücksprache");
+		booking.setNoteDetails(note);
+
+		assertTrue(matchesText(booking, "Steuern rücksprache 18.11.26 75,50 Stadtkasse"));
+		assertFalse(TransactionFilter.matches(booking, new TransactionFilter.Criteria("Steuern Stadtkasse",
+				null, null, null, null, 8, TransactionFilter.BookingState.ALL)));
+	}
 
 	@Test
 	void matches_shouldFindGermanFormattedAmountsAndDates() {
@@ -125,6 +181,14 @@ class TransactionFilterTest {
 	private static boolean matchesText(Booking booking, String searchText) {
 		return TransactionFilter.matches(booking,
 				new TransactionFilter.Criteria(searchText, null, null, null, null, null, TransactionFilter.BookingState.ALL));
+	}
+
+	private static Booking municipalBooking(LocalDate date) {
+		Booking booking = booking("-75.50", date);
+		booking.setPurpose("118259 Grundbesitzabgaben Musterstrase 4");
+		booking.setRecipient(new Recipient("Stadtkasse Musterstadt", "DE1234567891012", "HELADEF1822",
+				null, null, null, Source.MANUELL));
+		return booking;
 	}
 
 	private static TransactionFilter.Criteria criteria(LocalDate dateFrom, LocalDate dateTo, String amountFrom, String amountTo,
