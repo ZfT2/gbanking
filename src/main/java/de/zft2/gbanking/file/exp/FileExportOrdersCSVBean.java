@@ -7,7 +7,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVFormat.Builder;
@@ -78,7 +80,7 @@ public class FileExportOrdersCSVBean extends FileExportBean {
 		Recipient safeRecipient = recipient != null ? recipient : new Recipient();
 
 		// @formatter:off
-		return new Object[] {
+		Object[] transferFields = {
 				account.getAccountName(),
 				account.getIban(),
 				account.getNumber(),
@@ -98,24 +100,27 @@ public class FileExportOrdersCSVBean extends FileExportBean {
 				safeRecipient.getAccountNumber(),
 				safeRecipient.getBlz(),
 				safeRecipient.getNote(),
-				getTechnicalName(safeRecipient.getSource()),
-
-				protocol != null ? getTechnicalName(protocol.getMoneytransferStatus()) : null,
-				protocol != null && protocol.getResultStatus() != null ? protocol.getResultStatus().name() : null,
-				protocol != null ? protocol.isPinOk() : null,
-				protocol != null ? protocol.isScaRequired() : null,
-				protocol != null ? protocol.isVopRequired() : null,
-				protocol != null && protocol.getVopResult() != null ? protocol.getVopResult().name() : null,
-				protocol != null ? protocol.isRecipientNameCorrected() : null,
-				protocol != null ? protocol.getTimeStart() : null,
-				protocol != null ? protocol.getTimeFinish() : null,
-				protocol != null ? protocol.getBankOrderId() : null,
-				protocol != null ? protocol.getHbciJobId() : null,
-				protocol != null && protocol.getSepaOrderStatus() != null ? protocol.getSepaOrderStatus().name() : null,
-				protocol != null && protocol.getSepaCancellationCode() != null ? protocol.getSepaCancellationCode().name() : null,
-				protocol != null ? protocol.getProtocolText() : null
+				getTechnicalName(safeRecipient.getSource())
 				};
 		// @formatter:on
+		return Stream.concat(Arrays.stream(transferFields), Arrays.stream(protocolFields(protocol))).toArray();
+	}
+
+	private Object[] protocolFields(MoneyTransferProtocol protocol) {
+		if (protocol == null) {
+			return new Object[14];
+		}
+		return new Object[] {
+				getTechnicalName(protocol.getMoneytransferStatus()),
+				protocol.getResultStatus() != null ? protocol.getResultStatus().name() : null,
+				protocol.isPinOk(), protocol.isScaRequired(), protocol.isVopRequired(),
+				protocol.getVopResult() != null ? protocol.getVopResult().name() : null,
+				protocol.isRecipientNameCorrected(), protocol.getTimeStart(), protocol.getTimeFinish(),
+				protocol.getBankOrderId(), protocol.getHbciJobId(),
+				protocol.getSepaOrderStatus() != null ? protocol.getSepaOrderStatus().name() : null,
+				protocol.getSepaCancellationCode() != null ? protocol.getSepaCancellationCode().name() : null,
+				protocol.getProtocolText()
+		};
 	}
 
 	private String getTechnicalName(LocalizedEnumValue value) {

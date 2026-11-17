@@ -44,6 +44,7 @@ import de.zft2.gbanking.service.stock.StockPortfolioService.PositionKey;
 
 public class StockCorporateActionService extends AbstractDbService {
 	private static final BigDecimal ZERO = BigDecimal.ZERO;
+	private static final String NO_CASH_MOVEMENT = "Dieser Vorgang hat keine Geldbewegung";
 	private final StockPortfolioService portfolios = new StockPortfolioService();
 
 	public List<StockCorporateAction> getActions() {
@@ -78,7 +79,7 @@ public class StockCorporateActionService extends AbstractDbService {
 		return dbController.insertOrUpdate(action);
 	}
 
-	public void record(PortfolioSummary portfolio, OperationRequest request) {
+	public void recordOperation(PortfolioSummary portfolio, OperationRequest request) {
 		dbController.executeInTransaction(() -> {
 			StockCorporateAction action = action(request.actionId());
 			validateRequest(action, request);
@@ -91,34 +92,7 @@ public class StockCorporateActionService extends AbstractDbService {
 			for (StockTransactionSecurityLeg leg : legs) {
 				dbController.insertOrUpdate(leg);
 			}
-			BigDecimal gross = gross(action, request);
-			if (request.operation().isCashOperation()) {
-				List<CashComponent> components = List.of(
-						new CashComponent(StockCashLegRole.TRADE_VALUE, gross, null),
-						new CashComponent(StockCashLegRole.FEE, value(request.fees()).negate(), null),
-						new CashComponent(StockCashLegRole.TAX, value(request.taxes()).negate(), null));
-				if (request.bookingId() == null) {
-					portfolios.persistCashComponents(transaction, account, request.date(), components, action.getName());
-				} else {
-					validateBooking(portfolio, request.bookingId(), gross.subtract(value(request.fees())).subtract(value(request.taxes())));
-					int number = 1;
-					for (CashComponent component : components) {
-						if (component.amount().signum() == 0) { continue; }
-						StockTransactionCashLeg cash = new StockTransactionCashLeg();
-						cash.setTransactionId(transaction.getId());
-						cash.setLegNumber(number++);
-						cash.setAccountId(account.getId());
-						cash.setBookingId(request.bookingId());
-						cash.setLegRole(component.role());
-						cash.setAmountMinor(StockNumericValues.toMinorUnits(component.amount(), account.getBaseCurrency()));
-						cash.setCurrency(account.getBaseCurrency());
-						cash.setValueAt(request.date().atStartOfDay());
-						dbController.insertOrUpdate(cash);
-					}
-				}
-			} else {
-				require(request.bookingId() == null, "Dieser Vorgang hat keine Geldbewegung");
-			}
+			recordCashComponents(portfolio, action, request, transaction, account);
 			transaction.setCashValueAt(request.operation().isCashOperation() ? request.date().atStartOfDay() : null);
 			transaction.setSettledAt(request.date().atTime(LocalTime.MAX));
 			transaction.setTransactionStatus(StockTransactionStatus.SETTLED);
@@ -130,6 +104,38 @@ public class StockCorporateActionService extends AbstractDbService {
 			}
 			return null;
 		});
+	}
+
+	private void recordCashComponents(PortfolioSummary portfolio, StockCorporateAction action, OperationRequest request,
+			StockTransaction transaction, BankAccount account) {
+		BigDecimal gross = gross(action, request);
+		if (request.operation().isCashOperation()) {
+			List<CashComponent> components = List.of(
+					new CashComponent(StockCashLegRole.TRADE_VALUE, gross, null),
+					new CashComponent(StockCashLegRole.FEE, value(request.fees()).negate(), null),
+					new CashComponent(StockCashLegRole.TAX, value(request.taxes()).negate(), null));
+			if (request.bookingId() == null) {
+				portfolios.persistCashComponents(transaction, account, request.date(), components, action.getName());
+			} else {
+				validateBooking(portfolio, request.bookingId(), gross.subtract(value(request.fees())).subtract(value(request.taxes())));
+				int number = 1;
+				for (CashComponent component : components) {
+					if (component.amount().signum() == 0) { continue; }
+					StockTransactionCashLeg cash = new StockTransactionCashLeg();
+					cash.setTransactionId(transaction.getId());
+					cash.setLegNumber(number++);
+					cash.setAccountId(account.getId());
+					cash.setBookingId(request.bookingId());
+					cash.setLegRole(component.role());
+					cash.setAmountMinor(StockNumericValues.toMinorUnits(component.amount(), account.getBaseCurrency()));
+					cash.setCurrency(account.getBaseCurrency());
+					cash.setValueAt(request.date().atStartOfDay());
+					dbController.insertOrUpdate(cash);
+				}
+			}
+		} else {
+			require(request.bookingId() == null, NO_CASH_MOVEMENT);
+		}
 	}
 
 	public void link(PortfolioSummary portfolio, OperationRequest request, int transactionId, Integer relatedTransactionId) {
@@ -273,9 +279,12 @@ public class StockCorporateActionService extends AbstractDbService {
 		BigDecimal incoming = event.legs().stream().filter(leg -> leg.getLegRole() != StockSecurityLegRole.REFERENCE && leg.getQuantityE9() > 0)
 				.map(leg -> fromScaled(leg.getQuantityE9(), 9)).reduce(ZERO, BigDecimal::add);
 		CashAmounts cash = cashAmounts(event);
-		BigDecimal gross = cash.gross(), fees = cash.fees(), taxes = cash.taxes();
+		BigDecimal gross = cash.gross();
+		BigDecimal fees = cash.fees();
+		BigDecimal taxes = cash.taxes();
 		BigDecimal basis = event.association().getBasisAmountE8() != null ? fromScaled(event.association().getBasisAmountE8(), 8) : null;
-		BigDecimal disposed = null, profit = null;
+		BigDecimal disposed = null;
+		BigDecimal profit = null;
 		require(source.quantity.compareTo(outgoing) >= 0, "Nicht genügend Stücke am Wirksamkeitstag");
 		switch (operation) {
 		case RIGHTS_ALLOCATION -> {
@@ -302,18 +311,7 @@ public class StockCorporateActionService extends AbstractDbService {
 			profit = disposed == null ? null : gross.subtract(fees).subtract(taxes).subtract(disposed);
 		}
 		case CANCELLATION, CAPITAL_RETURN -> {
-			require(source.quantity.signum() > 0, "Einziehung oder Kapitalrückzahlung benötigt einen Aktienbestand");
-			disposed = basis;
-			BigDecimal total = cost(source, source.quantity, action.getCurrency());
-			BigDecimal remaining = source.quantity.subtract(outgoing);
-			if (remaining.signum() == 0 && total != null && basis != null) {
-				require(total.setScale(8, RoundingMode.HALF_UP).compareTo(basis) == 0,
-						"Bei vollständiger Einziehung muss die gesamte Anschaffungsbasis berücksichtigt werden");
-				disposed = total;
-			}
-			require(total == null || disposed == null || disposed.compareTo(total) <= 0, "Ausgebuchte Basis übersteigt den Anschaffungswert");
-			source.quantity = remaining;
-			setBasis(source, total == null || disposed == null ? null : total.subtract(disposed), action.getCurrency());
+			disposed = applyCapitalReturn(source, outgoing, basis, action.getCurrency());
 			profit = disposed == null ? null : gross.subtract(fees).subtract(taxes).subtract(disposed);
 		}
 		case NOMINAL_REDUCTION -> { /* The immutable definition retains both dated nominal values. */ }
@@ -323,9 +321,27 @@ public class StockCorporateActionService extends AbstractDbService {
 				gross, fees, taxes, gross.subtract(fees).subtract(taxes), disposed, profit, action.getCurrency());
 	}
 
+	private static BigDecimal applyCapitalReturn(AcquisitionPriceState source, BigDecimal outgoing, BigDecimal basis, Currency currency) {
+		require(source.quantity.signum() > 0, "Einziehung oder Kapitalrückzahlung benötigt einen Aktienbestand");
+		BigDecimal disposed = basis;
+		BigDecimal total = cost(source, source.quantity, currency);
+		BigDecimal remaining = source.quantity.subtract(outgoing);
+		if (remaining.signum() == 0 && total != null && basis != null) {
+			require(total.setScale(8, RoundingMode.HALF_UP).compareTo(basis) == 0,
+					"Bei vollständiger Einziehung muss die gesamte Anschaffungsbasis berücksichtigt werden");
+			disposed = total;
+		}
+		require(total == null || disposed == null || disposed.compareTo(total) <= 0, "Ausgebuchte Basis übersteigt den Anschaffungswert");
+		source.quantity = remaining;
+		setBasis(source, total == null || disposed == null ? null : total.subtract(disposed), currency);
+		return disposed;
+	}
+
 	private CashAmounts cashAmounts(Event event) {
 		Currency currency = event.action().getCurrency();
-		BigDecimal gross = ZERO, fees = ZERO, taxes = ZERO;
+		BigDecimal gross = ZERO;
+		BigDecimal fees = ZERO;
+		BigDecimal taxes = ZERO;
 		require(event.association().getOperation().isCashOperation() || event.cash().isEmpty(), "Dieser Vorgang darf keine Geldbewegung enthalten");
 		for (StockTransactionCashLeg leg : event.cash()) {
 			require(leg.getCurrency() == currency, "Fremdwährung erfordert eine explizite Umrechnung vor der Zuordnung");
@@ -382,8 +398,12 @@ public class StockCorporateActionService extends AbstractDbService {
 	}
 
 	private List<StockTransactionSecurityLeg> requestedLegs(int transactionId, StockCorporateAction action, OperationRequest request) {
-		int source = sourceId(action, request.operation()), target = targetId(action, request.operation());
-		BigDecimal quantity = value(request.quantity()), incoming = ZERO, outgoing = ZERO, reference = ZERO;
+		int source = sourceId(action, request.operation());
+		int target = targetId(action, request.operation());
+		BigDecimal quantity = value(request.quantity());
+		BigDecimal incoming = ZERO;
+		BigDecimal outgoing = ZERO;
+		BigDecimal reference = ZERO;
 		switch (request.operation()) {
 		case RIGHTS_ALLOCATION -> { reference = quantity; incoming = ratio(quantity, action.getAllocationFromE9(), action.getAllocationToE9()); }
 		case RIGHTS_BUY -> incoming = quantity;
@@ -430,7 +450,21 @@ public class StockCorporateActionService extends AbstractDbService {
 		require(value(request.fees()).signum() >= 0 && value(request.taxes()).signum() >= 0
 				&& (request.basisAmount() == null || request.basisAmount().signum() >= 0), "Kosten und Basis müssen nichtnegativ sein");
 		require(request.operation().isPermitted(action.getActionType()), "Der Vorgang passt nicht zur Kapitalmaßnahme");
-		require(request.bookingId() == null || request.operation().isCashOperation(), "Dieser Vorgang hat keine Geldbewegung");
+		require(request.bookingId() == null || request.operation().isCashOperation(), NO_CASH_MOVEMENT);
+		validateOperationDate(action, request);
+		require(request.fees() == null || request.fees().stripTrailingZeros().scale() <= action.getCurrency().getMinorUnitDigits(),
+				"Gebühren überschreiten die Währungsgenauigkeit");
+		require(request.taxes() == null || request.taxes().stripTrailingZeros().scale() <= action.getCurrency().getMinorUnitDigits(),
+				"Steuern überschreiten die Währungsgenauigkeit");
+		if (request.operation().isCashOperation() && request.operation() != StockCorporateActionOperation.SUBSCRIPTION) {
+			require(request.priceOrAmount() != null && request.priceOrAmount().signum() >= 0, "Preis oder Auszahlungsbetrag fehlt");
+		}
+		if (!request.operation().isCashOperation()) {
+			require(value(request.fees()).signum() == 0 && value(request.taxes()).signum() == 0, NO_CASH_MOVEMENT);
+		}
+	}
+
+	private static void validateOperationDate(StockCorporateAction action, OperationRequest request) {
 		if (request.operation() == StockCorporateActionOperation.SUBSCRIPTION) {
 			require(action.getEndDate() == null || !request.date().isAfter(action.getEndDate()), "Die Bezugsfrist ist abgelaufen");
 		}
@@ -440,20 +474,11 @@ public class StockCorporateActionService extends AbstractDbService {
 		if (request.operation() == StockCorporateActionOperation.RIGHTS_ALLOCATION) {
 			require(request.date().equals(action.getEffectiveDate()), "Die Zuteilung muss am Wirksamkeitstag liegen");
 		}
-		require(request.fees() == null || request.fees().stripTrailingZeros().scale() <= action.getCurrency().getMinorUnitDigits(),
-				"Gebühren überschreiten die Währungsgenauigkeit");
-		require(request.taxes() == null || request.taxes().stripTrailingZeros().scale() <= action.getCurrency().getMinorUnitDigits(),
-				"Steuern überschreiten die Währungsgenauigkeit");
-		if (request.operation().isCashOperation() && request.operation() != StockCorporateActionOperation.SUBSCRIPTION) {
-			require(request.priceOrAmount() != null && request.priceOrAmount().signum() >= 0, "Preis oder Auszahlungsbetrag fehlt");
-		}
-		if (!request.operation().isCashOperation()) {
-			require(value(request.fees()).signum() == 0 && value(request.taxes()).signum() == 0, "Dieser Vorgang hat keine Geldbewegung");
-		}
 	}
 
 	private static BigDecimal gross(StockCorporateAction action, OperationRequest request) {
-		BigDecimal quantity = value(request.quantity()), price = value(request.priceOrAmount());
+		BigDecimal quantity = value(request.quantity());
+		BigDecimal price = value(request.priceOrAmount());
 		BigDecimal amount = switch (request.operation()) {
 		case RIGHTS_BUY -> quantity.multiply(price).negate();
 		case RIGHTS_SALE, FRACTIONAL_SALE -> quantity.multiply(price);

@@ -8,7 +8,7 @@ public enum HbciEncodingFilterType implements IdType {
 	NONE("keine", 2);
 
 	private final String description;
-	private int dbStateId;
+	private final int dbStateId;
 
 	private HbciEncodingFilterType(String description, int dbStateId) {
 		this.description = description;

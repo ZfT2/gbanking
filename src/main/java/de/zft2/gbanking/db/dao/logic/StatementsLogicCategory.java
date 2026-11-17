@@ -86,13 +86,13 @@ public class StatementsLogicCategory extends StatementsLogicDefault<Category> im
 			}
 			fullName.append(name);
 			CategoryKey key = categoryKey(parentId, name);
-			Category persisted = persistedCategories.get(key);
-			if (persisted == null) {
-				persisted = new Category(name, parentId);
-				persisted.setFullName(fullName.toString());
-				executeInsertUpdateStatement(StatementType.INSERT, persisted);
-				persistedCategories.put(key, persisted);
-			}
+			Integer currentParentId = parentId;
+			Category persisted = persistedCategories.computeIfAbsent(key, ignored -> {
+				Category created = new Category(name, currentParentId);
+				created.setFullName(fullName.toString());
+				executeInsertUpdateStatement(StatementType.INSERT, created);
+				return created;
+			});
 			parentId = persisted.getId();
 		}
 		if (parentId == null) {

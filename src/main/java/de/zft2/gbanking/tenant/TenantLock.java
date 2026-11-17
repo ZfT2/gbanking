@@ -62,7 +62,7 @@ public final class TenantLock implements AutoCloseable {
 	private static final class LockFileHandle implements AutoCloseable {
 
 		private final Path lockFile;
-		private FileChannel channel;
+		private final FileChannel channel;
 		private boolean channelTransferred;
 
 		private LockFileHandle(Path lockFile) throws IOException {

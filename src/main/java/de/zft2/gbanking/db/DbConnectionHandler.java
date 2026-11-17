@@ -624,15 +624,14 @@ abstract class DbConnectionHandler {
 	}
 
 	private static void createInstituteDatabaseSchema(Connection targetConnection) throws SQLException {
-		String currentKey = null;
 		try (Statement statement = targetConnection.createStatement()) {
 			for (String schemaKey : INSTITUTE_SCHEMA_KEYS) {
-				currentKey = schemaKey;
-				statement.executeUpdate(SqlTemplateRepository.getDdl(schemaKey));
+				statement.addBatch(SqlTemplateRepository.getDdl(schemaKey));
 			}
+			statement.executeBatch();
 		} catch (SQLException | RuntimeException exception) {
 			throw new GBankingException(
-					"Error creating institute database schema for statement: " + currentKey, exception);
+					"Error creating institute database schema", exception);
 		}
 	}
 

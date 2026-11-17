@@ -50,6 +50,7 @@ import org.kapott.hbci.callback.HBCICallbackConsole;
 import org.kapott.hbci.manager.HBCIHandler;
 import org.kapott.hbci.manager.HBCIUtils;
 import org.kapott.hbci.passport.HBCIPassport;
+import org.kapott.hbci.passport.HBCIPassportInternal;
 import org.kapott.hbci.status.HBCIDialogStatus;
 import org.kapott.hbci.status.HBCIExecStatus;
 import org.kapott.hbci.status.HBCIMsgStatus;
@@ -617,6 +618,21 @@ class MoneyTransferExecutionServiceAdditionalTest {
 	}
 
 	@Test
+	void instantPaymentStatusService_shouldRestoreMissingBpdAsNullAfterFailedRefresh() {
+		HBCIHandler handler = mock(HBCIHandler.class);
+		HBCIPassportInternal passport = mock(HBCIPassportInternal.class);
+		when(handler.getSupportedLowlevelJobs()).thenReturn(new Properties());
+		when(handler.getPassport()).thenReturn(passport);
+		MoneyTransfer transfer = new MoneyTransfer();
+		transfer.setBankOrderId("instant-4711");
+
+		assertFalse(new InstantPaymentStatusService().retrieveStatus(handler, null, transfer, null));
+
+		verify(passport).setBPD(null);
+		verify(passport).saveChanges();
+	}
+
+	@Test
 	void instantPaymentStatusService_shouldRefreshLegacyBpdWhenBankRequestsStatusQuery() throws Exception {
 		InstantPaymentStatusService service = new InstantPaymentStatusService();
 		HBCIHandler handler = mock(HBCIHandler.class);
@@ -805,9 +821,11 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		});
 		when(fixture.job().getJobResult()).thenThrow(new IllegalStateException("connection lost"));
 		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
+		MoneyTransfer transfer = fixture.moneyTransfer();
+		BankAccount account = fixture.bankAccount();
 
 		try (MockedConstruction<GBankingHBCICallback> callbacks = mockConstruction(GBankingHBCICallback.class)) {
-			assertThrows(IllegalStateException.class, () -> service.executeTransfer(fixture.moneyTransfer(), fixture.bankAccount(), pin));
+			assertThrows(IllegalStateException.class, () -> service.executeTransfer(transfer, account, pin));
 			verify(callbacks.constructed().get(0)).handleException(any(IllegalStateException.class));
 		}
 
@@ -821,12 +839,15 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		char[] pin = "1234".toCharArray();
 		HbciTransferFixture fixture = prepareHbciTransfer(pin);
 		MoneyTransfer outdatedInstance = dbController.getById(MoneyTransfer.class, fixture.moneyTransfer().getId());
-		when(fixture.handle().execute()).thenReturn(mock(HBCIExecStatus.class));
+		HBCIExecStatus executionStatus = mock(HBCIExecStatus.class);
+		when(fixture.handle().execute()).thenReturn(executionStatus);
 		when(fixture.job().getJobResult()).thenThrow(new IllegalStateException("connection lost"));
 		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
+		MoneyTransfer transfer = fixture.moneyTransfer();
+		BankAccount account = fixture.bankAccount();
 
 		try (MockedConstruction<GBankingHBCICallback> callbacks = mockConstruction(GBankingHBCICallback.class)) {
-			assertThrows(IllegalStateException.class, () -> service.executeTransfer(fixture.moneyTransfer(), fixture.bankAccount(), pin));
+			assertThrows(IllegalStateException.class, () -> service.executeTransfer(transfer, account, pin));
 			assertFalse(service.executeTransfer(outdatedInstance, fixture.bankAccount(), pin));
 			assertEquals(1, callbacks.constructed().size());
 		}
@@ -876,9 +897,11 @@ class MoneyTransferExecutionServiceAdditionalTest {
 		stubSuccessfulExecution(fixture);
 		doThrow(new IllegalStateException("close failed")).when(fixture.passport()).close();
 		MoneyTransferExecutionService service = new MoneyTransferExecutionService();
+		MoneyTransfer transfer = fixture.moneyTransfer();
+		BankAccount account = fixture.bankAccount();
 
 		try (MockedConstruction<GBankingHBCICallback> callbacks = mockConstruction(GBankingHBCICallback.class)) {
-			assertThrows(IllegalStateException.class, () -> service.executeTransfer(fixture.moneyTransfer(), fixture.bankAccount(), pin));
+			assertThrows(IllegalStateException.class, () -> service.executeTransfer(transfer, account, pin));
 			verify(callbacks.constructed().get(0)).finishStatusDialog();
 		}
 

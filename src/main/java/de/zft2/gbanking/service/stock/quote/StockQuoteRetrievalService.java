@@ -4,6 +4,7 @@ import static de.zft2.gbanking.service.stock.quote.QuoteProviderSettings.MARKET_
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.ZoneId;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -163,7 +164,7 @@ public class StockQuoteRetrievalService extends AbstractDbService {
 		int inserted = 0;
 		int corrected = 0;
 		int unchanged = 0;
-		LocalDate today = LocalDate.now();
+		LocalDate today = LocalDate.now(ZoneId.systemDefault());
 		for (MarketQuote quote : quotesByDate.values()) {
 			if (quote.date().isAfter(today)) {
 				throw new GBankingException("Der Kursanbieter lieferte ein Datum in der Zukunft: " + quote.date());
@@ -174,8 +175,8 @@ public class StockQuoteRetrievalService extends AbstractDbService {
 				unchanged++;
 				continue;
 			}
-			StockSecurityPrice price = createPrice(security, priceSource, quoteSource, symbol, quote, priceE8,
-					currency, current);
+			StockSecurityPrice price = createPrice(security, priceSource, quote, priceE8,
+					currency, current, quoteSource.sourceCode() + ":" + symbol + ":" + quote.date());
 			dbController.insertOrUpdate(price);
 			if (current == null) {
 				inserted++;
@@ -187,8 +188,7 @@ public class StockQuoteRetrievalService extends AbstractDbService {
 	}
 
 	private StockSecurityPrice createPrice(StockSecurity security, StockSecurityPriceSource priceSource,
-			QuoteSource quoteSource, String symbol, MarketQuote quote, long priceE8, Currency currency,
-			StockSecurityPrice current) {
+			MarketQuote quote, long priceE8, Currency currency, StockSecurityPrice current, String externalReference) {
 		StockQuotationType quotationType = security.getDefaultQuotationType() != null
 				? security.getDefaultQuotationType() : StockQuotationType.ABSOLUTE;
 		StockSecurityPrice price = new StockSecurityPrice();
@@ -200,7 +200,7 @@ public class StockQuoteRetrievalService extends AbstractDbService {
 		price.setPriceBasis(quotationType == StockQuotationType.PERCENT_OF_NOMINAL
 				? defaultPriceBasis(security) : null);
 		price.setPriceType(StockPriceType.CLOSE);
-		price.setExternalReference(quoteSource.sourceCode() + ":" + symbol + ":" + quote.date());
+		price.setExternalReference(externalReference);
 		price.setSupersedesPriceId(current != null ? current.getId() : null);
 		return price;
 	}
@@ -268,7 +268,7 @@ public class StockQuoteRetrievalService extends AbstractDbService {
 				.getAllByParent(StockSecurityIdentifier.class, securityId).stream()
 				.filter(identifier -> identifier.getValidTo() == null)
 				.filter(identifier -> identifier.getValidFrom() == null
-						|| !identifier.getValidFrom().isAfter(LocalDate.now()))
+						|| !identifier.getValidFrom().isAfter(LocalDate.now(ZoneId.systemDefault())))
 				.collect(Collectors.toMap(StockSecurityIdentifier::getIdentifierType, Function.identity(),
 						(first, ignored) -> first));
 		StockSecurityIdentifier ticker = identifiers.get(StockIdentifierType.TICKER);

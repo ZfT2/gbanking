@@ -95,6 +95,14 @@ public class TypeConverter {
 		return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
 	}
 
+	public static java.util.Date toUtilDate(LocalDate date) {
+		return date != null ? java.util.Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant()) : null;
+	}
+
+	public static LocalDateTime toLocalDateTime(java.util.Date date, LocalDateTime fallback) {
+		return date != null ? LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault()) : fallback;
+	}
+
 	public static String toDateTimeString(LocalDateTime dateTime) {
 		return dateTime != null ? dateTime.toString() : null;
 	}

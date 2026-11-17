@@ -64,8 +64,8 @@ class QuoteProviderSettingsTest {
 		GenericQuoteFeed added = feed("Added", GenericQuoteFeedFormat.CSV);
 		QuoteProviderSettings.saveGenericFeeds(List.of(original));
 
-		assertThrows(GBankingException.class, () -> QuoteProviderSettings.saveGenericFeeds(
-				List.of(withName(original, "Changed"), added, added)));
+		List<GenericQuoteFeed> duplicateFeeds = List.of(withName(original, "Changed"), added, added);
+		assertThrows(GBankingException.class, () -> QuoteProviderSettings.saveGenericFeeds(duplicateFeeds));
 
 		assertEquals(List.of(original), QuoteProviderSettings.getConfiguration().genericFeeds());
 		assertEquals(1, db.getAll(StockDataSource.class).size());

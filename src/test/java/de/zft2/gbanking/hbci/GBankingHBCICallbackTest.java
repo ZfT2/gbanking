@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -167,10 +168,10 @@ class GBankingHBCICallbackTest {
 			callback.callback(null, GBankingHBCICallback.NEED_PT_SECMECH, "Sicherheitsverfahren", 0, result);
 
 			assertEquals(code, result.toString());
-			verify(dialogConstruction.constructed().get(0), Mockito.times(expectedPrompt ? 1 : 0))
+			verify(dialogConstruction.constructed().get(0), times(expectedPrompt ? 1 : 0))
 					.requestConfirmation(Mockito.anyString(), Mockito.contains("hbci.chiptanusb.enabled"),
 							Mockito.anyString(), Mockito.anyString());
-			chipTanMock.verify(() -> ChipTanUsbSupport.enable(), Mockito.times(expectedPrompt && accepted ? 1 : 0));
+			chipTanMock.verify(() -> ChipTanUsbSupport.enable(), times(expectedPrompt && accepted ? 1 : 0));
 		}
 	}
 

@@ -646,18 +646,27 @@ final class RebookingService extends AbstractDbService {
 			List<TransferPropertiesFileSnapshot> snapshots) {
 		for (TransferPropertiesFileSnapshot snapshot : snapshots) {
 			try {
-				if (snapshot.existed()) {
-					Files.write(snapshot.path(), snapshot.content());
+				if (snapshot.existed) {
+					Files.write(snapshot.path, snapshot.content);
 				} else {
-					Files.deleteIfExists(snapshot.path());
+					Files.deleteIfExists(snapshot.path);
 				}
 			} catch (IOException e) {
-				log.warn("Could not restore booking-core transfer properties file {}.", snapshot.path(), e);
+				log.warn("Could not restore booking-core transfer properties file {}.", snapshot.path, e);
 			}
 		}
 	}
 
-	private record TransferPropertiesFileSnapshot(Path path, boolean existed, byte[] content) {
+	private static final class TransferPropertiesFileSnapshot {
+		private final Path path;
+		private final boolean existed;
+		private final byte[] content;
+
+		private TransferPropertiesFileSnapshot(Path path, boolean existed, byte[] content) {
+			this.path = path;
+			this.existed = existed;
+			this.content = content;
+		}
 	}
 
 	private record SearchAnchors(Set<Integer> bookingIds, Set<Integer> accountIds,

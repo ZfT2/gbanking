@@ -9,6 +9,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.ZoneId;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -23,6 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.csv.CSVFormat;
@@ -77,14 +79,14 @@ final class MarketDataClient {
 	}
 
 	private List<MarketQuote> fetchEodhd(String symbol, String apiToken) {
-		String query = "api_token=" + encode(apiToken) + "&fmt=json&order=a&from=" + LocalDate.now().minusYears(1);
+		String query = "api_token=" + encode(apiToken) + "&fmt=json&order=a&from=" + LocalDate.now(ZoneId.systemDefault()).minusYears(1);
 		URI uri = URI.create(ensureTrailingSlash(eodhdEndpoint.toString()) + encode(symbol) + "?" + query);
 		return parseEodhd(get(uri, Map.of()));
 	}
 
 	private List<MarketQuote> fetchAlpaca(String symbol, String keyId, String secretKey) {
 		String query = "timeframe=1Day&feed=iex&adjustment=raw&limit=1000&start="
-				+ LocalDate.now().minusMonths(6) + "&sort=asc";
+				+ LocalDate.now(ZoneId.systemDefault()).minusMonths(6) + "&sort=asc";
 		URI uri = URI.create(ensureTrailingSlash(alpacaEndpoint.toString()) + encode(symbol) + "/bars?" + query);
 		Map<String, String> headers = Map.of("APCA-API-KEY-ID", keyId, "APCA-API-SECRET-KEY", secretKey);
 		return parseAlpaca(get(uri, headers));
@@ -187,9 +189,9 @@ final class MarketDataClient {
 		Object root = SimpleJson.parse(content);
 		Object itemsValue = resolvePath(root, feed.itemsPath());
 		if (feed.itemsPath().isBlank()) {
-			List<MarketQuote> parallelQuotes = parseParallelJsonArrays(itemsValue, feed);
-			if (parallelQuotes != null) {
-				return parallelQuotes;
+			Optional<List<MarketQuote>> parallelQuotes = parseParallelJsonArrays(itemsValue, feed);
+			if (parallelQuotes.isPresent()) {
+				return parallelQuotes.get();
 			}
 		}
 		List<?> items = itemsValue instanceof List<?> list ? list : List.of(itemsValue);
@@ -203,14 +205,14 @@ final class MarketDataClient {
 		return sorted(result);
 	}
 
-	private static List<MarketQuote> parseParallelJsonArrays(Object root, GenericQuoteFeed feed) {
+	private static Optional<List<MarketQuote>> parseParallelJsonArrays(Object root, GenericQuoteFeed feed) {
 		if (root instanceof List<?>) {
-			return null;
+			return Optional.empty();
 		}
 		Object datesValue = resolvePath(root, feed.datePath());
 		Object pricesValue = resolvePath(root, feed.pricePath());
 		if (!(datesValue instanceof List<?> dates) || !(pricesValue instanceof List<?> prices)) {
-			return null;
+			return Optional.empty();
 		}
 		if (dates.size() != prices.size()) {
 			throw new GBankingException("Die Datums- und Kurslisten des JSON-Kursfeeds sind unterschiedlich lang");
@@ -220,7 +222,7 @@ final class MarketDataClient {
 			result.add(quote(parseConfiguredDate(text(dates.get(index), feed.datePath()), feed.dateFormat()),
 					decimal(prices.get(index), feed.pricePath())));
 		}
-		return sorted(result);
+		return Optional.of(sorted(result));
 	}
 
 	static List<MarketQuote> parseGenericCsv(String content, GenericQuoteFeed feed) {
@@ -228,9 +230,9 @@ final class MarketDataClient {
 				.setHeader().setSkipHeaderRecord(true).setTrim(true).get();
 		try (CSVParser parser = format.parse(new StringReader(content))) {
 			List<MarketQuote> result = new ArrayList<>();
-			for (CSVRecord record : parser) {
-				String date = csvValue(record, feed.datePath());
-				String price = csvValue(record, feed.pricePath());
+			for (CSVRecord priceRecord : parser) {
+				String date = csvValue(priceRecord, feed.datePath());
+				String price = csvValue(priceRecord, feed.pricePath());
 				result.add(quote(parseConfiguredDate(date, feed.dateFormat()), decimal(price, feed.pricePath())));
 			}
 			return sorted(result);
@@ -239,11 +241,11 @@ final class MarketDataClient {
 		}
 	}
 
-	private static String csvValue(CSVRecord record, String column) {
-		if (column.isBlank() || !record.isMapped(column)) {
+	private static String csvValue(CSVRecord priceRecord, String column) {
+		if (column.isBlank() || !priceRecord.isMapped(column)) {
 			throw new GBankingException("Die CSV-Spalte " + column + " wurde nicht gefunden");
 		}
-		return record.get(column);
+		return priceRecord.get(column);
 	}
 
 	private static Object resolvePath(Object root, String path) {

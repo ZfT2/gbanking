@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
@@ -64,7 +65,7 @@ import de.zft2.gbanking.testdata.TestDataFactory;
 
 class StockPortfolioFinTsServiceTest extends DBControllerIntegrationBaseTest {
 
-	private static final LocalDate STATEMENT_DATE = LocalDate.of(2026, 9, 15);
+	private static final LocalDate STATEMENT_DATE = LocalDate.of(2026, Month.SEPTEMBER, 15);
 
 	@Test
 	void backfilledReplacementShouldCarryEarlierBankBasisAndRebalanceAlreadyRetrievedSuccessor() {
@@ -120,15 +121,7 @@ class StockPortfolioFinTsServiceTest extends DBControllerIntegrationBaseTest {
 		List<StockPortfolioStatementSubBalance> subBalances = db.getAll(StockPortfolioStatementSubBalance.class);
 		assertEquals(1, subBalances.size());
 		assertEquals(StockCustodyType.COLLECTIVE_SAFE_CUSTODY, subBalances.get(0).getCustodyType());
-		try (var statement = DBController.getConnection().createStatement();
-				var resultSet = statement.executeQuery(
-						"SELECT custodyType, typeof(custodyType) AS custodyTypeStorage "
-								+ "FROM stockPortfolioStatementSubBalance")) {
-			assertTrue(resultSet.next());
-			assertEquals(StockCustodyType.COLLECTIVE_SAFE_CUSTODY.getDbStateId(),
-					resultSet.getInt("custodyType"));
-			assertEquals("integer", resultSet.getString("custodyTypeStorage"));
-		}
+		assertCustodyTypeStorage();
 		StockPortfolioStatement statement = db.getAll(StockPortfolioStatement.class).get(0);
 		assertEquals(StockStatementStatus.FINAL, statement.getStatementStatus());
 		assertEquals(123L, statement.getReportedAccruedInterestMinor());
@@ -151,6 +144,18 @@ class StockPortfolioFinTsServiceTest extends DBControllerIntegrationBaseTest {
 		assertEquals(1, changedResult.adjustmentCount());
 		assertEquals(new BigDecimal("7"), new StockPortfolioService().getPositions(portfolio.portfolioId()).get(0).quantity());
 		assertEquals(2, db.getAll(StockPortfolioStatement.class).size());
+	}
+
+	private void assertCustodyTypeStorage() throws java.sql.SQLException {
+		try (var statement = DBController.getConnection().createStatement();
+				var resultSet = statement.executeQuery(
+						"SELECT custodyType, typeof(custodyType) AS custodyTypeStorage "
+								+ "FROM stockPortfolioStatementSubBalance")) {
+			assertTrue(resultSet.next());
+			assertEquals(StockCustodyType.COLLECTIVE_SAFE_CUSTODY.getDbStateId(),
+					resultSet.getInt("custodyType"));
+			assertEquals("integer", resultSet.getString("custodyTypeStorage"));
+		}
 	}
 
 	@Test

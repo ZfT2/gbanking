@@ -14,9 +14,9 @@ import javafx.scene.control.TabPane;
 public class BankAccessOverviewPanel extends OverviewBasePanel {
 
 	private final BankingCapabilityService bankingCapabilityService;
-	private BankAccessDetailPanel bankAccessDetailPanel;
-	private BankAccessListPanel bankAccessListPanel;
-	private BankMessagePanel bankMessagePanel;
+	private final BankAccessDetailPanel bankAccessDetailPanel;
+	private final BankAccessListPanel bankAccessListPanel;
+	private final BankMessagePanel bankMessagePanel;
 	private TabPane tabPane;
 	private Tab bankMessagesTab;
 	private BankAccess currentBankAccess;

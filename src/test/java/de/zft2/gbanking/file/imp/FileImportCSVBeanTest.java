@@ -54,7 +54,7 @@ class FileImportCSVBeanTest {
 	@ValueSource(booleans = { false, true })
 	void shouldReviewAllLooseMatchesOnceAfterStrictFiltering(boolean accept) throws Exception {
 		BankAccount account = createAccount("Review", "DE11111111111111111111", "11111111");
-		LocalDate date = LocalDate.of(2026, 4, 10);
+		LocalDate date = LocalDate.of(2026, Month.APRIL, 10);
 		Booking strict = new Booking(account.getId(), date, date, "Strict", new BigDecimal("5"), BookingType.DEPOSIT, 0);
 		strict.setSource(Source.ONLINE);
 		dbController.insertOrUpdate(strict);
@@ -87,7 +87,7 @@ class FileImportCSVBeanTest {
 	@Test
 	void cancellingDuplicateReviewShouldRollBackNewAccountsAndBookings() throws Exception {
 		BankAccount account = createAccount("Review", "DE11111111111111111111", "11111111");
-		Booking existing = new Booking(account.getId(), LocalDate.of(2026, 4, 10), null, "Account", BigDecimal.TEN, BookingType.DEPOSIT, 0);
+		Booking existing = new Booking(account.getId(), LocalDate.of(2026, Month.APRIL, 10), null, "Account", BigDecimal.TEN, BookingType.DEPOSIT, 0);
 		existing.setSource(Source.ONLINE);
 		dbController.insertOrUpdate(existing);
 		Path file = writeCsv("""
@@ -96,12 +96,13 @@ class FileImportCSVBeanTest {
 				Review;DE11111111111111111111;11111111;10.04.2026;10.00;File purpose
 				""");
 		FileImportCSVBean importer = new FileImportCSVBean(null);
-		assertThrows(GBankingException.class, () -> importer.importFileToDatabase(file.toString()));
+		String fileName = file.toString();
+		assertThrows(GBankingException.class, () -> importer.importFileToDatabase(fileName));
 		assertEquals(1, dbController.getAll(BankAccount.class).size());
 		importer.setDuplicateReviewHandler(matches -> {
 			throw new CancellationException("Cancel import");
 		});
-		assertThrows(CancellationException.class, () -> importer.importFileToDatabase(file.toString()));
+		assertThrows(CancellationException.class, () -> importer.importFileToDatabase(fileName));
 		assertEquals(1, dbController.getAll(BankAccount.class).size());
 		assertEquals(1, dbController.getAll(Booking.class).size());
 		assertTrue(dbController.getAll(Recipient.class).isEmpty());
@@ -111,7 +112,7 @@ class FileImportCSVBeanTest {
 	@ValueSource(booleans = { false, true })
 	void repeatedStableReferenceShouldFollowTheReviewedFirstOccurrence(boolean accept) throws Exception {
 		BankAccount account = createAccount("Review", "DE11111111111111111111", "11111111");
-		Booking existing = new Booking(account.getId(), LocalDate.of(2026, 4, 10), null, "Account", BigDecimal.TEN, BookingType.DEPOSIT, 0);
+		Booking existing = new Booking(account.getId(), LocalDate.of(2026, Month.APRIL, 10), null, "Account", BigDecimal.TEN, BookingType.DEPOSIT, 0);
 		existing.setSource(Source.MANUELL);
 		dbController.insertOrUpdate(existing);
 		Path file = writeCsv("""

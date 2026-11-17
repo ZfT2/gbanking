@@ -344,7 +344,7 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 		if (orderType == OrderType.STANDING_ORDER) {
 			mt.setExecutionDay(15);
 			mt.setStandingorderMode(StandingorderMode.MONTHLY);
-			mt.setExecutionDateNext(LocalDate.of(2027, 1, 15));
+			mt.setExecutionDateNext(LocalDate.of(2027, Month.JANUARY, 15));
 		}
 		mt.setMoneytransferStatus(MoneyTransferStatus.NEW);
 		db.insertOrUpdate(mt);
@@ -357,7 +357,7 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 		if (orderType == OrderType.STANDING_ORDER) {
 			assertEquals(Integer.valueOf(15), transfers.get(0).getExecutionDay());
 			assertEquals(StandingorderMode.MONTHLY, transfers.get(0).getStandingorderMode());
-			assertEquals(LocalDate.of(2027, 1, 15), transfers.get(0).getExecutionDateNext());
+			assertEquals(LocalDate.of(2027, Month.JANUARY, 15), transfers.get(0).getExecutionDateNext());
 			assertEquals(mt.getId(), transfers.get(0).getStandingorder().getMoneyTransferId());
 			assertEquals(1, db.getAllByParent(MoneyTransferStandingorder.class, mt.getId()).size());
 			mt.setExecutionDateNext(null);
@@ -381,7 +381,7 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		Recipient recipient = db.insertOrUpdate(new Recipient("Payee", "DE11111111111111111111", null, null, null, null, Source.MONEYTRANSFER));
 		MoneyTransfer transfer = new MoneyTransfer(account.getId(), OrderType.STANDING_ORDER, recipient.getId(),
-				"Invalid schedule", new BigDecimal("12.34"), LocalDate.of(2027, 1, 1), MoneyTransferStatus.NEW);
+				"Invalid schedule", new BigDecimal("12.34"), LocalDate.of(2027, Month.JANUARY, 1), MoneyTransferStatus.NEW);
 		transfer.setExecutionDay(32);
 		transfer.setStandingorderMode(StandingorderMode.MONTHLY);
 		assertThrows(GBankingException.class, () -> db.insertOrUpdate(transfer));
@@ -395,7 +395,7 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 		Recipient recipient = db.insertOrUpdate(new Recipient("Payee", "DE11111111111111111111", null, null, null, null, Source.MONEYTRANSFER));
 		for (boolean archived : new boolean[] { false, true }) {
 			MoneyTransfer transfer = new MoneyTransfer(account.getId(), OrderType.STANDING_ORDER, recipient.getId(),
-					"Standing schedule", new BigDecimal("12.34"), LocalDate.of(2027, 1, 1), MoneyTransferStatus.NEW);
+					"Standing schedule", new BigDecimal("12.34"), LocalDate.of(2027, Month.JANUARY, 1), MoneyTransferStatus.NEW);
 			transfer.setExecutionDay(1);
 			transfer.setStandingorderMode(StandingorderMode.MONTHLY);
 			db.insertOrUpdate(transfer);
@@ -407,7 +407,7 @@ class DBControllerIntegrationTest extends DBControllerIntegrationBaseTest {
 			if (archived) {
 				transfer.setMoneytransferStatus(MoneyTransferStatus.SUPERSEDED);
 				db.insertOrUpdate(transfer);
-				details.setExecutionDateNext(LocalDate.of(2027, 2, 1));
+				details.setExecutionDateNext(LocalDate.of(2027, Month.FEBRUARY, 1));
 				assertThrows(GBankingException.class, () -> db.insertOrUpdate(details));
 				assertThrows(GBankingException.class, () -> db.delete(details, null));
 				assertNull(db.getById(MoneyTransfer.class, transfer.getId()).getExecutionDateNext());

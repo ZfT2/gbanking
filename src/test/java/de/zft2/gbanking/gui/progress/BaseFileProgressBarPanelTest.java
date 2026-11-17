@@ -2,6 +2,7 @@ package de.zft2.gbanking.gui.progress;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -72,7 +73,7 @@ class BaseFileProgressBarPanelTest {
 				assertTrue(panel.taskOutput.getText().contains("Unsupported transaction type"));
 				assertTrue(panel.closeButton.isVisible());
 				assertTrue(panel.closeButton.isManaged());
-				assertFalse(panel.progressLabel.getText().equals("100 %"));
+				assertNotEquals("100 %", panel.progressLabel.getText());
 				panel.closeButton.fire();
 			});
 			JavaFxTestSupport.runFx(() -> assertFalse(panel.dialogStage.isShowing()));

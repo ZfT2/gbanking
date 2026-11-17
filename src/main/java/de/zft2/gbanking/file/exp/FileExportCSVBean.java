@@ -75,7 +75,7 @@ public class FileExportCSVBean extends FileExportBean {
 		BookingForeignCurrencyDetails foreign = booking.getForeignCurrencyDetails();
 		BookingFee fee = booking.getFee();
 		String sepaType = sepaDetails != null && sepaDetails.getType() != null ? sepaDetails.getType().name() : null;
-		Object[] row = new Object[] {
+		Object[] row = {
 				account.getAccountName(), account.getIban(), account.getNumber(), account.getBankName(), account.getBic(),
 				BookingCsvFormat.formatDate(booking.getDateBooking()), BookingCsvFormat.formatDate(booking.getDateValue()),
 				BookingCsvFormat.formatAmount(booking.getAmount()), account.getCurrency(), booking.getPurpose(),

@@ -1,5 +1,6 @@
 package de.zft2.gbanking.gui.dialog.stock;
 
+import java.time.ZoneId;
 import java.time.LocalDate;
 import java.util.function.Consumer;
 
@@ -27,8 +28,8 @@ public final class StockTradeDialog extends AbstractStockDialog {
 	private final Runnable savedHandler;
 	private final ComboBox<StockTransactionType> typeField = new ComboBox<>(
 			FXCollections.observableArrayList(StockTransactionType.BUY, StockTransactionType.SELL));
-	private final DatePicker tradeDateField = new DatePicker(LocalDate.now());
-	private final DatePicker settlementDateField = new DatePicker(StockPortfolioService.defaultSettlementDate(LocalDate.now()));
+	private final DatePicker tradeDateField = new DatePicker(LocalDate.now(ZoneId.systemDefault()));
+	private final DatePicker settlementDateField = new DatePicker(StockPortfolioService.defaultSettlementDate(LocalDate.now(ZoneId.systemDefault())));
 	private final TextField quantityField = new TextField();
 	private final TextField priceField = new TextField();
 	private final ComboBox<Currency> currencyField;

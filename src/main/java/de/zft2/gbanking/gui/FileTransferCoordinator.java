@@ -44,6 +44,9 @@ import javafx.stage.Stage;
 
 final class FileTransferCoordinator implements BaseGui {
 
+	private static final String ALERT_STOCK_PP_PORTFOLIO_REQUIRED = "ALERT_STOCK_PP_PORTFOLIO_REQUIRED";
+
+
 	private static final Logger log = LogManager.getLogger(FileTransferCoordinator.class);
 
 	private final Stage owner;
@@ -106,7 +109,7 @@ final class FileTransferCoordinator implements BaseGui {
 		StockPortfolioOverviewPanel overviewPanel = stockOverview();
 		PortfolioSummary portfolio = overviewPanel != null ? overviewPanel.getSelectedPortfolio() : null;
 		if (portfolio == null && importType != ExportType.STOCK_PP_XML) {
-			showWarning(owner, getText("ALERT_STOCK_PP_PORTFOLIO_REQUIRED"));
+			showWarning(owner, getText(ALERT_STOCK_PP_PORTFOLIO_REQUIRED));
 			return;
 		}
 		Path importFile = chooseImportFile(importType.getFileType());
@@ -130,7 +133,7 @@ final class FileTransferCoordinator implements BaseGui {
 		StockPortfolioOverviewPanel overviewPanel = stockOverview();
 		PortfolioSummary portfolio = overviewPanel != null ? overviewPanel.getSelectedPortfolio() : null;
 		if (portfolio == null) {
-			showWarning(owner, getText("ALERT_STOCK_PP_PORTFOLIO_REQUIRED"));
+			showWarning(owner, getText(ALERT_STOCK_PP_PORTFOLIO_REQUIRED));
 			return;
 		}
 		Path importFile = chooseImportFile(FileType.CSV);
@@ -190,7 +193,7 @@ final class FileTransferCoordinator implements BaseGui {
 		StockPortfolioOverviewPanel overviewPanel = stockOverview();
 		PortfolioSummary portfolio = overviewPanel != null ? overviewPanel.getSelectedPortfolio() : null;
 		if (portfolio == null) {
-			showWarning(owner, getText("ALERT_STOCK_PP_PORTFOLIO_REQUIRED"));
+			showWarning(owner, getText(ALERT_STOCK_PP_PORTFOLIO_REQUIRED));
 			return;
 		}
 		Path exportFile = chooseExportFile(exportType.getFileType());

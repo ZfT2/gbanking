@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -174,7 +175,7 @@ class TransactionListPanelTest {
 		Booking booking = new Booking();
 		booking.setId(1);
 		booking.setAccountId(1);
-		booking.setDateBooking(LocalDate.of(2026, 1, 15));
+		booking.setDateBooking(LocalDate.of(2026, Month.JANUARY, 15));
 		booking.setPurpose(purpose);
 		booking.setAmount(new BigDecimal("100.00"));
 		return booking;

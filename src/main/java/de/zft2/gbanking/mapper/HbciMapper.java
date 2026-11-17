@@ -221,8 +221,7 @@ public class HbciMapper {
 
 	private static AccountType accountTypeForDescription(String value) {
 		String description = value != null ? value.trim().toLowerCase(Locale.ROOT) : "";
-		if (description.contains("verrechnung") || description.contains("geldkonto")
-				|| description.contains("cash account") || description.contains("cashkonto")) {
+		if (isSettlementAccountDescription(description)) {
 			return AccountType.DEPOT_ACCOUNT;
 		}
 		if (description.contains("depot") || description.contains("wertpapier")) {
@@ -251,6 +250,11 @@ public class HbciMapper {
 			return AccountType.SAVEINGS_HOME;
 		}
 		return AccountType.UNKNOWN_ACCOUNT;
+	}
+
+	private static boolean isSettlementAccountDescription(String description) {
+		return description.contains("verrechnung") || description.contains("geldkonto")
+				|| description.contains("cash account") || description.contains("cashkonto");
 	}
 
 	private static boolean supportsPortfolioStatements(Konto konto) {

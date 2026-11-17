@@ -1,6 +1,7 @@
 package de.zft2.gbanking.gui.dialog.stock;
 
 import java.math.BigDecimal;
+import java.time.ZoneId;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.function.Supplier;
@@ -26,6 +27,7 @@ import javafx.stage.Window;
 
 public final class SecurityPriceDialog extends AbstractStockDialog {
 
+	private static final String UI_STOCK_FIELD_PRICE = "UI_STOCK_FIELD_PRICE";
 	private final int securityId;
 	private final String securityName;
 	private final Currency defaultCurrency;
@@ -34,23 +36,22 @@ public final class SecurityPriceDialog extends AbstractStockDialog {
 	private final PriceDeleteHandler deleteHandler;
 	private final Runnable changedHandler;
 	private final GBankingTableView<PriceSummary> table = new GBankingTableView<>();
-	private final DatePicker dateField = new DatePicker(LocalDate.now());
+	private final DatePicker dateField = new DatePicker(LocalDate.now(ZoneId.systemDefault()));
 	private final TextField priceField = new TextField();
 	private final ComboBox<Currency> currencyField;
 	private final Button deleteButton = createButton("UI_BUTTON_DELETE", () -> delete());
 	private PriceSummary selectedPrice;
 
 	public SecurityPriceDialog(Window owner, int securityId, String securityName, Currency defaultCurrency,
-			Supplier<List<PriceSummary>> priceLoader, PriceSaveHandler saveHandler,
-			PriceDeleteHandler deleteHandler, Runnable changedHandler) {
+			PriceActions actions) {
 		super(owner, "UI_STOCK_PRICE_DIALOG_TITLE");
 		this.securityId = securityId;
 		this.securityName = securityName;
 		this.defaultCurrency = defaultCurrency != null ? defaultCurrency : Currency.EUR;
-		this.priceLoader = priceLoader;
-		this.saveHandler = saveHandler;
-		this.deleteHandler = deleteHandler;
-		this.changedHandler = changedHandler;
+		this.priceLoader = actions.loader();
+		this.saveHandler = actions.save();
+		this.deleteHandler = actions.delete();
+		this.changedHandler = actions.changed();
 		currencyField = StockDialogSupport.createCurrencyCombo(this.defaultCurrency);
 		initialize();
 	}
@@ -67,7 +68,7 @@ public final class SecurityPriceDialog extends AbstractStockDialog {
 		GridPane form = FormGridHelper.createDefaultGrid();
 		FormGridHelper.setEqualGrowColumns(form, 3);
 		FormGridHelper.addFieldAbove(form, getText("UI_STOCK_FIELD_DATE"), dateField, 0, 0);
-		FormGridHelper.addFieldAbove(form, getText("UI_STOCK_FIELD_PRICE"), priceField, 1, 0);
+		FormGridHelper.addFieldAbove(form, getText(UI_STOCK_FIELD_PRICE), priceField, 1, 0);
 		FormGridHelper.addFieldAbove(form, getText("UI_STOCK_FIELD_CURRENCY"), currencyField, 2, 0);
 
 		deleteButton.setDisable(true);
@@ -88,7 +89,7 @@ public final class SecurityPriceDialog extends AbstractStockDialog {
 	private void configureTable() {
 		table.getColumns().add(TableColumnFactory.createCalendarDateColumn(getText("UI_STOCK_FIELD_DATE"),
 				PriceSummary::date, 105));
-		table.getColumns().add(TableColumnFactory.createAmountColumn(getText("UI_STOCK_FIELD_PRICE"),
+		table.getColumns().add(TableColumnFactory.createAmountColumn(getText(UI_STOCK_FIELD_PRICE),
 				PriceSummary::price));
 		table.getColumns().add(TableColumnFactory.createFixedTextColumn(getText("UI_STOCK_FIELD_CURRENCY"),
 				summary -> summary.currency().name(), 85));
@@ -116,7 +117,7 @@ public final class SecurityPriceDialog extends AbstractStockDialog {
 		selectedPrice = null;
 		deleteButton.setDisable(true);
 		table.getSelectionModel().clearSelection();
-		dateField.setValue(LocalDate.now());
+		dateField.setValue(LocalDate.now(ZoneId.systemDefault()));
 		priceField.clear();
 		currencyField.setValue(defaultCurrency);
 		priceField.requestFocus();
@@ -124,7 +125,7 @@ public final class SecurityPriceDialog extends AbstractStockDialog {
 
 	private void save() {
 		runAction(() -> {
-			BigDecimal price = StockDialogSupport.parseRequiredDecimal(priceField, getText("UI_STOCK_FIELD_PRICE"));
+			BigDecimal price = StockDialogSupport.parseRequiredDecimal(priceField, getText(UI_STOCK_FIELD_PRICE));
 			boolean protectedChangeConfirmed = confirmProtectedChange("UI_STOCK_PRICE_CHANGE_CONFIRM_TITLE",
 					"UI_STOCK_PRICE_CHANGE_CONFIRM_HEADER", "UI_STOCK_PRICE_CHANGE_CONFIRM_TEXT", "UI_BUTTON_EDIT");
 			if (selectedPrice != null && selectedPrice.requiresExplicitConfirmation() && !protectedChangeConfirmed) {
@@ -166,6 +167,10 @@ public final class SecurityPriceDialog extends AbstractStockDialog {
 		return DialogWindowSupport.showConfirmation(dialog(), Alert.AlertType.CONFIRMATION,
 				getText(titleKey), getText(headerKey), getText(textKey, selectedPrice.sourceName()),
 				confirm, ButtonType.CANCEL);
+	}
+
+	public record PriceActions(Supplier<List<PriceSummary>> loader, PriceSaveHandler save,
+			PriceDeleteHandler delete, Runnable changed) {
 	}
 
 	@FunctionalInterface

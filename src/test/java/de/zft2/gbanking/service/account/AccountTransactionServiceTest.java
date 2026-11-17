@@ -629,7 +629,7 @@ class AccountTransactionServiceTest {
 		when(hbciSupport.newHbciJob(handle, "TestJob")).thenReturn(job);
 
 		Konto konto = createKonto("Name", "DE123", "BICCODE", "4711", "50010517");
-		Date startDate = new Date();
+		LocalDate startDate = LocalDate.of(2026, Month.JULY, 1);
 
 		HBCIJob<?> createdJob = (HBCIJob<?>) invokePrivate(service, "createAndAddHbciJob",
 				new Class<?>[] { HBCIHandler.class, String.class, Map.class },
@@ -637,7 +637,7 @@ class AccountTransactionServiceTest {
 
 		assertEquals(job, createdJob);
 		verify(job).setParam("text", "value");
-		verify(job).setParam("date", startDate);
+		verify(job).setParam("date", Date.from(startDate.atStartOfDay(ZoneId.systemDefault()).toInstant()));
 		verify(job).setParam("count", 3);
 		verify(job).setParam("konto", konto);
 		verify(job).addToQueue();

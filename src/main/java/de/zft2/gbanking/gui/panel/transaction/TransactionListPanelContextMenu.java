@@ -46,9 +46,9 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 	private final BookingSplitService bookingSplitService;
 	private final AccountTransactionService accountTransactionService;
 
-	private TransactionListPanel panelTransactionList;
-	private TransactionsOverviewBasePanel parentPanel;
-	private ObservableList<Booking> masterData;
+	private final TransactionListPanel panelTransactionList;
+	private final TransactionsOverviewBasePanel parentPanel;
+	private final ObservableList<Booking> masterData;
 
 	MenuItem newManualItem = new MenuItem(getText("UI_MENU_BOOKING_NEW_MANUAL"));
 	MenuItem editManualItem = new MenuItem(getText("UI_MENU_BOOKING_EDIT_MANUAL"));
@@ -222,7 +222,7 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 			return;
 		}
 
-		String rangeText = deleteFromDate ? getText("UI_MENU_BOOKING_DELETE_FROM_DATE") : getText("UI_MENU_BOOKING_DELETE_UNTIL_DATE");
+		String rangeText = getText(deleteFromDate ? "UI_MENU_BOOKING_DELETE_FROM_DATE" : "UI_MENU_BOOKING_DELETE_UNTIL_DATE");
 		String confirmTextKey = deleteFromDate ? "ALERT_BOOKING_BLOCK_DELETE_TEXT" : "ALERT_BOOKING_BLOCK_DELETE_TEXT_UNTIL";
 		if (!DialogWindowSupport.showConfirmation(panelTransactionList.getTableWindow(), javafx.scene.control.Alert.AlertType.CONFIRMATION,
 				getText("ALERT_BOOKING_BLOCK_DELETE_TITLE"), getText("ALERT_BOOKING_BLOCK_DELETE_HEADER"),

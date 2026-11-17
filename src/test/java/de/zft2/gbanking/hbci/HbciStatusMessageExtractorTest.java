@@ -9,7 +9,7 @@ class HbciStatusMessageExtractorTest {
 
 	@Test
 	void extractMessages_shouldReturnReadableMessagesFromRawHbciResponse() {
-		Object[] statusPayload = new Object[] {
+		Object[] statusPayload = {
 				"HNHBK:1:3+000000000206+300+4D6032511025638+1+4D6032511025638:1'HIRMG:2:2+9050::Die Nachricht enthält Fehler.+9800::Dialog abgebrochen+9942::*Anmeldedaten sind ungültig.+9340::Auftrag abgelehnt.'HNHBS:3:1+1'" };
 
 		String result = HbciStatusMessageExtractor.extractMessages(statusPayload);
@@ -22,7 +22,7 @@ class HbciStatusMessageExtractorTest {
 
 	@Test
 	void sanitizeForDetails_shouldReturnJoinedRawPayload() {
-		Object[] statusPayload = new Object[] { "[SynchRes]", "HIRMG:2:2+9800::Dialog abgebrochen'" };
+		Object[] statusPayload = { "[SynchRes]", "HIRMG:2:2+9800::Dialog abgebrochen'" };
 
 		String result = HbciStatusMessageExtractor.sanitizeForDetails(statusPayload);
 

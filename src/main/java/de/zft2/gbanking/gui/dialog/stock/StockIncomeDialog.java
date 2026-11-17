@@ -1,5 +1,6 @@
 package de.zft2.gbanking.gui.dialog.stock;
 
+import java.time.ZoneId;
 import java.time.LocalDate;
 import java.util.function.Consumer;
 
@@ -24,7 +25,7 @@ public final class StockIncomeDialog extends AbstractStockDialog {
 	private final Runnable savedHandler;
 	private final ComboBox<StockTransactionType> typeField = new ComboBox<>(
 			FXCollections.observableArrayList(StockTransactionType.DIVIDEND, StockTransactionType.INTEREST));
-	private final DatePicker dateField = new DatePicker(LocalDate.now());
+	private final DatePicker dateField = new DatePicker(LocalDate.now(ZoneId.systemDefault()));
 	private final TextField amountField = new TextField();
 	private final TextField taxesField = new TextField();
 	private final ComboBox<Currency> currencyField;

@@ -47,8 +47,6 @@ class ServiceRegistryTest {
 	static final class TestService implements Service {
 	}
 
-	static final class ServiceWithoutDefaultConstructor implements Service {
-		ServiceWithoutDefaultConstructor(String value) {
-		}
+	record ServiceWithoutDefaultConstructor(String value) implements Service {
 	}
 }

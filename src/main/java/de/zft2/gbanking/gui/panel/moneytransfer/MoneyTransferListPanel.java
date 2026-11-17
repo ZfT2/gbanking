@@ -174,21 +174,29 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 	private TableColumn<MoneyTransfer, LocalDate> createNextExecutionDateColumn() {
 		TableColumn<MoneyTransfer, LocalDate> column = TableColumnFactory.createCalendarDateColumn(
 				getText("UI_TABLE_NEXT_EXECUTION_DATE"), this::nextExecutionDate, 95);
-		column.setCellFactory(ignored -> new TableCell<>() {
-			@Override
-			protected void updateItem(LocalDate date, boolean empty) {
-				super.updateItem(date, empty);
-				MoneyTransfer transfer = getTableRow() != null ? getTableRow().getItem() : null;
-				boolean calculated = transfer != null && transfer.getExecutionDateNext() == null;
-				boolean stale = date != null && date.isBefore(LocalDate.now(ZoneId.systemDefault()));
-				boolean marked = !empty && date != null && (calculated || stale);
-				setText(empty || date == null ? null : DateFormatUtils.formatShort(date) + (marked ? "*" : ""));
-				pseudoClassStateChanged(UNCONFIRMED_DATE, marked);
-				setTooltip(marked ? new Tooltip(MoneyTransferListPanel.this.getText(calculated
-						? "UI_TOOLTIP_STANDING_ORDER_DATE_CALCULATED" : "UI_TOOLTIP_STANDING_ORDER_DATE_STALE")) : null);
-			}
-		});
+		column.setCellFactory(ignored -> new NextExecutionDateCell());
 		return column;
+	}
+
+	private class NextExecutionDateCell extends TableCell<MoneyTransfer, LocalDate> {
+		@Override
+		protected void updateItem(LocalDate date, boolean empty) {
+			super.updateItem(date, empty);
+			if (empty || date == null) {
+				setText(null);
+				setTooltip(null);
+				pseudoClassStateChanged(UNCONFIRMED_DATE, false);
+				return;
+			}
+			MoneyTransfer transfer = getTableRow() != null ? getTableRow().getItem() : null;
+			boolean calculated = transfer != null && transfer.getExecutionDateNext() == null;
+			boolean stale = date.isBefore(LocalDate.now(ZoneId.systemDefault()));
+			boolean marked = calculated || stale;
+			setText(DateFormatUtils.formatShort(date) + (marked ? "*" : ""));
+			pseudoClassStateChanged(UNCONFIRMED_DATE, marked);
+			String tooltipKey = calculated ? "UI_TOOLTIP_STANDING_ORDER_DATE_CALCULATED" : "UI_TOOLTIP_STANDING_ORDER_DATE_STALE";
+			setTooltip(marked ? new Tooltip(MoneyTransferListPanel.this.getText(tooltipKey)) : null);
+		}
 	}
 
 	private LocalDate nextExecutionDate(MoneyTransfer transfer) {

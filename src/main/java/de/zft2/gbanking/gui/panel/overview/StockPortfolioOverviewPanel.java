@@ -79,6 +79,11 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
 public class StockPortfolioOverviewPanel extends OverviewBasePanel {
+
+	private static final String FORM_SECTION_TITLE = "gbanking-form-section-title";
+	private static final String UI_STOCK_EXCHANGE_UNLINK = "UI_STOCK_EXCHANGE_UNLINK";
+	private static final String UI_STOCK_FIELD_CURRENCY = "UI_STOCK_FIELD_CURRENCY";
+
 	private static final String MUTED_TRANSACTION_STYLE = "booking-prenotification";
 	private static final double MASTER_DIVIDER = 0.22;
 	private static final double TABLE_DIVIDER = 0.5;
@@ -172,7 +177,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		navigationTree.setRoot(new TreeItem<>());
 		navigationTree.setEditable(true);
 		navigationTree.setColumnResizePolicy(TreeTableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-		navigationTree.getColumns().setAll(createPortfolioSelectionColumn(), createNavigationNameColumn());
+		navigationTree.getColumns().setAll(List.of(createPortfolioSelectionColumn(), createNavigationNameColumn()));
 		navigationTree.setRowFactory(tree -> createNavigationRow());
 		navigationTree.getSelectionModel().selectedItemProperty().addListener((observable, previous, selected) -> {
 			if (selected == null || selected.getValue() == null) {
@@ -204,7 +209,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 					checkBox.selectedProperty().unbindBidirectional(boundProperty);
 					boundProperty = null;
 				}
-				NavigationEntry entry = getTreeTableRow() != null ? getTreeTableRow().getItem() : null;
+				NavigationEntry entry = getTableRow() != null ? getTableRow().getItem() : null;
 				if (!empty && entry != null && !entry.accountNode()) {
 					boundProperty = entry.selectedProperty();
 					checkBox.selectedProperty().bindBidirectional(boundProperty);
@@ -244,7 +249,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 
 	private VBox createNavigationPane() {
 		Label title = new Label(getText("UI_STOCK_PORTFOLIO_LIST"));
-		title.getStyleClass().add("gbanking-form-section-title");
+		title.getStyleClass().add(FORM_SECTION_TITLE);
 		VBox result = new VBox(6, title, navigationTree);
 		result.setPadding(new Insets(4));
 		VBox.setVgrow(navigationTree, Priority.ALWAYS);
@@ -293,7 +298,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		FormGridHelper.addFieldAbove(grid, getText("UI_STOCK_FIELD_ACCOUNT"), settlementNameValue, 0, 0);
 		FormGridHelper.addFieldAbove(grid, getText("UI_STOCK_FIELD_BANK"), settlementBankValue, 1, 0);
 		FormGridHelper.addFieldAbove(grid, getText("UI_STOCK_FIELD_IBAN"), settlementIbanValue, 2, 0);
-		FormGridHelper.addFieldAbove(grid, getText("UI_STOCK_FIELD_CURRENCY"), settlementCurrencyValue, 0, 1);
+		FormGridHelper.addFieldAbove(grid, getText(UI_STOCK_FIELD_CURRENCY), settlementCurrencyValue, 0, 1);
 		FormGridHelper.addFieldAbove(grid, getText("UI_STOCK_FIELD_BALANCE"), settlementBalanceValue, 1, 1);
 		settlementEditButton.setText(getText("UI_STOCK_ACTION_EDIT_SETTLEMENT_ACCOUNT"));
 		settlementEditButton.setDisable(true);
@@ -317,7 +322,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 				PositionSummary::unitPrice));
 		positionTable.getColumns().add(createPerformanceAmountColumn(getText("UI_STOCK_COLUMN_TOTAL_VALUE"),
 				PositionSummary::totalValue));
-		positionTable.getColumns().add(TableColumnFactory.createFixedTextColumn(getText("UI_STOCK_FIELD_CURRENCY"),
+		positionTable.getColumns().add(TableColumnFactory.createFixedTextColumn(getText(UI_STOCK_FIELD_CURRENCY),
 				position -> currencyName(position.currency()), 85));
 		positionTable.getColumns().add(createPercentageColumn(getText("UI_STOCK_COLUMN_PERFORMANCE"),
 				PositionSummary::performancePercent));
@@ -362,7 +367,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 				TransactionSummary::unitPrice));
 		transactionTable.getColumns().add(TableColumnFactory.createAmountColumn(getText("UI_STOCK_COLUMN_TOTAL_PRICE"),
 				TransactionSummary::totalPrice));
-		transactionTable.getColumns().add(TableColumnFactory.createFixedTextColumn(getText("UI_STOCK_FIELD_CURRENCY"),
+		transactionTable.getColumns().add(TableColumnFactory.createFixedTextColumn(getText(UI_STOCK_FIELD_CURRENCY),
 				summary -> currencyName(summary.currency()), 80));
 		transactionTable.setRowFactory(table -> createTransactionRow());
 	}
@@ -399,7 +404,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		MenuItem link = new MenuItem(getText("UI_STOCK_EXCHANGE_USE_IMPORTED"));
 		link.setOnAction(event -> openSecurityExchange(null, true));
 		link.setDisable(!transaction.externalSource());
-		MenuItem unlink = new MenuItem(getText("UI_STOCK_EXCHANGE_UNLINK"));
+		MenuItem unlink = new MenuItem(getText(UI_STOCK_EXCHANGE_UNLINK));
 		unlink.setDisable(!linkedExchangeIds.contains(transaction.transactionId()));
 		unlink.setOnAction(event -> unlinkSecurityExchange(transaction.transactionId()));
 		return new ContextMenu(history, link, unlink);
@@ -415,7 +420,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 			updateTransactionHistory();
 		});
 		historyLabel.setWrapText(true);
-		historyLabel.getStyleClass().add("gbanking-form-section-title");
+		historyLabel.getStyleClass().add(FORM_SECTION_TITLE);
 		VBox section = createTableSection("UI_STOCK_PORTFOLIO_TRANSACTIONS", transactionTable);
 		HBox header = new HBox(10, historyLabel, includePredecessors, showAllTransactions);
 		header.setAlignment(Pos.CENTER_LEFT);
@@ -459,7 +464,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 
 	private void unlinkSecurityExchange(int transactionId) {
 		if (DialogWindowSupport.showConfirmation(getOwnerWindow(), Alert.AlertType.CONFIRMATION,
-				getText("UI_STOCK_EXCHANGE_UNLINK"), getText("UI_STOCK_EXCHANGE_UNLINK"),
+				getText(UI_STOCK_EXCHANGE_UNLINK), getText(UI_STOCK_EXCHANGE_UNLINK),
 				getText("UI_STOCK_EXCHANGE_UNLINK_TEXT"), ButtonType.OK, ButtonType.CANCEL)) {
 			try {
 				service.unlinkSecurityExchange(transactionId);
@@ -471,7 +476,9 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	}
 
 	private static boolean isHyperlinkTarget(Object target) {
-		Node node = target instanceof Node ? (Node) target : null;
+		if (!(target instanceof Node node)) {
+			return false;
+		}
 		while (node != null) {
 			if (node instanceof Hyperlink) {
 				return true;
@@ -617,7 +624,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 
 	private VBox createTableSection(String titleKey, Node table) {
 		Label title = new Label(getText(titleKey));
-		title.getStyleClass().add("gbanking-form-section-title");
+		title.getStyleClass().add(FORM_SECTION_TITLE);
 		VBox result = new VBox(4, title, table);
 		result.setPadding(new Insets(4));
 		VBox.setVgrow(table, Priority.ALWAYS);
@@ -816,8 +823,8 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	private void openTransactionDialog(List<SecuritySummary> securities,
 			StockPortfolioService.TransactionEditData editData, List<TransactionPrefill> prefills,
 			Integer preferredSecurityId) {
-		new StockTransactionDialog(getOwnerWindow(), selectedPortfolio, securities, editData, prefills,
-				preferredSecurityId,
+		new StockTransactionDialog(getOwnerWindow(), selectedPortfolio, securities, editData,
+				new StockTransactionDialog.InitialSelection(prefills, preferredSecurityId),
 				request -> service.saveTransaction(selectedPortfolio, request), this::refreshSelectedPortfolio).show();
 	}
 
@@ -842,11 +849,12 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	}
 
 	private void openPrices(int securityId, String securityName, Currency currency) {
-		new SecurityPriceDialog(getOwnerWindow(), securityId, securityName, currency, () -> service.getPrices(securityId),
+		new SecurityPriceDialog(getOwnerWindow(), securityId, securityName, currency,
+				new SecurityPriceDialog.PriceActions(() -> service.getPrices(securityId),
 				(correctedId, date, price, priceCurrency, confirmed) -> service.savePrice(
 						securityId, correctedId, date, price, priceCurrency, confirmed),
 				(priceId, confirmed) -> service.deletePrice(securityId, priceId, confirmed),
-				this::refreshSelectedPortfolio).show();
+				this::refreshSelectedPortfolio)).show();
 	}
 
 	private void openTrade(PositionSummary position) {

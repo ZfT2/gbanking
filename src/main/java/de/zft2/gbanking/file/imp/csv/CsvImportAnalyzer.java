@@ -59,9 +59,9 @@ public class CsvImportAnalyzer {
 		}
 
 		List<Match> likelyMatches = bestLikelyMatches(inspected);
-		return !likelyMatches.isEmpty()
-				? new Analysis(likelyMatches, Problem.MISSING_REQUIRED_FIELDS, repository.getDefinitionFile())
-				: new Analysis(List.of(), Problem.UNKNOWN_DEFINITION, repository.getDefinitionFile());
+		return likelyMatches.isEmpty()
+				? new Analysis(List.of(), Problem.UNKNOWN_DEFINITION, repository.getDefinitionFile())
+				: new Analysis(likelyMatches, Problem.MISSING_REQUIRED_FIELDS, repository.getDefinitionFile());
 	}
 
 	public Match match(Path importFile, String definitionName) throws IOException {

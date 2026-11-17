@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -245,11 +246,11 @@ public class MoneyTransferCsvImportBean extends MoneyTransferImportBean {
 		return List.of(new ParsedProtocol(parseProtocolStatus(requireField(csvRecord, protocolHeaders.status(),
 				ExportConstants.PROTOCOL_STATUS.toString()), csvRecord),
 				parseLocalizedEnum(resultStatus, MoneyTransferProtocolResultStatus.class, ExportConstants.PROTOCOL_RESULT_STATUS, csvRecord),
-				parseBoolean(pinOk, ExportConstants.PROTOCOL_PIN_OK, csvRecord),
-				parseBoolean(scaRequired, ExportConstants.PROTOCOL_SCA_REQUIRED, csvRecord),
-				parseBoolean(vopRequired, ExportConstants.PROTOCOL_VOP_REQUIRED, csvRecord),
+				parseBoolean(pinOk, ExportConstants.PROTOCOL_PIN_OK, csvRecord).orElse(null),
+				parseBoolean(scaRequired, ExportConstants.PROTOCOL_SCA_REQUIRED, csvRecord).orElse(null),
+				parseBoolean(vopRequired, ExportConstants.PROTOCOL_VOP_REQUIRED, csvRecord).orElse(null),
 				parseLocalizedEnum(vopResult, VopResult.class, ExportConstants.PROTOCOL_VOP_RESULT, csvRecord),
-				parseBoolean(recipientNameCorrected, ExportConstants.PROTOCOL_RECIPIENT_NAME_CORRECTED, csvRecord),
+				parseBoolean(recipientNameCorrected, ExportConstants.PROTOCOL_RECIPIENT_NAME_CORRECTED, csvRecord).orElse(null),
 				parseLocalDateTime(requireField(csvRecord, protocolHeaders.timeStart(), ExportConstants.PROTOCOL_TIME_START.toString()), csvRecord,
 						ExportConstants.PROTOCOL_TIME_START.toString()),
 				parseOptionalLocalDateTime(timeFinish, csvRecord, ExportConstants.PROTOCOL_TIME_FINISH.toString()), bankOrderId, hbciJobId,
@@ -269,15 +270,15 @@ public class MoneyTransferCsvImportBean extends MoneyTransferImportBean {
 		return result;
 	}
 
-	private Boolean parseBoolean(String value, ExportConstants field, CSVRecord csvRecord) {
+	private Optional<Boolean> parseBoolean(String value, ExportConstants field, CSVRecord csvRecord) {
 		if (value == null) {
-			return null;
+			return Optional.empty();
 		}
-		return switch (value.trim().toLowerCase(Locale.ROOT)) {
+		return Optional.of(switch (value.trim().toLowerCase(Locale.ROOT)) {
 		case "true", "1", "ja", "yes" -> Boolean.TRUE;
 		case "false", "0", "nein", "no" -> Boolean.FALSE;
 		default -> throw invalidFieldValue(csvRecord, field.toString(), value, null);
-		};
+		});
 	}
 
 	private boolean hasAnyValue(String... values) {

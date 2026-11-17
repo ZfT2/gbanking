@@ -42,7 +42,7 @@ public class BankMessageService extends AbstractDbService {
 	private static final String FREE_TEXT_TYPE = "F";
 	private static final int DETAILS_BATCH_SIZE = 10;
 
-	private final GBankingLoggingHandler logHandler = GBankingLoggingHandler.getInstance();
+	private final GBankingLoggingHandler logHandler = new GBankingLoggingHandler();
 	private final HbciSessionRunner hbciSessionRunner = new HbciSessionRunner();
 
 	public List<BankMessage> listBankMessages(BankAccess bankAccess) {

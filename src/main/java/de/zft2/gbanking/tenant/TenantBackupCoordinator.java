@@ -212,8 +212,7 @@ public final class TenantBackupCoordinator {
 			for (Path segment : archivePath) {
 				unsafe |= "..".equals(segment.toString());
 			}
-			boolean databaseEntry = entry.isDirectory() ? relativePath.equals(DATABASE_ARCHIVE_DIRECTORY)
-					: relativePath.equals(DATABASE_ARCHIVE_PATH);
+			boolean databaseEntry = relativePath.equals(entry.isDirectory() ? DATABASE_ARCHIVE_DIRECTORY : DATABASE_ARCHIVE_PATH);
 			boolean statementEntry = relativePath.startsWith(STATEMENTS_ARCHIVE_DIRECTORY)
 					&& (entry.isDirectory() || relativePath.getNameCount() > 1);
 			if (unsafe || (!databaseEntry && !statementEntry)) {

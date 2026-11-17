@@ -206,7 +206,7 @@ public class FileExportMT940Bean extends FileExportBean {
 		if (bookings.isEmpty()) {
 			return LocalDate.now(ZoneId.systemDefault());
 		}
-		Booking booking = first ? bookings.get(0) : bookings.get(bookings.size() - 1);
+		Booking booking = bookings.get(first ? 0 : bookings.size() - 1);
 		return sortDate(booking);
 	}
 

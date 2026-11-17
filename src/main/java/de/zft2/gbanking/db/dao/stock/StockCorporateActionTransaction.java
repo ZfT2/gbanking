@@ -18,6 +18,7 @@ public class StockCorporateActionTransaction extends StockDao {
 	public int getActionId() { return actionId; }
 	public void setActionId(int id) { actionId = id; }
 	public StockCorporateActionMemberRole getPrimaryRole() { return primaryRole; }
+	public void setPrimaryRole(StockCorporateActionMemberRole role) { primaryRole = role; }
 	public Integer getBookingId() { return bookingId; }
 	public void setBookingId(Integer id) { bookingId = id; }
 	public StockCorporateActionOperation getOperation() { return operation; }

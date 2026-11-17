@@ -210,6 +210,11 @@ public abstract class InstituteFileImport implements BaseMessages {
 		return importedInstitutes;
 	}
 
+	/**
+	 * Resolves the CSV layout, optionally depending on the source file.
+	 * @param file source file inspected by file-specific overrides
+	 * @return the default layout unless overridden
+	 */
 	protected CSVFormat csvFormat(Path file) {
 		return csvFormat();
 	}
@@ -369,14 +374,30 @@ public abstract class InstituteFileImport implements BaseMessages {
 		return "UI_PROGRESS_INSTITUTE_PROCESS_BLZ";
 	}
 
+	/**
+	 * Checks additional metadata supplied by specialized import formats.
+	 * @param existing persisted institute compared by format-specific overrides
+	 * @param imported incoming institute compared by format-specific overrides
+	 * @return false for formats without additional metadata
+	 */
 	protected boolean hasImportMetadataChanged(Institute existing, Institute imported) {
 		return false;
 	}
 
+	/**
+	 * Reads a validity start date when the import format provides one.
+	 * @param institute source record inspected by format-specific overrides
+	 * @return null to use the snapshot date instead
+	 */
 	protected LocalDate getSourceValidityDate(Institute institute) {
 		return null;
 	}
 
+	/**
+	 * Reads a validity end date when the import format provides one.
+	 * @param institute source record inspected by format-specific overrides
+	 * @return null for an open-ended validity period
+	 */
 	protected LocalDate getSourceValidityEndDate(Institute institute) {
 		return null;
 	}
@@ -516,6 +537,11 @@ public abstract class InstituteFileImport implements BaseMessages {
 		return institute.getStateType() == InstituteStatus.ACTIVE || institute.getStateType() == InstituteStatus.DUPLICATE;
 	}
 
+	/**
+	 * Determines how many non-CSV lines precede a format's actual data.
+	 * @param file source file inspected by format-specific overrides
+	 * @return zero for files without a preamble
+	 */
 	protected int getPreambleLinesToSkip(Path file) throws IOException {
 		return 0;
 	}

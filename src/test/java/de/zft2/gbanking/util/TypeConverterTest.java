@@ -8,10 +8,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Month;
+import java.time.ZoneId;
 
 import org.junit.jupiter.api.Test;
 
 class TypeConverterTest {
+
+	@Test
+	void shouldBridgeLegacyDatesAtTheSystemTimeZoneBoundary() {
+		LocalDateTime dateTime = LocalDateTime.of(2026, Month.JULY, 1, 14, 35);
+		java.util.Date legacy = java.util.Date.from(dateTime.atZone(ZoneId.systemDefault()).toInstant());
+
+		assertEquals(dateTime, TypeConverter.toLocalDateTime(legacy, null));
+		assertEquals(dateTime, TypeConverter.toLocalDateTime(null, dateTime));
+		assertEquals(dateTime.toLocalDate(), TypeConverter.toLocalDate(TypeConverter.toUtilDate(dateTime.toLocalDate())));
+		assertNull(TypeConverter.toUtilDate(null));
+	}
 
 	@Test
 	void shouldParseAndFormatDates() {

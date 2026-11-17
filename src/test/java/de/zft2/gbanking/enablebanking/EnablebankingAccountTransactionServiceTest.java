@@ -198,7 +198,7 @@ class EnablebankingAccountTransactionServiceTest implements BaseMessages {
 		assertEquals(1, mapped.booked().size());
 		assertEquals(1, mapped.skippedWithoutDate());
 		assertEquals("11.50", mapped.booked().get(0).getAmount().toPlainString());
-		assertEquals(LocalDate.of(2026, 8, 21), mapped.booked().get(0).getDateBooking());
+		assertEquals(LocalDate.of(2026, Month.AUGUST, 21), mapped.booked().get(0).getDateBooking());
 	}
 
 	@Test

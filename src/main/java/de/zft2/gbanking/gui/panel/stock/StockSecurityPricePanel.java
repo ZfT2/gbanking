@@ -70,10 +70,10 @@ public class StockSecurityPricePanel extends BasePanel {
 			return;
 		}
 		new SecurityPriceDialog(getOwnerWindow(), security.securityId(), security.name(), security.quoteCurrency(),
-				() -> service.getPrices(security.securityId()),
+				new SecurityPriceDialog.PriceActions(() -> service.getPrices(security.securityId()),
 				(priceId, date, price, currency, confirmed) -> service.savePrice(
 						security.securityId(), priceId, date, price, currency, confirmed),
 				(priceId, confirmed) -> service.deletePrice(security.securityId(), priceId, confirmed),
-				this::reloadPrices).show();
+				this::reloadPrices)).show();
 	}
 }

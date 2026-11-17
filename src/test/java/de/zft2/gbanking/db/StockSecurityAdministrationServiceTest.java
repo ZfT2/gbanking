@@ -38,8 +38,8 @@ class StockSecurityAdministrationServiceTest extends DBControllerIntegrationBase
 		StockSecurityAdministrationService service = new StockSecurityAdministrationService();
 		service.save(request(null, "Erstes Wertpapier", "DE0000000001", null));
 
-		assertThrows(GBankingException.class,
-				() -> service.save(request(null, "Zweites Wertpapier", "DE0000000001", null)));
+		SecuritySaveRequest duplicate = request(null, "Zweites Wertpapier", "DE0000000001", null);
+		assertThrows(GBankingException.class, () -> service.save(duplicate));
 	}
 
 	private static SecuritySaveRequest request(Integer id, String name, String isin, String wkn) {

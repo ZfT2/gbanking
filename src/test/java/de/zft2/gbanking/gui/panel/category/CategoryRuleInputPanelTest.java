@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,7 @@ class CategoryRuleInputPanelTest {
 		Recipient recipient = new Recipient("Max Mustermann", "DE02120300000000202051");
 		recipient.setAccountNumber("202051");
 		Booking booking = new Booking();
-		booking.setDateBooking(LocalDate.of(2026, 9, 17));
+		booking.setDateBooking(LocalDate.of(2026, Month.SEPTEMBER, 17));
 		booking.setAmount(new BigDecimal("-123.45"));
 		booking.setPurpose("Monatlicher Beitrag");
 		booking.setCategory(category);

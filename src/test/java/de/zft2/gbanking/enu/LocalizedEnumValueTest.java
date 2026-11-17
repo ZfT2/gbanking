@@ -68,7 +68,10 @@ class LocalizedEnumValueTest {
 		assertLocalized(ButtonContext.values());
 		assertLocalized(FileType.values());
 		assertLocalized(JoinType.values());
+	}
 
+	@Test
+	void localizedEnumsShouldProvideSpecializedLabels() {
 		for (OrderType orderType : OrderType.values()) {
 			assertNotEquals(orderType.getMessageKey() + "_PLURAL", orderType.getPlural());
 		}

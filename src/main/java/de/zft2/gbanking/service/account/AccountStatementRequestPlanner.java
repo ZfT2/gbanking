@@ -49,7 +49,7 @@ final class AccountStatementRequestPlanner {
 
 		acknowledgedStatements.sort((left, right) -> {
 			int yearCompare = Integer.compare(right.getYear(), left.getYear());
-			return yearCompare != 0 ? yearCompare : Integer.compare(right.getNumber(), left.getNumber());
+			return yearCompare == 0 ? Integer.compare(right.getNumber(), left.getNumber()) : yearCompare;
 		});
 
 		for (BankAccountStatement statement : acknowledgedStatements) {
@@ -84,7 +84,7 @@ final class AccountStatementRequestPlanner {
 
 		downloadableEntries.sort((left, right) -> {
 			int yearCompare = Integer.compare(yearValue(right.year()), yearValue(left.year()));
-			return yearCompare != 0 ? yearCompare : Integer.compare(right.number(), left.number());
+			return yearCompare == 0 ? Integer.compare(right.number(), left.number()) : yearCompare;
 		});
 
 		Set<String> requestedStatementIds = new HashSet<>();

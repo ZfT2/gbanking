@@ -16,7 +16,7 @@ class HbciStatusMessageExtractorAdditionalTest {
 
 	@Test
 	void extractMessageLines_shouldFlattenNestedPayloadsAndNormalizeHbciEscaping() {
-		Object[] payload = new Object[] { new Object[] { "HIRMG:1:2+0010::Dialog akzeptiert'", null },
+		Object[] payload = { new Object[] { "HIRMG:1:2+0010::Dialog akzeptiert'", null },
 				"HIRMS:2:2+0020::?:?Auftrag gebucht'" };
 
 		List<String> lines = HbciStatusMessageExtractor.extractMessageLines(payload);
@@ -33,7 +33,7 @@ class HbciStatusMessageExtractorAdditionalTest {
 
 	@Test
 	void sanitizeForDetails_shouldFlattenNestedPayloadsAndKeepRawTexts() {
-		Object[] payload = new Object[] { "outer", new Object[] { "inner 1", null, "inner 2" } };
+		Object[] payload = { "outer", new Object[] { "inner 1", null, "inner 2" } };
 
 		String details = HbciStatusMessageExtractor.sanitizeForDetails(payload);
 

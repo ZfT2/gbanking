@@ -27,10 +27,10 @@ public class CategoryOverviewPanel extends OverviewBasePanel implements AccountS
 	private static final double ACCOUNT_DIVIDER = 0.20;
 
 	private AccountListPanel accountListPanel;
-	private CategoryRuleInputPanel categoryRuleInputPanel;
-	private CategoryRuleListPanel categoryRuleListPanel;
-	private CategoryInputPanel categoryInputPanel;
-	private CategoryListPanel categoryListPanel;
+	private final CategoryRuleInputPanel categoryRuleInputPanel;
+	private final CategoryRuleListPanel categoryRuleListPanel;
+	private final CategoryInputPanel categoryInputPanel;
+	private final CategoryListPanel categoryListPanel;
 	private BankAccount selectedAccount;
 	private TabPane tabPane;
 

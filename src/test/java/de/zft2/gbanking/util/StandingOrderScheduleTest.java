@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.time.LocalDate;
+import java.time.Month;
 
 import org.junit.jupiter.api.Test;
 
@@ -11,7 +12,7 @@ import de.zft2.gbanking.db.dao.enu.StandingorderMode;
 
 class StandingOrderScheduleTest {
 
-	private static final LocalDate FIRST_EXECUTION_DATE = LocalDate.of(2026, 1, 10);
+	private static final LocalDate FIRST_EXECUTION_DATE = LocalDate.of(2026, Month.JANUARY, 10);
 
 	@Test
 	void shouldReturnTheFirstExecutionDateWhenItIsNotOverdue() {
@@ -24,49 +25,49 @@ class StandingOrderScheduleTest {
 	@Test
 	void shouldReturnTheNextExecutionDateWhenTheFirstExecutionDateIsOverdue() {
 		LocalDate nextExecutionDate = StandingOrderSchedule.nextExecutionDate(FIRST_EXECUTION_DATE, 10, StandingorderMode.MONTHLY,
-				LocalDate.of(2026, 1, 11));
+				LocalDate.of(2026, Month.JANUARY, 11));
 
-		assertEquals(LocalDate.of(2026, 2, 10), nextExecutionDate);
+		assertEquals(LocalDate.of(2026, Month.FEBRUARY, 10), nextExecutionDate);
 	}
 
 	@Test
 	void shouldReturnTheCurrentExecutionDateOnTheExecutionDay() {
 		LocalDate nextExecutionDate = StandingOrderSchedule.nextExecutionDate(FIRST_EXECUTION_DATE, 10, StandingorderMode.MONTHLY,
-				LocalDate.of(2026, 2, 10));
+				LocalDate.of(2026, Month.FEBRUARY, 10));
 
-		assertEquals(LocalDate.of(2026, 2, 10), nextExecutionDate);
+		assertEquals(LocalDate.of(2026, Month.FEBRUARY, 10), nextExecutionDate);
 	}
 
 	@Test
 	void shouldLimitTheExecutionDayToTheLengthOfTheMonth() {
-		LocalDate nextExecutionDate = StandingOrderSchedule.nextExecutionDate(LocalDate.of(2026, 1, 31), 31, StandingorderMode.MONTHLY,
-				LocalDate.of(2026, 2, 1));
+		LocalDate nextExecutionDate = StandingOrderSchedule.nextExecutionDate(LocalDate.of(2026, Month.JANUARY, 31), 31, StandingorderMode.MONTHLY,
+				LocalDate.of(2026, Month.FEBRUARY, 1));
 
-		assertEquals(LocalDate.of(2026, 2, 28), nextExecutionDate);
+		assertEquals(LocalDate.of(2026, Month.FEBRUARY, 28), nextExecutionDate);
 	}
 
 	@Test
 	void shouldReturnTheFirstDayOfTheMonthAfterAClampedExecutionDay() {
-		LocalDate nextExecutionDate = StandingOrderSchedule.nextExecutionDate(LocalDate.of(2026, 1, 31), 31, StandingorderMode.MONTHLY,
-				LocalDate.of(2026, 3, 1));
+		LocalDate nextExecutionDate = StandingOrderSchedule.nextExecutionDate(LocalDate.of(2026, Month.JANUARY, 31), 31, StandingorderMode.MONTHLY,
+				LocalDate.of(2026, Month.MARCH, 1));
 
-		assertEquals(LocalDate.of(2026, 3, 31), nextExecutionDate);
+		assertEquals(LocalDate.of(2026, Month.MARCH, 31), nextExecutionDate);
 	}
 
 	@Test
 	void shouldRespectTheIntervalOfTheStandingOrder() {
 		LocalDate nextExecutionDate = StandingOrderSchedule.nextExecutionDate(FIRST_EXECUTION_DATE, 10, StandingorderMode.QUARTERLY,
-				LocalDate.of(2026, 2, 1));
+				LocalDate.of(2026, Month.FEBRUARY, 1));
 
-		assertEquals(LocalDate.of(2026, 4, 10), nextExecutionDate);
+		assertEquals(LocalDate.of(2026, Month.APRIL, 10), nextExecutionDate);
 	}
 
 	@Test
 	void shouldRespectTheIntervalOfAnAnnualStandingOrder() {
-		LocalDate nextExecutionDate = StandingOrderSchedule.nextExecutionDate(LocalDate.of(2026, 6, 1), 1, StandingorderMode.ANNUALLY,
-				LocalDate.of(2026, 7, 1));
+		LocalDate nextExecutionDate = StandingOrderSchedule.nextExecutionDate(LocalDate.of(2026, Month.JUNE, 1), 1, StandingorderMode.ANNUALLY,
+				LocalDate.of(2026, Month.JULY, 1));
 
-		assertEquals(LocalDate.of(2027, 6, 1), nextExecutionDate);
+		assertEquals(LocalDate.of(2027, Month.JUNE, 1), nextExecutionDate);
 	}
 
 	@Test

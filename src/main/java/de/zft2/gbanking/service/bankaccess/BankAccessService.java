@@ -7,6 +7,7 @@ import static de.zft2.gbanking.util.TextValues.trimToNull;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
@@ -59,7 +60,7 @@ public class BankAccessService extends AbstractDbService {
 	private static final String ACCOUNT_INFO_JOB = "AccInfo";
 	private static final String ACCOUNT_INFO_BUSINESS_CASE = "HKKIF";
 
-	private static GBankingLoggingHandler logHandler = GBankingLoggingHandler.getInstance();
+	private static GBankingLoggingHandler logHandler = new GBankingLoggingHandler();
 	private final PaypalAccountService paypalAccountService = ServiceRegistry.getService(PaypalAccountService.class);
 
 	public HBCIHandler createHBCIHandler(String versionId, HBCIPassport passport) {
@@ -174,7 +175,7 @@ public class BankAccessService extends AbstractDbService {
 		List<BankAccount> bankAccountList = retrieved.accounts();
 		applyPassportData(bankAccess, passport, bankAccountList);
 		List<PortfolioReferenceRequest> portfolioReferences = queuePortfolioReferenceRequests(
-				session.handler(), retrieved.providerAccounts(), bankAccountList);
+				session.handler(), retrieved.providerAccounts().toArray(Konto[]::new), bankAccountList);
 
 		if (bankAccessDb != null) {
 			bankAccess.setId(bankAccessDb.getId());
@@ -230,7 +231,7 @@ public class BankAccessService extends AbstractDbService {
 		RetrievedAccounts retrieved = mapPassportAccounts(session.passport(), refreshAccess);
 		List<BankAccount> bankAccountList = retrieved.accounts();
 		List<PortfolioReferenceRequest> portfolioReferences = queuePortfolioReferenceRequests(
-				session.handler(), retrieved.providerAccounts(), bankAccountList);
+				session.handler(), retrieved.providerAccounts().toArray(Konto[]::new), bankAccountList);
 		if (!portfolioReferences.isEmpty()) {
 			HBCIExecStatus accountInfoStatus = session.handler().execute();
 			if (accountInfoStatus != null && accountInfoStatus.isOK()) {
@@ -269,11 +270,11 @@ public class BankAccessService extends AbstractDbService {
 				account.setBic(bic);
 				if (bic == null) {
 					log.warn("No BIC available for account id {}, IBAN {}, number {}; the account can still be saved.",
-							account.getId(), SensitiveDataMasker.maskIban(account.getIban()),
-							SensitiveDataMasker.maskAccountNumber(account.getNumber()));
+							account::getId, () -> SensitiveDataMasker.maskIban(account.getIban()),
+							() -> SensitiveDataMasker.maskAccountNumber(account.getNumber()));
 				}
 			}
-			retrieved.providerAccounts()[index].bic = account.getBic();
+			retrieved.providerAccounts().get(index).bic = account.getBic();
 			account.setSEPAAccount(hasText(account.getBic()) && hasText(account.getIban()));
 		}
 	}
@@ -540,7 +541,10 @@ public class BankAccessService extends AbstractDbService {
 	private record PortfolioReferenceRequest(BankAccount portfolioAccount, HBCIJob<GVRAccInfo> job) {
 	}
 
-	private record RetrievedAccounts(Konto[] providerAccounts, List<BankAccount> accounts) {
+	private record RetrievedAccounts(List<Konto> providerAccounts, List<BankAccount> accounts) {
+		private RetrievedAccounts(Konto[] providerAccounts, List<BankAccount> accounts) {
+			this(Arrays.asList(providerAccounts), accounts);
+		}
 	}
 
 	public List<BankAccount> getLinkablePaypalAccounts() {

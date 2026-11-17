@@ -37,6 +37,9 @@ final class PortfolioPerformanceXmlReader {
 	private static final Pattern REFERENCE_SEGMENT = Pattern.compile("([\\w-]+)(?:\\[(\\d+)])?");
 	private static final BigDecimal AMOUNT_SCALE = BigDecimal.valueOf(100);
 	private static final BigDecimal VALUE_SCALE = BigDecimal.valueOf(100_000_000L);
+	private static final String CURRENCY_CODE = "currencyCode";
+	private static final String AMOUNT = "amount";
+	private static final String REFERENCE = "reference";
 
 	PortfolioPerformanceData.Document read(Path file) throws IOException {
 		Document document = parse(file);
@@ -67,7 +70,7 @@ final class PortfolioPerformanceXmlReader {
 
 	private static Account readAccount(Element element, Map<Integer, String> externalIds) {
 		return new Account(requiredText(element, "uuid", "Kontokennung"),
-				requiredText(element, "name", "Kontoname"), Currency.forCode(requiredText(element, "currencyCode", "Kontowährung")),
+				requiredText(element, "name", "Kontoname"), Currency.forCode(requiredText(element, CURRENCY_CODE, "Kontowährung")),
 				Boolean.parseBoolean(text(element, "isRetired")),
 				readTransactions(element, "account-transaction", externalIds));
 	}
@@ -124,7 +127,7 @@ final class PortfolioPerformanceXmlReader {
 			if (uuid == null) {
 				continue;
 			}
-			Currency currency = Currency.forCode(text(element, "currencyCode"));
+			Currency currency = Currency.forCode(text(element, CURRENCY_CODE));
 			List<Price> prices = new ArrayList<>(readPrices(directChild(element, "prices")));
 			addLatestPrice(prices, directChild(element, "latest"));
 			result.add(new Security(uuid, requiredText(element, "name", "Wertpapiername"), currency,
@@ -172,11 +175,11 @@ final class PortfolioPerformanceXmlReader {
 			if (text(element, "uuid") == null) {
 				continue;
 			}
-			String currencyCode = text(element, "currencyCode");
+			String currencyCode = text(element, CURRENCY_CODE);
 			BigDecimal fees = unitAmount(element, "FEE");
 			BigDecimal taxes = unitAmount(element, "TAX");
 			result.add(new Transaction(text(element, "uuid"), LocalDateTime.parse(requiredText(element, "date", "Datum")),
-					requiredText(element, "type", "Transaktionsart"), minorAmount(text(element, "amount")),
+					requiredText(element, "type", "Transaktionsart"), minorAmount(text(element, AMOUNT)),
 					Currency.forCode(currencyCode), null, null, null, fees, taxes,
 					scaledValue(text(element, "shares")), resolveSecurityReference(directChild(element, "security"), externalIds),
 					null, null, null, null, text(element, "note")));
@@ -191,8 +194,8 @@ final class PortfolioPerformanceXmlReader {
 		}
 		for (Element unit : directChildren(units, "unit")) {
 			if (type.equals(unit.getAttribute("type"))) {
-				Element amount = directChild(unit, "amount");
-				return amount != null ? minorAmount(amount.getAttribute("amount")) : null;
+				Element amount = directChild(unit, AMOUNT);
+				return amount != null ? minorAmount(amount.getAttribute(AMOUNT)) : null;
 			}
 		}
 		return null;
@@ -206,7 +209,7 @@ final class PortfolioPerformanceXmlReader {
 		if (inlineUuid != null) {
 			return inlineUuid;
 		}
-		Matcher matcher = SECURITY_REFERENCE.matcher(security.getAttribute("reference"));
+		Matcher matcher = SECURITY_REFERENCE.matcher(security.getAttribute(REFERENCE));
 		if (!matcher.find()) {
 			return null;
 		}
@@ -224,26 +227,32 @@ final class PortfolioPerformanceXmlReader {
 	}
 
 	private static Element resolveReference(Element element) {
-		if (element == null || element.getAttribute("reference").isBlank()) {
+		if (element == null || element.getAttribute(REFERENCE).isBlank()) {
 			return element;
 		}
 		Node current = element;
-		for (String segment : element.getAttribute("reference").split("/")) {
-			if (segment.isBlank() || ".".equals(segment)) {
-				continue;
-			}
-			if ("..".equals(segment)) {
-				current = current != null ? current.getParentNode() : null;
-				continue;
-			}
-			Matcher matcher = REFERENCE_SEGMENT.matcher(segment);
-			if (!matcher.matches()) {
+		for (String segment : element.getAttribute(REFERENCE).split("/")) {
+			current = resolveReferenceSegment(current, segment);
+			if (current == null) {
 				return null;
 			}
-			int childIndex = matcher.group(2) != null ? Integer.parseInt(matcher.group(2)) : 1;
-			current = directChild(current, matcher.group(1), childIndex);
 		}
 		return current instanceof Element resolved ? resolved : null;
+	}
+
+	private static Node resolveReferenceSegment(Node current, String segment) {
+		if (segment.isBlank() || ".".equals(segment)) {
+			return current;
+		}
+		if ("..".equals(segment)) {
+			return current.getParentNode();
+		}
+		Matcher matcher = REFERENCE_SEGMENT.matcher(segment);
+		if (!matcher.matches()) {
+			return null;
+		}
+		int childIndex = matcher.group(2) != null ? Integer.parseInt(matcher.group(2)) : 1;
+		return directChild(current, matcher.group(1), childIndex);
 	}
 
 	private static Element directChild(Node parent, String name, int requestedIndex) {

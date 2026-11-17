@@ -15,9 +15,24 @@ import org.sqlite.SQLiteConfig;
 import de.zft2.gbanking.db.dao.stock.StockDao;
 import de.zft2.gbanking.db.dao.stock.StockDaoMetadata;
 import de.zft2.gbanking.db.dao.stock.StockDaoTypes;
+import de.zft2.gbanking.db.dao.stock.StockImportRecord;
 import de.zft2.gbanking.db.enu.IdType;
 
 class StockDaoMetadataTest {
+
+	@Test
+	void mappedBinaryColumnsShouldUsePublicDefensiveAccessors() {
+		var metadata = StockDaoMetadata.of(StockImportRecord.class);
+		var column = metadata.columns().stream().filter(candidate -> candidate.name().equals("rawRecord")).findFirst().orElseThrow();
+		StockImportRecord dao = metadata.newInstance();
+		byte[] input = { 1, 2 };
+		column.set(dao, input);
+		input[0] = 9;
+		byte[] output = (byte[]) column.get(dao);
+		assertEquals(1, output[0]);
+		output[0] = 8;
+		assertEquals(1, dao.getRawRecord()[0]);
+	}
 
 	@Test
 	void everyStockTableColumnShouldHaveExactlyOneDaoMapping() throws Exception {

@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -56,7 +57,7 @@ class StockPersistenceTest extends DBControllerIntegrationBaseTest {
 
 		StockSecurityPrice price = new StockSecurityPrice();
 		price.setPriceSourceId(priceSource.getId());
-		price.setQuotedAt(LocalDateTime.of(2026, 9, 14, 17, 30));
+		price.setQuotedAt(LocalDateTime.of(2026, Month.SEPTEMBER, 14, 17, 30));
 		price.setPriceE8(12_345_678_900L);
 		price.setQuoteCurrency(Currency.EUR);
 		price.setQuotationType(StockQuotationType.ABSOLUTE);
@@ -69,7 +70,7 @@ class StockPersistenceTest extends DBControllerIntegrationBaseTest {
 		transaction.setTransactionType(StockTransactionType.BUY);
 		transaction.setTransactionStatus(StockTransactionStatus.PENDING);
 		transaction.setEditableFieldMask(StockTransactionEditField.ALL_FIELDS_MASK);
-		transaction.setTradeAt(LocalDateTime.of(2026, 9, 12, 10, 0));
+		transaction.setTradeAt(LocalDateTime.of(2026, Month.SEPTEMBER, 12, 10, 0));
 		db.insertOrUpdate(transaction);
 
 		StockTransactionSecurityLeg securityLeg = new StockTransactionSecurityLeg();
@@ -88,11 +89,11 @@ class StockPersistenceTest extends DBControllerIntegrationBaseTest {
 		accruedInterest.setLegRole(StockCashLegRole.ACCRUED_INTEREST);
 		accruedInterest.setAmountMinor(-125L);
 		accruedInterest.setCurrency(Currency.EUR);
-		accruedInterest.setValueAt(LocalDateTime.of(2026, 9, 14, 0, 0));
+		accruedInterest.setValueAt(LocalDateTime.of(2026, Month.SEPTEMBER, 14, 0, 0));
 		db.insertOrUpdate(accruedInterest);
 
 		transaction.setTransactionStatus(StockTransactionStatus.SETTLED);
-		transaction.setSettledAt(LocalDateTime.of(2026, 9, 14, 0, 0));
+		transaction.setSettledAt(LocalDateTime.of(2026, Month.SEPTEMBER, 14, 0, 0));
 		db.insertOrUpdate(transaction);
 
 		StockTransactionMetadata transactionMetadata = new StockTransactionMetadata();
@@ -137,7 +138,7 @@ class StockPersistenceTest extends DBControllerIntegrationBaseTest {
 		portfolio.setId(100);
 		portfolio.setAccountId(depotAccount.getId());
 		portfolio.setCurrentSettlementRelationId(200);
-		portfolio.setOpenedAt(LocalDate.of(2026, 1, 1));
+		portfolio.setOpenedAt(LocalDate.of(2026, Month.JANUARY, 1));
 
 		StockPortfolioSettlementAccount relation = new StockPortfolioSettlementAccount();
 		relation.setId(200);

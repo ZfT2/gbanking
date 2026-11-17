@@ -137,7 +137,7 @@ class MoneyTransferInventoryServiceTest {
 		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
 		MoneyTransferInventoryService service = new MoneyTransferInventoryService();
 		int initialId = 0;
-		for (LocalDate nextDate : Arrays.asList(LocalDate.of(2026, 12, 31), LocalDate.of(2027, 1, 31), null)) {
+		for (LocalDate nextDate : Arrays.asList(LocalDate.of(2026, Month.DECEMBER, 31), LocalDate.of(2027, Month.JANUARY, 31), null)) {
 			MoneyTransfer transfer = inventoryTransfer(account, "Recipient", "DE11111111111111111111", new BigDecimal("12.34"));
 			transfer.setOrderType(OrderType.STANDING_ORDER);
 			transfer.setBankOrderId("standing-next-date");

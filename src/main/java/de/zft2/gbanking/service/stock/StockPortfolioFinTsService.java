@@ -2,13 +2,14 @@ package de.zft2.gbanking.service.stock;
 
 import static de.zft2.gbanking.util.TextValues.hasText;
 import static de.zft2.gbanking.util.TextValues.trimToNull;
+import static de.zft2.gbanking.util.TypeConverter.toLocalDate;
+import static de.zft2.gbanking.util.TypeConverter.toLocalDateTime;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -91,7 +92,7 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 	private static final Set<String> SECURITY_QUANTITY_UNITS = Set.of("STK", "STCK");
 
 	private final StockPortfolioService portfolioService = ServiceRegistry.getService(StockPortfolioService.class);
-	private final GBankingLoggingHandler logHandler = GBankingLoggingHandler.getInstance();
+	private final GBankingLoggingHandler logHandler = new GBankingLoggingHandler();
 	private final HbciSessionRunner hbciSessionRunner = new HbciSessionRunner();
 
 	public PortfolioSummary findPortfolioForAccount(int accountId) {
@@ -232,18 +233,17 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 
 	private StockPortfolioFinTsRetrievalResult persistPortfolioStatement(int portfolioId, BankAccount account, Entry entry,
 			StockDataSource source, String fingerprint, String externalReference) {
-		LocalDateTime statementAt = toLocalDateTime(entry.timestamp, LocalDateTime.now());
+		LocalDateTime statementAt = toLocalDateTime(entry.timestamp, LocalDateTime.now(ZoneId.systemDefault()));
 		StockImportBatch batch = createImportBatch(source, fingerprint);
-		StockImportRecord record = createImportRecord(batch, fingerprint, externalReference);
-		StockPortfolioStatement statement = createStatement(portfolioId, source, record, entry, account, statementAt, externalReference);
+		StockImportRecord importRecord = createImportRecord(batch, fingerprint, externalReference);
+		StockPortfolioStatement statement = createStatement(portfolioId, source, importRecord, entry, account, statementAt, externalReference);
+		StatementImport context = new StatementImport(source, importRecord, statement, statementAt, fingerprint);
 
 		Map<PositionKey, Long> currentQuantities = currentQuantities(portfolioId);
 		Map<PositionKey, Long> reportedQuantities = new LinkedHashMap<>();
 		int positionCount = 0;
 		int adjustmentCount = 0;
-		Long reportedAccruedInterest = null;
-		Currency accruedInterestCurrency = null;
-		boolean mixedAccruedInterestCurrencies = false;
+		AccruedInterestTotals accruedInterest = new AccruedInterestTotals();
 		for (Gattung gattung : entry.getEntries()) {
 			StockSecurity security = resolveSecurity(source, account, gattung, statement.getValueCurrency());
 			MappedPosition mapped = mapPosition(gattung, statement.getValueCurrency());
@@ -253,23 +253,14 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 			}
 			StockPortfolioStatementPosition position = saveStatementPosition(statement, security, mapped);
 			saveSubBalances(position, gattung.getEntries());
-			savePrice(source, record, security, gattung, mapped, statementAt, externalReference);
-			saveExchangeRate(source, record, gattung, statementAt, externalReference);
-			if (mapped.accruedInterestMinor() != null) {
-				if (accruedInterestCurrency == null || accruedInterestCurrency == mapped.valueCurrency()) {
-					accruedInterestCurrency = mapped.valueCurrency();
-					reportedAccruedInterest = Math.addExact(
-							reportedAccruedInterest != null ? reportedAccruedInterest : 0, mapped.accruedInterestMinor());
-				} else {
-					mixedAccruedInterestCurrencies = true;
-				}
-			}
+			savePrice(source, importRecord, security, gattung, mapped, statementAt, externalReference);
+			saveExchangeRate(source, importRecord, gattung, statementAt, externalReference);
+			accruedInterest.add(mapped);
 			positionCount++;
 
 			long difference = Math.subtractExact(mapped.quantityE9(), currentQuantities.getOrDefault(key, 0L));
 			if (difference != 0) {
-				createReconciliationTransaction(portfolioId, source, record, statement, security, mapped, difference,
-						statementAt, fingerprint);
+				createReconciliationTransaction(context, security, mapped, difference);
 				adjustmentCount++;
 			}
 		}
@@ -278,21 +269,16 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 			if (current.getValue() != 0 && !reportedQuantities.containsKey(current.getKey())) {
 				StockSecurity security = dbController.getById(StockSecurity.class, current.getKey().securityId());
 				MappedPosition emptyPosition = MappedPosition.empty(current.getKey().quantityType());
-				createReconciliationTransaction(portfolioId, source, record, statement, security, emptyPosition,
-						Math.negateExact(current.getValue()), statementAt, fingerprint);
+				createReconciliationTransaction(context, security, emptyPosition, Math.negateExact(current.getValue()));
 				adjustmentCount++;
 			}
 		}
 
-		if (!mixedAccruedInterestCurrencies && reportedAccruedInterest != null
-				&& (statement.getValueCurrency() == null || statement.getValueCurrency() == accruedInterestCurrency)) {
-			statement.setReportedAccruedInterestMinor(reportedAccruedInterest);
-			statement.setValueCurrency(accruedInterestCurrency);
-		}
+		accruedInterest.applyTo(statement);
 		statement.setStatementStatus(StockStatementStatus.FINAL);
 		dbController.insertOrUpdate(statement);
 		batch.setImportStatus(StockImportStatus.IMPORTED);
-		batch.setCompletedAt(LocalDateTime.now());
+		batch.setCompletedAt(LocalDateTime.now(ZoneId.systemDefault()));
 		dbController.insertOrUpdate(batch);
 		log.info("Saved FinTS portfolio statement for portfolio id {}, positions={}, adjustments={}",
 				portfolioId, positionCount, adjustmentCount);
@@ -300,7 +286,7 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 	}
 
 	private int createPortfolio(BankAccount depotAccount, BankAccount settlementAccount) {
-		LocalDate today = LocalDate.now();
+		LocalDate today = LocalDate.now(ZoneId.systemDefault());
 		StockPortfolio portfolio = new StockPortfolio();
 		portfolio.setAccountId(depotAccount.getId());
 		portfolio.setCurrentSettlementRelationId(0);
@@ -326,27 +312,27 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 		batch.setImporterVersion(FINTS_IMPORTER_VERSION);
 		batch.setContentHash(fingerprint);
 		batch.setImportStatus(StockImportStatus.RUNNING);
-		batch.setStartedAt(LocalDateTime.now());
+		batch.setStartedAt(LocalDateTime.now(ZoneId.systemDefault()));
 		return dbController.insertOrUpdate(batch);
 	}
 
 	private StockImportRecord createImportRecord(StockImportBatch batch, String fingerprint, String externalReference) {
-		StockImportRecord record = new StockImportRecord();
-		record.setImportBatchId(batch.getId());
-		record.setRecordNumber(1);
-		record.setRecordType("PORTFOLIO_STATEMENT");
-		record.setExternalReference(externalReference);
-		record.setFingerprint(fingerprint);
-		record.setRecordStatus(StockImportRecordStatus.IMPORTED);
-		return dbController.insertOrUpdate(record);
+		StockImportRecord importRecord = new StockImportRecord();
+		importRecord.setImportBatchId(batch.getId());
+		importRecord.setRecordNumber(1);
+		importRecord.setRecordType("PORTFOLIO_STATEMENT");
+		importRecord.setExternalReference(externalReference);
+		importRecord.setFingerprint(fingerprint);
+		importRecord.setRecordStatus(StockImportRecordStatus.IMPORTED);
+		return dbController.insertOrUpdate(importRecord);
 	}
 
-	private StockPortfolioStatement createStatement(int portfolioId, StockDataSource source, StockImportRecord record,
+	private StockPortfolioStatement createStatement(int portfolioId, StockDataSource source, StockImportRecord importRecord,
 			Entry entry, BankAccount account, LocalDateTime statementAt, String externalReference) {
 		StockPortfolioStatement statement = new StockPortfolioStatement();
 		statement.setPortfolioId(portfolioId);
 		statement.setSourceId(source.getId());
-		statement.setImportRecordId(record.getId());
+		statement.setImportRecordId(importRecord.getId());
 		statement.setStatementAt(statementAt);
 		statement.setStatementStatus(StockStatementStatus.DRAFT);
 		statement.setExternalReference(externalReference);
@@ -396,24 +382,26 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 		}
 	}
 
-	private void createReconciliationTransaction(int portfolioId, StockDataSource source, StockImportRecord record,
-			StockPortfolioStatement statement, StockSecurity security, MappedPosition mapped, long difference,
-			LocalDateTime statementAt, String snapshotFingerprint) {
+	private record StatementImport(StockDataSource source, StockImportRecord importRecord, StockPortfolioStatement statement,
+			LocalDateTime statementAt, String fingerprint) {
+	}
+
+	private void createReconciliationTransaction(StatementImport context, StockSecurity security, MappedPosition mapped, long difference) {
 		if (security == null) {
 			throw new GBankingException("Ein bisheriger Depotbestand verweist auf ein unbekanntes Wertpapier.");
 		}
 		StockTransaction transaction = new StockTransaction();
-		transaction.setPortfolioId(portfolioId);
-		transaction.setSourceId(source.getId());
-		transaction.setImportRecordId(record.getId());
+		transaction.setPortfolioId(context.statement().getPortfolioId());
+		transaction.setSourceId(context.source().getId());
+		transaction.setImportRecordId(context.importRecord().getId());
 		transaction.setTransactionType(StockTransactionType.RECONCILIATION_ADJUSTMENT);
 		transaction.setTransactionStatus(StockTransactionStatus.SETTLED);
-		transaction.setTradeAt(statementAt);
-		transaction.setSettlementDueAt(statementAt);
-		transaction.setSettledAt(statementAt);
-		transaction.setProviderBookedAt(statementAt);
-		transaction.setReconciliationStatementId(statement.getId());
-		transaction.setFingerprint(snapshotFingerprint + ':' + security.getId() + ':' + mapped.quantityType().getDbStateId());
+		transaction.setTradeAt(context.statementAt());
+		transaction.setSettlementDueAt(context.statementAt());
+		transaction.setSettledAt(context.statementAt());
+		transaction.setProviderBookedAt(context.statementAt());
+		transaction.setReconciliationStatementId(context.statement().getId());
+		transaction.setFingerprint(context.fingerprint() + ':' + security.getId() + ':' + mapped.quantityType().getDbStateId());
 		dbController.insertOrUpdate(transaction);
 
 		StockTransactionSecurityLeg leg = new StockTransactionSecurityLeg();
@@ -478,14 +466,7 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 		}
 		Integer matchedSecurityId = null;
 		for (StockSecurityIdentifier identifier : dbController.getAll(StockSecurityIdentifier.class)) {
-			boolean isinMatches = identifier.getIdentifierType() == StockIdentifierType.ISIN
-					&& isin != null && isin.equals(normalizeIdentifier(identifier.getIdentifierValue()));
-			boolean wknMatches = identifier.getIdentifierType() == StockIdentifierType.WKN
-					&& wkn != null && wkn.equals(normalizeIdentifier(identifier.getIdentifierValue()));
-			boolean providerMatches = identifier.getIdentifierType() == StockIdentifierType.PROVIDER
-					&& identifier.getSourceId() != null && identifier.getSourceId() == source.getId()
-					&& provider != null && provider.equals(normalizeIdentifier(identifier.getIdentifierValue()));
-			if (identifier.getValidTo() == null && (isinMatches || wknMatches || providerMatches)) {
+			if (matchesIdentifier(identifier, source.getId(), isin, wkn, provider)) {
 				if (matchedSecurityId != null && matchedSecurityId != identifier.getSecurityId()) {
 					throw new GBankingException("ISIN und WKN des FinTS-Wertpapiers verweisen auf unterschiedliche Wertpapiere.");
 				}
@@ -493,6 +474,19 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 			}
 		}
 		return matchedSecurityId != null ? securities.get(matchedSecurityId) : null;
+	}
+
+	private static boolean matchesIdentifier(StockSecurityIdentifier identifier, int sourceId, String isin, String wkn, String provider) {
+		if (identifier.getValidTo() != null) {
+			return false;
+		}
+		String expected = switch (identifier.getIdentifierType()) {
+		case ISIN -> isin;
+		case WKN -> wkn;
+		case PROVIDER -> identifier.getSourceId() != null && identifier.getSourceId() == sourceId ? provider : null;
+		default -> null;
+		};
+		return expected != null && expected.equals(normalizeIdentifier(identifier.getIdentifierValue()));
 	}
 
 	private void saveIdentifier(StockDataSource source, StockSecurity security, StockIdentifierType type, String value) {
@@ -545,11 +539,11 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 		return new MappedPosition(toScaled(gattung.saldo.getValue(), QUANTITY_SCALE, "Bestand"), quantityType,
 				priceE8, priceCurrency, acquisitionPriceE8, acquisitionPriceCurrency,
 				gattung.price != null ? quotationType : null,
-				gattung.price != null ? priceBasis : null, gattung.days != 0 ? Math.abs(gattung.days) : null, valueMinor, accruedInterestMinor,
+				gattung.price != null ? priceBasis : null, gattung.days == 0 ? null : Math.abs(gattung.days), valueMinor, accruedInterestMinor,
 				valueMinor != null || accruedInterestMinor != null ? reportedValueCurrency : null);
 	}
 
-	private void savePrice(StockDataSource source, StockImportRecord record, StockSecurity security, Gattung gattung,
+	private void savePrice(StockDataSource source, StockImportRecord importRecord, StockSecurity security, Gattung gattung,
 			MappedPosition mapped, LocalDateTime statementAt, String externalReference) {
 		if (mapped.priceE8() == null) {
 			return;
@@ -558,7 +552,7 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 		StockSecurityPriceSource priceSource = getOrCreatePriceSource(source, security, marketIdentifierCode);
 		StockSecurityPrice price = new StockSecurityPrice();
 		price.setPriceSourceId(priceSource.getId());
-		price.setImportRecordId(record.getId());
+		price.setImportRecordId(importRecord.getId());
 		price.setQuotedAt(toLocalDateTime(gattung.timestamp_price, statementAt));
 		price.setPriceE8(mapped.priceE8());
 		price.setQuoteCurrency(mapped.priceCurrency());
@@ -576,7 +570,7 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 				marketIdentifierCode, source.getDefaultPriority());
 	}
 
-	private void saveExchangeRate(StockDataSource source, StockImportRecord record, Gattung gattung,
+	private void saveExchangeRate(StockDataSource source, StockImportRecord importRecord, Gattung gattung,
 			LocalDateTime statementAt, String externalReference) {
 		if (gattung.xchg_kurs <= 0 || trimToNull(gattung.xchg_cur1) == null || trimToNull(gattung.xchg_cur2) == null) {
 			return;
@@ -599,7 +593,7 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 				});
 		StockExchangeRate rate = new StockExchangeRate();
 		rate.setExchangeRateSourceId(rateSource.getId());
-		rate.setImportRecordId(record.getId());
+		rate.setImportRecordId(importRecord.getId());
 		rate.setQuotedAt(toLocalDateTime(gattung.timestamp_price, statementAt));
 		rate.setRateE12(toScaled(BigDecimal.valueOf(gattung.xchg_kurs), EXCHANGE_RATE_SCALE, "Wechselkurs"));
 		rate.setExternalReference(externalReference + ":FX:" + baseCurrency + ':' + quoteCurrency);
@@ -656,7 +650,8 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 		if (entry != null || entries == null) {
 			return entry;
 		}
-		return entries.length == 1 && hasNoAccountIdentifier(entries[0] != null ? entries[0].depot : null)
+		Konto firstAccount = entries.length > 0 && entries[0] != null ? entries[0].depot : null;
+		return entries.length == 1 && hasNoAccountIdentifier(firstAccount)
 				? entries[0] : null;
 	}
 
@@ -716,7 +711,10 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 		if (firstCurrency != null && secondCurrency != null && firstCurrency != secondCurrency) {
 			throw new GBankingException("Depotwert und Stückzinsen haben unterschiedliche Währungen.");
 		}
-		return firstCurrency != null ? firstCurrency : secondCurrency != null ? secondCurrency : fallback;
+		if (firstCurrency != null) {
+			return firstCurrency;
+		}
+		return secondCurrency != null ? secondCurrency : fallback;
 	}
 
 	private static Currency resolveSecurityCurrency(Gattung gattung, Currency statementCurrency, Currency accountCurrency) {
@@ -735,8 +733,10 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 		} else {
 			currencyCode = null;
 		}
-		Currency fallback = statementCurrency != null ? statementCurrency
-				: accountCurrency != null ? accountCurrency : Currency.EUR;
+		Currency fallback = accountCurrency != null ? accountCurrency : Currency.EUR;
+		if (statementCurrency != null) {
+			fallback = statementCurrency;
+		}
 		return requireCurrency(currencyCode, fallback, "Wertpapierwährung");
 	}
 
@@ -822,14 +822,6 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 		return value != null && value.getValue() != null ? value.getValue().stripTrailingZeros().toPlainString() : null;
 	}
 
-	private static LocalDateTime toLocalDateTime(Date value, LocalDateTime fallback) {
-		return value != null ? LocalDateTime.ofInstant(value.toInstant(), ZoneId.systemDefault()) : fallback;
-	}
-
-	private static LocalDate toLocalDate(Date value) {
-		return value != null ? value.toInstant().atZone(ZoneId.systemDefault()).toLocalDate() : null;
-	}
-
 	private static String normalizeIdentifier(String value) {
 		String normalized = trimToNull(value);
 		return normalized != null ? normalized.toUpperCase(Locale.ROOT) : null;
@@ -863,8 +855,37 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 		}
 		String name = trimToNull(account.getAccountName());
 		String number = trimToNull(account.getIban()) != null ? account.getIban() : account.getNumber();
-		return name != null ? name + (trimToNull(number) != null ? " (" + number + ')' : "")
-				: trimToNull(number) != null ? number : "Konto " + account.getId();
+		String suffix = trimToNull(number) != null ? " (" + number + ')' : "";
+		if (name != null) {
+			return name + suffix;
+		}
+		return trimToNull(number) != null ? number : "Konto " + account.getId();
+	}
+
+	private static final class AccruedInterestTotals {
+		private Long amount;
+		private Currency currency;
+		private boolean mixedCurrencies;
+
+		private void add(MappedPosition position) {
+			if (position.accruedInterestMinor() == null) {
+				return;
+			}
+			if (currency == null || currency == position.valueCurrency()) {
+				currency = position.valueCurrency();
+				amount = Math.addExact(amount != null ? amount : 0, position.accruedInterestMinor());
+			} else {
+				mixedCurrencies = true;
+			}
+		}
+
+		private void applyTo(StockPortfolioStatement statement) {
+			if (!mixedCurrencies && amount != null
+					&& (statement.getValueCurrency() == null || statement.getValueCurrency() == currency)) {
+				statement.setReportedAccruedInterestMinor(amount);
+				statement.setValueCurrency(currency);
+			}
+		}
 	}
 
 	private record PositionKey(int securityId, StockQuantityType quantityType) {

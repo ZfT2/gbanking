@@ -3,6 +3,7 @@ package de.zft2.gbanking.service.stock;
 import static de.zft2.gbanking.util.TextValues.equalsIgnoreCase;
 import static de.zft2.gbanking.util.TextValues.trimToNull;
 
+import java.time.ZoneId;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
@@ -157,7 +158,7 @@ public class StockSecurityAdministrationService extends AbstractDbService {
 	}
 
 	private Map<Integer, IdentifierValues> identifiersBySecurity() {
-		LocalDate today = LocalDate.now();
+		LocalDate today = LocalDate.now(ZoneId.systemDefault());
 		Map<Integer, EnumMap<StockIdentifierType, StockSecurityIdentifier>> identifiers = dbController
 				.getAll(StockSecurityIdentifier.class).stream()
 				.filter(identifier -> identifier.getValidTo() == null)

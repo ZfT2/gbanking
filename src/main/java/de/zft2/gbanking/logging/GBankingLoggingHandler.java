@@ -13,10 +13,6 @@ public class GBankingLoggingHandler {
 	
 	private static Logger log = LogManager.getLogger(GBankingLoggingHandler.class);
 	
-	public static GBankingLoggingHandler getInstance() {
-		return new GBankingLoggingHandler();
-	}
-	
 	public void logRetrivedBankAccessInfo(HBCIPassport passport, boolean withPD) {
 		if (!log.isInfoEnabled()) {
 			return;

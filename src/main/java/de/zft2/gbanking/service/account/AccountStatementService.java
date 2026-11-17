@@ -64,7 +64,7 @@ public class AccountStatementService extends AbstractDbService {
 	private static final int REDOWNLOAD_EMPTY_RESULT_LIMIT = 6;
 
 	private final BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
-	private final GBankingLoggingHandler logHandler = GBankingLoggingHandler.getInstance();
+	private final GBankingLoggingHandler logHandler = new GBankingLoggingHandler();
 	private final HbciSessionRunner hbciSessionRunner = new HbciSessionRunner();
 	private final AccountStatementFileManager statementFileManager;
 

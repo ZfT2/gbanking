@@ -2,6 +2,7 @@ package de.zft2.gbanking.gui.dialog.stock;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.ZoneId;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
@@ -48,7 +49,7 @@ public final class StockCorporateActionDialog extends AbstractStockDialog {
 	private final Runnable saved;
 	private final ComboBox<StockCorporateAction> action;
 	private final ComboBox<StockCorporateActionOperation> operation = selection(Arrays.asList(StockCorporateActionOperation.values()), Object::toString);
-	private final DatePicker date = new DatePicker(LocalDate.now());
+	private final DatePicker date = new DatePicker(LocalDate.now(ZoneId.systemDefault()));
 	private final TextField quantity = new TextField();
 	private final TextField price = new TextField();
 	private final TextField fees = new TextField();
@@ -121,8 +122,8 @@ public final class StockCorporateActionDialog extends AbstractStockDialog {
 		field(form, "UI_STOCK_CORPORATE_BOOKING", booking, 2, 2);
 		field(form, "UI_STOCK_CORPORATE_ORIGINAL", original, 0, 3);
 		field(form, "UI_STOCK_CORPORATE_RELATED", related, 1, 3);
-		Button record = createButton("UI_STOCK_CORPORATE_RECORD", () -> runAction(() -> {
-			service.record(portfolio, request());
+		Button recordButton = createButton("UI_STOCK_CORPORATE_RECORD", () -> runAction(() -> {
+			service.recordOperation(portfolio, request());
 			refresh();
 		}));
 		Button link = createButton("UI_STOCK_CORPORATE_LINK", () -> runAction(() -> {
@@ -132,7 +133,7 @@ public final class StockCorporateActionDialog extends AbstractStockDialog {
 			refresh();
 		}));
 		Button clear = createButton("UI_STOCK_CORPORATE_CLEAR", () -> { original.setValue(null); related.setValue(null); booking.clear(); });
-		form.add(new javafx.scene.layout.HBox(8, record, link, clear), 0, 4, 3, 1);
+		form.add(new javafx.scene.layout.HBox(8, recordButton, link, clear), 0, 4, 3, 1);
 		preview.setWrapText(true);
 		form.add(preview, 0, 5, 3, 1);
 		return form;
@@ -142,14 +143,21 @@ public final class StockCorporateActionDialog extends AbstractStockDialog {
 		List<SecuritySummary> securities = portfolios.getTransactionSecurities();
 		Function<SecuritySummary, String> label = security -> security.name() + " | " + Objects.toString(security.isin(), "")
 				+ " | " + Objects.toString(security.wkn(), "");
-		ComboBox<SecuritySummary> underlying = selection(securities, label), rights = selection(securities, label),
-				target = selection(securities, label);
+		ComboBox<SecuritySummary> underlying = selection(securities, label);
+		ComboBox<SecuritySummary> rights = selection(securities, label);
+		ComboBox<SecuritySummary> target = selection(securities, label);
 		ComboBox<StockCorporateActionType> type = selection(Arrays.asList(StockCorporateActionType.values()), Object::toString);
 		type.getSelectionModel().selectFirst();
-		TextField name = new TextField(), allocationFrom = new TextField("1"), allocationTo = new TextField("1"),
-				ratioFrom = new TextField("1"), ratioTo = new TextField("1"), subscription = new TextField(),
-				oldNominal = new TextField(), newNominal = new TextField();
-		DatePicker effective = new DatePicker(LocalDate.now()), end = new DatePicker();
+		TextField name = new TextField();
+		TextField allocationFrom = new TextField("1");
+		TextField allocationTo = new TextField("1");
+		TextField ratioFrom = new TextField("1");
+		TextField ratioTo = new TextField("1");
+		TextField subscription = new TextField();
+		TextField oldNominal = new TextField();
+		TextField newNominal = new TextField();
+		DatePicker effective = new DatePicker(LocalDate.now(ZoneId.systemDefault()));
+		DatePicker end = new DatePicker();
 		GridPane form = FormGridHelper.createDefaultGrid();
 		FormGridHelper.setEqualGrowColumns(form, 3);
 		field(form, "UI_STOCK_CORPORATE_NAME", name, 0, 0);

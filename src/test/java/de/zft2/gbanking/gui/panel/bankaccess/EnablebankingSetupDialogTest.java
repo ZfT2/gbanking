@@ -27,10 +27,10 @@ class EnablebankingSetupDialogTest {
 			BankAccount account = account(AccountType.CURRENT_ACCOUNT);
 			TableView<BankAccount> table = createTable(account);
 
-			TableColumn<BankAccount, AccountType> accountTypeColumn = accountTypeColumn(table);
+			TableColumn<BankAccount, ?> accountTypeColumn = accountTypeColumn(table);
 			assertEquals(BaseMessages.getTextStatic("UI_TABLE_ACCOUNT_TYPE"), accountTypeColumn.getText());
 
-			ComboBox<AccountType> comboBox = comboBox(accountTypeColumn, table, 0);
+			ComboBox<?> comboBox = comboBox(accountTypeColumn, table, 0);
 			assertNotNull(comboBox);
 			assertEquals(AccountType.CURRENT_ACCOUNT, comboBox.getValue());
 			assertEquals(List.of(AccountType.values()), comboBox.getItems());
@@ -43,10 +43,10 @@ class EnablebankingSetupDialogTest {
 			BankAccount account = account(AccountType.CURRENT_ACCOUNT);
 			TableView<BankAccount> table = createTable(account);
 
-			ComboBox<AccountType> comboBox = comboBox(accountTypeColumn(table), table, 0);
+			ComboBox<?> comboBox = comboBox(accountTypeColumn(table), table, 0);
 			assertNotNull(comboBox);
 
-			comboBox.setValue(AccountType.SAVINGS_ACCOUNT);
+			comboBox.getSelectionModel().select(comboBox.getItems().indexOf(AccountType.SAVINGS_ACCOUNT));
 			comboBox.fireEvent(new ActionEvent());
 
 			assertEquals(AccountType.SAVINGS_ACCOUNT, account.getAccountType());
@@ -69,22 +69,20 @@ class EnablebankingSetupDialogTest {
 		return EnablebankingSetupDialog.createAccountTable(FXCollections.observableArrayList(List.of(accounts)));
 	}
 
-	private TableColumn<BankAccount, AccountType> accountTypeColumn(TableView<BankAccount> table) {
+	private TableColumn<BankAccount, ?> accountTypeColumn(TableView<BankAccount> table) {
 		return table.getColumns().stream()
 				.filter(column -> BaseMessages.getTextStatic("UI_TABLE_ACCOUNT_TYPE").equals(column.getText()))
-				.map(column -> (TableColumn<BankAccount, AccountType>) column)
 				.findFirst()
 				.orElseThrow(() -> new IllegalStateException("No account type column found"));
 	}
 
-	@SuppressWarnings("unchecked")
-	private ComboBox<AccountType> comboBox(TableColumn<BankAccount, AccountType> column, TableView<BankAccount> table,
+	private <T> ComboBox<?> comboBox(TableColumn<BankAccount, T> column, TableView<BankAccount> table,
 			int index) {
-		TableCell<BankAccount, AccountType> cell = column.getCellFactory().call(column);
+		TableCell<BankAccount, T> cell = column.getCellFactory().call(column);
 		cell.updateTableView(table);
 		cell.updateTableColumn(column);
 		cell.updateIndex(index);
-		return (ComboBox<AccountType>) cell.getGraphic();
+		return (ComboBox<?>) cell.getGraphic();
 	}
 
 	private BankAccount account(AccountType accountType) {

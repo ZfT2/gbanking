@@ -77,9 +77,9 @@ public final class PortfolioPerformanceImportMappingDialog implements BaseMessag
 		for (XmlPortfolio portfolio : preview.portfolios()) {
 			Integer preferredId = preview.portfolios().size() == 1 && selectedPortfolio != null
 					? Integer.valueOf(selectedPortfolio.portfolioId()) : portfolio.suggestedTargetId();
-			rows.add(createRow(MappingType.PORTFOLIO, portfolio.externalId(), portfolio.name(), portfolio.currency(),
+			rows.add(createRow(new MappingSource(MappingType.PORTFOLIO, portfolio.externalId(), portfolio.name(), portfolio.currency(),
 					getText("UI_STOCK_PP_MAPPING_PORTFOLIO_DETAIL", portfolio.settlementAccountName()),
-					portfolio.settlementAccountExternalId(), portfolioTargets, preferredId));
+					portfolio.settlementAccountExternalId()), portfolioTargets, preferredId));
 		}
 		for (XmlAccount account : preview.accounts()) {
 			if (account.additional() && !includeAdditionalAccounts) {
@@ -87,9 +87,9 @@ public final class PortfolioPerformanceImportMappingDialog implements BaseMessag
 			}
 			Integer preferredId = preferredAccountId(account, preview, selectedPortfolio);
 			MappingType type = account.additional() ? MappingType.ADDITIONAL_ACCOUNT : MappingType.SETTLEMENT_ACCOUNT;
-			rows.add(createRow(type, account.externalId(), account.name(), account.currency(),
+			rows.add(createRow(new MappingSource(type, account.externalId(), account.name(), account.currency(),
 					getText("UI_STOCK_PP_MAPPING_TRANSACTION_COUNT", account.transactionCount()),
-					null, accountTargets, preferredId));
+					null), accountTargets, preferredId));
 		}
 		return rows;
 	}
@@ -103,15 +103,19 @@ public final class PortfolioPerformanceImportMappingDialog implements BaseMessag
 		return account.suggestedTargetId();
 	}
 
-	private MappingRow createRow(MappingType type, String externalId, String name, Currency currency,
-			String detail, String relatedAccountId, List<XmlTargetOption> targets, Integer preferredId) {
+	private record MappingSource(MappingType type, String externalId, String name, Currency currency,
+			String detail, String relatedAccountId) {
+	}
+
+	private MappingRow createRow(MappingSource source, List<XmlTargetOption> targets, Integer preferredId) {
 		List<TargetChoice> choices = new ArrayList<>();
 		choices.add(new TargetChoice(0, getText("UI_STOCK_PP_MAPPING_NEW"), null));
-		targets.stream().filter(target -> isCompatible(type, currency, target))
+		targets.stream().filter(target -> isCompatible(source.type(), source.currency(), target))
 				.forEach(target -> choices.add(new TargetChoice(target.id(), target.name(), target)));
 		TargetChoice selected = choices.stream().filter(choice -> preferredId != null && choice.id() == preferredId)
 				.findFirst().orElse(choices.get(0));
-		return new MappingRow(type, externalId, name, currency, detail, relatedAccountId, choices, selected);
+		return new MappingRow(source.type(), source.externalId(), source.name(), source.currency(), source.detail(),
+				source.relatedAccountId(), choices, selected);
 	}
 
 	private static boolean isCompatible(MappingType type, Currency currency, XmlTargetOption target) {

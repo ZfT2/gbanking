@@ -21,7 +21,7 @@ public record GenericQuoteFeed(String id, String name, String urlTemplate, Gener
 		datePath = defaultValue(datePath, "date");
 		pricePath = defaultValue(pricePath, "close");
 		dateFormat = defaultValue(dateFormat, "uuuu-MM-dd");
-		csvDelimiter = csvDelimiter != 0 ? csvDelimiter : ',';
+		csvDelimiter = csvDelimiter == 0 ? ',' : csvDelimiter;
 	}
 
 	public static GenericQuoteFeed create(String name) {

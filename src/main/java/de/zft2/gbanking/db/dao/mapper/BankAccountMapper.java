@@ -5,6 +5,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 import de.zft2.gbanking.db.SqlFields;
@@ -65,8 +66,8 @@ public class BankAccountMapper extends AbstractDaoMapper<BankAccount, Void> {
 	}
 
 	@Override
-	public List<? extends Dao> getSimpleFieldUpdateTargets(BankAccount bankAccount, Class<? extends Dao> typeToUpdate) {
-		return Booking.class.equals(typeToUpdate) ? bankAccount.getBookings() : List.of(bankAccount);
+	public List<Dao> getSimpleFieldUpdateTargets(BankAccount bankAccount, Class<? extends Dao> typeToUpdate) {
+		return Booking.class.equals(typeToUpdate) ? new ArrayList<>(bankAccount.getBookings()) : List.of(bankAccount);
 	}
 
 	@Override

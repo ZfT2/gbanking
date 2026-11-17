@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.Month;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -63,7 +64,7 @@ import de.zft2.gbanking.service.stock.StockPortfolioService.TradeRequest;
 import de.zft2.gbanking.testdata.TestDataFactory;
 
 class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
-	private static final LocalDate DATE = LocalDate.of(2026, 9, 15);
+	private static final LocalDate DATE = LocalDate.of(2026, Month.SEPTEMBER, 15);
 	private final StockPortfolioService portfolios = new StockPortfolioService();
 	private final StockCorporateActionService service = new StockCorporateActionService();
 
@@ -73,9 +74,9 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		StockSecurity stock = security("Altaktie"), rights = security("Bezugsrecht"), young = security("Junge Aktie");
 		buy(portfolio, stock, "103", "10");
 		StockCorporateAction action = definition(stock, rights, young, StockCorporateActionType.RIGHTS_ISSUE);
-		record(portfolio, action, StockCorporateActionOperation.RIGHTS_ALLOCATION, "103", null, "103", DATE);
-		record(portfolio, action, StockCorporateActionOperation.RIGHTS_BUY, "7", "1", null, DATE);
-		record(portfolio, action, StockCorporateActionOperation.SUBSCRIPTION, "110", null, null, DATE.plusDays(1));
+		recordOperation(portfolio, action, StockCorporateActionOperation.RIGHTS_ALLOCATION, "103", null, "103", DATE);
+		recordOperation(portfolio, action, StockCorporateActionOperation.RIGHTS_BUY, "7", "1", null, DATE);
+		recordOperation(portfolio, action, StockCorporateActionOperation.SUBSCRIPTION, "110", null, null, DATE.plusDays(1));
 
 		amount("103", holding(portfolio, stock).quantity());
 		amount("927", holding(portfolio, stock).acquisitionValue());
@@ -85,7 +86,8 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		assertEquals(3, db.getAll(Booking.class).size());
 		amount("8853", db.getById(BankAccount.class, portfolio.settlementAccountId()).getBalance());
 		assertNull(service.getResults(portfolio.portfolioId()).get(2).realizedResult());
-		assertThrows(GBankingException.class, () -> service.unlink(service.getResults(portfolio.portfolioId()).get(0).associationId()));
+		int allocationId = service.getResults(portfolio.portfolioId()).get(0).associationId();
+		assertThrows(GBankingException.class, () -> service.unlink(allocationId));
 		assertEquals(3, db.getAll(StockCorporateActionTransaction.class).size());
 		assertEquals(3, db.getAll(StockCorporateActionMember.class).size());
 	}
@@ -96,10 +98,10 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		StockSecurity stock = security("Altaktie"), rights = security("Bezugsrecht");
 		buy(portfolio, stock, "103", "10");
 		StockCorporateAction action = definition(stock, rights, stock, StockCorporateActionType.RIGHTS_ISSUE);
-		record(portfolio, action, StockCorporateActionOperation.RIGHTS_ALLOCATION, "103", null, "103", DATE);
-		service.record(portfolio, new OperationRequest(action.getId(), StockCorporateActionOperation.RIGHTS_SALE,
+		recordOperation(portfolio, action, StockCorporateActionOperation.RIGHTS_ALLOCATION, "103", null, "103", DATE);
+		service.recordOperation(portfolio, new OperationRequest(action.getId(), StockCorporateActionOperation.RIGHTS_SALE,
 				DATE.plusDays(1), n("3"), n("2"), n("1"), null, null, null));
-		record(portfolio, action, StockCorporateActionOperation.SUBSCRIPTION, "100", null, null, DATE.plusDays(2));
+		recordOperation(portfolio, action, StockCorporateActionOperation.SUBSCRIPTION, "100", null, null, DATE.plusDays(2));
 
 		var sale = service.getResults(portfolio.portfolioId()).get(1);
 		assertEquals(StockCorporateActionOperation.RIGHTS_SALE, sale.operation());
@@ -119,18 +121,18 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		StockSecurity stock = security("Aktie"), rights = security("Recht");
 		buy(portfolio, stock, "103", "10");
 		StockCorporateAction action = definition(stock, rights, stock, StockCorporateActionType.RIGHTS_ISSUE);
-		record(portfolio, action, StockCorporateActionOperation.RIGHTS_ALLOCATION, "103", null, "0", DATE);
+		recordOperation(portfolio, action, StockCorporateActionOperation.RIGHTS_ALLOCATION, "103", null, "0", DATE);
 		amount("0", holding(portfolio, rights).acquisitionValue());
-		assertThrows(GBankingException.class, () -> record(portfolio, action,
+		assertThrows(GBankingException.class, () -> recordOperation(portfolio, action,
 				StockCorporateActionOperation.RIGHTS_ALLOCATION, "103", null, "0", DATE));
-		record(portfolio, action, StockCorporateActionOperation.RIGHTS_EXPIRY, "103", null, null, DATE.plusDays(20));
+		recordOperation(portfolio, action, StockCorporateActionOperation.RIGHTS_EXPIRY, "103", null, null, DATE.plusDays(20));
 		amount("0", service.getResults(portfolio.portfolioId()).get(1).realizedResult());
 		StockSecurity rights2 = security("Weiteres Recht");
 		StockCorporateAction unknown = definition(stock, rights2, stock, StockCorporateActionType.RIGHTS_ISSUE);
-		record(portfolio, unknown, StockCorporateActionOperation.RIGHTS_ALLOCATION, "103", null, null, DATE);
+		recordOperation(portfolio, unknown, StockCorporateActionOperation.RIGHTS_ALLOCATION, "103", null, null, DATE);
 		assertNull(holding(portfolio, rights2).acquisitionPrice());
 		assertNull(holding(portfolio, stock).acquisitionPrice());
-		record(portfolio, unknown, StockCorporateActionOperation.RIGHTS_SALE, "1", "2", null, DATE.plusDays(1));
+		recordOperation(portfolio, unknown, StockCorporateActionOperation.RIGHTS_SALE, "1", "2", null, DATE.plusDays(1));
 		var sale = service.getResults(portfolio.portfolioId()).stream()
 				.filter(result -> result.operation() == StockCorporateActionOperation.RIGHTS_SALE).findFirst().orElseThrow();
 		amount("2", sale.gross());
@@ -144,11 +146,11 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		buy(portfolio, stock, "103", "10");
 		portfolios.savePrice(stock.getId(), null, DATE.minusDays(1), n("10"), Currency.EUR);
 		StockCorporateAction action = definition(stock, null, stock, StockCorporateActionType.CONSOLIDATION);
-		record(portfolio, action, StockCorporateActionOperation.CONSOLIDATION, "103", null, null, DATE);
+		recordOperation(portfolio, action, StockCorporateActionOperation.CONSOLIDATION, "103", null, null, DATE);
 		amount("10.3", holding(portfolio, stock).quantity());
 		amount("1030", holding(portfolio, stock).acquisitionValue());
 		assertNull(holding(portfolio, stock).totalValue());
-		record(portfolio, action, StockCorporateActionOperation.FRACTIONAL_SALE, "0.3", "105", null, DATE.plusDays(1));
+		recordOperation(portfolio, action, StockCorporateActionOperation.FRACTIONAL_SALE, "0.3", "105", null, DATE.plusDays(1));
 		amount("10", holding(portfolio, stock).quantity());
 		amount("1000", holding(portfolio, stock).acquisitionValue());
 		var sale = service.getResults(portfolio.portfolioId()).get(1);
@@ -156,7 +158,7 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		portfolios.savePrice(stock.getId(), null, DATE.plusDays(1), n("105"), Currency.EUR);
 		amount("1050", holding(portfolio, stock).totalValue());
 		assertEquals(StockCorporateActionOperation.FRACTIONAL_SALE, sale.operation());
-		assertThrows(GBankingException.class, () -> record(portfolio, action,
+		assertThrows(GBankingException.class, () -> recordOperation(portfolio, action,
 				StockCorporateActionOperation.CONSOLIDATION, "1", null, null, DATE));
 	}
 
@@ -166,24 +168,25 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		StockSecurity stock = security("Aktie");
 		buy(portfolio, stock, "100", "10");
 		StockCorporateAction nominal = definition(stock, null, stock, StockCorporateActionType.NOMINAL_REDUCTION);
-		record(portfolio, nominal, StockCorporateActionOperation.NOMINAL_REDUCTION, null, null, null, DATE);
+		recordOperation(portfolio, nominal, StockCorporateActionOperation.NOMINAL_REDUCTION, null, null, null, DATE);
 		amount("1000", holding(portfolio, stock).acquisitionValue());
 		assertEquals(1, db.getAll(Booking.class).size());
 		assertEquals(100_000_000L, db.getById(StockCorporateAction.class, nominal.getId()).getNewNominalE8());
 		StockCorporateAction reduction = definition(stock, null, stock, StockCorporateActionType.CAPITAL_REDUCTION);
-		record(portfolio, reduction, StockCorporateActionOperation.CAPITAL_RETURN, null, "70", "50", DATE.plusDays(1));
+		recordOperation(portfolio, reduction, StockCorporateActionOperation.CAPITAL_RETURN, null, "70", "50", DATE.plusDays(1));
 		amount("950", holding(portfolio, stock).acquisitionValue());
 		var repayment = service.getResults(portfolio.portfolioId()).get(1);
 		amount("20", repayment.realizedResult());
 		assertEquals(StockCorporateActionOperation.CAPITAL_RETURN, repayment.operation());
-		record(portfolio, reduction, StockCorporateActionOperation.CANCELLATION, "10", "80", "50", DATE.plusDays(2));
+		recordOperation(portfolio, reduction, StockCorporateActionOperation.CANCELLATION, "10", "80", "50", DATE.plusDays(2));
 		amount("90", holding(portfolio, stock).quantity());
 		assertTrue(holding(portfolio, stock).acquisitionValue().subtract(n("900")).abs().compareTo(n("0.000001")) < 0);
-		assertThrows(GBankingException.class, () -> record(portfolio, reduction,
-				StockCorporateActionOperation.CAPITAL_RETURN, null, "2000", "2000", DATE.plusDays(3)));
-		assertThrows(GBankingException.class, () -> record(portfolio, reduction,
-				StockCorporateActionOperation.CANCELLATION, "90", "800", "899", DATE.plusDays(3)));
-		record(portfolio, reduction, StockCorporateActionOperation.CANCELLATION, "90", "800", "900", DATE.plusDays(3));
+		LocalDate cancellationDate = DATE.plusDays(3);
+		assertThrows(GBankingException.class, () -> recordOperation(portfolio, reduction,
+				StockCorporateActionOperation.CAPITAL_RETURN, null, "2000", "2000", cancellationDate));
+		assertThrows(GBankingException.class, () -> recordOperation(portfolio, reduction,
+				StockCorporateActionOperation.CANCELLATION, "90", "800", "899", cancellationDate));
+		recordOperation(portfolio, reduction, StockCorporateActionOperation.CANCELLATION, "90", "800", "900", DATE.plusDays(3));
 		assertTrue(portfolios.getPositions(portfolio.portfolioId()).isEmpty());
 		amount("-100", service.getResults(portfolio.portfolioId()).get(3).realizedResult());
 	}
@@ -194,8 +197,8 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		StockSecurity stock = security("Aktie"), rights = security("Recht");
 		buy(portfolio, stock, "103", "10");
 		StockCorporateAction action = definition(stock, rights, stock, StockCorporateActionType.RIGHTS_ISSUE);
-		record(portfolio, action, StockCorporateActionOperation.RIGHTS_ALLOCATION, "103", null, "103", DATE);
-		record(portfolio, action, StockCorporateActionOperation.RIGHTS_SALE, "3", "2", null, DATE.plusDays(1));
+		recordOperation(portfolio, action, StockCorporateActionOperation.RIGHTS_ALLOCATION, "103", null, "103", DATE);
+		recordOperation(portfolio, action, StockCorporateActionOperation.RIGHTS_SALE, "3", "2", null, DATE.plusDays(1));
 		service.unlink(service.getResults(portfolio.portfolioId()).get(1).associationId());
 		amount("103", holding(portfolio, rights).quantity());
 		amount("8970", db.getById(BankAccount.class, portfolio.settlementAccountId()).getBalance());
@@ -216,19 +219,19 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		StockSecurity stock = security("Aktie"), rights = security("Recht");
 		buy(portfolio, stock, "103", "10");
 		StockCorporateAction action = definition(stock, rights, stock, StockCorporateActionType.RIGHTS_ISSUE);
-		record(portfolio, action, StockCorporateActionOperation.RIGHTS_ALLOCATION, "103", null, "103", DATE);
+		recordOperation(portfolio, action, StockCorporateActionOperation.RIGHTS_ALLOCATION, "103", null, "103", DATE);
 		Booking booking = new Booking(portfolio.settlementAccountId(), DATE.plusDays(1), DATE.plusDays(1),
 				"Originalbankumsatz", n("5"), BookingType.DEPOSIT, 0);
 		booking.setSource(Source.ONLINE);
 		db.insertOrUpdate(booking);
 		OperationRequest request = new OperationRequest(action.getId(), StockCorporateActionOperation.RIGHTS_SALE,
 				DATE.plusDays(1), n("3"), n("2"), n("1.000"), null, null, booking.getId());
-		service.record(portfolio, request);
+		service.recordOperation(portfolio, request);
 		int saleId = db.getAll(StockCorporateActionMember.class).get(1).getTransactionId();
 		StockTransactionCashLeg cash = db.getAllByParent(StockTransactionCashLeg.class, saleId).get(0);
 		assertThrows(GBankingException.class, () -> db.insertOrUpdate(cash));
 		service.unlink(service.getResults(portfolio.portfolioId()).get(1).associationId());
-		service.record(portfolio, request);
+		service.recordOperation(portfolio, request);
 		assertEquals(2, db.getAll(Booking.class).size());
 		amount("8970", db.getById(BankAccount.class, portfolio.settlementAccountId()).getBalance());
 		assertEquals("Originalbankumsatz", db.getById(Booking.class, booking.getId()).getPurpose());
@@ -241,20 +244,21 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		StockSecurity stock = security("Aktie"), rights = security("Recht");
 		buy(portfolio, stock, "10", "10");
 		StockCorporateAction action = definition(stock, rights, stock, StockCorporateActionType.RIGHTS_ISSUE);
-		record(portfolio, action, StockCorporateActionOperation.RIGHTS_ALLOCATION, "10", null, "0", DATE);
+		recordOperation(portfolio, action, StockCorporateActionOperation.RIGHTS_ALLOCATION, "10", null, "0", DATE);
 		Booking protectedBooking = new Booking(portfolio.settlementAccountId(), DATE.plusDays(1), DATE.plusDays(1),
 				"Rights sale", n("2"), BookingType.DEPOSIT, 0);
 		protectedBooking.setSource(Source.IMPORT);
 		db.insertOrUpdate(protectedBooking);
-		service.record(portfolio, new OperationRequest(action.getId(), StockCorporateActionOperation.RIGHTS_SALE,
+		service.recordOperation(portfolio, new OperationRequest(action.getId(), StockCorporateActionOperation.RIGHTS_SALE,
 				DATE.plusDays(1), n("1"), n("2"), null, null, null, protectedBooking.getId()));
 		GBankingException databaseFailure = assertThrows(GBankingException.class, () -> db.delete(protectedBooking, null));
 		assertTrue(databaseFailure.getMessage().contains("SQLITE_CONSTRAINT_FOREIGNKEY"));
 		Booking ordinary = new Booking(portfolio.settlementAccountId(), DATE, DATE, "Deposit", n("1"), BookingType.DEPOSIT, 0);
 		ordinary.setSource(Source.IMPORT_NEW);
 		db.insertOrUpdate(ordinary);
+		BookingService bookings = new BookingService();
 		GBankingException exception = assertThrows(GBankingException.class,
-				() -> new BookingService().deleteBookingsInBlock(protectedBooking, false));
+				() -> bookings.deleteBookingsInBlock(protectedBooking, false));
 		assertEquals(BaseMessages.getTextStatic("ALERT_BOOKING_DELETE_CORPORATE_ACTION"), exception.getMessage());
 		assertNotNull(db.getById(Booking.class, ordinary.getId()));
 		assertNotNull(db.getById(Booking.class, protectedBooking.getId()));
@@ -373,7 +377,7 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		opening.setSettledAt(statement.getStatementAt());
 		db.insertOrUpdate(opening);
 		StockCorporateAction action = definition(stock, rights, stock, StockCorporateActionType.RIGHTS_ISSUE);
-		record(portfolio, action, StockCorporateActionOperation.RIGHTS_ALLOCATION, "103", null, "103", DATE);
+		recordOperation(portfolio, action, StockCorporateActionOperation.RIGHTS_ALLOCATION, "103", null, "103", DATE);
 		amount("103", holding(portfolio, stock).quantity());
 		amount("927", holding(portfolio, stock).acquisitionValue());
 		amount("103", holding(portfolio, rights).acquisitionValue());
@@ -387,16 +391,17 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		buy(portfolio, stock, "103", "10");
 		buy(portfolio, young, "2", "30");
 		StockCorporateAction action = definition(stock, rights, young, StockCorporateActionType.RIGHTS_ISSUE);
-		record(portfolio, action, StockCorporateActionOperation.RIGHTS_ALLOCATION, "103", null, "103", DATE);
-		record(portfolio, action, StockCorporateActionOperation.SUBSCRIPTION, "50", null, null, DATE.plusDays(1));
+		recordOperation(portfolio, action, StockCorporateActionOperation.RIGHTS_ALLOCATION, "103", null, "103", DATE);
+		recordOperation(portfolio, action, StockCorporateActionOperation.SUBSCRIPTION, "50", null, null, DATE.plusDays(1));
 		amount("7", holding(portfolio, young).quantity());
 		amount("160", holding(portfolio, young).acquisitionValue());
-		assertThrows(GBankingException.class, () -> record(portfolio, action,
-				StockCorporateActionOperation.SUBSCRIPTION, "60", null, null, DATE.plusDays(2)));
+		LocalDate secondExerciseDate = DATE.plusDays(2);
+		assertThrows(GBankingException.class, () -> recordOperation(portfolio, action,
+				StockCorporateActionOperation.SUBSCRIPTION, "60", null, null, secondExerciseDate));
 		amount("53", holding(portfolio, rights).quantity());
 		assertEquals(2, db.getAll(StockCorporateActionTransaction.class).size());
 		assertEquals(3, db.getAll(Booking.class).size());
-		assertThrows(GBankingException.class, () -> StockCorporateActionService.ratio(n("1"), 3, 1));
+		assertThrows(GBankingException.class, () -> StockCorporateActionService.ratio(BigDecimal.ONE, 3, 1));
 	}
 
 	@Test
@@ -405,10 +410,10 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		StockSecurity stock = security("Alt"), rights = security("Recht"), young = security("Jung");
 		buy(portfolio, stock, "3", "1");
 		StockCorporateAction action = definition(stock, rights, young, StockCorporateActionType.RIGHTS_ISSUE);
-		record(portfolio, action, StockCorporateActionOperation.RIGHTS_ALLOCATION, "3", null, "1", DATE);
+		recordOperation(portfolio, action, StockCorporateActionOperation.RIGHTS_ALLOCATION, "3", null, "1", DATE);
 		assertEquals(0, n("2").compareTo(holding(portfolio, stock).acquisitionValue()));
 		assertEquals(0, n("1").compareTo(holding(portfolio, rights).acquisitionValue()));
-		record(portfolio, action, StockCorporateActionOperation.SUBSCRIPTION, "3", null, null, DATE.plusDays(1));
+		recordOperation(portfolio, action, StockCorporateActionOperation.SUBSCRIPTION, "3", null, null, DATE.plusDays(1));
 		assertEquals(0, n("4").compareTo(holding(portfolio, young).acquisitionValue()));
 		StockSecurity successor = security("Nachfolger");
 		portfolios.recordSecurityExchange(portfolio, new StockPortfolioService.SecurityExchangeRequest(
@@ -416,11 +421,12 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		assertEquals(0, n("4").compareTo(holding(portfolio, successor).acquisitionValue()));
 		assertTrue(portfolios.getCorporateActionHistory(portfolio.portfolioId(), action.getId()).stream()
 				.anyMatch(row -> row.securityId() == successor.getId()));
-		assertThrows(GBankingException.class, () -> service.unlink(service.getResults(portfolio.portfolioId()).get(1).associationId()));
+		int subscriptionId = service.getResults(portfolio.portfolioId()).get(1).associationId();
+		assertThrows(GBankingException.class, () -> service.unlink(subscriptionId));
 		portfolios.recordTrade(portfolio, holding(portfolio, successor), new TradeRequest(StockTransactionType.SELL,
 				DATE.plusDays(3), DATE.plusDays(3), n("0.1"), n("10"), Currency.EUR, BigDecimal.ONE, null, null, null));
 		StockCorporateAction reduction = definition(successor, null, successor, StockCorporateActionType.CAPITAL_REDUCTION);
-		record(portfolio, reduction, StockCorporateActionOperation.CANCELLATION, "0.2", "0", "2.66666667", DATE.plusDays(4));
+		recordOperation(portfolio, reduction, StockCorporateActionOperation.CANCELLATION, "0.2", "0", "2.66666667", DATE.plusDays(4));
 		assertFalse(portfolios.getPositions(portfolio.portfolioId()).stream().anyMatch(row -> row.securityId() == successor.getId()));
 	}
 
@@ -448,8 +454,8 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		StockSecurity stock = security("Alt"), rights = security("Recht"), young = security("Jung");
 		buy(portfolio, stock, "10", "10");
 		StockCorporateAction action = definition(stock, rights, young, StockCorporateActionType.RIGHTS_ISSUE);
-		record(portfolio, action, StockCorporateActionOperation.RIGHTS_ALLOCATION, "10", null, "0", DATE);
-		service.record(portfolio, new OperationRequest(action.getId(), StockCorporateActionOperation.SUBSCRIPTION,
+		recordOperation(portfolio, action, StockCorporateActionOperation.RIGHTS_ALLOCATION, "10", null, "0", DATE);
+		service.recordOperation(portfolio, new OperationRequest(action.getId(), StockCorporateActionOperation.SUBSCRIPTION,
 				DATE.plusDays(1), n("10"), null, n("1"), n("2"), null, null));
 		Path file = directory.resolve("subscription.csv");
 		new PortfolioPerformanceExportService().exportFile(file, ExportType.STOCK_PP_TRANSACTIONS_CSV, portfolio);
@@ -483,18 +489,18 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		batch.setStartedAt(date.atStartOfDay());
 		batch.setImportStatus(StockImportStatus.RUNNING);
 		db.insertOrUpdate(batch);
-		StockImportRecord record = new StockImportRecord();
-		record.setImportBatchId(batch.getId());
-		record.setRecordNumber(1);
-		record.setRecordType("transaction");
-		record.setFingerprint(batch.getContentHash());
-		record.setRecordStatus(StockImportRecordStatus.IMPORTED);
-		db.insertOrUpdate(record);
+		StockImportRecord importRecord = new StockImportRecord();
+		importRecord.setImportBatchId(batch.getId());
+		importRecord.setRecordNumber(1);
+		importRecord.setRecordType("transaction");
+		importRecord.setFingerprint(batch.getContentHash());
+		importRecord.setRecordStatus(StockImportRecordStatus.IMPORTED);
+		db.insertOrUpdate(importRecord);
 		StockTransaction transaction = new StockTransaction();
 		transaction.setPortfolioId(portfolio.portfolioId());
 		transaction.setSourceId(sourceId);
-		transaction.setImportRecordId(record.getId());
-		transaction.setFingerprint(record.getFingerprint());
+		transaction.setImportRecordId(importRecord.getId());
+		transaction.setFingerprint(importRecord.getFingerprint());
 		transaction.setTransactionType(type);
 		transaction.setTransactionStatus(StockTransactionStatus.PENDING);
 		transaction.setTradeAt(date.atStartOfDay());
@@ -526,9 +532,9 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		}).getId();
 	}
 
-	private void record(PortfolioSummary portfolio, StockCorporateAction action, StockCorporateActionOperation operation,
+	private void recordOperation(PortfolioSummary portfolio, StockCorporateAction action, StockCorporateActionOperation operation,
 			String quantity, String price, String basis, LocalDate date) {
-		service.record(portfolio, new OperationRequest(action.getId(), operation, date, n(quantity), n(price), null, null, n(basis), null));
+		service.recordOperation(portfolio, new OperationRequest(action.getId(), operation, date, n(quantity), n(price), null, null, n(basis), null));
 	}
 	private StockCorporateAction definition(StockSecurity stock, StockSecurity rights, StockSecurity target, StockCorporateActionType type) {
 		StockCorporateAction action = new StockCorporateAction();

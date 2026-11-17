@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.FutureTask;
@@ -104,6 +105,6 @@ class BookingDuplicateReviewDialogTest {
 	}
 
 	private static Booking booking(String purpose) {
-		return new Booking(1, LocalDate.of(2026, 1, 2), LocalDate.of(2026, 1, 3), purpose, BigDecimal.TEN, BookingType.DEPOSIT, 0);
+		return new Booking(1, LocalDate.of(2026, Month.JANUARY, 2), LocalDate.of(2026, Month.JANUARY, 3), purpose, BigDecimal.TEN, BookingType.DEPOSIT, 0);
 	}
 }

@@ -64,12 +64,11 @@ public final class CategoryRuleRepository extends JdbcDaoRepository<CategoryRule
 			CategoryRule categoryRule = ruleById.get(resultSet.getInt(RELATION_PARENT_ID));
 			if (categoryRule != null) {
 				int accountId = resultSet.getInt("id");
-				BankAccount account = accountById.get(accountId);
-				if (account == null) {
-					account = mapper.map(resultSet, ResultType.WITHOUT_RELATIONS);
-					accountById.put(accountId, account);
+				if (!accountById.containsKey(accountId)) {
+					// Mapping can throw SQLException, so it cannot be used in computeIfAbsent.
+					accountById.put(accountId, mapper.map(resultSet, ResultType.WITHOUT_RELATIONS));
 				}
-				categoryRule.getBankAccountList().add(account);
+				categoryRule.getBankAccountList().add(accountById.get(accountId));
 			}
 		}
 	}

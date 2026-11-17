@@ -21,7 +21,7 @@ public abstract class AbstractTitledFormPanel extends BasePanel {
 	private final Label titleLabel = new Label();
 	private final HBox titleRow = new HBox(8);
 
-	private String titleKey;
+	private final String titleKey;
 
 	protected AbstractTitledFormPanel(String titleKey) {
 		contentBox.setPadding(new Insets(6));

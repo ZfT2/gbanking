@@ -148,7 +148,7 @@ public final class FxTableUtils {
 					return;
 				}
 				indicator.setText(StatusSymbols.text(item));
-				indicator.getStyleClass().setAll(styleClass, item ? validStyleClass : invalidStyleClass);
+				indicator.getStyleClass().setAll(styleClass, item.booleanValue() ? validStyleClass : invalidStyleClass);
 				setGraphic(indicator);
 			}
 		};

@@ -257,7 +257,7 @@ public class EnablebankingSetupService extends AbstractDbService {
 		if (keepExistingType) {
 			return existingType;
 		}
-		return mappedType != AccountType.UNKNOWN_ACCOUNT ? mappedType : existingType;
+		return mappedType == AccountType.UNKNOWN_ACCOUNT ? existingType : mappedType;
 	}
 
 	/**

@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -45,8 +46,8 @@ import de.zft2.gbanking.testdata.TestDataFactory;
 
 class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 
-	private static final LocalDate TRADE_DATE = LocalDate.of(2026, 9, 10);
-	private static final LocalDate SETTLEMENT_DATE = LocalDate.of(2026, 9, 14);
+	private static final LocalDate TRADE_DATE = LocalDate.of(2026, Month.SEPTEMBER, 10);
+	private static final LocalDate SETTLEMENT_DATE = LocalDate.of(2026, Month.SEPTEMBER, 14);
 
 	@Test
 	void replacementShouldCarryBasisAndHistoryAcrossMultipleSecuritiesWithoutCashFlow() {
@@ -63,8 +64,9 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 		BigDecimal balance = db.getById(BankAccount.class, portfolio.settlementAccountId()).getBalance();
 		int bookings = db.getAll(Booking.class).size();
 
-		assertThrows(GBankingException.class, () -> service.recordSecurityExchange(portfolio,
-				new SecurityExchangeRequest(original.getId(), successor.getId(), new BigDecimal("5"), SETTLEMENT_DATE.plusDays(1), null)));
+		SecurityExchangeRequest partialExchange = new SecurityExchangeRequest(original.getId(), successor.getId(),
+				new BigDecimal("5"), SETTLEMENT_DATE.plusDays(1), null);
+		assertThrows(GBankingException.class, () -> service.recordSecurityExchange(portfolio, partialExchange));
 		service.recordSecurityExchange(portfolio, new SecurityExchangeRequest(original.getId(), successor.getId(),
 				new BigDecimal("10"), SETTLEMENT_DATE.plusDays(1), "Umtauschbeleg"));
 		service.recordSecurityExchange(portfolio, new SecurityExchangeRequest(successor.getId(), current.getId(),
@@ -84,15 +86,17 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 		assertTrue(service.getPositionHistory(portfolio.portfolioId(), current.getId(), true).transactions().stream()
 				.anyMatch(transaction -> transaction.date().equals(TRADE_DATE) && transaction.securityId() == original.getId()));
 		int transactionCount = db.getAll(StockTransaction.class).size();
-		assertThrows(GBankingException.class, () -> service.recordSecurityExchange(portfolio,
-				new SecurityExchangeRequest(current.getId(), original.getId(), new BigDecimal("10"), SETTLEMENT_DATE.plusDays(4), null)));
+		SecurityExchangeRequest cyclicExchange = new SecurityExchangeRequest(current.getId(), original.getId(),
+				new BigDecimal("10"), SETTLEMENT_DATE.plusDays(4), null);
+		assertThrows(GBankingException.class, () -> service.recordSecurityExchange(portfolio, cyclicExchange));
 		assertEquals(transactionCount, db.getAll(StockTransaction.class).size());
 		var firstExchange = service.getTransactions(portfolio.portfolioId()).stream()
 				.filter(transaction -> transaction.transactionType() == StockTransactionType.CORPORATE_ACTION
 						&& transaction.securityId() == original.getId()).findFirst().orElseThrow();
 		assertTrue(firstExchange.quantity().signum() < 0);
-		assertThrows(GBankingException.class, () -> service.deleteTransaction(firstExchange.transactionId()));
-		assertThrows(GBankingException.class, () -> service.unlinkSecurityExchange(firstExchange.transactionId()));
+		int firstExchangeId = firstExchange.transactionId();
+		assertThrows(GBankingException.class, () -> service.deleteTransaction(firstExchangeId));
+		assertThrows(GBankingException.class, () -> service.unlinkSecurityExchange(firstExchangeId));
 		service.deleteTransaction(service.getTransactions(portfolio.portfolioId()).stream()
 				.filter(transaction -> transaction.securityId() == current.getId()
 						&& transaction.transactionType() == StockTransactionType.CORPORATE_ACTION).findFirst().orElseThrow().transactionId());
@@ -109,7 +113,7 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 		for (StockSecurity security : List.of(original, successor)) {
 			service.recordTrade(portfolio, position(portfolio, security), new TradeRequest(StockTransactionType.BUY,
 					TRADE_DATE, SETTLEMENT_DATE, new BigDecimal("10"),
-					security == original ? new BigDecimal("10") : new BigDecimal("30"),
+					new BigDecimal(security == original ? "10" : "30"),
 					Currency.EUR, BigDecimal.ONE, null, null, null));
 		}
 		service.recordSecurityExchange(portfolio, new SecurityExchangeRequest(original.getId(), successor.getId(),
@@ -244,8 +248,10 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 		assertEquals(correction.getId(), prices.get(0).priceId());
 		assertEquals(original.getId(), correction.getSupersedesPriceId());
 		assertEquals(SETTLEMENT_DATE, correction.getQuotedAt().toLocalDate());
+		int securityId = security.getId();
+		int originalId = original.getId();
 		GBankingException error = assertThrows(GBankingException.class,
-				() -> service.deletePrice(security.getId(), original.getId(), false));
+				() -> service.deletePrice(securityId, originalId, false));
 		assertTrue(error.getMessage().startsWith("Der Wertpapierkurs wurde nicht gefunden oder bereits ersetzt"));
 	}
 
@@ -272,8 +278,11 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 				TRADE_DATE, SETTLEMENT_DATE, BigDecimal.ONE, BigDecimal.ONE, Currency.EUR, BigDecimal.ONE, null, null, null));
 		StockSecurityPrice importedPrice = createImportedPrice(security, SETTLEMENT_DATE, 1_100_000_000L);
 
-		assertThrows(GBankingException.class, () -> service.savePrice(security.getId(), importedPrice.getId(), TRADE_DATE,
-				new BigDecimal("12.00"), Currency.EUR));
+		int securityId = security.getId();
+		int priceId = importedPrice.getId();
+		BigDecimal replacementPrice = new BigDecimal("12.00");
+		assertThrows(GBankingException.class, () -> service.savePrice(securityId, priceId, TRADE_DATE,
+				replacementPrice, Currency.EUR));
 		StockSecurityPrice correction = service.savePrice(security.getId(), importedPrice.getId(), TRADE_DATE,
 				new BigDecimal("12.00"), Currency.EUR, true);
 
@@ -288,8 +297,11 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 			StockSecurity security = createSecurity(sourceType.name());
 			StockSecurityPrice importedPrice = createImportedPrice(security, TRADE_DATE, 1_100_000_000L, sourceType);
 
-			assertThrows(GBankingException.class, () -> service.savePrice(security.getId(), importedPrice.getId(),
-					SETTLEMENT_DATE, new BigDecimal("12.00"), Currency.EUR));
+			int securityId = security.getId();
+			int priceId = importedPrice.getId();
+			BigDecimal replacementPrice = new BigDecimal("12.00");
+			assertThrows(GBankingException.class, () -> service.savePrice(securityId, priceId,
+					SETTLEMENT_DATE, replacementPrice, Currency.EUR));
 			StockSecurityPrice correction = service.savePrice(security.getId(), importedPrice.getId(),
 					SETTLEMENT_DATE, new BigDecimal("12.00"), Currency.EUR, true);
 
@@ -305,8 +317,9 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 		StockSecurityPrice importedPrice = createImportedPrice(security, TRADE_DATE, 1_100_000_000L,
 				StockDataSourceType.FILE);
 
-		assertThrows(GBankingException.class,
-				() -> service.deletePrice(security.getId(), importedPrice.getId(), false));
+		int securityId = security.getId();
+		int priceId = importedPrice.getId();
+		assertThrows(GBankingException.class, () -> service.deletePrice(securityId, priceId, false));
 		service.deletePrice(security.getId(), importedPrice.getId(), true);
 
 		assertEquals(List.of(), service.getPrices(security.getId()));
@@ -392,7 +405,7 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 	void settlementAccountChangeShouldKeepAssignmentHistory() {
 		PortfolioSummary portfolio = createPortfolio(100, 200, "Depot A", "Verrechnung A", new BigDecimal("1000.00"));
 		BankAccount targetAccount = createAccount("Verrechnung B", AccountType.CURRENT_ACCOUNT, new BigDecimal("500.00"));
-		LocalDate validFrom = LocalDate.of(2026, 9, 15);
+		LocalDate validFrom = LocalDate.of(2026, Month.SEPTEMBER, 15);
 		StockPortfolioService service = new StockPortfolioService();
 
 		service.changeSettlementAccount(portfolio, targetAccount, validFrom);
@@ -415,7 +428,7 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 		portfolio.setId(portfolioId);
 		portfolio.setAccountId(portfolioAccount.getId());
 		portfolio.setCurrentSettlementRelationId(relationId);
-		portfolio.setOpenedAt(LocalDate.of(2026, 1, 1));
+		portfolio.setOpenedAt(LocalDate.of(2026, Month.JANUARY, 1));
 		StockPortfolioSettlementAccount relation = new StockPortfolioSettlementAccount();
 		relation.setId(relationId);
 		relation.setPortfolioId(portfolioId);

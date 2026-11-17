@@ -10,6 +10,9 @@ import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardWatchEventKinds;
+import java.nio.file.WatchKey;
+import java.nio.file.WatchService;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.jar.JarEntry;
@@ -175,17 +178,24 @@ class UpdateInstallerLauncherIntegrationTest {
 		Path logFile = update.workDirectory().resolve("install-update.log");
 		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
 		String log = "";
-		while (System.nanoTime() < deadline) {
-			if (Files.exists(logFile)) {
-				log = Files.readString(logFile);
-				if (log.contains("Retrying blocked file operation:")) {
-					return;
+		try (WatchService changes = logFile.getFileSystem().newWatchService()) {
+			update.workDirectory().register(changes, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_MODIFY);
+			while (System.nanoTime() < deadline) {
+				if (Files.exists(logFile)) {
+					log = Files.readString(logFile);
+					if (log.contains("Retrying blocked file operation:")) {
+						return;
+					}
+				}
+				if (!installer.isAlive()) {
+					break;
+				}
+				WatchKey change = changes.poll(1, TimeUnit.SECONDS);
+				if (change != null) {
+					change.pollEvents();
+					assertTrue(change.reset(), "Installer log directory is no longer available");
 				}
 			}
-			if (!installer.isAlive()) {
-				break;
-			}
-			Thread.sleep(50);
 		}
 		assertTrue(log.contains("Retrying blocked file operation:"), "Installer did not retry the file lock:\n" + log);
 	}

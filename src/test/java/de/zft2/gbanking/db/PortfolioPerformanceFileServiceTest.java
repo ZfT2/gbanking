@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -18,9 +19,9 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.junit.jupiter.api.io.TempDir;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
@@ -30,7 +31,6 @@ import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.StockDataSourceType;
 import de.zft2.gbanking.db.dao.enu.StockTransactionStatus;
-import de.zft2.gbanking.db.dao.enu.StockTransactionType;
 import de.zft2.gbanking.db.dao.stock.StockDataSource;
 import de.zft2.gbanking.db.dao.stock.StockPortfolio;
 import de.zft2.gbanking.db.dao.stock.StockPortfolioSettlementAccount;
@@ -40,9 +40,9 @@ import de.zft2.gbanking.db.dao.stock.StockTransaction;
 import de.zft2.gbanking.db.dao.stock.StockTransactionCashLeg;
 import de.zft2.gbanking.db.dao.stock.StockTransactionSecurityLeg;
 import de.zft2.gbanking.exception.GBankingException;
-import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer;
 import de.zft2.gbanking.file.imp.csv.CsvImportDefinitionRepository;
+import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.service.booking.BookingService;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceExportService;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService;
@@ -61,7 +61,7 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 	void accountCsvShouldUseStrictCheckerThenReviewLooseMatches(boolean accept) throws Exception {
 		PortfolioSummary portfolio = createPortfolio();
 		createSource();
-		LocalDate date = LocalDate.of(2026, 1, 2);
+		LocalDate date = LocalDate.of(2026, Month.JANUARY, 2);
 		Booking existing = new Booking(portfolio.settlementAccountId(), date, date, "Strict", BigDecimal.TEN, BookingType.DEPOSIT, 0);
 		existing.setSource(Source.ONLINE);
 		db.insertOrUpdate(existing);
@@ -85,7 +85,7 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 	void cancellingPortfolioDuplicateReviewShouldRollBackSecuritiesAndImportMarkers() throws Exception {
 		PortfolioSummary portfolio = createPortfolio();
 		createSource();
-		Booking existing = new Booking(portfolio.settlementAccountId(), LocalDate.of(2026, 1, 2), null,
+		Booking existing = new Booking(portfolio.settlementAccountId(), LocalDate.of(2026, Month.JANUARY, 2), null,
 				"Account purpose", new BigDecimal("-200"), BookingType.REMOVAL, 0);
 		existing.setSource(Source.ONLINE);
 		db.insertOrUpdate(existing);
@@ -130,10 +130,13 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		int bookingCount = db.getAll(Booking.class).size();
 
 		assertEquals(3, bookingCount);
-		assertThrows(GBankingException.class, () -> service.linkSecurityExchange(portfolio, incoming.transactionId(), outgoing.transactionId()));
+		int incomingId = incoming.transactionId();
+		int outgoingId = outgoing.transactionId();
+		assertThrows(GBankingException.class, () -> service.linkSecurityExchange(portfolio, incomingId, outgoingId));
 		for (var invalid : service.getSecurityExchangeCandidates(portfolio.portfolioId(), false)) {
 			if (invalid.transactionId() != incoming.transactionId()) {
-				assertThrows(GBankingException.class, () -> service.linkSecurityExchange(portfolio, outgoing.transactionId(), invalid.transactionId()));
+				int invalidId = invalid.transactionId();
+				assertThrows(GBankingException.class, () -> service.linkSecurityExchange(portfolio, outgoingId, invalidId));
 			}
 		}
 		service.linkSecurityExchange(portfolio, outgoing.transactionId(), incoming.transactionId());
@@ -150,8 +153,8 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		linkedSource.setSettledAt(null);
 		assertThrows(GBankingException.class, () -> db.insertOrUpdate(linkedSource));
 		assertEquals(5, service.getPositionHistory(portfolio.portfolioId(), incoming.securityId(), true).transactions().size());
-		assertThrows(GBankingException.class, () -> service.linkSecurityExchange(portfolio, outgoing.transactionId(), incoming.transactionId()));
-		assertThrows(GBankingException.class, () -> service.deleteTransaction(outgoing.transactionId()));
+		assertThrows(GBankingException.class, () -> service.linkSecurityExchange(portfolio, outgoingId, incomingId));
+		assertThrows(GBankingException.class, () -> service.deleteTransaction(outgoingId));
 		assertTrue(importer.importFile(transactions, ExportType.STOCK_PP_TRANSACTIONS_CSV, portfolio).alreadyImported());
 		Path export = files.resolve("replacement-export.csv");
 		PortfolioPerformanceExportService exporter = new PortfolioPerformanceExportService();
@@ -167,7 +170,7 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		assertEquals(0, new BigDecimal("60").compareTo(service.getPositions(portfolio.portfolioId()).get(0).acquisitionPrice()));
 		service.deleteTransaction(outgoing.transactionId());
 		assertTrue(db.getById(StockTransaction.class, outgoing.transactionId()).isSettlementDateInferred());
-		assertThrows(GBankingException.class, () -> service.linkSecurityExchange(portfolio, outgoing.transactionId(), incoming.transactionId()));
+		assertThrows(GBankingException.class, () -> service.linkSecurityExchange(portfolio, outgoingId, incomingId));
 	}
 
 	@Test
@@ -183,7 +186,7 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		StockSecurity original = securities.stream().filter(security -> security.getName().equals("Alt AG")).findFirst().orElseThrow();
 		StockSecurity successor = securities.stream().filter(security -> security.getName().equals("Neu AG")).findFirst().orElseThrow();
 		service.recordSecurityExchange(portfolio, new StockPortfolioService.SecurityExchangeRequest(original.getId(),
-				successor.getId(), new BigDecimal("10"), LocalDate.of(2026, 3, 1), null));
+				successor.getId(), new BigDecimal("10"), LocalDate.of(2026, Month.MARCH, 1), null));
 
 		assertNull(service.getPositions(portfolio.portfolioId()).get(0).acquisitionPrice());
 		Path export = files.resolve("manual-replacement-export.csv");
@@ -292,7 +295,7 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		cash.setBookingId(null);
 		assertThrows(GBankingException.class, () -> db.insertOrUpdate(cash));
 		Booking reference = db.getAll(Booking.class).stream()
-				.filter(booking -> booking.getDateBooking().equals(LocalDate.of(2026, 1, deleteFromDate ? 2 : 3)))
+				.filter(booking -> booking.getDateBooking().equals(LocalDate.of(2026, Month.JANUARY, deleteFromDate ? 2 : 3)))
 				.findFirst().orElseThrow();
 		assertEquals(2, new BookingService().deleteBookingsInBlock(reference, deleteFromDate));
 		assertTrue(db.getAll(Booking.class).isEmpty());
@@ -467,7 +470,7 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		portfolio.setId(100);
 		portfolio.setAccountId(depot.getId());
 		portfolio.setCurrentSettlementRelationId(200);
-		portfolio.setOpenedAt(LocalDate.of(2026, 1, 1));
+		portfolio.setOpenedAt(LocalDate.of(2026, Month.JANUARY, 1));
 		StockPortfolioSettlementAccount relation = new StockPortfolioSettlementAccount();
 		relation.setId(200);
 		relation.setPortfolioId(100);

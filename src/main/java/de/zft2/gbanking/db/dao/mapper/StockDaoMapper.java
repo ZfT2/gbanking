@@ -121,6 +121,10 @@ public final class StockDaoMapper<T extends StockDao> extends AbstractDaoMapper<
 		if (type == LocalDateTime.class) {
 			return TypeConverter.toLocalDateTime(resultSet.getString(column));
 		}
+		return readPrimitiveValue(resultSet, column, type);
+	}
+
+	private static Object readPrimitiveValue(ResultSet resultSet, String column, Class<?> type) throws SQLException {
 		if (type == int.class || type == Integer.class) {
 			int value = resultSet.getInt(column);
 			return type == int.class || !resultSet.wasNull() ? value : null;

@@ -3,7 +3,6 @@ package de.zft2.gbanking.gui.dialog.stock;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -11,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -32,7 +32,7 @@ class StockSecurityExchangeDialogTest {
 	@Test
 	void manualDialogShouldDistinguishIdentifiersAndSaveOneReplacement() {
 		StockPortfolioService service = mock(StockPortfolioService.class);
-		PortfolioSummary portfolio = new PortfolioSummary(1, "Depot", "Bank", "123", LocalDate.of(2026, 1, 1),
+		PortfolioSummary portfolio = new PortfolioSummary(1, "Depot", "Bank", "123", LocalDate.of(2026, Month.JANUARY, 1),
 				2, "Verrechnung", "Bank", "DE123", Currency.EUR, BigDecimal.ZERO);
 		SecuritySummary predecessor = new SecuritySummary(1, "Aktie", StockQuantityType.UNITS, Currency.EUR, "DE0000000001", "OLD001");
 		SecuritySummary successor = new SecuritySummary(2, "Aktie", StockQuantityType.UNITS, Currency.EUR, "DE0000000002", "NEW001");
@@ -55,8 +55,8 @@ class StockSecurityExchangeDialogTest {
 					.map(Button.class::cast).filter(button -> button.getText().equals(BaseMessages.getTextStatic("UI_BUTTON_SAVE")))
 					.findFirst().orElseThrow().fire();
 
-			verify(service).recordSecurityExchange(eq(portfolio),
-					eq(new SecurityExchangeRequest(1, 2, BigDecimal.TEN, LocalDate.now(), "")));
+			verify(service).recordSecurityExchange(portfolio,
+					new SecurityExchangeRequest(1, 2, BigDecimal.TEN, LocalDate.now(), ""));
 			verify(service, never()).linkSecurityExchange(any(), anyInt(), anyInt());
 			verify(saved).run();
 		});

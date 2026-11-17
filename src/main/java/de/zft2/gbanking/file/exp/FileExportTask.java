@@ -18,7 +18,7 @@ public class FileExportTask extends BaseFileTask {
 
 	private static Logger log = LogManager.getLogger(FileExportTask.class);
 
-	private List<BankAccount> exportAccountList;
+	private final List<BankAccount> exportAccountList;
 
 	public FileExportTask(String fileName, ExportType exportType, List<BankAccount> exportAccountList) {
 		super(fileName);

@@ -19,6 +19,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.Properties;
 
@@ -478,7 +479,7 @@ class BankAccessServiceIntegrationTest {
 		institute.setBankName("Bank " + blz);
 		institute.setBic(bic);
 		institute.setImportNumber(1);
-		institute.setLastChanged(LocalDate.of(2026, 1, 1));
+		institute.setLastChanged(LocalDate.of(2026, Month.JANUARY, 1));
 		institute.setImportFile(dbController.insertOrUpdate(new ImportHistory("bic-" + blz + ".csv")).getId());
 		institute.setStateType(InstituteStatus.ACTIVE);
 		dbController.insertOrUpdate(institute);

@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -39,10 +40,10 @@ class Fp3BookingDateReaderTest {
 
 		Fp3BookingDateReader.applyDates(fp3File, bookings);
 
-		assertEquals(LocalDate.of(2024, 7, 25), bookings.get(0).getDateBooking());
+		assertEquals(LocalDate.of(2024, Month.JULY, 25), bookings.get(0).getDateBooking());
 		assertNull(bookings.get(0).getDateValue());
-		assertEquals(LocalDate.of(2021, 7, 26), bookings.get(1).getDateBooking());
-		assertEquals(LocalDate.of(2021, 7, 25), bookings.get(1).getDateValue());
+		assertEquals(LocalDate.of(2021, Month.JULY, 26), bookings.get(1).getDateBooking());
+		assertEquals(LocalDate.of(2021, Month.JULY, 25), bookings.get(1).getDateValue());
 	}
 
 	@Test
@@ -61,7 +62,7 @@ class Fp3BookingDateReaderTest {
 
 		Fp3BookingDateReader.applyDates(fp3File, bookings);
 
-		assertEquals(LocalDate.of(2024, 7, 25), bookings.get(0).getDateBooking());
+		assertEquals(LocalDate.of(2024, Month.JULY, 25), bookings.get(0).getDateBooking());
 	}
 
 	@Test

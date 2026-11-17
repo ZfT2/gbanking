@@ -49,8 +49,8 @@ public class RebookingToolDialog implements BaseGui {
 
 	AccountTransactionService accountTransactionService = ServiceRegistry.getService(AccountTransactionService.class);
 
-	private Stage stage;
-	private GBankingService bean;
+	private final Stage stage;
+	private final GBankingService bean;
 
 	List<BankAccount> selectedAccounts;
 
@@ -193,7 +193,7 @@ public class RebookingToolDialog implements BaseGui {
 				getText("UI_TABLE_ACCOUNT"), RebookingAccountSummary::accountName, 280);
 		TableColumn<RebookingAccountSummary, Integer> foundColumn = TableColumnFactory.createValueColumn(
 				getText("UI_TABLE_REBOOKING_FOUND"), RebookingAccountSummary::foundRebookings, 150);
-		summaryTable.getColumns().addAll(accountColumn, foundColumn);
+		summaryTable.getColumns().addAll(List.of(accountColumn, foundColumn));
 		GuiLayoutState.configureTable(summaryTable, "dialog.rebookingAssignment");
 		summaryTable.setPrefWidth(450);
 		summaryTable.setPrefHeight(Math.min(280, 48 + summary.accountSummaries().size() * 30));
@@ -220,7 +220,7 @@ public class RebookingToolDialog implements BaseGui {
 		TableColumn<MissingRebookingSummaryRow, Integer> missingColumn = TableColumnFactory.createValueColumn(
 				getText("UI_TABLE_REBOOKING_MISSING"), MissingRebookingSummaryRow::missingRebookings, 140);
 		missingColumn.setSortable(false);
-		summaryTable.getColumns().addAll(sourceColumn, targetColumn, missingColumn);
+		summaryTable.getColumns().addAll(List.of(sourceColumn, targetColumn, missingColumn));
 		GuiLayoutState.configureTable(summaryTable, "dialog.missingRebookings");
 		summaryTable.setPrefWidth(540);
 		summaryTable.setPrefHeight(Math.min(320, 48 + summary.routeSummaries().size() * 30));

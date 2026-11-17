@@ -152,7 +152,7 @@ public final class TextValues {
 	 */
 	public static boolean equalsIgnoreCase(String left, String right) {
 		if (left == null || right == null) {
-			return left == right;
+			return left == null && right == null;
 		}
 		return left.equalsIgnoreCase(right);
 	}

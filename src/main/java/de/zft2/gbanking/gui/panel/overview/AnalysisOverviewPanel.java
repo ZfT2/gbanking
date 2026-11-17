@@ -562,8 +562,8 @@ public class AnalysisOverviewPanel extends OverviewBasePanel {
 			return;
 		}
 
-		double minX = points.stream().mapToLong(point -> point.date().toEpochDay()).min().orElse(LocalDate.now(ZoneId.systemDefault()).toEpochDay());
-		double maxX = points.stream().mapToLong(point -> point.date().toEpochDay()).max().orElse(LocalDate.now(ZoneId.systemDefault()).toEpochDay());
+		double minX = points.stream().mapToLong(point -> point.date().toEpochDay()).asDoubleStream().min().orElseThrow();
+		double maxX = points.stream().mapToLong(point -> point.date().toEpochDay()).asDoubleStream().max().orElseThrow();
 		if (Double.compare(minX, maxX) == 0) {
 			minX -= 1;
 			maxX += 1;
@@ -772,7 +772,7 @@ public class AnalysisOverviewPanel extends OverviewBasePanel {
 	}
 
 	private String categorySliceLabel(CategorySlice slice) {
-		String direction = slice.direction() == FlowDirection.INCOME ? getText("UI_ANALYSIS_DIRECTION_INCOME") : getText("UI_ANALYSIS_DIRECTION_EXPENSE");
+		String direction = getText(slice.direction() == FlowDirection.INCOME ? "UI_ANALYSIS_DIRECTION_INCOME" : "UI_ANALYSIS_DIRECTION_EXPENSE");
 		String category = slice.categoryName() != null && !slice.categoryName().isBlank()
 				? slice.categoryName()
 				: getText("UI_ANALYSIS_CATEGORY_NONE");

@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -86,7 +85,7 @@ public class AccountTransactionService extends AbstractDbService {
 	private final RebookingService rebookingService;
 
 	public AccountTransactionService() {
-		this.logHandler = GBankingLoggingHandler.getInstance();
+		this.logHandler = new GBankingLoggingHandler();
 		this.hbciSessionRunner = new HbciSessionRunner();
 		this.bookingDuplicateChecker = new BookingDuplicateChecker();
 		this.rebookingService = new RebookingService();
@@ -426,7 +425,7 @@ public class AccountTransactionService extends AbstractDbService {
 			return createAndAddHbciJob(handle, UMS_JOB_CAMT, Map.of("my", konto));
 		}
 		return createAndAddHbciJob(handle, UMS_JOB_CAMT,
-				Map.of("my", konto, "startdate", Date.from(bookingRetrievalStartDate.atStartOfDay(ZoneId.systemDefault()).toInstant())));
+				Map.of("my", konto, "startdate", bookingRetrievalStartDate));
 	}
 
 	private Optional<HBCIJob<HBCIJobResult>> createVormerkpostenJob(HBCIHandler handle, Konto konto, BankAccount bankAccount) {
@@ -698,7 +697,8 @@ public class AccountTransactionService extends AbstractDbService {
 		if (umsLine == null) {
 			return "";
 		}
-		return String.join("|", formatDate(umsLine.bdate), formatDate(umsLine.valuta), formatValue(umsLine.value),
+		return String.join("|", Objects.toString(TypeConverter.toLocalDate(umsLine.bdate), ""),
+				Objects.toString(TypeConverter.toLocalDate(umsLine.valuta), ""), formatValue(umsLine.value),
 				Objects.toString(BookingDuplicateChecker.normalizePurposeForFingerprint(resolvePurpose(umsLine)), ""),
 				Objects.toString(BookingDuplicateChecker.normalizeReference(umsLine.instref), ""),
 				Objects.toString(BookingDuplicateChecker.normalizeReference(umsLine.customerref), ""));
@@ -709,10 +709,6 @@ public class AccountTransactionService extends AbstractDbService {
 			return umsLine.text;
 		}
 		return String.join("\n", umsLine.usage);
-	}
-
-	private String formatDate(Date date) {
-		return Objects.toString(TypeConverter.toLocalDate(date), "");
 	}
 
 	private String formatValue(Value value) {
@@ -754,8 +750,8 @@ public class AccountTransactionService extends AbstractDbService {
 
 			if (value instanceof String s) {
 				job.setParam(param.getKey(), s);
-			} else if (value instanceof Date d) {
-				job.setParam(param.getKey(), d);
+			} else if (value instanceof LocalDate date) {
+				job.setParam(param.getKey(), TypeConverter.toUtilDate(date));
 			} else if (value instanceof Integer i) {
 				job.setParam(param.getKey(), i);
 			} else if (value instanceof Konto k) {

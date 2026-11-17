@@ -140,7 +140,7 @@ final class HbciStatusDescriptionProvider implements BaseMessages {
 				mostSpecificMessage = current.getMessage().trim();
 			}
 			Throwable cause = current.getCause();
-			current = cause != current ? cause : null;
+			current = cause == current ? null : cause;
 		}
 		return mostSpecificMessage;
 	}

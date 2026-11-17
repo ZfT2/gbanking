@@ -429,10 +429,8 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 				// Transactions without any date are ignored. They cannot be demarcated and they would be
 				// imported twice as soon as they are delivered again with a date.
 				skippedWithoutDate++;
-				continue;
-			}
-			Booking booking = mapBooking(account, transaction, status, bookingDate);
-			if (from == null || !bookingDate.isBefore(from)) {
+			} else if (from == null || !bookingDate.isBefore(from)) {
+				Booking booking = mapBooking(account, transaction, status, bookingDate);
 				String fingerprint = stableReference(transaction, booking);
 				booking.setAdditionalDetails(additionalDetails(transaction, status, fingerprint));
 				(BOOKED_STATUSES.contains(status) ? booked : pending).putIfAbsent(fingerprint, booking);

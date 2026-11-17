@@ -103,10 +103,20 @@ public class JdbcDaoRepository<T extends Dao> implements DaoRepository<T> {
 		return jdbc.update(sql, statement -> mapper.setParamsDelete(entity, statement));
 	}
 
+	/**
+	 * Selects the lookup SQL; repositories with joined rows may specialize it.
+	 * @param resultType requested relation depth used by specialized repositories
+	 * @return the standard ID lookup unless overridden
+	 */
 	protected String selectByIdSql(ResultType resultType) {
 		return StatementsConfig.getSelectByIdSqlStatement(type);
 	}
 
+	/**
+	 * Resolves the row mapping independently of subsequent relation loading.
+	 * @param requestedResultType requested relation depth used by specialized repositories
+	 * @return the plain row mapping unless overridden
+	 */
 	protected ResultType rowResultType(ResultType requestedResultType) {
 		return ResultType.WITHOUT_RELATIONS;
 	}

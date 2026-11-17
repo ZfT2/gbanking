@@ -2,6 +2,7 @@ package de.zft2.gbanking.db.dao.stock;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -98,11 +99,7 @@ public final class StockDaoMetadata<T extends StockDao> {
 
 	private static <T extends StockDao> Constructor<T> requireConstructor(Class<T> type) {
 		try {
-			Constructor<T> result = type.getDeclaredConstructor();
-			if (!result.trySetAccessible()) {
-				throw new IllegalStateException("Stock DAO constructor is not accessible: " + type.getName());
-			}
-			return result;
+			return type.getConstructor();
 		} catch (NoSuchMethodException exception) {
 			throw new IllegalStateException("Stock DAO needs a no-argument constructor: " + type.getName(), exception);
 		}
@@ -113,9 +110,6 @@ public final class StockDaoMetadata<T extends StockDao> {
 		for (Field field : type.getDeclaredFields()) {
 			if (field.isSynthetic() || Modifier.isStatic(field.getModifiers()) || Modifier.isTransient(field.getModifiers())) {
 				continue;
-			}
-			if (!field.trySetAccessible()) {
-				throw new IllegalStateException("Stock DAO field is not accessible: " + field);
 			}
 			result.add(new Column<>(toColumnName(field.getName()), field));
 		}
@@ -130,10 +124,20 @@ public final class StockDaoMetadata<T extends StockDao> {
 
 		private final String name;
 		private final Field field;
+		private final Method getter;
+		private final Method setter;
 
 		private Column(String name, Field field) {
 			this.name = name;
 			this.field = field;
+			String suffix = Character.toUpperCase(field.getName().charAt(0)) + field.getName().substring(1);
+			Class<?> owner = field.getDeclaringClass();
+			try {
+				getter = owner.getMethod((field.getType() == boolean.class ? "is" : "get") + suffix);
+				setter = owner.getMethod("set" + suffix, field.getType());
+			} catch (NoSuchMethodException exception) {
+				throw new IllegalStateException("Stock DAO field needs public accessors: " + field, exception);
+			}
 		}
 
 		public String name() {
@@ -146,16 +150,16 @@ public final class StockDaoMetadata<T extends StockDao> {
 
 		public Object get(T dao) {
 			try {
-				return field.get(dao);
-			} catch (IllegalAccessException exception) {
+				return getter.invoke(dao);
+			} catch (ReflectiveOperationException exception) {
 				throw new IllegalStateException("Could not read stock DAO field " + field, exception);
 			}
 		}
 
 		public void set(T dao, Object value) {
 			try {
-				field.set(dao, value);
-			} catch (IllegalAccessException exception) {
+				setter.invoke(dao, value);
+			} catch (ReflectiveOperationException exception) {
 				throw new IllegalStateException("Could not write stock DAO field " + field, exception);
 			}
 		}

@@ -96,7 +96,7 @@ public class PortfolioPerformanceExportService extends AbstractDbService {
 				CashSummary cash = context.cash(transaction.getId());
 				StockTransactionSecurityLeg cashLeg = cashLeg(legs, cash);
 				for (StockTransactionSecurityLeg leg : legs) {
-					CashSummary legCash = leg == cashLeg ? cash : CashSummary.EMPTY;
+					CashSummary legCash = cashLeg != null && leg == cashLeg ? cash : CashSummary.EMPTY;
 					StockTransactionType type = portfolioType(transaction.getTransactionType(), leg, legCash);
 					printPortfolioTransaction(printer, context, transaction, leg, type, legCash);
 				}
@@ -318,7 +318,10 @@ public class PortfolioPerformanceExportService extends AbstractDbService {
 	}
 
 	private static String stripTickerSuffix(String value) {
-		int separator = value != null ? value.indexOf('.') : -1;
+		if (value == null) {
+			return null;
+		}
+		int separator = value.indexOf('.');
 		return separator > 0 ? value.substring(0, separator) : value;
 	}
 

@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
+import java.time.Month;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -161,7 +162,7 @@ class MoneyTransferListPanelTest {
 							mock(MoneyTransferDetailListTabPanel.class), archive);
 					TableView<?> table = (TableView<?>) panel.getCenter();
 					MoneyTransfer transfer = transfer(OrderType.STANDING_ORDER, archive ? MoneyTransferStatus.SENT : MoneyTransferStatus.NEW);
-					transfer.setExecutionDate(LocalDate.of(2024, 1, 15));
+					transfer.setExecutionDate(LocalDate.of(2024, Month.JANUARY, 15));
 					panel.updateModelMoneytransfer(List.of(transfer));
 					Scene scene = new Scene(panel);
 					scene.getStylesheets().add(getClass().getResource("/css/gbanking-table.css").toExternalForm());

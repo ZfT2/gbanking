@@ -46,17 +46,20 @@ public final class StockTransactionDialog extends AbstractStockDialog {
 	private final TextField noteField = new TextField();
 
 	public StockTransactionDialog(Window owner, PortfolioSummary portfolio, List<SecuritySummary> securities,
-			TransactionEditData editData, List<TransactionPrefill> prefills, Integer preferredSecurityId,
+			TransactionEditData editData, InitialSelection initialSelection,
 			Consumer<TransactionEditRequest> saveAction, Runnable savedHandler) {
 		super(owner, editData == null ? "UI_STOCK_TRANSACTION_DIALOG_NEW_TITLE" : "UI_STOCK_TRANSACTION_DIALOG_EDIT_TITLE");
 		this.portfolio = portfolio;
 		this.editData = editData;
-		this.prefills = List.copyOf(prefills);
-		this.preferredSecurityId = preferredSecurityId;
+		this.prefills = List.copyOf(initialSelection.prefills());
+		this.preferredSecurityId = initialSelection.preferredSecurityId();
 		this.saveAction = saveAction;
 		this.savedHandler = savedHandler;
 		securityField = new ComboBox<>(FXCollections.observableArrayList(securities));
 		initialize();
+	}
+
+	public record InitialSelection(List<TransactionPrefill> prefills, Integer preferredSecurityId) {
 	}
 
 	private void initialize() {

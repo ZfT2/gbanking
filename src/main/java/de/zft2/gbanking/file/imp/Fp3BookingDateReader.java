@@ -14,7 +14,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
@@ -85,18 +84,15 @@ final class Fp3BookingDateReader {
 		NodeList bookingNodes = document.getElementsByTagName("b2");
 		List<Fp3BookingEntry> entries = new ArrayList<>();
 		for (int index = 0; index < bookingNodes.getLength(); index++) {
-			Node node = bookingNodes.item(index);
-			if (node.getNodeType() != Node.ELEMENT_NODE) {
+			if (!(bookingNodes.item(index) instanceof Element bookingElement)) {
 				continue;
 			}
-			Element bookingElement = (Element) node;
 			Element purposeElement = firstElement(bookingElement, "m21");
-			if (purposeElement == null) {
-				// Bookings without a purpose are not converted by the upstream converter.
-				continue;
+			// Bookings without a purpose are not converted by the upstream converter.
+			if (purposeElement != null) {
+				Element dateElement = firstElement(bookingElement, "m27");
+				entries.add(toEntry(purposeElement.getAttribute("u"), dateElement != null ? dateElement.getAttribute("u") : null));
 			}
-			Element dateElement = firstElement(bookingElement, "m27");
-			entries.add(toEntry(purposeElement.getAttribute("u"), dateElement != null ? dateElement.getAttribute("u") : null));
 		}
 		return entries;
 	}

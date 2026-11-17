@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 
 import org.junit.jupiter.api.AfterEach;
@@ -60,9 +61,9 @@ class StockPortfolioOverviewPanelTest {
 		PositionSummary position = new PositionSummary(1, 2, "Neu AG", null, null, StockQuantityType.UNITS,
 				BigDecimal.TEN, null, null, null, null, Currency.EUR, null);
 		TransactionSummary oldTrade = new TransactionSummary(1, StockTransactionType.BUY, 1, "Alt AG", null, null,
-				LocalDate.of(2026, 1, 1), BigDecimal.TEN, null, null, Currency.EUR, 0, false, null);
+				LocalDate.of(2026, Month.JANUARY, 1), BigDecimal.TEN, null, null, Currency.EUR, 0, false, null);
 		TransactionSummary newTrade = new TransactionSummary(2, StockTransactionType.CORPORATE_ACTION, 2, "Neu AG", null, null,
-				LocalDate.of(2026, 2, 1), BigDecimal.TEN, null, null, Currency.EUR, 0, false, null);
+				LocalDate.of(2026, Month.FEBRUARY, 1), BigDecimal.TEN, null, null, Currency.EUR, 0, false, null);
 		when(service.getPortfolios()).thenReturn(List.of(portfolio));
 		when(service.getPositions(1)).thenReturn(List.of(position));
 		when(service.getTransactions(1)).thenReturn(List.of(oldTrade, newTrade));
@@ -101,7 +102,7 @@ class StockPortfolioOverviewPanelTest {
 		StockPortfolioService service = mock(StockPortfolioService.class);
 		BankingCapabilityService capabilityService = mock(BankingCapabilityService.class);
 		PortfolioSummary portfolio = new PortfolioSummary(1, "Depot A", "Bank A", "DE123",
-				LocalDate.of(2026, 1, 1), 2, "Girokonto", "Bank A", "DE456", Currency.EUR,
+				LocalDate.of(2026, Month.JANUARY, 1), 2, "Girokonto", "Bank A", "DE456", Currency.EUR,
 				new BigDecimal("100.00"));
 		when(service.getPortfolios()).thenReturn(List.of(portfolio));
 		when(service.getPositions(portfolio.portfolioId())).thenReturn(List.of());
@@ -202,7 +203,7 @@ class StockPortfolioOverviewPanelTest {
 	}
 
 	private static PortfolioSummary portfolio(int id, String name) {
-		return new PortfolioSummary(id, name, "Bank", "DEPOT-" + id, LocalDate.of(2026, 1, 1),
+		return new PortfolioSummary(id, name, "Bank", "DEPOT-" + id, LocalDate.of(2026, Month.JANUARY, 1),
 				100 + id, "Verrechnung", "Bank", "DE123", Currency.EUR, BigDecimal.ZERO);
 	}
 

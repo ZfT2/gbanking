@@ -1,5 +1,6 @@
 package de.zft2.gbanking.gui.dialog.stock;
 
+import java.time.ZoneId;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -60,7 +61,7 @@ public final class StockSettlementAccountDialog extends AbstractStockDialog {
 	}
 
 	private static LocalDate defaultValidFrom(PortfolioSummary portfolio) {
-		LocalDate today = LocalDate.now();
+		LocalDate today = LocalDate.now(ZoneId.systemDefault());
 		return portfolio.openedAt() != null && portfolio.openedAt().isAfter(today) ? portfolio.openedAt() : today;
 	}
 

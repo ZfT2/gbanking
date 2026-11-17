@@ -2,11 +2,11 @@ package de.zft2.gbanking.db.dao.mapper;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -74,7 +74,13 @@ public abstract class AbstractDaoMapper<T extends Dao, V> {
 		throw new GBankingException("setParamsForUpdateSimpleField: not implemented for type " + this.getClass().getName());
 	}
 
-	public List<? extends Dao> getSimpleFieldUpdateTargets(T dao, Class<? extends Dao> typeToUpdate) {
+	/**
+	 * Resolves entities affected by a simple-field update.
+	 * @param dao entity containing the update targets
+	 * @param typeToUpdate target type inspected by specialized mappers
+	 * @return the entity itself unless a mapper selects related entities
+	 */
+	public List<Dao> getSimpleFieldUpdateTargets(T dao, Class<? extends Dao> typeToUpdate) {
 		return List.of(dao);
 	}
 
@@ -130,8 +136,8 @@ public abstract class AbstractDaoMapper<T extends Dao, V> {
 		return index + 1;
 	}
 
-	protected int setDateNullable(int index, Date value, PreparedStatement ps) throws SQLException {
-		return setNullable(index, value, Types.DATE, ps);
+	protected int setDateNullable(int index, LocalDate value, PreparedStatement ps) throws SQLException {
+		return setNullable(index, TypeConverter.toSqlDate(value), Types.DATE, ps);
 	}
 
 	protected int setEnumNullable(int index, IdType value, PreparedStatement ps) throws SQLException {

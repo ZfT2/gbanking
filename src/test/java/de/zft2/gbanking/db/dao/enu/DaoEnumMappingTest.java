@@ -28,6 +28,16 @@ class DaoEnumMappingTest {
 		assertSame(HbciEncodingFilterType.BASE64, HbciEncodingFilterType.forInt(1));
 		assertSame(InstituteStatus.DUPLICATE, InstituteStatus.forInt(2));
 		assertSame(InstituteValidityDateType.FILE_MONTH, InstituteValidityDateType.forInt(4));
+		assertSame(ParameterDataType.BPD, ParameterDataType.forInt(1));
+		assertSame(ParameterDataType.UPD, ParameterDataType.forInt(2));
+		assertSame(Source.MANUELL_NEW, Source.forInt(14));
+		assertSame(StandingorderMode.QUARTERLY, StandingorderMode.forInt(3));
+		assertSame(TanProcedure.CHIP_TAN, TanProcedure.forInt(8));
+		assertSame(VopResult.OPT_OUT, VopResult.forInt(4));
+	}
+
+	@Test
+	void paymentEnums_shouldResolveKnownIds() {
 		assertSame(MoneyTransferStatus.ERROR, MoneyTransferStatus.forInt(4));
 		assertSame(MoneyTransferStatus.INVENTORY, MoneyTransferStatus.forInt(5));
 		assertSame(MoneyTransferStatus.DELETED, MoneyTransferStatus.forInt(6));
@@ -39,12 +49,6 @@ class DaoEnumMappingTest {
 		assertSame(OrderType.STANDING_ORDER, OrderType.forInt(4));
 		assertSame(OrderType.FOREIGN_TRANSFER, OrderType.forInt(5));
 		assertSame(OrderType.URGENT_TRANSFER, OrderType.forInt(6));
-		assertSame(ParameterDataType.BPD, ParameterDataType.forInt(1));
-		assertSame(ParameterDataType.UPD, ParameterDataType.forInt(2));
-		assertSame(Source.MANUELL_NEW, Source.forInt(14));
-		assertSame(StandingorderMode.QUARTERLY, StandingorderMode.forInt(3));
-		assertSame(TanProcedure.CHIP_TAN, TanProcedure.forInt(8));
-		assertSame(VopResult.OPT_OUT, VopResult.forInt(4));
 	}
 
 	@Test

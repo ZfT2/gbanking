@@ -432,7 +432,7 @@ public class GBankingHBCICallback extends AbstractHBCICallback implements BaseMe
 		}
 		if (statusDialog.requestConfirmation(getText("UI_DIALOG_HBCI_CHIPTAN_DISABLED"),
 				getText("UI_DIALOG_HBCI_CHIPTAN_ENABLE_PROMPT"), getText("UI_DIALOG_HBCI_CHIPTAN_ENABLE"),
-				getText("UI_BUTTON_CONTINUE"))) {
+				getText(UI_BUTTON_CONTINUE))) {
 			ChipTanUsbSupport.enable();
 		}
 	}

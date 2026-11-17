@@ -20,7 +20,7 @@ public enum AccountType implements IdType, LocalizedEnumValue {
 	DEPOT(16),
 	UNKNOWN_ACCOUNT(20);
 
-	private int dbStateId;
+	private final int dbStateId;
 
 	private AccountType(int dbStateId) {
 		this.dbStateId = dbStateId;

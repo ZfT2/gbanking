@@ -14,8 +14,8 @@ public class RecipientOverviewPanel extends OverviewBasePanel {
 
 	private static final Logger log = LogManager.getLogger(RecipientOverviewPanel.class);
 
-	private RecipientDetailPanel recipientDetailPanel;
-	private RecipientListPanel recipientListPanel;
+	private final RecipientDetailPanel recipientDetailPanel;
+	private final RecipientListPanel recipientListPanel;
 	private Recipient selectedRecipient;
 
 	public RecipientOverviewPanel() {

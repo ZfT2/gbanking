@@ -70,6 +70,9 @@ import de.zft2.gbanking.service.AbstractDbService;
 
 public class StockPortfolioService extends AbstractDbService {
 
+	private static final String QUANTITY_LABEL = "Anzahl";
+
+
 	private static final String MANUAL_SOURCE_CODE = "MANUAL";
 	private static final String RECONCILIATION_SOURCE_CODE = "RECONCILIATION";
 	private static final int QUANTITY_SCALE = StockNumericValueType.QUANTITY.getScaleDigits();
@@ -225,7 +228,7 @@ public class StockPortfolioService extends AbstractDbService {
 		StockSecurity source = dbController.getById(StockSecurity.class, request.sourceSecurityId());
 		StockSecurity target = dbController.getById(StockSecurity.class, request.targetSecurityId());
 		requireExchangeSecurities(source, target);
-		long quantity = toScaledLong(request.quantity(), QUANTITY_SCALE, "Anzahl");
+		long quantity = toScaledLong(request.quantity(), QUANTITY_SCALE, QUANTITY_LABEL);
 		dbController.executeInTransaction(() -> {
 			SettledTransactions settled = settledTransactions(portfolio.portfolioId());
 			long available = exchangeSourceQuantity(settled, source.getId(), request.date(), false);
@@ -602,7 +605,7 @@ public class StockPortfolioService extends AbstractDbService {
 			StockTransaction transaction = createPendingTransaction(portfolio.portfolioId(), request.transactionType(),
 					request.tradeDate(), request.settlementDate());
 			StockTransactionSecurityLeg leg = createPositionLeg(transaction.getId(), security,
-					toScaledLong(request.quantity(), QUANTITY_SCALE, "Anzahl") * -direction,
+					toScaledLong(request.quantity(), QUANTITY_SCALE, QUANTITY_LABEL) * -direction,
 					toScaledLong(request.unitPrice(), PRICE_SCALE, "Kurs"), request.currency());
 			dbController.insertOrUpdate(leg);
 			persistCashComponents(transaction, settlementAccount, request.settlementDate(), cashComponents,
@@ -666,8 +669,7 @@ public class StockPortfolioService extends AbstractDbService {
 		}
 
 		dbController.executeInTransaction(() -> {
-			persistPositionTransfer(source, target, requireSecurity(position), position.quantityType(), quantity,
-					position.acquisitionPrice(), position.currency(), date);
+			persistPositionTransfer(source, target, position, quantity, date);
 			return null;
 		});
 	}
@@ -684,8 +686,7 @@ public class StockPortfolioService extends AbstractDbService {
 		dbController.executeInTransaction(() -> {
 			for (PositionSummary position : getPositions(source.portfolioId())) {
 				if (position.quantity().signum() != 0) {
-					persistPositionTransfer(source, target, requireSecurity(position), position.quantityType(),
-							position.quantity(), position.acquisitionPrice(), position.currency(), date);
+					persistPositionTransfer(source, target, position, position.quantity(), date);
 				}
 			}
 			transferSettlementBalance(requireSettlementAccount(source), requireSettlementAccount(target), date, exchangeRate);
@@ -698,7 +699,7 @@ public class StockPortfolioService extends AbstractDbService {
 		int businessDays = 0;
 		while (businessDays < 2) {
 			result = result.plusDays(1);
-			if (result.getDayOfWeek() != DayOfWeek.SATURDAY && result.getDayOfWeek() != DayOfWeek.SUNDAY) {
+			if (!DayOfWeek.SATURDAY.equals(result.getDayOfWeek()) && !DayOfWeek.SUNDAY.equals(result.getDayOfWeek())) {
 				businessDays++;
 			}
 		}
@@ -754,23 +755,7 @@ public class StockPortfolioService extends AbstractDbService {
 			}
 			dbController.insertOrUpdate(transaction);
 
-			if (isEditable(transaction, StockTransactionEditField.SECURITY)) {
-				securityLeg.setSecurityId(security.getId());
-			}
-			if (isEditable(transaction, StockTransactionEditField.QUANTITY)) {
-				securityLeg.setQuantityE9(toScaledLong(trade.quantity(), QUANTITY_SCALE, "Anzahl") * direction);
-				securityLeg.setQuantityType(defaultQuantityType(security));
-			}
-			if (isEditable(transaction, StockTransactionEditField.PRICE_OR_AMOUNT)) {
-				securityLeg.setPriceE8(toScaledLong(trade.unitPrice(), PRICE_SCALE, "Kurs"));
-				securityLeg.setQuotationType(defaultQuotationType(security));
-				securityLeg.setPriceBasis(securityLeg.getQuotationType() == StockQuotationType.PERCENT_OF_NOMINAL
-						? defaultPriceBasis(security) : null);
-			}
-			if (isEditable(transaction, StockTransactionEditField.CURRENCY)) {
-				securityLeg.setPriceCurrency(trade.currency());
-			}
-			dbController.insertOrUpdate(securityLeg);
+			applyImportedSecurityEnrichment(transaction, securityLeg, security, trade, direction);
 
 			BankAccount account = requireSettlementAccount(portfolio);
 			Currency settlementCurrency = requireCurrency(account);
@@ -782,25 +767,51 @@ public class StockPortfolioService extends AbstractDbService {
 					: existingCashLegs.stream().map(StockTransactionCashLeg::getExchangeRateId)
 							.filter(Objects::nonNull).findFirst().orElse(null);
 			BigDecimal rate = conversionRate(trade.currency(), settlementCurrency, trade.exchangeRate());
-			if (isEditable(transaction, StockTransactionEditField.FEES)) {
-				saveSupplementCashLeg(transaction, account, StockCashLegRole.FEE, trade.fees(), rate.negate(),
-						exchangeRateId, trade.settlementDate());
-			}
-			if (isEditable(transaction, StockTransactionEditField.TAXES)) {
-				saveSupplementCashLeg(transaction, account, StockCashLegRole.TAX, trade.taxes(), rate.negate(),
-						exchangeRateId, trade.settlementDate());
-			}
-			if (isEditable(transaction, StockTransactionEditField.ACCRUED_INTEREST)) {
-				saveSupplementCashLeg(transaction, account, StockCashLegRole.ACCRUED_INTEREST,
-						trade.accruedInterest(), rate.multiply(BigDecimal.valueOf(-direction)), exchangeRateId,
-						trade.settlementDate());
-			}
+			applyImportedCashEnrichment(transaction, account, trade, rate, exchangeRateId, direction);
 			if (isEditable(transaction, StockTransactionEditField.NOTE)) {
 				persistNote(transaction.getId(), request.note());
 			}
 			requireNonNegativeExchangePositions(portfolio.portfolioId());
 			return null;
 		});
+	}
+
+	private void applyImportedSecurityEnrichment(StockTransaction transaction, StockTransactionSecurityLeg securityLeg,
+			StockSecurity security, TradeRequest trade, int direction) {
+		if (isEditable(transaction, StockTransactionEditField.SECURITY)) {
+			securityLeg.setSecurityId(security.getId());
+		}
+		if (isEditable(transaction, StockTransactionEditField.QUANTITY)) {
+			securityLeg.setQuantityE9(toScaledLong(trade.quantity(), QUANTITY_SCALE, QUANTITY_LABEL) * direction);
+			securityLeg.setQuantityType(defaultQuantityType(security));
+		}
+		if (isEditable(transaction, StockTransactionEditField.PRICE_OR_AMOUNT)) {
+			securityLeg.setPriceE8(toScaledLong(trade.unitPrice(), PRICE_SCALE, "Kurs"));
+			securityLeg.setQuotationType(defaultQuotationType(security));
+			securityLeg.setPriceBasis(securityLeg.getQuotationType() == StockQuotationType.PERCENT_OF_NOMINAL
+					? defaultPriceBasis(security) : null);
+		}
+		if (isEditable(transaction, StockTransactionEditField.CURRENCY)) {
+			securityLeg.setPriceCurrency(trade.currency());
+		}
+		dbController.insertOrUpdate(securityLeg);
+	}
+
+	private void applyImportedCashEnrichment(StockTransaction transaction, BankAccount account, TradeRequest trade,
+			BigDecimal rate, Integer exchangeRateId, int direction) {
+		if (isEditable(transaction, StockTransactionEditField.FEES)) {
+			saveSupplementCashLeg(transaction, account, StockCashLegRole.FEE, trade.fees(), rate.negate(),
+					exchangeRateId, trade.settlementDate());
+		}
+		if (isEditable(transaction, StockTransactionEditField.TAXES)) {
+			saveSupplementCashLeg(transaction, account, StockCashLegRole.TAX, trade.taxes(), rate.negate(),
+					exchangeRateId, trade.settlementDate());
+		}
+		if (isEditable(transaction, StockTransactionEditField.ACCRUED_INTEREST)) {
+			saveSupplementCashLeg(transaction, account, StockCashLegRole.ACCRUED_INTEREST,
+					trade.accruedInterest(), rate.multiply(BigDecimal.valueOf(-direction)), exchangeRateId,
+					trade.settlementDate());
+		}
 	}
 
 	private static boolean isEditable(StockTransaction transaction, StockTransactionEditField field) {
@@ -950,12 +961,12 @@ public class StockPortfolioService extends AbstractDbService {
 
 	private static String accountName(BankAccount account, String fallback) {
 		String name = text(account, BankAccount::getAccountName);
-		return !name.isBlank() ? name : fallback;
+		return name.isBlank() ? fallback : name;
 	}
 
 	private static String accountNumber(BankAccount account) {
 		String iban = text(account, BankAccount::getIban);
-		return !iban.isBlank() ? iban : text(account, BankAccount::getNumber);
+		return iban.isBlank() ? text(account, BankAccount::getNumber) : iban;
 	}
 
 	private static boolean isSettlementAccount(BankAccount account) {
@@ -1080,16 +1091,21 @@ public class StockPortfolioService extends AbstractDbService {
 			}
 			SecurityExchange exchange = exchangesByTransaction.get(transaction.getId());
 			if (exchange == null) {
-				for (StockTransactionSecurityLeg leg : settled.legs(transaction)) {
-					if (leg.getLegRole() != StockSecurityLegRole.REFERENCE) {
-						applyAcquisitionLeg(result, transaction, leg);
-					}
-				}
+				applyAcquisitionLegs(result, transaction, settled.legs(transaction));
 			} else if (exchange.trigger().getId() == transaction.getId()) {
 				applyAcquisitionExchange(portfolioId, result, exchange);
 			}
 		}
 		return result;
+	}
+
+	private void applyAcquisitionLegs(Map<PositionKey, AcquisitionPriceState> states, StockTransaction transaction,
+			List<StockTransactionSecurityLeg> legs) {
+		for (StockTransactionSecurityLeg leg : legs) {
+			if (leg.getLegRole() != StockSecurityLegRole.REFERENCE) {
+				applyAcquisitionLeg(states, transaction, leg);
+			}
+		}
 	}
 
 	private void seedCorporateOpeningBalances(int portfolioId, List<StockTransaction> transactions,
@@ -1392,7 +1408,7 @@ public class StockPortfolioService extends AbstractDbService {
 		Currency currency = requireCurrency(account);
 		BigDecimal netAmount = cashComponents.stream().map(CashComponent::amount)
 				.reduce(BigDecimal.ZERO, BigDecimal::add).setScale(currency.getMinorUnitDigits(), RoundingMode.HALF_UP);
-		Booking booking = netAmount.signum() != 0 ? createBooking(account, date, purpose, netAmount) : null;
+		Booking booking = netAmount.signum() == 0 ? null : createBooking(account, date, purpose, netAmount);
 		int legNumber = 1;
 		for (CashComponent component : cashComponents) {
 			long amountMinor = toMinorUnits(component.amount(), currency);
@@ -1436,10 +1452,13 @@ public class StockPortfolioService extends AbstractDbService {
 		dbController.insertOrUpdate(transaction);
 	}
 
-	private void persistPositionTransfer(PortfolioSummary source, PortfolioSummary target, StockSecurity security,
-			StockQuantityType quantityType, BigDecimal quantity, BigDecimal acquisitionPrice,
-			Currency acquisitionCurrency, LocalDate date) {
-		long quantityE9 = toScaledLong(quantity, QUANTITY_SCALE, "Anzahl");
+	private void persistPositionTransfer(PortfolioSummary source, PortfolioSummary target, PositionSummary position,
+			BigDecimal quantity, LocalDate date) {
+		StockSecurity security = requireSecurity(position);
+		StockQuantityType quantityType = position.quantityType();
+		BigDecimal acquisitionPrice = position.acquisitionPrice();
+		Currency acquisitionCurrency = position.currency();
+		long quantityE9 = toScaledLong(quantity, QUANTITY_SCALE, QUANTITY_LABEL);
 		Long priceE8 = acquisitionPrice != null ? toScaledLong(acquisitionPrice, PRICE_SCALE, "Einstandskurs") : null;
 		StockTransaction outgoing = createPendingTransaction(source.portfolioId(), StockTransactionType.TRANSFER_OUT, date, date);
 		StockTransactionSecurityLeg outgoingLeg = createPositionLeg(outgoing.getId(), security, -quantityE9, priceE8,
@@ -1710,13 +1729,6 @@ public class StockPortfolioService extends AbstractDbService {
 		return new PositionKey(leg.getSecurityId(), leg.getQuantityType());
 	}
 
-	private boolean hasCurrentPosition(PositionSummary position) {
-		return dbController.getAllByParent(StockPortfolioPosition.class, position.portfolioId()).stream()
-				.anyMatch(candidate -> candidate.getSecurityId() == position.securityId()
-						&& candidate.getQuantityType() == position.quantityType()
-						&& candidate.getQuantityE9() != 0);
-	}
-
 	private static long toScaledLong(BigDecimal value, int scale, String fieldName) {
 		try {
 			return StockNumericValues.toScaledLong(value, scale, RoundingMode.UNNECESSARY);
@@ -1955,6 +1967,21 @@ public class StockPortfolioService extends AbstractDbService {
 
 		void apply(BigDecimal quantityChange, BigDecimal price, Currency priceCurrency) {
 			BigDecimal newQuantity = quantity.add(quantityChange);
+			updateExactBasis(quantityChange, price, priceCurrency, newQuantity);
+			updateAveragePrice(quantityChange, price, priceCurrency, newQuantity);
+			quantity = newQuantity;
+			if (quantity.signum() <= 0) {
+				averagePrice = null;
+				currency = null;
+				exactBasis = null;
+			} else if (exactBasis != null) {
+				averagePrice = exactBasis.divide(quantity, PRICE_SCALE, RoundingMode.HALF_UP);
+			} else if (economicBasis && averagePrice != null) {
+				exactBasis = averagePrice.multiply(quantity);
+			}
+		}
+
+		private void updateExactBasis(BigDecimal quantityChange, BigDecimal price, Currency priceCurrency, BigDecimal newQuantity) {
 			if (exactBasis != null) {
 				if (quantityChange.signum() > 0) {
 					exactBasis = price != null && currency == priceCurrency ? exactBasis.add(price.multiply(quantityChange)) : null;
@@ -1962,6 +1989,9 @@ public class StockPortfolioService extends AbstractDbService {
 					exactBasis = exactBasis.multiply(newQuantity).divide(quantity, 16, RoundingMode.HALF_UP);
 				}
 			}
+		}
+
+		private void updateAveragePrice(BigDecimal quantityChange, BigDecimal price, Currency priceCurrency, BigDecimal newQuantity) {
 			if (quantityChange.signum() > 0 && price == null) {
 				averagePrice = null;
 				currency = null;
@@ -1979,17 +2009,6 @@ public class StockPortfolioService extends AbstractDbService {
 						currency = null;
 					}
 				}
-
-			}
-			quantity = newQuantity;
-			if (quantity.signum() <= 0) {
-				averagePrice = null;
-				currency = null;
-				exactBasis = null;
-			} else if (exactBasis != null) {
-				averagePrice = exactBasis.divide(quantity, PRICE_SCALE, RoundingMode.HALF_UP);
-			} else if (economicBasis && averagePrice != null) {
-				exactBasis = averagePrice.multiply(quantity);
 			}
 		}
 

@@ -60,7 +60,7 @@ class GBankingBeanMoneyTransferStatusTest {
 		if (orderType == OrderType.STANDING_ORDER) {
 			inventoryTransfer.setExecutionDay(15);
 			inventoryTransfer.setStandingorderMode(StandingorderMode.MONTHLY);
-			inventoryTransfer.setExecutionDateNext(LocalDate.of(2026, 9, 15));
+			inventoryTransfer.setExecutionDateNext(LocalDate.of(2026, Month.SEPTEMBER, 15));
 		}
 		inventoryTransfer = dbController.insertOrUpdate(inventoryTransfer);
 		int inventoryTransferId = inventoryTransfer.getId();

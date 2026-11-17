@@ -111,6 +111,13 @@ class MarketDataClientTest {
 	}
 
 	@Test
+	void shouldPreserveEmptyParallelJsonArraysWithoutFallingBackToObjectParsing() {
+		GenericQuoteFeed feed = feed(GenericQuoteFeedFormat.JSON, ',', "", "datetimeLast", "last", "UNIX_SECONDS");
+
+		assertEquals(List.of(), MarketDataClient.parseGenericJson("{\"datetimeLast\":[],\"last\":[]}", feed));
+	}
+
+	@Test
 	void shouldParseParallelJsonArraysWithUnixSeconds() {
 		GenericQuoteFeed feed = feed(GenericQuoteFeedFormat.JSON, ',', "",
 				"datetimeLast", "last", "UNIX_SECONDS");

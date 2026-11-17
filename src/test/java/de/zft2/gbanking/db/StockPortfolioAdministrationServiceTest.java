@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.LocalDate;
+import java.time.Month;
 
 import org.junit.jupiter.api.Test;
 
@@ -25,7 +26,7 @@ class StockPortfolioAdministrationServiceTest extends DBControllerIntegrationBas
 		BankAccount firstSettlement = createAccount("Verrechnung A", AccountType.CURRENT_ACCOUNT);
 		BankAccount secondSettlement = createAccount("Verrechnung B", AccountType.DEPOT_ACCOUNT);
 		StockPortfolioAdministrationService service = new StockPortfolioAdministrationService();
-		LocalDate openedAt = LocalDate.of(2026, 1, 2);
+		LocalDate openedAt = LocalDate.of(2026, Month.JANUARY, 2);
 
 		var created = service.save(request(null, "Offline-Depot", firstSettlement.getId(), openedAt, openedAt));
 
@@ -35,7 +36,7 @@ class StockPortfolioAdministrationServiceTest extends DBControllerIntegrationBas
 		assertTrue(depotAccount.isOfflineAccount());
 		assertEquals(firstSettlement.getId(), created.settlementAccountId());
 
-		LocalDate changeDate = LocalDate.of(2026, 9, 16);
+		LocalDate changeDate = LocalDate.of(2026, Month.SEPTEMBER, 16);
 		var edited = service.save(request(created.portfolioId(), "Depot geändert", secondSettlement.getId(),
 				openedAt, changeDate));
 

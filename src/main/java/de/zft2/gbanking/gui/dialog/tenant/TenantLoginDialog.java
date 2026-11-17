@@ -38,7 +38,7 @@ public class TenantLoginDialog implements BaseGui {
 
 	private static final String LAST_TENANT_ID = "lastTenantId";
 
-	private GBankingGui gui;
+	private final GBankingGui gui;
 	private TenantLock tenantLock;
 	private TenantSession activeSession;
 	private TenantStore activeTenantStore;

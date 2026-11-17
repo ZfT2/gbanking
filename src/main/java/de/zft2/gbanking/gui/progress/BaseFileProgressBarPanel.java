@@ -13,6 +13,7 @@ import de.zft2.gbanking.gui.util.FxNodeSupport;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.concurrent.Task;
+import javafx.concurrent.Worker.State;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -147,41 +148,42 @@ abstract class BaseFileProgressBarPanel implements BaseMessages {
 			}
 		});
 
-		task.stateProperty().addListener((obs, oldState, newState) -> {
-			switch (newState) {
-			case SUCCEEDED -> {
-				durationLabel.stop();
-				onTaskSucceeded();
-				if (keepDialogOpenOnSuccess()) {
-					showCloseButton();
-				} else {
-					closeDialog();
-				}
-			}
-			case FAILED -> {
-				durationLabel.stop();
-				Throwable ex = task.getException();
-				if (ex != null) {
-					Platform.runLater(() -> taskOutput.appendText("Error: " + ex.getMessage() + System.lineSeparator()));
-				}
-				onTaskFailed(ex);
-				if (keepDialogOpenOnFailure()) {
-					enableCloseButton();
-				} else {
-					closeDialog();
-				}
-			}
-			case CANCELLED -> {
-				durationLabel.stop();
+		task.stateProperty().addListener((obs, oldState, newState) -> handleTaskState(newState));
+	}
+
+	private void handleTaskState(State state) {
+		switch (state) {
+		case SUCCEEDED -> {
+			durationLabel.stop();
+			onTaskSucceeded();
+			if (keepDialogOpenOnSuccess()) {
+				showCloseButton();
+			} else {
 				closeDialog();
 			}
-			case RUNNING -> durationLabel.start();
-			case READY, SCHEDULED -> {
-				// Intermediate JavaFX task states do not require dialog actions.
+		}
+		case FAILED -> {
+			durationLabel.stop();
+			Throwable ex = task.getException();
+			if (ex != null) {
+				Platform.runLater(() -> taskOutput.appendText("Error: " + ex.getMessage() + System.lineSeparator()));
 			}
+			onTaskFailed(ex);
+			if (keepDialogOpenOnFailure()) {
+				enableCloseButton();
+			} else {
+				closeDialog();
 			}
-		});
-
+		}
+		case CANCELLED -> {
+			durationLabel.stop();
+			closeDialog();
+		}
+		case RUNNING -> durationLabel.start();
+		case READY, SCHEDULED -> {
+			// Intermediate JavaFX task states do not require dialog actions.
+		}
+		}
 	}
 
 	protected ActionScope getActionScope() {

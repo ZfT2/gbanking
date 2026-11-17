@@ -48,7 +48,8 @@ class FinTsStatusProtocolService extends AbstractDbService {
 			GVRStatus.Entry entry = findEntry(result, normalizedJobId);
 			boolean requestSuccessful = entry != null && HbciExecutionAssessment.hasBusinessResponse(executionStatus, result);
 			MoneyTransferStatus resolvedStatus = requestSuccessful ? resolveTransferStatus(entry.retval) : null;
-			persistProtocol(moneyTransfer, normalizedJobId, start, finish, executionStatus, result, entry, resolvedStatus);
+			persistProtocol(moneyTransfer, normalizedJobId, start, finish,
+					createProtocolText(executionStatus, result, entry), resolvedStatus);
 			return new MoneyTransferStatusResolution(requestSuccessful, resolvedStatus);
 		} catch (RuntimeException exception) {
 			persistFailureProtocol(moneyTransfer, normalizedJobId, start, exception);
@@ -94,12 +95,11 @@ class FinTsStatusProtocolService extends AbstractDbService {
 	}
 
 	private void persistProtocol(MoneyTransfer moneyTransfer, String hbciJobId, LocalDateTime start, LocalDateTime finish,
-			HBCIExecStatus executionStatus, GVRStatus result, GVRStatus.Entry entry, MoneyTransferStatus resolvedStatus) {
+			String technicalProtocol, MoneyTransferStatus resolvedStatus) {
 		MoneyTransferStatus protocolStatus = resolvedStatus != null && moneyTransfer.getMoneytransferStatus() == MoneyTransferStatus.UNCERTAIN
 				? resolvedStatus : moneyTransfer.getMoneytransferStatus();
 		MoneyTransferProtocol protocol = new MoneyTransferProtocol(moneyTransfer.getId(), protocolStatus, start, finish);
 		protocol.setHbciJobId(hbciJobId);
-		String technicalProtocol = createProtocolText(executionStatus, result, entry);
 		protocolWriter.logTechnicalProtocol(moneyTransfer, technicalProtocol);
 		if (resolvedStatus == null) {
 			MoneyTransferProtocolEvaluator.evaluateUncertain(technicalProtocol, false, null, false).applyTo(protocol);

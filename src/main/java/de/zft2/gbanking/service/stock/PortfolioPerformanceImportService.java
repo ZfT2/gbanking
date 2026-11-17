@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
+import java.time.ZoneId;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.DateTimeException;
@@ -40,7 +41,6 @@ import de.zft2.gbanking.db.dao.enu.StockIdentifierType;
 import de.zft2.gbanking.db.dao.enu.StockImportRecordStatus;
 import de.zft2.gbanking.db.dao.enu.StockImportStatus;
 import de.zft2.gbanking.db.dao.enu.StockNumericValueType;
-import de.zft2.gbanking.db.dao.enu.StockPriceType;
 import de.zft2.gbanking.db.dao.enu.StockQuantityType;
 import de.zft2.gbanking.db.dao.enu.StockQuotationType;
 import de.zft2.gbanking.db.dao.enu.StockSecurityLegRole;
@@ -56,8 +56,6 @@ import de.zft2.gbanking.db.dao.stock.StockPortfolio;
 import de.zft2.gbanking.db.dao.stock.StockPortfolioSettlementAccount;
 import de.zft2.gbanking.db.dao.stock.StockSecurity;
 import de.zft2.gbanking.db.dao.stock.StockSecurityIdentifier;
-import de.zft2.gbanking.db.dao.stock.StockSecurityPrice;
-import de.zft2.gbanking.db.dao.stock.StockSecurityPriceSource;
 import de.zft2.gbanking.db.dao.stock.StockTransaction;
 import de.zft2.gbanking.db.dao.stock.StockTransactionCashLeg;
 import de.zft2.gbanking.db.dao.stock.StockTransactionMetadata;
@@ -142,13 +140,13 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 
 		return dbController.executeInTransaction(() -> {
 			StockImportBatch batch = createBatch(source, file, importType, contentHash);
-			StockImportRecord record = createRecord(batch, importType, contentHash);
+			StockImportRecord importRecord = createRecord(batch, importType, contentHash);
 			Counters counters = new Counters();
 			try {
-				importByType(file, importType, portfolio, source, record, counters,
-						importAdditionalAccounts, assignments, csvDefinitionName, reviewHandler);
+				importByType(file, importType, source, importRecord, counters,
+						new ImportOptions(portfolio, importAdditionalAccounts, assignments, csvDefinitionName, reviewHandler));
 				batch.setImportStatus(StockImportStatus.IMPORTED);
-				batch.setCompletedAt(LocalDateTime.now());
+				batch.setCompletedAt(LocalDateTime.now(ZoneId.systemDefault()));
 				dbController.insertOrUpdate(batch);
 				return counters.result(false);
 			} catch (CancellationException exception) {
@@ -159,27 +157,32 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		});
 	}
 
-	private void importByType(Path file, ExportType importType, PortfolioSummary portfolio, StockDataSource source,
-			StockImportRecord record, Counters counters, boolean importAdditionalAccounts,
-			XmlImportAssignments assignments, String csvDefinitionName, BookingDuplicateReviewHandler reviewHandler) throws IOException {
+	private record ImportOptions(PortfolioSummary portfolio, boolean importAdditionalAccounts,
+			XmlImportAssignments assignments, String csvDefinitionName, BookingDuplicateReviewHandler reviewHandler) {
+	}
+
+	private void importByType(Path file, ExportType importType, StockDataSource source,
+			StockImportRecord importRecord, Counters counters, ImportOptions options) throws IOException {
 		ImportLookups lookups = new ImportLookups();
+		PortfolioSummary portfolio = options.portfolio();
+		String csvDefinitionName = options.csvDefinitionName();
 		switch (importType) {
-		case STOCK_PP_XML -> importDocument(new PortfolioPerformanceXmlReader().read(file), portfolio, source, record,
-				counters, lookups, importAdditionalAccounts, assignments);
+		case STOCK_PP_XML -> importDocument(new PortfolioPerformanceXmlReader().read(file), source, importRecord,
+				counters, lookups, options);
 		case STOCK_PP_TRANSACTIONS_CSV -> importTransactions(readTransactions(file, csvDefinition(file,
-				CsvImportDefinitionType.STOCK_PORTFOLIO_TRANSACTION, csvDefinitionName)), false, portfolio, source, record,
+				CsvImportDefinitionType.STOCK_PORTFOLIO_TRANSACTION, csvDefinitionName)), false, portfolio, source, importRecord,
 				lookups, counters);
 		case STOCK_PP_ACCOUNT_TRANSACTIONS_CSV -> importTransactions(readTransactions(file, csvDefinition(file,
-				CsvImportDefinitionType.STOCK_ACCOUNT_TRANSACTION, csvDefinitionName)), true, portfolio, source, record,
+				CsvImportDefinitionType.STOCK_ACCOUNT_TRANSACTION, csvDefinitionName)), true, portfolio, source, importRecord,
 				lookups, counters);
 		case STOCK_PP_SECURITIES_CSV -> importSecurities(readSecurities(file, csvDefinition(file,
 				CsvImportDefinitionType.STOCK_SECURITY, csvDefinitionName)), source, lookups, counters);
 		case STOCK_PP_PRICES_CSV -> importPriceCsv(file, csvDefinition(file,
-				CsvImportDefinitionType.STOCK_SECURITY_PRICE, csvDefinitionName), portfolio, source, record, counters,
+				CsvImportDefinitionType.STOCK_SECURITY_PRICE, csvDefinitionName), portfolio, source, importRecord, counters,
 				lookups);
 		default -> throw new GBankingException("Unbekanntes Portfolio-Performance-Importformat: " + importType);
 		}
-		lookups.bookingPersistence.review(lookups.proposedBookings, reviewHandler);
+		lookups.bookingPersistence.review(lookups.proposedBookings, options.reviewHandler());
 		lookups.pendingTransactions.forEach(operation -> operation.run());
 	}
 
@@ -243,32 +246,33 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 				.sorted(Comparator.comparing(XmlTargetOption::name, String.CASE_INSENSITIVE_ORDER)).toList();
 	}
 
-	private void importDocument(Document document, PortfolioSummary portfolio, StockDataSource source,
-			StockImportRecord record, Counters counters, ImportLookups lookups,
-			boolean importAdditionalAccounts, XmlImportAssignments assignments) {
+	private void importDocument(Document document, StockDataSource source,
+			StockImportRecord importRecord, Counters counters, ImportLookups lookups, ImportOptions options) {
+		PortfolioSummary portfolio = options.portfolio();
+		XmlImportAssignments assignments = options.assignments();
 		for (Security securityData : document.securities()) {
 			StockSecurity security = ensureSecurity(securityData, source, lookups, counters);
 			lookups.securitiesByExternalId.put(securityData.externalId(), security);
 			for (Price price : securityData.prices()) {
-				if (savePrice(security, price, source, record, securityData.ticker(), lookups.priceCache())) {
+				if (lookups.priceImporter().savePrice(security, price, source, importRecord, securityData.ticker())) {
 					counters.prices++;
 				}
 			}
 		}
 		if (assignments != null) {
 			validateAssignments(document, assignments);
-			importPortfolios(document, assignments, source, record, lookups, counters);
+			importPortfolios(document, assignments, source, importRecord, lookups, counters);
 		} else if (portfolio != null) {
-			importIntoSelectedPortfolio(document, portfolio, source, record, lookups, counters);
+			importIntoSelectedPortfolio(document, portfolio, source, importRecord, lookups, counters);
 		} else {
-			importPortfolios(document, NO_ASSIGNMENTS, source, record, lookups, counters);
+			importPortfolios(document, NO_ASSIGNMENTS, source, importRecord, lookups, counters);
 		}
 		if (assignments != null) {
 			document.additionalAccounts().stream()
 					.filter(account -> assignments.accountTargets().containsKey(account.externalId()))
 					.forEach(account -> importAdditionalAccount(account,
 							assignments.accountTargets().get(account.externalId()), lookups, counters));
-		} else if (importAdditionalAccounts) {
+		} else if (options.importAdditionalAccounts()) {
 			document.additionalAccounts().forEach(account -> importAdditionalAccount(account, 0, lookups, counters));
 		}
 	}
@@ -295,16 +299,16 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 	}
 
 	private void importIntoSelectedPortfolio(Document document, PortfolioSummary target, StockDataSource source,
-			StockImportRecord record, ImportLookups lookups, Counters counters) {
+			StockImportRecord importRecord, ImportLookups lookups, Counters counters) {
 		if (document.portfolios().size() != 1) {
 			throw new GBankingException("Die XML-Datei enthält " + document.portfolios().size()
 					+ " Depots. Heben Sie die Depotauswahl auf, um alle Depots neu anzulegen und zu importieren.");
 		}
 		Portfolio sourcePortfolio = document.portfolios().get(0);
-		importTransactions(sourcePortfolio.transactions(), false, target, source, record, lookups, counters);
+		importTransactions(sourcePortfolio.transactions(), false, target, source, importRecord, lookups, counters);
 		Account settlementAccount = findAccount(document, sourcePortfolio.settlementAccountExternalId());
 		if (settlementAccount != null) {
-			importTransactions(accountTransactions(settlementAccount), true, target, source, record, lookups, counters);
+			importTransactions(accountTransactions(settlementAccount), true, target, source, importRecord, lookups, counters);
 		}
 	}
 
@@ -312,7 +316,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 	 * Imports every portfolio of the document; portfolios and settlement accounts without an assigned target are created.
 	 */
 	private void importPortfolios(Document document, XmlImportAssignments assignments, StockDataSource source,
-			StockImportRecord record, ImportLookups lookups, Counters counters) {
+			StockImportRecord importRecord, ImportLookups lookups, Counters counters) {
 		Map<String, List<ImportedPortfolio>> portfoliosBySettlementAccount = new LinkedHashMap<>();
 		for (Portfolio sourcePortfolio : document.portfolios()) {
 			Account settlementAccount = findAccount(document, sourcePortfolio.settlementAccountExternalId());
@@ -323,13 +327,13 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 			PortfolioSummary target = ensureImportedPortfolio(sourcePortfolio, settlementAccount,
 					assignments.portfolioTargets().getOrDefault(sourcePortfolio.externalId(), 0),
 					assignments.accountTargets().getOrDefault(sourcePortfolio.settlementAccountExternalId(), 0), counters);
-			importTransactions(sourcePortfolio.transactions(), false, target, source, record, lookups, counters);
+			importTransactions(sourcePortfolio.transactions(), false, target, source, importRecord, lookups, counters);
 			portfoliosBySettlementAccount.computeIfAbsent(settlementAccount.externalId(), ignored -> new ArrayList<>())
 					.add(new ImportedPortfolio(sourcePortfolio, target));
 		}
 		for (Map.Entry<String, List<ImportedPortfolio>> entry : portfoliosBySettlementAccount.entrySet()) {
 			Account sourceAccount = findAccount(document, entry.getKey());
-			importSettlementAccount(sourceAccount, entry.getValue(), source, record, lookups, counters);
+			importSettlementAccount(sourceAccount, entry.getValue(), source, importRecord, lookups, counters);
 			BankAccount targetAccount = dbController.getById(BankAccount.class,
 					entry.getValue().get(0).target().settlementAccountId());
 			updateImportedAccountBalance(sourceAccount, targetAccount);
@@ -337,7 +341,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 	}
 
 	private void importSettlementAccount(Account account, List<ImportedPortfolio> linkedPortfolios,
-			StockDataSource source, StockImportRecord record, ImportLookups lookups, Counters counters) {
+			StockDataSource source, StockImportRecord importRecord, ImportLookups lookups, Counters counters) {
 		int accountId = linkedPortfolios.get(0).target().settlementAccountId();
 		for (Transaction transaction : accountTransactions(account)) {
 			ImportedType type = ImportedType.from(transaction.type());
@@ -355,7 +359,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 						+ " des gemeinsam genutzten Verrechnungskontos '" + account.name()
 						+ "' kann keinem Depot eindeutig zugeordnet werden");
 			}
-			importTransactions(List.of(transaction), true, candidates.get(0).target(), source, record, lookups, counters);
+			importTransactions(List.of(transaction), true, candidates.get(0).target(), source, importRecord, lookups, counters);
 		}
 	}
 
@@ -651,7 +655,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 	}
 
 	private void importPriceCsv(Path file, CsvImportDefinition definition, PortfolioSummary portfolio, StockDataSource source,
-			StockImportRecord record, Counters counters, ImportLookups lookups) throws IOException {
+			StockImportRecord importRecord, Counters counters, ImportLookups lookups) throws IOException {
 		CsvImportData data = readCsv(file, definition);
 		Map<String, StockSecurity> columns = priceColumns(data, definition, lookups.securitiesByIdentifier);
 		Currency fallbackCurrency = portfolio.settlementCurrency();
@@ -665,8 +669,8 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 						security.setDefaultQuoteCurrency(fallbackCurrency);
 						dbController.insertOrUpdate(security);
 					}
-					if (savePrice(security, new Price(priceDate, priceValue), source, record,
-							column.getKey(), lookups.priceCache())) {
+					if (lookups.priceImporter().savePrice(security, new Price(priceDate, priceValue), source, importRecord,
+							column.getKey())) {
 						counters.prices++;
 					}
 				}
@@ -675,32 +679,37 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 	}
 
 	private void importTransactions(List<Transaction> transactions, boolean accountFile, PortfolioSummary portfolio,
-			StockDataSource source, StockImportRecord record, ImportLookups lookups, Counters counters) {
+			StockDataSource source, StockImportRecord importRecord, ImportLookups lookups, Counters counters) {
 		for (Transaction data : transactions) {
-			ImportedType type = ImportedType.from(data.type());
-			if (accountFile && (type.generalBookingOnly()
-					|| (type == ImportedType.INTEREST && !hasSecurity(data)))) {
-				validateBookingCurrency(portfolio, data);
-				prepareGeneralBooking(portfolio.settlementAccountId(), data, type, lookups, counters);
-				continue;
-			}
-			if (!type.stockTransaction()) {
-				continue;
-			}
-			StockSecurity security = resolveSecurity(data, lookups, source, counters);
-			if (accountFile && (type == ImportedType.BUY || type == ImportedType.SELL)
-					&& lookups.fingerprints(portfolio.portfolioId())
-							.contains(transactionFingerprint(portfolio, data, type, security))) {
-				continue;
-			}
-			validateTransaction(data, type, portfolio, security);
-			if (lookups.fingerprints(portfolio.portfolioId()).add(transactionFingerprint(portfolio, data, type, security))) {
-				Booking proposed = proposeBooking(portfolio.settlementAccountId(), data.date(), accountAmount(data, type), type,
-						bookingPurpose(type, security.getName(), data.note()), lookups);
-				lookups.pendingTransactions.add(() -> saveStockTransaction(portfolio, data, type, security, source, record,
-						lookups.persistBooking(proposed, counters)));
-				counters.transactions++;
-			}
+			importTransaction(data, accountFile, portfolio, source, importRecord, lookups, counters);
+		}
+	}
+
+	private void importTransaction(Transaction data, boolean accountFile, PortfolioSummary portfolio,
+			StockDataSource source, StockImportRecord importRecord, ImportLookups lookups, Counters counters) {
+		ImportedType type = ImportedType.from(data.type());
+		if (accountFile && (type.generalBookingOnly()
+				|| (type == ImportedType.INTEREST && !hasSecurity(data)))) {
+			validateBookingCurrency(portfolio, data);
+			prepareGeneralBooking(portfolio.settlementAccountId(), data, type, lookups, counters);
+			return;
+		}
+		if (!type.stockTransaction()) {
+			return;
+		}
+		StockSecurity security = resolveSecurity(data, lookups, source, counters);
+		if (accountFile && (type == ImportedType.BUY || type == ImportedType.SELL)
+				&& lookups.fingerprints(portfolio.portfolioId())
+						.contains(transactionFingerprint(portfolio, data, type, security))) {
+			return;
+		}
+		validateTransaction(data, type, portfolio, security);
+		if (lookups.fingerprints(portfolio.portfolioId()).add(transactionFingerprint(portfolio, data, type, security))) {
+			Booking proposed = proposeBooking(portfolio.settlementAccountId(), data.date(), accountAmount(data, type), type,
+					bookingPurpose(type, security.getName(), data.note()), lookups);
+			lookups.pendingTransactions.add(() -> saveStockTransaction(portfolio, data, type, security, source, importRecord,
+					lookups.persistBooking(proposed, counters)));
+			counters.transactions++;
 		}
 	}
 
@@ -786,53 +795,13 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		lookups.addIdentifier(security, identifier);
 	}
 
-	private boolean savePrice(StockSecurity security, Price priceData, StockDataSource source,
-			StockImportRecord record, String providerSymbol, PriceImportCache cache) {
-		Currency currency = security.getDefaultQuoteCurrency();
-		if (currency == null) {
-			throw new GBankingException("Für das Wertpapier '" + security.getName() + "' fehlt die Kurswährung");
-		}
-		StockSecurityPriceSource priceSource = getOrCreatePriceSource(security, source, cache);
-		long priceE8 = scaled(priceData.value(), PRICE_SCALE, "Kurs");
-		LocalDateTime quotedAt = priceData.date().atStartOfDay();
-		PriceValueKey valueKey = new PriceValueKey(priceSource.getId(), quotedAt, priceE8);
-		if (cache.pricesByValue.containsKey(valueKey)) {
-			return false;
-		}
-		StockSecurityPrice price = new StockSecurityPrice();
-		price.setPriceSourceId(priceSource.getId());
-		price.setImportRecordId(record.getId());
-		price.setQuotedAt(quotedAt);
-		price.setPriceE8(priceE8);
-		price.setQuoteCurrency(currency);
-		price.setQuotationType(StockQuotationType.ABSOLUTE);
-		price.setPriceType(StockPriceType.CLOSE);
-		price.setExternalReference(priceData.date() + ":" + nullToEmpty(providerSymbol));
-		PriceDateKey dateKey = new PriceDateKey(priceSource.getId(), quotedAt);
-		StockSecurityPrice previous = cache.latestPriceByDate.get(dateKey);
-		if (previous != null) {
-			price.setSupersedesPriceId(previous.getId());
-		}
-		price = dbController.insertOrUpdate(price);
-		cache.pricesByValue.put(valueKey, price);
-		cache.latestPriceByDate.put(dateKey, price);
-		return true;
-	}
-
-	private StockSecurityPriceSource getOrCreatePriceSource(StockSecurity security, StockDataSource source,
-			PriceImportCache cache) {
-		PriceSourceKey key = new PriceSourceKey(security.getId(), source.getId(), null);
-		return cache.priceSources.computeIfAbsent(key, ignored -> StockSources.createPriceSource(dbController,
-				security.getId(), source.getId(), null, null, source.getDefaultPriority()));
-	}
-
 	private void saveStockTransaction(PortfolioSummary portfolio, Transaction data, ImportedType importedType,
-			StockSecurity security, StockDataSource source, StockImportRecord record, Booking booking) {
+			StockSecurity security, StockDataSource source, StockImportRecord importRecord, Booking booking) {
 		String fingerprint = transactionFingerprint(portfolio, data, importedType, security);
 		StockTransaction transaction = new StockTransaction();
 		transaction.setPortfolioId(portfolio.portfolioId());
 		transaction.setSourceId(source.getId());
-		transaction.setImportRecordId(record.getId());
+		transaction.setImportRecordId(importRecord.getId());
 		transaction.setTransactionType(importedType.stockType());
 		transaction.setTransactionStatus(StockTransactionStatus.SETTLED);
 		transaction.setTradeAt(data.date());
@@ -884,16 +853,13 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		BigDecimal fees = nonNegative(data.fees());
 		BigDecimal taxes = nonNegative(data.taxes());
 		List<CashValue> values = new ArrayList<>();
-		if (type == ImportedType.BUY) {
-			values.add(new CashValue(StockCashLegRole.TRADE_VALUE, net.add(fees).add(taxes)));
-		} else if (type == ImportedType.SELL) {
-			values.add(new CashValue(StockCashLegRole.TRADE_VALUE, net.add(fees).add(taxes)));
-		} else if (type == ImportedType.DIVIDEND || type == ImportedType.INTEREST) {
-			values.add(new CashValue(type == ImportedType.DIVIDEND ? StockCashLegRole.DIVIDEND : StockCashLegRole.INTEREST,
-					net.add(fees).add(taxes)));
-		} else {
-			values.add(new CashValue(StockCashLegRole.OTHER, net));
-		}
+		StockCashLegRole grossRole = switch (type) {
+		case BUY, SELL -> StockCashLegRole.TRADE_VALUE;
+		case DIVIDEND -> StockCashLegRole.DIVIDEND;
+		case INTEREST -> StockCashLegRole.INTEREST;
+		default -> StockCashLegRole.OTHER;
+		};
+		values.add(new CashValue(grossRole, grossRole == StockCashLegRole.OTHER ? net : net.add(fees).add(taxes)));
 		if (fees.signum() != 0) {
 			values.add(new CashValue(StockCashLegRole.FEE, fees.negate()));
 		}
@@ -1054,18 +1020,18 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		batch.setFileName(simpleFileName != null ? simpleFileName.toString() : file.toString());
 		batch.setContentHash(contentHash);
 		batch.setImportStatus(StockImportStatus.RUNNING);
-		batch.setStartedAt(LocalDateTime.now());
+		batch.setStartedAt(LocalDateTime.now(ZoneId.systemDefault()));
 		return dbController.insertOrUpdate(batch);
 	}
 
 	private StockImportRecord createRecord(StockImportBatch batch, ExportType type, String fingerprint) {
-		StockImportRecord record = new StockImportRecord();
-		record.setImportBatchId(batch.getId());
-		record.setRecordNumber(1);
-		record.setRecordType(type.name());
-		record.setFingerprint(fingerprint);
-		record.setRecordStatus(StockImportRecordStatus.IMPORTED);
-		return dbController.insertOrUpdate(record);
+		StockImportRecord importRecord = new StockImportRecord();
+		importRecord.setImportBatchId(batch.getId());
+		importRecord.setRecordNumber(1);
+		importRecord.setRecordType(type.name());
+		importRecord.setFingerprint(fingerprint);
+		importRecord.setRecordStatus(StockImportRecordStatus.IMPORTED);
+		return dbController.insertOrUpdate(importRecord);
 	}
 
 	private static void requirePortfolio(PortfolioSummary portfolio) {
@@ -1095,7 +1061,10 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 	}
 
 	private static String stripTickerSuffix(String value) {
-		int separator = value != null ? value.indexOf('.') : -1;
+		if (value == null) {
+			return null;
+		}
+		int separator = value.indexOf('.');
 		return separator > 0 ? value.substring(0, separator) : value;
 	}
 
@@ -1194,38 +1163,6 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 	private record CashValue(StockCashLegRole role, BigDecimal amount) {
 	}
 
-	private record PriceSourceKey(int securityId, int sourceId, String providerSymbol) {
-	}
-
-	private record PriceDateKey(int priceSourceId, LocalDateTime quotedAt) {
-	}
-
-	private record PriceValueKey(int priceSourceId, LocalDateTime quotedAt, long priceE8) {
-	}
-
-	private final class PriceImportCache {
-		private final Map<PriceSourceKey, StockSecurityPriceSource> priceSources = new HashMap<>();
-		private final Map<PriceDateKey, StockSecurityPrice> latestPriceByDate = new HashMap<>();
-		private final Map<PriceValueKey, StockSecurityPrice> pricesByValue = new HashMap<>();
-
-		private PriceImportCache() {
-			Map<Integer, StockSecurityPriceSource> sourcesById = new HashMap<>();
-			for (StockSecurityPriceSource priceSource : dbController.getAll(StockSecurityPriceSource.class)) {
-				priceSources.put(new PriceSourceKey(priceSource.getSecurityId(), priceSource.getSourceId(),
-						priceSource.getProviderSymbol()), priceSource);
-				sourcesById.put(priceSource.getId(), priceSource);
-			}
-			for (StockSecurityPrice price : dbController.getAll(StockSecurityPrice.class)) {
-				if (!sourcesById.containsKey(price.getPriceSourceId()) || price.getPriceType() != StockPriceType.CLOSE) {
-					continue;
-				}
-				PriceDateKey dateKey = new PriceDateKey(price.getPriceSourceId(), price.getQuotedAt());
-				latestPriceByDate.merge(dateKey, price, (left, right) -> left.getId() > right.getId() ? left : right);
-				pricesByValue.put(new PriceValueKey(price.getPriceSourceId(), price.getQuotedAt(), price.getPriceE8()), price);
-			}
-		}
-	}
-
 	/** Import-scoped lookups replacing per-row table loads; every insert of the import keeps them current. */
 	private final class ImportLookups {
 		private final Map<String, StockSecurity> securitiesByExternalId = new HashMap<>();
@@ -1236,7 +1173,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		private final ImportedBookingPersistence bookingPersistence = new ImportedBookingPersistence(dbController);
 		private final List<Booking> proposedBookings = new ArrayList<>();
 		private final List<Runnable> pendingTransactions = new ArrayList<>();
-		private PriceImportCache priceCache;
+		private PortfolioPerformancePriceImporter priceImporter;
 
 		private Booking persistBooking(Booking proposed, Counters counters) {
 			if (proposed == null) {
@@ -1282,11 +1219,11 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 			});
 		}
 
-		private PriceImportCache priceCache() {
-			if (priceCache == null) {
-				priceCache = new PriceImportCache();
+		private PortfolioPerformancePriceImporter priceImporter() {
+			if (priceImporter == null) {
+				priceImporter = new PortfolioPerformancePriceImporter(dbController);
 			}
-			return priceCache;
+			return priceImporter;
 		}
 	}
 

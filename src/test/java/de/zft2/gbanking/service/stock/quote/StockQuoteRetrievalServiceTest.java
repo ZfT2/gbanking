@@ -86,8 +86,12 @@ class StockQuoteRetrievalServiceTest {
 		new StockQuoteRetrievalService(client).retrieve(security.getId(), source, "TEST");
 		int priceId = new StockPortfolioService().getPrices(security.getId()).get(0).priceId();
 
-		assertThrows(GBankingException.class, () -> new StockPortfolioService().savePrice(security.getId(), priceId,
-				LocalDate.now(), new BigDecimal("12.00"), Currency.EUR));
+		StockPortfolioService portfolios = new StockPortfolioService();
+		int securityId = security.getId();
+		LocalDate today = LocalDate.now();
+		BigDecimal replacement = new BigDecimal("12.00");
+		assertThrows(GBankingException.class, () -> portfolios.savePrice(securityId, priceId,
+				today, replacement, Currency.EUR));
 	}
 
 	@Test
@@ -165,7 +169,8 @@ class StockQuoteRetrievalServiceTest {
 			return List.of(new MarketQuote(LocalDate.now().minusDays(1), BigDecimal.TEN));
 		});
 
-		assertThrows(GBankingException.class, () -> service.retrieve(security.getId(), source, "TEST"));
+		int securityId = security.getId();
+		assertThrows(GBankingException.class, () -> service.retrieve(securityId, source, "TEST"));
 
 		assertTrue(db.getAll(StockQuoteFeed.class).isEmpty());
 		assertTrue(db.getAll(StockSecurityPrice.class).isEmpty());

@@ -175,7 +175,7 @@ public class CategoryInputPanel extends AbstractTitledFormPanel {
 
 	private void refreshCategoryChoices() {
 		Category selectedParent = parentCategoryCombo.getValue();
-		Integer selectedParentId = !isNoParentCategory(selectedParent) ? selectedParent.getId() : null;
+		Integer selectedParentId = isNoParentCategory(selectedParent) ? null : selectedParent.getId();
 		ArrayList<Category> categoryChoices = new ArrayList<>();
 		categoryChoices.add(NO_PARENT_CATEGORY);
 		categoryChoices.addAll(dbController.getAll(Category.class));

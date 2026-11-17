@@ -365,7 +365,7 @@ public class FileImportBean extends AbstractBookingImportBean {
 
 			updateWorkerStateBookings(importedBookingsCount, "UI_PROGRESS_IMPORT_BOOKINGS_ACCOUNT_COUNT", accountName, bookingsList.size());
 
-			importedBookingsCount = writeBookingsForAccount(crossBookingMap, accountName, bookingsList, bookingDaoList,
+			importedBookingsCount = writeBookingsForAccount(crossBookingMap, bookingsList, bookingDaoList,
 					accountStatistics, importedBookingsCount, mappedBookings);
 
 			log.info("Imported bookings for accountId={}: written={}, skippedDuplicates={}", accountId, bookingDaoList.size(),
@@ -380,7 +380,7 @@ public class FileImportBean extends AbstractBookingImportBean {
 		return true;
 	}
 
-	private long writeBookingsForAccount(Map<de.zft2.core.dto.Booking, Integer> crossBookingMap, String accountName,
+	private long writeBookingsForAccount(Map<de.zft2.core.dto.Booking, Integer> crossBookingMap,
 			List<de.zft2.fp3xmlextract.data.Fp3XmlBooking> bookingsList, List<Booking> bookingDaoList, ImportAccountStatistics accountStatistics,
 			long importedBookingsCount, Map<de.zft2.fp3xmlextract.data.Fp3XmlBooking, Booking> mappedBookings) {
 

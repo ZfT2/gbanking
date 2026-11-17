@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -38,14 +39,14 @@ class StockCorporateActionDialogTest {
 		action.setId(7);
 		action.setName("Bezugsrecht");
 		action.setActionType(StockCorporateActionType.RIGHTS_ISSUE);
-		action.setEffectiveDate(LocalDate.of(2026, 9, 15));
+		action.setEffectiveDate(LocalDate.of(2026, Month.SEPTEMBER, 15));
 		action.setCurrency(Currency.EUR);
 		action.setAllocationFromE9(1_000_000_000L);
 		action.setAllocationToE9(1_000_000_000L);
 		action.setRatioFromE9(10_000_000_000L);
 		action.setRatioToE9(1_000_000_000L);
 		when(service.getActions()).thenReturn(List.of(action));
-		PortfolioSummary portfolio = new PortfolioSummary(1, "Depot", "Bank", "123", LocalDate.of(2026, 1, 1),
+		PortfolioSummary portfolio = new PortfolioSummary(1, "Depot", "Bank", "123", LocalDate.of(2026, Month.JANUARY, 1),
 				2, "Verrechnung", "Bank", "DE123", Currency.EUR, BigDecimal.ZERO);
 
 		JavaFxTestSupport.runFx(() -> {
@@ -68,7 +69,7 @@ class StockCorporateActionDialogTest {
 			((Button) form.lookupAll(".button").stream().filter(Button.class::isInstance)
 					.filter(node -> ((Button) node).getText().equals(BaseMessages.getTextStatic("UI_STOCK_CORPORATE_RECORD")))
 					.findFirst().orElseThrow()).fire();
-			verify(service).record(portfolio, new OperationRequest(7, StockCorporateActionOperation.SUBSCRIPTION,
+			verify(service).recordOperation(portfolio, new OperationRequest(7, StockCorporateActionOperation.SUBSCRIPTION,
 					action.getEffectiveDate(), new BigDecimal("100"), null, null, null, null, null));
 			dialog.dialog().close();
 		});

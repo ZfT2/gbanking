@@ -5,6 +5,7 @@ import static de.zft2.gbanking.util.TextValues.trimToNull;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.Properties;
 
 import org.apache.logging.log4j.LogManager;
@@ -119,29 +120,28 @@ class InstantPaymentStatusService extends AbstractDbService {
 
 	private boolean refreshStatusParameters(HBCIHandler handler) {
 		HBCIPassport passport = handler.getPassport();
-		Properties previousBpd = copy(passport.getBPD());
+		Optional<Properties> previousBpd = copy(passport.getBPD());
 		try {
 			log.info("Refreshing BPD because the bank requested a SEPA instant payment status query");
 			HBCIDialogStatus status = handler.refreshXPD(HBCIHandler.REFRESH_BPD);
 			if (status == null || !status.isOK()) {
-				restoreBpd(passport, previousBpd);
+				restoreBpd(passport, previousBpd.orElse(null));
 				return false;
 			}
 			return supportsStatusRequest(handler);
 		} catch (RuntimeException exception) {
-			restoreBpd(passport, previousBpd);
+			restoreBpd(passport, previousBpd.orElse(null));
 			log.warn("Could not refresh BPD for the SEPA instant payment status query", exception);
 			return false;
 		}
 	}
 
-	private Properties copy(Properties properties) {
-		if (properties == null) {
-			return null;
-		}
-		Properties copy = new Properties();
-		copy.putAll(properties);
-		return copy;
+	private Optional<Properties> copy(Properties properties) {
+		return Optional.ofNullable(properties).map(original -> {
+			Properties result = new Properties();
+			result.putAll(original);
+			return result;
+		});
 	}
 
 	private void restoreBpd(HBCIPassport passport, Properties previousBpd) {

@@ -1,6 +1,7 @@
 package de.zft2.gbanking.gui.dialog.stock;
 
 import java.math.BigDecimal;
+import java.time.ZoneId;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -21,7 +22,7 @@ public final class StockPositionTransferDialog extends AbstractStockDialog {
 	private final Runnable savedHandler;
 	private final ComboBox<PortfolioSummary> targetField;
 	private final TextField quantityField = new TextField();
-	private final DatePicker dateField = new DatePicker(LocalDate.now());
+	private final DatePicker dateField = new DatePicker(LocalDate.now(ZoneId.systemDefault()));
 
 	public StockPositionTransferDialog(Window owner, PositionSummary position, List<PortfolioSummary> targets,
 			TransferHandler transferHandler, Runnable savedHandler) {

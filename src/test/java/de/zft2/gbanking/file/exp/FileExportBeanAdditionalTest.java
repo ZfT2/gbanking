@@ -150,6 +150,7 @@ class FileExportBeanAdditionalTest {
 
 		@Override
 		public void reportState(String state) {
+			// This fixture records progress only, not status messages.
 		}
 
 		@Override
@@ -159,6 +160,7 @@ class FileExportBeanAdditionalTest {
 
 		@Override
 		public void checkCancelled() {
+			// Cancellation is outside the scope of these export-progress tests.
 		}
 
 		List<Double> getProgressValues() {

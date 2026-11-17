@@ -1,5 +1,6 @@
 package de.zft2.gbanking.gui.panel.stock;
 
+import java.time.ZoneId;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.function.Consumer;
@@ -130,7 +131,7 @@ public class StockPortfolioManagementDetailPanel extends AbstractReadonlyDetailP
 		creatingNewPortfolio = true;
 		clearForm();
 		refreshSettlementAccounts(null);
-		LocalDate today = LocalDate.now();
+		LocalDate today = LocalDate.now(ZoneId.systemDefault());
 		currencyCombo.setValue(Currency.EUR);
 		stateCombo.setValue(AccountState.ACTIVE);
 		offlineCheck.setSelected(true);

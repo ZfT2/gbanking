@@ -649,8 +649,8 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 	 */
 	private void handleAbortedExecution(MoneyTransfer moneyTransfer, BankAccount transferAccount, BankOrderOperation operation,
 			CommunicationState communicationState, Exception exception) {
-		log.warn("Money transfer execution aborted. transferId={}, type={}, accountId={}, cause={}", moneyTransfer.getId(),
-				moneyTransfer.getOrderType(), transferAccount.getId(), exception.toString());
+		log.warn("Money transfer execution aborted. transferId={}, type={}, accountId={}, cause={}", moneyTransfer::getId,
+				moneyTransfer::getOrderType, transferAccount::getId, exception::toString);
 		if (communicationState.start == null || communicationState.resultPersisted) {
 			return;
 		}

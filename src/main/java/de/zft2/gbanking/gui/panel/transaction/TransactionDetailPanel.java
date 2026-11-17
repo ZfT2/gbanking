@@ -890,7 +890,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		boolean persistedBookingSelected = displayedBooking != null && displayedBooking.getId() > 0;
 		boolean editable = persistedBookingSelected && context == EditContext.READONLY && additionalNoteEditing;
 		FormStyleUtils.setEditable(editable, additionalNoteText, reviewRequiredCheckBox);
-		additionalNoteEditButton.setText(additionalNoteEditing ? getText(UI_BUTTON_SAVE) : getText(UI_BUTTON_EDIT_SHORT));
+		additionalNoteEditButton.setText(getText(additionalNoteEditing ? UI_BUTTON_SAVE : UI_BUTTON_EDIT_SHORT));
 		additionalNoteEditButton.setDisable(!persistedBookingSelected || context != EditContext.READONLY);
 		FxNodeSupport.setVisibleManaged(additionalNoteCancelButton, additionalNoteEditing);
 	}

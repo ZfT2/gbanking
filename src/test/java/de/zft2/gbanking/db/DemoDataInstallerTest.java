@@ -61,7 +61,11 @@ class DemoDataInstallerTest extends DBControllerIntegrationBaseTest {
 		assertEquals(incomingRebooking.getId(), outgoingRebooking.getCrossBookingId());
 		assertEquals(outgoingRebooking.getId(), incomingRebooking.getCrossBookingId());
 		assertEquals(2, db.getSplitBookings(910020).size());
+	}
 
+	@Test
+	void shouldInstallRepresentativePaymentOrders() throws SQLException {
+		new DemoDataInstaller().install();
 		List<MoneyTransfer> transfers = db.getAllByParent(MoneyTransfer.class, 900001);
 		assertEquals(7, transfers.size());
 		MoneyTransfer scheduledTransfer = transfers.stream().filter(transfer -> transfer.getId() == 940004).findFirst().orElseThrow();

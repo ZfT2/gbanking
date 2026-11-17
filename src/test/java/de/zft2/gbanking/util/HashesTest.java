@@ -1,7 +1,7 @@
 package de.zft2.gbanking.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -35,9 +35,9 @@ class HashesTest {
 	@Test
 	void sha256Base64Url_shouldReturnUrlSafeDigestWithoutPadding() {
 		String digest = Hashes.sha256Base64Url("abc");
-		assertTrue(digest.endsWith("=") == false);
-		assertTrue(digest.contains("+") == false);
-		assertTrue(digest.contains("/") == false);
+		assertFalse(digest.endsWith("="));
+		assertFalse(digest.contains("+"));
+		assertFalse(digest.contains("/"));
 		assertEquals(43, digest.length());
 	}
 

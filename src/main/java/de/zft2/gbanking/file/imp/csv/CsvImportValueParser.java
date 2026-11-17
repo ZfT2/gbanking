@@ -42,7 +42,11 @@ public final class CsvImportValueParser {
 		try {
 			return LocalDateTime.parse(normalized);
 		} catch (DateTimeParseException exception) {
-			return parseDate(normalized, definition).atStartOfDay();
+			LocalDate date = parseDate(normalized, definition);
+			if (date == null) {
+				throw new DateTimeException("Unsupported date format", exception);
+			}
+			return date.atStartOfDay();
 		}
 	}
 

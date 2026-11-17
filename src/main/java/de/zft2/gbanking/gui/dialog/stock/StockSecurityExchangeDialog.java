@@ -1,5 +1,6 @@
 package de.zft2.gbanking.gui.dialog.stock;
 
+import java.time.ZoneId;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
@@ -35,7 +36,7 @@ public final class StockSecurityExchangeDialog extends AbstractStockDialog {
 		ComboBox<SecuritySummary> source = selectionField(securities, securityLabel);
 		ComboBox<SecuritySummary> target = selectionField(securities, securityLabel);
 		TextField quantity = new TextField(position != null ? StockDialogSupport.formatDecimal(position.quantity()) : "");
-		DatePicker date = new DatePicker(LocalDate.now());
+		DatePicker date = new DatePicker(LocalDate.now(ZoneId.systemDefault()));
 		TextField note = new TextField();
 		if (position != null) {
 			securities.stream().filter(security -> security.securityId() == position.securityId())
@@ -73,22 +74,26 @@ public final class StockSecurityExchangeDialog extends AbstractStockDialog {
 				List.of(explanation, useImported, manual, imported),
 				List.of(createActionButton("UI_BUTTON_SAVE", () -> applyAndClose(() -> {
 					if (useImported.isSelected()) {
-						if (outgoing.getValue() == null || incoming.getValue() == null) {
-							throw new GBankingException(getText("UI_STOCK_EXCHANGE_SELECT_MOVEMENTS"));
-						}
-						service.linkSecurityExchange(portfolio, outgoing.getValue().transactionId(), incoming.getValue().transactionId());
+						service.linkSecurityExchange(portfolio,
+								requireSelection(outgoing, "UI_STOCK_EXCHANGE_SELECT_MOVEMENTS").transactionId(),
+								requireSelection(incoming, "UI_STOCK_EXCHANGE_SELECT_MOVEMENTS").transactionId());
 					} else {
-						if (source.getValue() == null || target.getValue() == null) {
-							throw new GBankingException(getText("UI_STOCK_EXCHANGE_SELECT_SECURITIES"));
-						}
-						service.recordSecurityExchange(portfolio, new SecurityExchangeRequest(source.getValue().securityId(),
-								target.getValue().securityId(),
+						service.recordSecurityExchange(portfolio, new SecurityExchangeRequest(
+								requireSelection(source, "UI_STOCK_EXCHANGE_SELECT_SECURITIES").securityId(),
+								requireSelection(target, "UI_STOCK_EXCHANGE_SELECT_SECURITIES").securityId(),
 								StockDialogSupport.parseRequiredDecimal(quantity, getText("UI_STOCK_FIELD_QUANTITY")),
 								date.getValue(), note.getText()));
 					}
 					savedHandler.run();
 					return true;
 				})), createCancelButton()), 850, 430);
+	}
+
+	private <T> T requireSelection(ComboBox<T> field, String messageKey) {
+		if (field.getValue() == null) {
+			throw new GBankingException(getText(messageKey));
+		}
+		return field.getValue();
 	}
 
 	private static <T> ComboBox<T> selectionField(List<T> values, Function<T, String> label) {

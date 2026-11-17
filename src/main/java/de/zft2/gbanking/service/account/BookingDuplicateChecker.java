@@ -260,7 +260,7 @@ public final class BookingDuplicateChecker {
 			if (cleanedLine.isEmpty()) {
 				continue;
 			}
-			if (flattened.length() > 0) {
+			if (!flattened.isEmpty()) {
 				flattened.append(lineSeparator);
 			}
 			flattened.append(cleanedLine);
