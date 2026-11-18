@@ -961,7 +961,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		BigDecimal absolute = data.value().abs();
 		return switch (type) {
 		case BUY, REMOVAL, FEE, TAX, INTEREST_CHARGE -> absolute.negate();
-		case SELL, DEPOSIT, DIVIDEND, INTEREST, TAX_REFUND -> absolute;
+		case SELL, DEPOSIT, DIVIDEND, INTEREST, TAX_REFUND, FEES_REFUND -> absolute;
 		case DELIVERY_IN, DELIVERY_OUT -> null;
 		default -> data.value();
 		};
@@ -1238,6 +1238,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		DEPOSIT(null, false, 0, "Einlage"),
 		REMOVAL(null, false, 0, "Entnahme"),
 		FEE(null, false, 0, "Gebühren"),
+		FEES_REFUND(null, false, 0, "Gebührenerstattung"),
 		TAX(null, false, 0, "Steuern"),
 		TAX_REFUND(null, false, 0, "Steuererstattung");
 
@@ -1266,6 +1267,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 			case "DEPOSIT", "EINLAGE" -> DEPOSIT;
 			case "REMOVAL", "ENTNAHME" -> REMOVAL;
 			case "FEES", "FEE", "GEBÜHREN", "GEBUEHREN" -> FEE;
+			case "FEES_REFUND", "GEBÜHRENERSTATTUNG", "GEBUEHRENERSTATTUNG" -> FEES_REFUND;
 			case "TAXES", "TAX", "STEUERN" -> TAX;
 			case "TAX_REFUND", "STEUERERSTATTUNG" -> TAX_REFUND;
 			default -> throw new GBankingException("Nicht unterstützte Portfolio-Performance-Transaktionsart: " + value);

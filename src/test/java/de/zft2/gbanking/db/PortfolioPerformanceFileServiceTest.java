@@ -316,7 +316,10 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		Files.writeString(xml, Files.readString(xml).replace("</transactions></account>", """
 				<account-transaction><uuid>interest-charge</uuid><date>2026-04-04T00:00</date>
 				<currencyCode>EUR</currencyCode><amount>1234</amount><shares>0</shares>
-				<type>INTEREST_CHARGE</type></account-transaction></transactions></account>
+				<type>INTEREST_CHARGE</type></account-transaction>
+				<account-transaction><uuid>fees-refund</uuid><date>2026-04-05T00:00</date>
+				<currencyCode>EUR</currencyCode><amount>250</amount><shares>0</shares>
+				<type>FEES_REFUND</type></account-transaction></transactions></account>
 				"""));
 		PortfolioPerformanceImportService importer = new PortfolioPerformanceImportService();
 		var result = mapped
@@ -326,13 +329,18 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 
 		assertEquals(1, result.securities());
 		assertEquals(2, result.transactions());
-		assertEquals(4, result.bookings());
+		assertEquals(5, result.bookings());
 		assertEquals(1, result.prices());
 		Booking interestCharge = db.getAll(Booking.class).stream()
 				.filter(booking -> booking.getBookingType() == BookingType.INTEREST_CHARGE).findFirst().orElseThrow();
 		assertEquals(0, new BigDecimal("-12.34").compareTo(interestCharge.getAmount()));
 		assertEquals("Sollzinsen", interestCharge.getPurpose());
 		assertEquals(portfolio.settlementAccountId(), interestCharge.getAccountId());
+		Booking feesRefund = db.getAll(Booking.class).stream()
+				.filter(booking -> "Gebührenerstattung".equals(booking.getPurpose())).findFirst().orElseThrow();
+		assertEquals(0, new BigDecimal("2.50").compareTo(feesRefund.getAmount()));
+		assertEquals(BookingType.DEPOSIT, feesRefund.getBookingType());
+		assertEquals(portfolio.settlementAccountId(), feesRefund.getAccountId());
 		assertEquals("XML AG", db.getAll(StockSecurity.class).get(0).getName());
 		assertEquals(0, new BigDecimal("10").compareTo(
 				new StockPortfolioService().getPositions(portfolio.portfolioId()).get(0).quantity()));
