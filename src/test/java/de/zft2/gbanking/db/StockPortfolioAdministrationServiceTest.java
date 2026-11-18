@@ -2,6 +2,7 @@ package de.zft2.gbanking.db;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.time.LocalDate;
 import java.time.Month;
@@ -56,6 +57,26 @@ class StockPortfolioAdministrationServiceTest extends DBControllerIntegrationBas
 		return new PortfolioSaveRequest(portfolioId, name, "Max Mustermann", null, null, "4711", null,
 				"Testbank", null, null, Currency.EUR, AccountState.ACTIVE, true, openedAt, null,
 				settlementAccountId, validFrom);
+	}
+
+	@Test
+	void accountAndPortfolioClosureDatesShouldStaySynchronizedInBothDirections() {
+		BankAccount settlement = createAccount("Settlement", AccountType.CURRENT_ACCOUNT);
+		StockPortfolioAdministrationService service = new StockPortfolioAdministrationService();
+		LocalDate openedAt = LocalDate.of(2025, Month.JANUARY, 1);
+		var details = service.save(request(null, "Depot", settlement.getId(), openedAt, openedAt));
+		StockPortfolio portfolio = db.getById(StockPortfolio.class, details.portfolioId());
+		LocalDate closedAt = openedAt.plusYears(1);
+		portfolio.setClosedAt(closedAt);
+		db.insertOrUpdate(portfolio);
+		BankAccount account = db.getById(BankAccount.class, details.accountId());
+		assertEquals(closedAt, account.getClosedAt());
+		account.setClosedAt(closedAt.plusDays(2));
+		db.insertOrUpdate(account);
+		assertEquals(closedAt.plusDays(2), db.getById(StockPortfolio.class, portfolio.getId()).getClosedAt());
+		account.setClosedAt(null);
+		db.insertOrUpdate(account);
+		assertNull(db.getById(StockPortfolio.class, portfolio.getId()).getClosedAt());
 	}
 
 	private BankAccount createAccount(String name, AccountType accountType) {

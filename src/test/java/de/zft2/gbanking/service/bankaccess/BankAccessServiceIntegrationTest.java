@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
@@ -21,6 +22,8 @@ import static org.mockito.Mockito.when;
 import java.time.LocalDate;
 import java.time.Month;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Properties;
 
 import org.junit.jupiter.api.AfterEach;
@@ -58,6 +61,7 @@ import de.zft2.gbanking.db.dao.Upd;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.hbci.GBankingHBCICallback;
+import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.mapper.HbciMapper;
 import de.zft2.gbanking.paypal.PaypalAccountService;
 import de.zft2.gbanking.service.ServiceRegistry;
@@ -99,6 +103,53 @@ class BankAccessServiceIntegrationTest {
 		assertEquals(bankAccess.getId(), initializedAccess.getId());
 		assertEquals("10020030", initializedAccess.getFints().getBlz());
 		assertSame(pin, initializedAccess.getPin());
+	}
+
+	@Test
+	void missingAccountReviewShouldUseBankIdentifiersAndTheCompleteResponse() {
+		BankAccess access = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("10020030"));
+		BankAccount returned = storeReviewAccount(access, "10020030", "FIRSTBIC", "1");
+		BankAccount absent = storeReviewAccount(access, "10020030", "OTHERBIC", "2");
+		BankAccount bicFallback = storeReviewAccount(access, null, "firstbic", "3");
+		storeReviewAccount(access, "99999999", "FIRSTBIC", "4");
+		storeReviewAccount(access, null, "UNKNOWNBIC", "5");
+		returned.setSelected(false);
+		access.setReturnedAccounts(List.of(returned));
+		access.setAccounts(List.of());
+		BankAccountClosureService service = new BankAccountClosureService();
+		assertEquals(List.of(absent.getId(), bicFallback.getId()),
+				service.findMissingAccounts(access).stream().map(account -> account.getId()).toList());
+		assertNull(dbController.getById(BankAccount.class, absent.getId()).getClosedAt());
+		access.setReturnedAccounts(List.of());
+		assertEquals(List.of(returned.getId(), absent.getId(), bicFallback.getId()),
+				service.findMissingAccounts(access).stream().map(account -> account.getId()).toList());
+	}
+
+	@Test
+	void closureReviewShouldApplyOnlyConfirmedDatesAndRollBackFailedChanges() {
+		BankAccess access = dbController.insertOrUpdate(TestDataFactory.createSampleBankAccess("10020030"));
+		BankAccount account = storeReviewAccount(access, "10020030", "FIRSTBIC", "1");
+		BankAccountClosureService service = new BankAccountClosureService();
+		LocalDate date = LocalDate.of(2026, Month.JUNE, 15);
+		service.saveClosureDates(Map.of(account.getId(), date));
+		assertEquals(date, dbController.getById(BankAccount.class, account.getId()).getClosedAt());
+		Map<Integer, LocalDate> dates = new LinkedHashMap<>();
+		dates.put(account.getId(), null);
+		dates.put(Integer.MAX_VALUE, date);
+		assertThrows(GBankingException.class, () -> service.saveClosureDates(dates));
+		assertEquals(date, dbController.getById(BankAccount.class, account.getId()).getClosedAt());
+		dates.remove(Integer.MAX_VALUE);
+		service.saveClosureDates(dates);
+		assertNull(dbController.getById(BankAccount.class, account.getId()).getClosedAt());
+	}
+
+	private BankAccount storeReviewAccount(BankAccess access, String blz, String bic, String number) {
+		BankAccount account = TestDataFactory.createSampleAccount(access.getId());
+		account.setBlz(blz);
+		account.setBic(bic);
+		account.setIban(null);
+		account.setNumber(number);
+		return dbController.insertOrUpdate(account);
 	}
 
 	@Test
@@ -242,6 +293,8 @@ class BankAccessServiceIntegrationTest {
 		existingAccount.setNumber("30001");
 		existingAccount.setSubnumber("01");
 		existingAccount.setAccountType(AccountType.UNKNOWN_ACCOUNT);
+		existingAccount.setClosedAt(LocalDate.of(2025, Month.DECEMBER, 31));
+		existingAccount.setAccountState(AccountState.INACTIVE);
 		existingAccount = dbController.insertOrUpdate(existingAccount);
 
 		HBCIPassport passport = mock(HBCIPassport.class);
@@ -264,6 +317,8 @@ class BankAccessServiceIntegrationTest {
 		assertEquals(1, storedAccounts.size());
 		assertEquals(existingAccount.getId(), storedAccounts.get(0).getId());
 		assertEquals(AccountType.DEPOT, storedAccounts.get(0).getAccountType());
+		assertEquals(existingAccount.getClosedAt(), storedAccounts.get(0).getClosedAt());
+		assertEquals(AccountState.INACTIVE, storedAccounts.get(0).getAccountState());
 	}
 
 	@Test

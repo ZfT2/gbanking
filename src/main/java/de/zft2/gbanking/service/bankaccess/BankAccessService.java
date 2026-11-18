@@ -352,12 +352,14 @@ public class BankAccessService extends AbstractDbService {
 			if (matches.size() == 1) {
 				int existingId = matches.get(0).getId();
 				mappedAccount.setId(existingId);
+				mappedAccount.setClosedAt(matches.get(0).getClosedAt());
+				mappedAccount.setAccountState(matches.get(0).getAccountState());
 				assignedIds.add(existingId);
 			}
 		}
 	}
 
-	private static boolean representsSameProviderAccount(BankAccount first, BankAccount second) {
+	public static boolean representsSameProviderAccount(BankAccount first, BankAccount second) {
 		return sameIdentifier(first.getProviderAccountId(), second.getProviderAccountId())
 				|| sameIdentifier(first.getIban(), second.getIban())
 				|| sameReferenceKey(first, second);
@@ -480,6 +482,9 @@ public class BankAccessService extends AbstractDbService {
 			return;
 		}
 		target.setId(source.getId());
+		if (source.getAccounts() != null) {
+			target.setReturnedAccounts(source.getAccounts());
+		}
 		target.setAccessType(source.getAccessType());
 		target.setBankName(source.getBankName());
 		target.setActive(source.isActive());
@@ -529,7 +534,9 @@ public class BankAccessService extends AbstractDbService {
 		for (BankAccount bankAccount : bankAccess.getAccounts()) {
 			bankAccount.setBankAccessId(bankAccess.getId());
 			bankAccount.setOfflineAccount(false);
-			bankAccount.setAccountState(AccountState.ACTIVE);
+			if (bankAccount.getAccountState() == null) {
+				bankAccount.setAccountState(AccountState.ACTIVE);
+			}
 			result &= dbController.insertOrUpdate(bankAccount) != null;
 			result &= dbController.insertBusinessCases(bankAccount);
 		}

@@ -413,6 +413,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		portfolio.setAccountId(depotAccount.getId());
 		portfolio.setCurrentSettlementRelationId(0);
 		portfolio.setOpenedAt(openedAt);
+		portfolio.setClosedAt(depotAccount.getClosedAt());
 		portfolio = dbController.insertOrUpdate(portfolio);
 
 		StockPortfolioSettlementAccount relation = new StockPortfolioSettlementAccount();

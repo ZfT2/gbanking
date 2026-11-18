@@ -3,9 +3,11 @@ package de.zft2.gbanking.gui.panel.bankaccess;
 import static de.zft2.gbanking.util.TextValues.hasText;
 import static de.zft2.gbanking.util.TextValues.nullToEmpty;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
@@ -23,6 +25,8 @@ import de.zft2.gbanking.gui.util.FxNodeSupport;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
 import de.zft2.gbanking.paypal.PaypalSupport;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
+import de.zft2.gbanking.service.bankaccess.BankAccountClosureService;
+import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.service.ServiceRegistry;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -269,38 +273,47 @@ final class BankAccessDialogHolder extends BasePanel {
 
 		accountTable.getColumns().setAll(List.of(selectedCol, nameCol, ibanCol, bankCol, currencyCol));
 		GuiLayoutState.configureTable(accountTable, "dialog.bankAccessAccounts");
+		bankAccess.setReturnedAccounts(accountItems);
+		MissingBankAccountsPane missingAccounts = new MissingBankAccountsPane(bankAccess);
 
 		Button okButton = new Button(getText("UI_BUTTON_OK"));
 		Button cancelButton = new Button(getText("UI_BUTTON_CANCEL"));
 
 		okButton.setOnAction(e -> {
-			List<BankAccount> selectedAccounts = accountItems.stream().filter(BankAccount::isSelected).toList();
-			StockPortfolioAssignmentCoordinator assignmentCoordinator =
-					new StockPortfolioAssignmentCoordinator(selectedAccounts);
-			if (!assignmentCoordinator.chooseAssignments(dialog)) {
-				return;
-			}
-			bankAccess.setAccounts(new ArrayList<>(selectedAccounts));
-
-			BankAccessService bankAccessService = ServiceRegistry.getService(BankAccessService.class);
-			if (bankAccessService.saveBankAccessAccountsToDB(bankAccess)) {
-				try {
-					assignmentCoordinator.persistAssignments();
-					overviewPanel.getBankAccessListPanel().refreshModelBankAccess();
-					dialog.close();
-				} catch (RuntimeException exception) {
-					DialogWindowSupport.showAlert(dialog, AlertType.WARNING, exception.getMessage());
-				}
-			} else {
-				accountsLabel.setText(getText("ERROR_BANK_ACCESS_SAVE"));
+			try {
+				saveReviewedAccounts(dialog, bankAccess, accountItems, missingAccounts);
+			} catch (RuntimeException exception) {
+				DialogWindowSupport.showAlert(dialog, AlertType.WARNING, exception.getMessage());
 			}
 		});
 
 		cancelButton.setOnAction(e -> dialog.close());
 
-		VBox root = createDialogRoot(getText("UI_BANK_ACCESS_DIALOG_ACCOUNTS_TITLE"), accountsLabel, accountTable, createButtonBar(okButton, cancelButton));
+		VBox root = createDialogRoot(getText("UI_BANK_ACCESS_DIALOG_ACCOUNTS_TITLE"), accountsLabel, accountTable, missingAccounts,
+				createButtonBar(okButton, cancelButton));
 		VBox.setVgrow(accountTable, Priority.ALWAYS);
 		return root;
+	}
+
+	private void saveReviewedAccounts(Stage dialog, BankAccess bankAccess, List<BankAccount> accountItems, MissingBankAccountsPane missingAccounts) {
+		Map<Integer, LocalDate> dates = missingAccounts.getClosureDates();
+		List<BankAccount> selectedAccounts = accountItems.stream().filter(BankAccount::isSelected).toList();
+		StockPortfolioAssignmentCoordinator assignmentCoordinator = new StockPortfolioAssignmentCoordinator(selectedAccounts);
+		if (!assignmentCoordinator.chooseAssignments(dialog)) {
+			return;
+		}
+		bankAccess.setAccounts(new ArrayList<>(selectedAccounts));
+
+		BankAccessService bankAccessService = ServiceRegistry.getService(BankAccessService.class);
+		dbController.executeInTransaction(() -> {
+			if (!bankAccessService.saveBankAccessAccountsToDB(bankAccess)) {
+				throw new GBankingException(getText("ERROR_BANK_ACCESS_SAVE"));
+			}
+			ServiceRegistry.getService(BankAccountClosureService.class).saveClosureDates(dates);
+			assignmentCoordinator.persistAssignments();
+		});
+		overviewPanel.getBankAccessListPanel().refreshModelBankAccess();
+		dialog.close();
 	}
 
 	private VBox createDialogRoot(String titleKey, Node... content) {

@@ -28,6 +28,24 @@ class StockPortfolioSchemaTest {
 	private static final String CREATED_AT = "2026-09-14T12:00:00";
 
 	@Test
+	void portfolioCreationShouldKeepAnExistingAccountClosureDate() throws Exception {
+		try (Connection connection = openDatabase(); Statement statement = connection.createStatement()) {
+			insertBankAccount(statement, 1, 16, "Depot");
+			insertBankAccount(statement, 2, 12, "Settlement");
+			statement.executeUpdate("UPDATE bankAccount SET closedAt = '2026-12-31' WHERE id = 1");
+			insertPortfolio(connection, 1, 1, 1, 2);
+			try (var dates = statement.executeQuery("""
+					SELECT account.closedAt AS accountDate, portfolio.closedAt AS portfolioDate
+					FROM bankAccount account JOIN stockPortfolio portfolio ON portfolio.account_id = account.id
+					""")) {
+				dates.next();
+				assertEquals("2026-12-31", dates.getString("accountDate"));
+				assertEquals("2026-12-31", dates.getString("portfolioDate"));
+			}
+		}
+	}
+
+	@Test
 	void portfolioShouldRequireDepotAndExactlyOneCurrentSettlementRelation() throws Exception {
 		try (Connection connection = openDatabase(); Statement statement = connection.createStatement()) {
 			insertBankAccount(statement, 1, 16, "Depot");

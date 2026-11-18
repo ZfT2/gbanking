@@ -67,6 +67,8 @@ class DBControllerBankAccountTest extends DBControllerIntegrationBaseTest {
 	void bankAccountSchema_shouldContainCreatedAtBeforeUpdatedAt() throws SQLException {
 
 		int createdAtIndex = -1;
+		int accountStateIndex = -1;
+		int closedAtIndex = -1;
 		int updatedAtIndex = -1;
 		int createdAtNotNull = 0;
 		int columnIndex = 0;
@@ -80,6 +82,11 @@ class DBControllerBankAccountTest extends DBControllerIntegrationBaseTest {
 					createdAtNotNull = resultSet.getInt("notnull");
 				} else if ("updatedAt".equals(columnName)) {
 					updatedAtIndex = columnIndex;
+				} else if ("accountState".equals(columnName)) {
+					accountStateIndex = columnIndex;
+				} else if ("closedAt".equals(columnName)) {
+					closedAtIndex = columnIndex;
+					assertEquals(0, resultSet.getInt("notnull"));
 				}
 				columnIndex++;
 			}
@@ -89,6 +96,29 @@ class DBControllerBankAccountTest extends DBControllerIntegrationBaseTest {
 		assertTrue(updatedAtIndex >= 0);
 		assertEquals(1, createdAtNotNull);
 		assertEquals(updatedAtIndex - 1, createdAtIndex);
+		assertTrue(accountStateIndex >= 0);
+		assertEquals(accountStateIndex + 1, closedAtIndex);
+	}
+
+	@Test
+	void closedAtShouldSurviveAllAccountLoadsAndBeClearableWithoutLosingHistory() {
+		BankAccess access = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("44444444"));
+		BankAccount account = TestDataFactory.createSampleAccount(access.getId());
+		LocalDate date = LocalDate.of(2026, Month.SEPTEMBER, 10);
+		account.setClosedAt(date);
+		db.insertOrUpdate(account);
+		Booking booking = db.insertOrUpdate(TestDataFactory.createSampleBooking(account.getId()));
+		assertEquals(date, db.getById(BankAccount.class, account.getId()).getClosedAt());
+		assertEquals(date, db.getAll(BankAccount.class).get(0).getClosedAt());
+		assertEquals(date, db.getAllByParent(BankAccount.class, access.getId()).get(0).getClosedAt());
+		assertEquals(date, db.getAll(BankAccount.class, "SQL_SELECT_ALL_ONLINE_BANKACCOUNTS").get(0).getClosedAt());
+		account.setClosedAt(date.minusDays(1));
+		db.insertOrUpdate(account);
+		assertEquals(date.minusDays(1), db.getById(BankAccount.class, account.getId()).getClosedAt());
+		account.setClosedAt(null);
+		db.insertOrUpdate(account);
+		assertNull(db.getById(BankAccount.class, account.getId()).getClosedAt());
+		assertNotNull(db.getById(Booking.class, booking.getId()));
 	}
 
 	@Test

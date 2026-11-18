@@ -33,6 +33,7 @@ CREATE TABLE bankAccount (
   isSEPAAccount REAL NOT NULL,
   isOfflineAccount REAL NOT NULL,
   accountState INTEGER NOT NULL,
+  closedAt TEXT,
   balance REAL,
   createdAt TEXT NOT NULL,
   updatedAt TEXT NOT NULL,
@@ -46,6 +47,14 @@ CREATE TABLE bankAccount (
   CHECK (isOfflineAccount IN (0, 1)),
   CHECK (parentAccount_id IS NULL OR parentAccount_id <> id));
 ;
+
+[SQL_SETUP_CREATE_TRIGGER_BANK_ACCOUNT_CLOSURE_UPDATE]
+CREATE TRIGGER sync_bankaccount_stockportfolio_closure_update
+AFTER UPDATE OF closedAt ON bankAccount
+BEGIN
+  UPDATE stockPortfolio SET closedAt = NEW.closedAt
+  WHERE account_id = NEW.id AND closedAt IS NOT NEW.closedAt;
+END;
 
 [SQL_SETUP_CREATE_BANKACCOUNT_IDENTIFIERS]
 CREATE TABLE bankAccountIdentifiers (

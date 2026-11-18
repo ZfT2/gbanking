@@ -25,6 +25,7 @@ import de.zft2.gbanking.db.StatementsConfig.StatementType;
 import de.zft2.gbanking.db.dao.Dao;
 import de.zft2.gbanking.db.dao.BankAccess;
 import de.zft2.gbanking.db.dao.BankAccount;
+import de.zft2.gbanking.db.dao.stock.StockPortfolio;
 import de.zft2.gbanking.db.dao.logic.StatementsLogic;
 import de.zft2.gbanking.db.dao.mapper.AbstractDaoMapper;
 import de.zft2.gbanking.db.enu.StateType;
@@ -150,6 +151,8 @@ public abstract class DbExecutor extends DbConnectionHandler implements BaseMess
 			BankCapabilityCache.invalidateAccount(bankAccount.getId());
 		} else if (entity instanceof BankAccess bankAccess) {
 			BankCapabilityCache.invalidateBankAccess(bankAccess.getId());
+		} else if (entity instanceof StockPortfolio portfolio) {
+			BankCapabilityCache.invalidateAccount(portfolio.getAccountId());
 		}
 	}
 

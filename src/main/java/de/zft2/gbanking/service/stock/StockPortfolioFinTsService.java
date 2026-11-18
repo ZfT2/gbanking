@@ -160,6 +160,10 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 			HbciSessionRunner.clearSecret(pin);
 			return StockPortfolioFinTsRetrievalResult.failure("Das Depotkonto wurde nicht gefunden.");
 		}
+		if (account.isClosed()) {
+			HbciSessionRunner.clearSecret(pin);
+			return StockPortfolioFinTsRetrievalResult.failure(getText("ERROR_ACCOUNT_CLOSED"));
+		}
 
 		BankAccess bankAccess = bankAccessService().initBankAccess(account, pin);
 		if (bankAccess == null) {
@@ -291,6 +295,7 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 		portfolio.setAccountId(depotAccount.getId());
 		portfolio.setCurrentSettlementRelationId(0);
 		portfolio.setOpenedAt(today);
+		portfolio.setClosedAt(depotAccount.getClosedAt());
 		dbController.insertOrUpdate(portfolio);
 
 		StockPortfolioSettlementAccount relation = new StockPortfolioSettlementAccount();

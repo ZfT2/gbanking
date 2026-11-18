@@ -96,6 +96,11 @@ public class AccountTransactionService extends AbstractDbService {
 	}
 
 	public AccountTransactionRetrievalResult retrieveAccountTransactionsWithResult(BankAccount bankAccount, char[] pin) {
+		if (bankAccount != null && bankAccount.isClosed()) {
+			HbciSessionRunner.clearSecret(pin);
+			log.warn("Account transaction retrieval rejected for closed account id {}.", bankAccount.getId());
+			return AccountTransactionRetrievalResult.failure(getText("ERROR_ACCOUNT_CLOSED"));
+		}
 		BankAccess configuredAccess = getConfiguredAccess(bankAccount);
 		if (configuredAccess != null && configuredAccess.getAccessType() == BankAccessType.PAYPAL) {
 			return ServiceRegistry.getService(PaypalAccountTransactionService.class).retrieve(bankAccount, pin);

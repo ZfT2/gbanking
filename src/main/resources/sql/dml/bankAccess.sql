@@ -149,7 +149,7 @@ DELETE FROM bankAccess WHERE id = ?;
 SELECT ba.id, ba.bankAccess_id, ba.parentAccount_id, ba.providerAccountId, ba.accountName, ba.baseCurrency,
   ba.accountType, ba.accountSource, ba.iban, ba.bic, ba.number, ba.subNumber, ba.bankName, ba.blz,
   ba.hbciAccountType, ba.accountLimit, ba.customerId, ba.ownerName, ba.ownerName2, ba.country,
-  ba.creditorId, ba.isSepaAccount, ba.isOfflineAccount, ba.accountState, ba.balance, ba.createdAt, ba.updatedAt
+  ba.creditorId, ba.isSepaAccount, ba.isOfflineAccount, ba.accountState, ba.closedAt, ba.balance, ba.createdAt, ba.updatedAt
 FROM bankAccount ba
 WHERE ba.bankAccess_id = ?
 ORDER BY ba.id;
@@ -159,7 +159,7 @@ ORDER BY ba.id;
 SELECT ba.id, ba.bankAccess_id, ba.parentAccount_id, ba.providerAccountId, ba.accountName, ba.baseCurrency,
   ba.accountType, ba.accountSource, ba.iban, ba.bic, ba.number, ba.subNumber, ba.bankName, ba.blz,
   ba.hbciAccountType, ba.accountLimit, ba.customerId, ba.ownerName, ba.ownerName2, ba.country,
-  ba.creditorId, ba.isSepaAccount, ba.isOfflineAccount, ba.accountState, ba.balance, ba.createdAt, ba.updatedAt
+  ba.creditorId, ba.isSepaAccount, ba.isOfflineAccount, ba.accountState, ba.closedAt, ba.balance, ba.createdAt, ba.updatedAt
 FROM bankAccount ba
 WHERE ba.bankAccess_id IN (%s)
 ORDER BY ba.bankAccess_id, ba.id;

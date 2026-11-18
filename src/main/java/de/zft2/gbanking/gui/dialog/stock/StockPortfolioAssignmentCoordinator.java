@@ -27,10 +27,12 @@ public final class StockPortfolioAssignmentCoordinator implements BaseMessages {
 		this.service = service;
 		List<BankAccount> accounts = bankAccessAccounts != null ? bankAccessAccounts : List.of();
 		portfolioAccounts = accounts.stream()
+				.filter(account -> !account.isClosed())
 				.filter(account -> account.getAccountType() == AccountType.DEPOT)
 				.filter(account -> account.getId() <= 0 || service.findPortfolioForAccount(account.getId()) == null)
 				.toList();
 		settlementAccounts = accounts.stream()
+				.filter(account -> !account.isClosed())
 				.filter(StockPortfolioAssignmentCoordinator::isSettlementAccount)
 				.toList();
 	}

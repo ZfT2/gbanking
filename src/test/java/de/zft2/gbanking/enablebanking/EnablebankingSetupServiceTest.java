@@ -20,6 +20,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
 import java.time.OffsetDateTime;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,7 @@ import de.zft2.gbanking.db.dao.BankAccessPaypal;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Psd2ClientConfiguration;
 import de.zft2.gbanking.db.dao.enu.AccountType;
+import de.zft2.gbanking.db.dao.enu.AccountState;
 import de.zft2.gbanking.db.dao.enu.BankAccessType;
 import de.zft2.gbanking.db.dao.enu.Psd2ClientMode;
 import de.zft2.gbanking.exception.GBankingException;
@@ -369,12 +371,16 @@ class EnablebankingSetupServiceTest {
 	void mapAccountDetails_shouldKeepTheCorrectedAccountType() {
 		BankAccount existing = new BankAccount();
 		existing.setAccountType(AccountType.SAVINGS_ACCOUNT);
+		existing.setClosedAt(LocalDate.of(2025, 6, 15));
+		existing.setAccountState(AccountState.INACTIVE);
 		EnablebankingRemoteAccount remote = remote("DE44500105175407324931", "BICADEFFXXX", "87654321",
 				"4711", "CACC", "EUR", "Max Mustermann");
 
 		BankAccount account = EnablebankingSetupService.mapAccountDetails("Example Bank", "DE", remote, existing);
 
 		assertEquals(AccountType.SAVINGS_ACCOUNT, account.getAccountType());
+		assertEquals(existing.getClosedAt(), account.getClosedAt());
+		assertEquals(AccountState.INACTIVE, account.getAccountState());
 	}
 
 	@Test

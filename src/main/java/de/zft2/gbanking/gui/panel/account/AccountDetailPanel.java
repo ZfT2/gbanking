@@ -4,6 +4,7 @@ import static de.zft2.gbanking.util.TextValues.trimToNull;
 
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -73,6 +74,7 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 	private final CheckBox isSEPAAccount = FormFields.checkBox();
 
 	private final TextField createdAtText = FormFields.textS();
+	private final TextField closedAtText = FormFields.textS();
 	private final Label updatedAtLabel = new Label();
 	private final TextField retrievalAtText = FormFields.textS();
 	private final TextField retrievalResultText = FormFields.textM();
@@ -119,7 +121,8 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 		addUpdatedAtFieldToTitle();
 
 		makeReadOnly(accountIbanText, bankNameText, accountTypText, bankAccessText, currencyText, bankBalanceText, bicText, blzText, numberText, subnumberText,
-				ownerNameText, ownerName2Text, createdAtText, retrievalAtText, retrievalResultText, retrievalCountsText);
+				ownerNameText, ownerName2Text, createdAtText, closedAtText, retrievalAtText, retrievalResultText, retrievalCountsText);
+		closedAtText.setPromptText("dd.MM.yyyy");
 		setBankBalanceVisible(false);
 
 		disable(isSEPAAccount);
@@ -153,12 +156,12 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 		addFieldInline("UI_LABEL_OFFLINE_ACCOUNT", isOfflineAccount, 2, 0);
 		addFieldInline("UI_LABEL_CREATED_AT", createdAtText, 3, 0);
 		addAccountFields(accountTypeCombo, 1);
-		addRetrievalStatusFields(4);
+		addRetrievalStatusFields(5);
 	}
 
 	private void addReadonlyDetailsFields() {
 		addAccountFields(accountTypText, 0);
-		addRetrievalStatusFields(3);
+		addRetrievalStatusFields(4);
 	}
 
 	private void addAccountFields(Node accountType, int firstRow) {
@@ -176,6 +179,7 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 		addFieldInline("UI_LABEL_SUBNUMBER", subnumberText, 1, firstRow + 2);
 		addFieldInline(UI_LABEL_CURRENCY, currencyText, 2, firstRow + 2);
 		addFieldInline("UI_LABEL_SEPA_ACCOUNT", isSEPAAccount, 3, firstRow + 2);
+		addFieldInline("UI_LABEL_ACCOUNT_CLOSED_AT", closedAtText, 0, firstRow + 3);
 	}
 
 	private void addRetrievalStatusFields(int row) {
@@ -218,6 +222,7 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 		accountIbanText.setText(bankAccount.getIban());
 		accountTypText.setText(bankAccount.getAccountType() != null ? bankAccount.getAccountType().toString() : "");
 		accountTypeCombo.setValue(bankAccount.getAccountType());
+		closedAtText.setText(DateFormatUtils.formatLong(bankAccount.getClosedAt()));
 		bankNameText.setText(bankAccount.getBankName());
 		bankAccessText.setText(getBankAccessDisplayName(bankAccount.getBankAccessId()));
 		currencyText.setText(bankAccount.getCurrency());
@@ -267,6 +272,7 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 		updatedAtLabel.setText("");
 		retrievalResultText.setTooltip(null);
 		accountTypeCombo.setValue(null);
+		closedAtText.clear();
 		isSEPAAccount.setSelected(false);
 		setBankBalanceVisible(false);
 		if (fullDetails) {
@@ -341,6 +347,12 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 		}
 
 		BankAccount accountToSave = creatingNewAccount ? createManualAccount() : currentAccount;
+		try {
+			accountToSave.setClosedAt(DateFormatUtils.parseLong(closedAtText.getText()));
+		} catch (DateTimeParseException exception) {
+			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_ACCOUNT_CLOSED_AT_INVALID"));
+			return;
+		}
 		applyFormTo(accountToSave);
 		if (creatingNewAccount && hasExistingIdentifier(accountToSave)) {
 			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_ACCOUNT_ALREADY_EXISTS"));
@@ -480,6 +492,7 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 		controls.add(accountNameText);
 		controls.add(accountIbanText);
 		controls.add(accountTypeCombo);
+		controls.add(closedAtText);
 		controls.add(bankNameText);
 		controls.add(currencyText);
 		controls.add(bicText);

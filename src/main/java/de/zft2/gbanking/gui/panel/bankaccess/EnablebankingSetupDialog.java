@@ -2,9 +2,11 @@ package de.zft2.gbanking.gui.panel.bankaccess;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 
@@ -17,6 +19,7 @@ import de.zft2.gbanking.enablebanking.EnablebankingAspsp;
 import de.zft2.gbanking.enablebanking.EnablebankingAuthMethod;
 import de.zft2.gbanking.enablebanking.EnablebankingException;
 import de.zft2.gbanking.enablebanking.EnablebankingSetupService;
+import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.BackgroundActionCoordinator;
 import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
@@ -170,6 +173,9 @@ final class EnablebankingSetupDialog implements BaseMessages {
 			if (authorizedAccess.getAccounts().isEmpty()) {
 				DialogWindowSupport.showAlert(dialog, AlertType.INFORMATION,
 						getText("UI_ENABLEBANKING_NO_SELECTABLE_ACCOUNTS"));
+				if (BankAccountClosureDialog.review(authorizedAccess)) {
+					onSaved.run();
+				}
 				cancelAuthorization();
 				return;
 			}
@@ -182,13 +188,14 @@ final class EnablebankingSetupDialog implements BaseMessages {
 		ObservableList<BankAccount> accounts = FXCollections.observableArrayList(bankAccess.getAccounts());
 		accounts.forEach(account -> account.setSelected(true));
 		TableView<BankAccount> accountTable = createAccountTable(accounts);
+		MissingBankAccountsPane missingAccounts = new MissingBankAccountsPane(bankAccess);
 		Button save = new Button(getText("UI_BUTTON_SAVE"));
 		Button cancel = new Button(getText("UI_BUTTON_CANCEL"));
-		save.setOnAction(event -> save(bankAccess, accounts, save, cancel));
+		save.setOnAction(event -> save(bankAccess, accounts, missingAccounts, save, cancel));
 		cancel.setOnAction(event -> close());
 		Label hint = new Label(getText("UI_ENABLEBANKING_SELECT_ACCOUNTS"));
 		hint.setWrapText(true);
-		VBox root = DialogWindowSupport.createDialogRoot(hint, accountTable,
+		VBox root = DialogWindowSupport.createDialogRoot(hint, accountTable, missingAccounts,
 				DialogWindowSupport.createButtonBar(save, cancel));
 		VBox.setVgrow(accountTable, Priority.ALWAYS);
 		return new Scene(root, DIALOG_WIDTH, DIALOG_HEIGHT);
@@ -279,13 +286,20 @@ final class EnablebankingSetupDialog implements BaseMessages {
 		}
 	}
 
-	private void save(BankAccess bankAccess, List<BankAccount> accounts, Button save, Button cancel) {
+	private void save(BankAccess bankAccess, List<BankAccount> accounts, MissingBankAccountsPane missingAccounts, Button save, Button cancel) {
 		List<BankAccount> selected = accounts.stream().filter(BankAccount::isSelected).toList();
 		if (selected.isEmpty()) {
 			DialogWindowSupport.showAlert(dialog, AlertType.WARNING, getText("UI_ENABLEBANKING_SELECT_AT_LEAST_ONE"));
 			return;
 		}
-		startTask("gbanking-enablebanking-save-access", () -> setupService.save(bankAccess, selected), success -> {
+		Map<Integer, LocalDate> dates;
+		try {
+			dates = missingAccounts.getClosureDates();
+		} catch (GBankingException exception) {
+			DialogWindowSupport.showAlert(dialog, AlertType.WARNING, exception.getMessage());
+			return;
+		}
+		startTask("gbanking-enablebanking-save-access", () -> setupService.save(bankAccess, selected, dates), success -> {
 			if (Boolean.TRUE.equals(success)) {
 				saved = true;
 				onSaved.run();

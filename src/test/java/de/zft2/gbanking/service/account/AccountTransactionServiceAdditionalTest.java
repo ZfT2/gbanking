@@ -94,6 +94,18 @@ class AccountTransactionServiceAdditionalTest {
 	}
 
 	@Test
+	void closedAccountsShouldRejectOnlineRetrievalAndClearThePinWithoutContactingTheBank() {
+		BankAccount account = TestDataFactory.createSampleAccount(null);
+		account.setClosedAt(LocalDate.now(ZoneId.systemDefault()));
+		char[] pin = "1234".toCharArray();
+		AccountTransactionRetrievalResult result = new AccountTransactionService().retrieveAccountTransactionsWithResult(account, pin);
+		assertFalse(result.successful());
+		assertEquals(Messages.getInstance().getMessage("ERROR_ACCOUNT_CLOSED"), result.errorMessage());
+		assertArrayEquals(new char[4], pin);
+		verify(ServiceRegistry.getService(BankAccessService.class), never()).initBankAccess(any(), any());
+	}
+
+	@Test
 	void createUmsatzJob_shouldRequestAllBookingsWithoutStartDateWhenAccountHasNoBookings() throws Exception {
 		BankAccessService hbciSupport = ServiceRegistry.getService(BankAccessService.class);
 		AccountTransactionService service = new AccountTransactionService();

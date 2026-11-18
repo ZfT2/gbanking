@@ -21,6 +21,15 @@ public class BankAccess extends Dao implements Serializable {
 	private BankAccessEnablebanking enablebanking;
 
 	private List<BankAccount> accounts;
+	private transient List<BankAccount> returnedAccounts;
+
+	public List<BankAccount> getReturnedAccounts() {
+		return returnedAccounts != null ? returnedAccounts : accounts;
+	}
+
+	public void setReturnedAccounts(List<BankAccount> returnedAccounts) {
+		this.returnedAccounts = List.copyOf(returnedAccounts);
+	}
 
 	public String getBankName() {
 		return bankName;

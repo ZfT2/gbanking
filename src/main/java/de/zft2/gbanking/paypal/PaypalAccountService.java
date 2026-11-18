@@ -103,7 +103,9 @@ public class PaypalAccountService implements Service, BaseMessages {
 		account.setSource(Source.ONLINE);
 		account.setSEPAAccount(false);
 		account.setOfflineAccount(false);
-		account.setAccountState(AccountState.ACTIVE);
+		if (account.getAccountState() == null) {
+			account.setAccountState(AccountState.ACTIVE);
+		}
 		account.setBalance(balance.amount());
 		account.setAllowedBusinessCases(List.of());
 		return account;

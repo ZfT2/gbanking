@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Properties;
+import java.time.LocalDate;
+import java.time.ZoneId;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -141,6 +143,22 @@ class BankingCapabilityServiceTest {
 		bankAccess.getFints().setBpd(bpd);
 		dbController.insertOrUpdatePD(bankAccess);
 		return bankAccess;
+	}
+
+	@Test
+	void capabilityCheckShouldBlockClosedAccountsAndAllowReopening() {
+		BankAccount account = createAccountWithTransferSupport();
+		LocalDate today = LocalDate.now(ZoneId.systemDefault());
+		account.setClosedAt(today.plusDays(1));
+		dbController.insertOrUpdate(account);
+		assertTrue(capabilityService.supportsTransferOrderType(account, OrderType.TRANSFER));
+		account.setClosedAt(today);
+		dbController.insertOrUpdate(account);
+		assertFalse(capabilityService.supportsTransferOrderType(account, OrderType.TRANSFER));
+		assertFalse(capabilityService.supportsAccountTransactions(account));
+		account.setClosedAt(null);
+		dbController.insertOrUpdate(account);
+		assertTrue(capabilityService.supportsTransferOrderType(account, OrderType.TRANSFER));
 	}
 
 	private BankAccount createAccount(BankAccess bankAccess) {

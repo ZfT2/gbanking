@@ -56,6 +56,7 @@ public class BankAccountMapper extends AbstractDaoMapper<BankAccount, Void> {
 		ps.setBoolean(index++, bankAccount.isSEPAAccount());
 		ps.setBoolean(index++, bankAccount.isOfflineAccount());
 		ps.setInt(index++, bankAccount.getAccountState().getDbStateId());
+		ps.setString(index++, bankAccount.getClosedAt() != null ? bankAccount.getClosedAt().toString() : null);
 		index = setBigDecimalNullable(index, bankAccount.getBalance(), ps);
 		if (bankAccount.getId() <= 0) {
 			ps.setTimestamp(index++, getCreatedAtTimestamp(bankAccount));
@@ -111,6 +112,8 @@ public class BankAccountMapper extends AbstractDaoMapper<BankAccount, Void> {
 		account.setSEPAAccount(rs.getBoolean("isSepaAccount"));
 		account.setOfflineAccount(rs.getBoolean("isOfflineAccount"));
 		account.setAccountState(AccountState.forInt(rs.getInt("accountState")));
+		String closedAt = rs.getString("closedAt");
+		account.setClosedAt(closedAt != null ? LocalDate.parse(closedAt) : null);
 
 		account.setBalance(getScaledBigDecimalNullable(SqlFields.BALANCE, rs));
 		account.setCreatedAt(TypeConverter.toLocalDateFromSqlDate(rs.getDate(SqlFields.DAO_CREATEDAT)));

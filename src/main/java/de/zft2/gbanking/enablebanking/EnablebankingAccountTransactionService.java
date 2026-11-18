@@ -40,6 +40,7 @@ import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.dialog.hbci.HbciCallbackMessageDialog;
+import de.zft2.gbanking.gui.panel.bankaccess.BankAccountClosureDialog;
 import de.zft2.gbanking.mapper.BookingCurrencyMapper;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.ServiceRegistry;
@@ -103,7 +104,7 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 			Psd2ClientConfiguration configuration = getConfiguration(accessData);
 			EnablebankingApiClient client = new EnablebankingApiClient(configuration);
 			if (shouldOfferReauthorization(bankAccount) && requestReauthorization(bankAccess, statusDialog)) {
-				BatchRetrieval batch = reauthorizeAndRetrieve(bankAccess, configuration, client, statusDialog);
+				BatchRetrieval batch = reauthorizeAndRetrieve(bankAccess, configuration, client, statusDialog, false);
 				completedBatchResults.get().putAll(batch.results());
 				AccountTransactionRetrievalResult result = takeCompletedBatchResult(bankAccount);
 				if (result == null) {
@@ -150,7 +151,7 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 			BankAccessEnablebanking accessData = bankAccess.getEnablebanking();
 			Psd2ClientConfiguration configuration = getConfiguration(accessData);
 			EnablebankingApiClient client = new EnablebankingApiClient(configuration);
-			successful = reauthorizeAndRetrieve(bankAccess, configuration, client, statusDialog).successful();
+			successful = reauthorizeAndRetrieve(bankAccess, configuration, client, statusDialog, true).successful();
 			return successful;
 		} catch (EnablebankingException exception) {
 			statusDialog.appendMessages(exception.getMessage());
@@ -162,18 +163,24 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 	}
 
 	private BatchRetrieval reauthorizeAndRetrieve(BankAccess bankAccess, Psd2ClientConfiguration configuration,
-			EnablebankingApiClient client, HbciCallbackMessageDialog statusDialog) {
+			EnablebankingApiClient client, HbciCallbackMessageDialog statusDialog, boolean reviewAccounts) {
 		BankAccessEnablebanking accessData = bankAccess.getEnablebanking();
 		EnablebankingSession session = authorizeSession(bankAccess, configuration, client, statusDialog);
 		accessData.setRateLimitUntil(null);
 		dbController.insertOrUpdate(bankAccess);
 
+		bankAccess.setReturnedAccounts(EnablebankingSetupService.mapReturnedAccounts(
+				accessData.getAspspName(), accessData.getAspspCountry(), session.accounts()));
+		if (reviewAccounts && !BankAccountClosureDialog.review(bankAccess)) {
+			return new BatchRetrieval(Map.of(), false);
+		}
 		List<BankAccount> accounts = dbController.getAllByParent(BankAccount.class, bankAccess.getId());
 		if (accounts.isEmpty()) {
 			throw new EnablebankingException(getText("ERROR_ENABLEBANKING_REAUTHORIZATION_NO_ACCOUNTS"));
 		}
 		Map<Integer, AccountTransactionRetrievalResult> results = new HashMap<>();
 		boolean successful = true;
+		accounts = accounts.stream().filter(account -> !account.isClosed()).toList();
 		for (int index = 0; index < accounts.size(); index++) {
 			BankAccount account = accounts.get(index);
 			updateStatus(statusDialog, 0.25d, "UI_DIALOG_ENABLEBANKING_STATUS_ACCOUNT_RETRIEVAL",

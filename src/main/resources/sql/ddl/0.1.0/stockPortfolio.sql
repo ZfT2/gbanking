@@ -172,6 +172,23 @@ CREATE TABLE stockPortfolioSettlementAccount (
   UNIQUE (id, portfolio_id),
   CHECK (validTo IS NULL OR validFrom < validTo));
 
+[SQL_SETUP_CREATE_TRIGGER_STOCK_PORTFOLIO_CLOSURE_INSERT]
+CREATE TRIGGER sync_stockportfolio_closure_insert
+AFTER INSERT ON stockPortfolio
+BEGIN
+  UPDATE bankAccount SET closedAt = COALESCE(NEW.closedAt, closedAt) WHERE id = NEW.account_id;
+  UPDATE stockPortfolio SET closedAt = (SELECT closedAt FROM bankAccount WHERE id = NEW.account_id)
+  WHERE id = NEW.id;
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_PORTFOLIO_CLOSURE_UPDATE]
+CREATE TRIGGER sync_stockportfolio_closure_update
+AFTER UPDATE OF closedAt ON stockPortfolio
+BEGIN
+  UPDATE bankAccount SET closedAt = NEW.closedAt
+  WHERE id = NEW.account_id AND closedAt IS NOT NEW.closedAt;
+END;
+
 [SQL_SETUP_CREATE_INDEX_STOCK_PORTFOLIO_CURRENT_SETTLEMENT_ACCOUNT]
 CREATE UNIQUE INDEX idx_stockportfolio_current_settlement_account
 ON stockPortfolioSettlementAccount (portfolio_id)

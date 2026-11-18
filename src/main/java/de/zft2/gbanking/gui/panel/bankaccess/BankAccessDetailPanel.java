@@ -259,6 +259,9 @@ public class BankAccessDetailPanel extends AbstractReadonlyDetailPanel {
 		}
 
 		try {
+			if (!BankAccountClosureDialog.review(currentBankAccess)) {
+				return;
+			}
 			StockPortfolioAssignmentCoordinator assignmentCoordinator =
 					new StockPortfolioAssignmentCoordinator(currentBankAccess.getAccounts());
 			if (!assignmentCoordinator.chooseAssignments(getOwnerWindow())) {

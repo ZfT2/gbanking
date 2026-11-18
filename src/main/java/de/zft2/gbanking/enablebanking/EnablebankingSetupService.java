@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import de.zft2.gbanking.cache.InstituteLookupCache;
 import de.zft2.gbanking.db.dao.BankAccess;
@@ -28,6 +29,7 @@ import de.zft2.gbanking.paypal.PaypalSupport;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
+import de.zft2.gbanking.service.bankaccess.BankAccountClosureService;
 import de.zft2.gbanking.util.IbanStructure;
 
 public class EnablebankingSetupService extends AbstractDbService {
@@ -89,11 +91,16 @@ public class EnablebankingSetupService extends AbstractDbService {
 		accessData.setSessionId(session.sessionId());
 		accessData.setValidUntil(session.validUntil());
 		bankAccess.setEnablebanking(accessData);
+		bankAccess.setReturnedAccounts(mapReturnedAccounts(aspsp.name(), aspsp.country(), session.accounts()));
 		bankAccess.setAccounts(mapSelectableAccounts(aspsp, session.accounts()));
 		return bankAccess;
 	}
 
 	public boolean save(BankAccess bankAccess, List<BankAccount> selectedAccounts) {
+		return save(bankAccess, selectedAccounts, Map.of());
+	}
+
+	public boolean save(BankAccess bankAccess, List<BankAccount> selectedAccounts, Map<Integer, LocalDate> closureDates) {
 		if (bankAccess == null || selectedAccounts == null || selectedAccounts.isEmpty()) {
 			return false;
 		}
@@ -103,9 +110,10 @@ public class EnablebankingSetupService extends AbstractDbService {
 			if (!success) {
 				throw new GBankingException("Enablebanking access and accounts were not saved");
 			}
+			ServiceRegistry.getService(BankAccountClosureService.class).saveClosureDates(closureDates);
 		});
 		EnablebankingAccountTransactionService retrievalService = ServiceRegistry.getService(EnablebankingAccountTransactionService.class);
-		selectedAccounts.forEach(account -> retrievalService.retrieve(account));
+		selectedAccounts.stream().filter(account -> !account.isClosed()).forEach(account -> retrievalService.retrieve(account));
 		return true;
 	}
 
@@ -237,7 +245,9 @@ public class EnablebankingSetupService extends AbstractDbService {
 		account.setOwnerName(firstText(remote.ownerName(), account.getOwnerName()));
 		account.setSEPAAccount(hasText(iban));
 		account.setOfflineAccount(false);
-		account.setAccountState(AccountState.ACTIVE);
+		if (account.getAccountState() == null) {
+			account.setAccountState(AccountState.ACTIVE);
+		}
 		account.setSource(Source.ONLINE);
 		account.setAllowedBusinessCases(List.of());
 		account.setUpdatedAt(LocalDate.now(ZoneId.systemDefault()));
@@ -294,6 +304,10 @@ public class EnablebankingSetupService extends AbstractDbService {
 		}
 		String expectedName = createAccountName(previousType, account.getNumber(), account.getCurrency());
 		return accountName.equals(expectedName);
+	}
+
+	static List<BankAccount> mapReturnedAccounts(String bankName, String country, List<EnablebankingRemoteAccount> accounts) {
+		return accounts.stream().map(account -> mapAccount(bankName, country, account, null)).toList();
 	}
 
 	private static AccountType mapAccountType(String cashAccountType) {

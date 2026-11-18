@@ -96,6 +96,9 @@ public class BankingCapabilityService extends AbstractDbService {
 
 	public boolean supportsAccountTransactions(BankAccount bankAccount) {
 		BankAccount resolvedAccount = resolveAccount(bankAccount);
+		if (resolvedAccount != null && resolvedAccount.isClosed()) {
+			return false;
+		}
 		if (hasUsableBankAccess(resolvedAccount)) {
 			BankAccess bankAccess = dbController.getBankAccessById(resolvedAccount.getBankAccessId());
 			if (PaypalSupport.isPaypal(bankAccess) || bankAccess.getAccessType() == BankAccessType.ENABLEBANKING) {
@@ -163,7 +166,7 @@ public class BankingCapabilityService extends AbstractDbService {
 			// The account has been removed in the meantime, fall back to the given instance.
 			return computeSupportedCapabilities(bankAccount, accountCodes(bankAccount, bankAccount.getAllowedBusinessCases()));
 		}
-		return accountData.supportedCapabilities();
+		return account.isClosed() ? Set.of() : accountData.supportedCapabilities();
 	}
 
 	private Set<String> computeSupportedCapabilities(BankAccount account, Set<String> accountCodes) {
@@ -222,6 +225,7 @@ public class BankingCapabilityService extends AbstractDbService {
 
 	private boolean hasUsableBankAccess(BankAccount bankAccount) {
 		return bankAccount != null
+				&& !bankAccount.isClosed()
 				&& bankAccount.getBankAccessId() != null
 				&& bankAccount.getBankAccessId() > 0
 				&& !bankAccount.isOfflineAccount()
