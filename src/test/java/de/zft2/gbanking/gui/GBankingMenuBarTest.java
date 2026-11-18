@@ -9,11 +9,33 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.BaseMessages;
+import de.zft2.gbanking.gui.enu.AccountGrouping;
 import de.zft2.gbanking.service.BankingCapabilityService;
+import javafx.event.Event;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.RadioMenuItem;
 
 class GBankingMenuBarTest implements BaseMessages {
+
+	@Test
+	void groupingMenuShouldUseTheSharedViewSetting() {
+		JavaFxTestSupport.runFx(() -> {
+			AccountGrouping previous = GuiLayoutState.accountGroupingProperty().get();
+			try {
+				GBankingMenuBar bar = new GBankingMenuBar(mock(GBankingGui.class), null, mock(BankingCapabilityService.class));
+				Menu menu = findMenu(findMenu(bar.getMenus(), "UI_MENU_VIEW").getItems(), "UI_MENU_VIEW_ACCOUNT_GROUPING");
+				RadioMenuItem type = (RadioMenuItem) menu.getItems().get(1);
+				type.fire();
+				assertEquals(AccountGrouping.TYPE, GuiLayoutState.accountGroupingProperty().get());
+				GuiLayoutState.accountGroupingProperty().set(AccountGrouping.BANK);
+				Event.fireEvent(menu, new Event(Menu.ON_SHOWING));
+				assertTrue(((RadioMenuItem) menu.getItems().get(2)).isSelected());
+			} finally {
+				GuiLayoutState.accountGroupingProperty().set(previous);
+			}
+		});
+	}
 
 	@Test
 	void editMenuShouldGroupAdministrationViewsAndEmphasizeAccounts() {

@@ -1,6 +1,7 @@
 package de.zft2.gbanking.gui;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -10,6 +11,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import de.zft2.gbanking.gui.enu.AccountGrouping;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TabPane;
@@ -26,17 +30,30 @@ public final class GuiLayoutState {
 	private static final String TABLE_PREFIX = OPTION_PREFIX + "table.";
 	private static final String SPLIT_PREFIX = OPTION_PREFIX + "split.";
 	private static final String TAB_PREFIX = OPTION_PREFIX + "tab.";
+	static final String ACCOUNT_GROUPING = OPTION_PREFIX + "accounts.grouping";
 	private static final String ATTACHED_PREFIX = GuiLayoutState.class.getName() + ".attached.";
 	private static final double MIN_COLUMN_WIDTH = 20d;
 	private static final double MAX_COLUMN_WIDTH = 10_000d;
 
+	private static final ObjectProperty<AccountGrouping> ACCOUNT_GROUPING_MODE = new SimpleObjectProperty<>(AccountGrouping.NONE);
 	private static Map<String, String> options = new HashMap<>();
+
+	static {
+		ACCOUNT_GROUPING_MODE.addListener((obs, previous, grouping) -> options.put(ACCOUNT_GROUPING, grouping.name()));
+	}
 
 	private GuiLayoutState() {
 	}
 
 	public static void initialize(Map<String, String> optionsMap) {
 		options = Objects.requireNonNull(optionsMap, "optionsMap");
+		String storedGrouping = options.get(ACCOUNT_GROUPING);
+		ACCOUNT_GROUPING_MODE.set(Arrays.stream(AccountGrouping.values())
+				.filter(grouping -> grouping.name().equals(storedGrouping)).findFirst().orElse(AccountGrouping.NONE));
+	}
+
+	public static ObjectProperty<AccountGrouping> accountGroupingProperty() {
+		return ACCOUNT_GROUPING_MODE;
 	}
 
 	public static void restoreWindow(Stage stage) {

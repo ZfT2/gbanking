@@ -5,6 +5,7 @@ import java.util.List;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.gui.dialog.rebooking.RebookingToolDialog;
+import de.zft2.gbanking.gui.enu.AccountGrouping;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.gui.KeyboardShortcutDispatcher.Action;
@@ -16,7 +17,9 @@ import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.ToggleGroup;
 import javafx.stage.Stage;
 
 final class GBankingMenuBar extends MenuBar implements BaseGui {
@@ -144,7 +147,7 @@ final class GBankingMenuBar extends MenuBar implements BaseGui {
 		onlySecuritiesWithHoldingsMenuItem.setOnAction(event -> gui.setOnlySecuritiesWithHoldingsVisible(
 				onlySecuritiesWithHoldingsMenuItem.isSelected()));
 		viewMenu.getItems().addAll(refreshMenuItem, new SeparatorMenuItem(), onlyOnlineAccountsMenuItem,
-				onlySecuritiesWithHoldingsMenuItem);
+				onlySecuritiesWithHoldingsMenuItem, createAccountGroupingMenu());
 
 		PinAskDialog pinWindow = new PinAskDialog(stage);
 
@@ -208,6 +211,22 @@ final class GBankingMenuBar extends MenuBar implements BaseGui {
 				createDiagnosticPackageMenuItem, new SeparatorMenuItem(), aboutMenuItem);
 
 		this.getMenus().addAll(fileMenu, editMenu, viewMenu, executeMenu, analysisMenu, settingsMenu, aboutMenu);
+	}
+
+	private Menu createAccountGroupingMenu() {
+		Menu menu = new Menu(getText("UI_MENU_VIEW_ACCOUNT_GROUPING"));
+		ToggleGroup toggles = new ToggleGroup();
+		for (AccountGrouping grouping : AccountGrouping.values()) {
+			RadioMenuItem item = new RadioMenuItem(grouping.toString());
+			item.setToggleGroup(toggles);
+			item.setUserData(grouping);
+			item.setOnAction(event -> GuiLayoutState.accountGroupingProperty().set(grouping));
+			menu.getItems().add(item);
+		}
+		menu.setOnShowing(event -> toggles.getToggles().stream()
+				.filter(toggle -> toggle.getUserData() == GuiLayoutState.accountGroupingProperty().get())
+				.findFirst().ifPresent(toggle -> toggles.selectToggle(toggle)));
+		return menu;
 	}
 
 	/**

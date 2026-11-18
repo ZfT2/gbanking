@@ -42,6 +42,7 @@ public abstract class AbstractFilterableTablePanel<T> extends BorderPane impleme
 	private final HBox titleRow = new HBox(8);
 	protected final ObservableList<T> masterData;
 	protected final FilteredList<T> filteredData;
+	protected final SortedList<T> sortedData;
 	private final PauseTransition filterDelay = new PauseTransition(FILTER_DELAY);
 	private boolean restoringSelection;
 
@@ -50,9 +51,9 @@ public abstract class AbstractFilterableTablePanel<T> extends BorderPane impleme
 		this.filteredData = new FilteredList<>(masterData, item -> true);
 		KeyboardShortcutDispatcher.registerFilter(this, filterText, tableView);
 
-		SortedList<T> sorted = new SortedList<>(filteredData);
-		sorted.comparatorProperty().bind(tableView.comparatorProperty());
-		tableView.setItems(sorted);
+		sortedData = new SortedList<>(filteredData);
+		sortedData.comparatorProperty().bind(tableView.comparatorProperty());
+		tableView.setItems(sortedData);
 
 		filterDelay.setOnFinished(event -> applyFilter());
 		filterText.textProperty().addListener((obs, oldVal, newVal) -> scheduleFilter());

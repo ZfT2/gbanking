@@ -13,6 +13,7 @@ import java.util.Properties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import de.zft2.gbanking.gui.enu.AccountGrouping;
 import de.zft2.gbanking.gui.enu.PageContext;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
@@ -25,6 +26,19 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 class GuiLayoutStateTest {
+
+	@Test
+	void shouldRestoreAndPersistAccountGrouping() {
+		JavaFxTestSupport.runFx(() -> {
+			Map<String, String> options = new HashMap<>(Map.of(GuiLayoutState.ACCOUNT_GROUPING, "TYPE"));
+			GuiLayoutState.initialize(options);
+			assertEquals(AccountGrouping.TYPE, GuiLayoutState.accountGroupingProperty().get());
+			GuiLayoutState.accountGroupingProperty().set(AccountGrouping.BANK);
+			assertEquals("BANK", options.get(GuiLayoutState.ACCOUNT_GROUPING));
+			GuiLayoutState.initialize(new HashMap<>(Map.of(GuiLayoutState.ACCOUNT_GROUPING, "invalid")));
+			assertEquals(AccountGrouping.NONE, GuiLayoutState.accountGroupingProperty().get());
+		});
+	}
 
 	@AfterEach
 	void resetLayoutStateAndWindows() {

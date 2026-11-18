@@ -70,6 +70,31 @@
     -fx-text-fill: -fx-selection-bar-text;
 }
 
+/* Account grouping */
+.account-grouping-choice {
+    -fx-font-size: 11px;
+    -fx-pref-width: 118px;
+    -fx-min-width: 110px;
+}
+
+.account-group-separator {
+    -fx-background-color: -fx-control-inner-background;
+    -fx-padding: 0 8 0 8;
+}
+
+.account-group-label {
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #294e78;
+}
+
+.account-group-line {
+    -fx-background-color: #c4ced9;
+    -fx-min-height: 1px;
+    -fx-pref-height: 1px;
+    -fx-max-height: 1px;
+}
+
 /* Amount columns */
 .table-cell.amount-positive,
 .table-row-cell:selected .table-cell.amount-positive {

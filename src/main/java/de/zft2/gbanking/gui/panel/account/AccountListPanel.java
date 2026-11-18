@@ -14,18 +14,30 @@ import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.gui.GuiContext;
+import de.zft2.gbanking.gui.GuiLayoutState;
+import de.zft2.gbanking.gui.enu.AccountGrouping;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.gui.model.AccountTableModel;
 import de.zft2.gbanking.gui.panel.AbstractFilterableTablePanel;
 import de.zft2.gbanking.gui.util.BookingFileActionSupport;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
+import javafx.beans.binding.Bindings;
+import javafx.collections.ListChangeListener;
+import javafx.geometry.Pos;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.Tooltip;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 
 public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> {
 
@@ -40,6 +52,9 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 	private final AccountTableModel modelAccount;
 	private final AccountListScope accountListScope;
 	private final String panelTitleKey;
+	private final ComboBox<AccountGrouping> grouping = new ComboBox<>();
+	private final Label accountCount = new Label();
+	private boolean textFilterActive;
 
 	public AccountListPanel(AccountSelectionTarget selectionTarget) {
 		this(selectionTarget, AccountListScope.FOLLOW_VIEW_SETTING, UI_PANEL_ACCOUNT);
@@ -53,7 +68,7 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 		this(selectionTarget, accountListScope, panelTitleKey, createModel(accountListScope));
 	}
 
-	private AccountListPanel(AccountSelectionTarget selectionTarget, AccountListScope accountListScope, String panelTitleKey,
+	AccountListPanel(AccountSelectionTarget selectionTarget, AccountListScope accountListScope, String panelTitleKey,
 			AccountTableModel modelAccount) {
 		super(modelAccount.getAccounts());
 		this.selectionTarget = selectionTarget;
@@ -68,9 +83,61 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 		configureColumns();
 		configureTableLayout("accounts." + selectionTarget.getPageContext().name());
 		configureContextMenu();
+		configureGrouping();
 		tableView.setEditable(true);
 		updatePanelTitle();
 		configureSelection();
+	}
+
+	private void configureGrouping() {
+		grouping.getItems().setAll(AccountGrouping.values());
+		grouping.setId("account-grouping");
+		grouping.setButtonCell(new ListCell<>() {
+			@Override
+			protected void updateItem(AccountGrouping item, boolean empty) {
+				super.updateItem(item, empty);
+				setText(AccountListPanel.this.getText("UI_ACCOUNT_GROUPING_CAPTION"));
+			}
+		});
+		grouping.setTooltip(new Tooltip(getText("UI_MENU_VIEW_ACCOUNT_GROUPING")));
+		grouping.setAccessibleText(getText("UI_MENU_VIEW_ACCOUNT_GROUPING"));
+		grouping.getStyleClass().add("account-grouping-choice");
+		grouping.valueProperty().bindBidirectional(GuiLayoutState.accountGroupingProperty());
+		accountCount.setId("account-count");
+		accountCount.setMinWidth(USE_PREF_SIZE);
+		Region spacer = new Region();
+		HBox.setHgrow(titleLabel, Priority.NEVER);
+		HBox.setHgrow(spacer, Priority.ALWAYS);
+		HBox header = new HBox(4, titleLabel, accountCount, spacer, grouping);
+		header.setAlignment(Pos.CENTER_LEFT);
+		setTop(header);
+
+		sortedData.comparatorProperty().unbind();
+		sortedData.comparatorProperty().bind(Bindings.createObjectBinding(
+				() -> grouping.getValue().comparator(tableView.getComparator()),
+				grouping.valueProperty(), tableView.comparatorProperty()));
+		// The default sort policy requires the table comparator alone, without a grouping prefix.
+		tableView.setSortPolicy(table -> true);
+		sortedData.addListener((ListChangeListener<BankAccount>) change -> {
+			updatePanelTitle();
+			tableView.refresh();
+		});
+		grouping.valueProperty().addListener((obs, previous, current) -> tableView.refresh());
+	}
+
+	@Override
+	protected void updateRowStyle(TableRow<BankAccount> row, BankAccount account) {
+		if (!(row.getSkin() instanceof AccountGroupRowSkin)) {
+			row.setSkin(new AccountGroupRowSkin(row));
+		}
+		((AccountGroupRowSkin) row.getSkin()).updateGroup(grouping.getValue());
+	}
+
+	@Override
+	protected void applyFilter() {
+		textFilterActive = !filterText.getText().isBlank();
+		super.applyFilter();
+		updatePanelTitle();
 	}
 
 	private void configureSelection() {
@@ -273,10 +340,8 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 		if (accountListScope == AccountListScope.FOLLOW_VIEW_SETTING && GuiContext.isOnlyOnlineAccountsVisible()) {
 			title += " " + getText(UI_PANEL_ACCOUNT_ONLINE_ONLY_SUFFIX);
 		}
-		if (selectionTarget.getPageContext() == PageContext.ALL_ACCOUNTS) {
-			title += " (" + masterData.size() + ")";
-		}
 		setPanelTitle(title);
+		accountCount.setText("(" + (textFilterActive ? filteredData.size() + "/" : "") + masterData.size() + ")");
 	}
 
 	public void refreshModelAccount() {
