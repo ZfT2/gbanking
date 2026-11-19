@@ -31,6 +31,7 @@ public class AccountsTransactionsOverviewPanel extends TransactionsOverviewBaseP
 	private AccountDetailPanel accountDetailPanel;
 	private AccountStatementPanel accountStatementPanel;
 	private DetailListPane transactionContentPane;
+	private TabPane rightTabPane;
 
 	public AccountsTransactionsOverviewPanel() {
 		initializePanel();
@@ -49,7 +50,7 @@ public class AccountsTransactionsOverviewPanel extends TransactionsOverviewBaseP
 
 		accountStatementPanel = new AccountStatementPanel();
 
-		TabPane rightTabPane = createRightTabPane();
+		rightTabPane = createRightTabPane();
 		MasterContentPane mainPane = new MasterContentPane(accountListPanel, rightTabPane, "accountsTransactions.main", ACCOUNT_DIVIDER);
 		setOverviewContent("UI_PANEL_ACCOUNTS_TRANSACTIONS", mainPane);
 	}
@@ -68,6 +69,15 @@ public class AccountsTransactionsOverviewPanel extends TransactionsOverviewBaseP
 
 	public BankAccount getSelectedAccount() {
 		return accountListPanel != null ? accountListPanel.getSelectedAccount() : null;
+	}
+
+	public boolean selectBooking(BankAccount account, int bookingId) {
+		accountListPanel.selectAccount(account);
+		if (getSelectedAccount() == null || getSelectedAccount().getId() != account.getId()) {
+			return false;
+		}
+		rightTabPane.getSelectionModel().select(0);
+		return transactionListPanel.selectBookingById(bookingId);
 	}
 
 	@Override

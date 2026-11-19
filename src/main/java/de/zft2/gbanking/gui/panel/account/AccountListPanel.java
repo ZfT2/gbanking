@@ -296,6 +296,11 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 				.filter(candidate -> candidate.getId() == account.getId())
 				.findFirst()
 				.orElse(account);
+		applyFilter();
+		if (!filteredData.contains(accountToSelect)) {
+			filterText.clear();
+			applyFilter();
+		}
 		if (tableView.getSelectionModel().getSelectedItem() == accountToSelect) {
 			if (!selectionTarget.canChangeAccountSelection()) {
 				return;
@@ -304,6 +309,7 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 		} else {
 			tableView.getSelectionModel().select(accountToSelect);
 		}
+		tableView.scrollTo(accountToSelect);
 	}
 
 	private static AccountTableModel createModel(AccountListScope accountListScope) {

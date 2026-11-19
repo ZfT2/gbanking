@@ -12,8 +12,11 @@ import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.stock.StockCorporateActionTransaction;
+import de.zft2.gbanking.db.dao.stock.StockTransactionCashLeg;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.service.AbstractDbService;
+import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.service.stock.StockSettlementLinkService;
 
 public class BookingSplitService extends AbstractDbService {
 
@@ -70,10 +73,16 @@ public class BookingSplitService extends AbstractDbService {
 			return true;
 		}
 
-		for (Booking splitBooking : getSplitBookings(booking)) {
-			deleteSplitBooking(splitBooking.getId());
-		}
-		return dbController.delete(booking, null);
+		return dbController.executeInTransaction(() -> {
+			for (Booking splitBooking : getSplitBookings(booking)) {
+				deleteSplitBooking(splitBooking.getId());
+			}
+			if (!dbController.getAllByParent(StockTransactionCashLeg.class, booking.getId(),
+					"SQL_SELECT_STOCK_CASH_LEGS_BY_BOOKING").isEmpty()) {
+				ServiceRegistry.getService(StockSettlementLinkService.class).deleteDepotCounterpart(booking);
+			}
+			return dbController.delete(booking, null);
+		});
 	}
 
 	private void saveSplitBooking(Booking parentBooking, Booking splitBooking) {

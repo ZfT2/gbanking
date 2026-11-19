@@ -16,10 +16,12 @@ import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.account.BookingDuplicateChecker;
 import de.zft2.gbanking.service.account.BookingDuplicateChecker.Candidates;
 import de.zft2.gbanking.service.account.BookingDuplicateReviewHandler;
 import de.zft2.gbanking.service.account.BookingDuplicateReviewHandler.Match;
+import de.zft2.gbanking.service.stock.StockSettlementLinkService;
 
 public final class ImportedBookingPersistence {
 
@@ -105,6 +107,16 @@ public final class ImportedBookingPersistence {
 			}
 			processedBookings.add(existingBooking);
 			return new Result(true, false, existingBooking);
+		}
+
+		// A reviewed import decision takes precedence over settlement matching.
+		Booking coveringStockBooking = reviewedStrictMatches.containsKey(booking) ? null
+				: ServiceRegistry.getService(StockSettlementLinkService.class)
+				.resolveCoveringStockBooking(booking);
+		if (coveringStockBooking != null) {
+			log.info("Skipped imported booking of account {} because the securities transaction {} already covers it.",
+					booking.getAccountId(), coveringStockBooking.getId());
+			return new Result(false, true, null);
 		}
 
 		Booking persistedBooking = dbController.insertOrUpdate(booking);

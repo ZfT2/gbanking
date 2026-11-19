@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
@@ -122,6 +123,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	private final Label historyLabel = new Label();
 	private Integer historySecurityId;
 	private Set<Integer> linkedExchangeIds = Set.of();
+	private Map<Integer, List<Booking>> settlementBookings = Map.of();
 	private final Button settlementEditButton = new Button();
 	private List<PortfolioSummary> portfolios = List.of();
 	private PortfolioSummary selectedPortfolio;
@@ -170,6 +172,30 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 
 	public PortfolioSummary getSelectedPortfolio() {
 		return selectedPortfolio;
+	}
+
+	public boolean selectTransaction(int portfolioId, int transactionId) {
+		TreeItem<NavigationEntry> item = findPortfolioItem(navigationTree.getRoot(), portfolioId);
+		if (item == null) {
+			return false;
+		}
+		historySecurityId = null;
+		if (navigationTree.getSelectionModel().getSelectedItem() == item) {
+			selectPortfolio(item.getValue().portfolio());
+		} else {
+			navigationTree.getSelectionModel().select(item);
+		}
+		navigationTree.scrollTo(navigationTree.getRow(item));
+		detailTabs.getSelectionModel().select(portfolioTab);
+		for (TransactionSummary transaction : transactionTable.getItems()) {
+			if (transaction.transactionId() == transactionId) {
+				transactionTable.getSelectionModel().select(transaction);
+				transactionTable.scrollTo(transaction);
+				transactionTable.requestFocus();
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private void configureNavigation() {
@@ -369,7 +395,34 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 				TransactionSummary::totalPrice));
 		transactionTable.getColumns().add(TableColumnFactory.createFixedTextColumn(getText(UI_STOCK_FIELD_CURRENCY),
 				summary -> currencyName(summary.currency()), 80));
+		transactionTable.getColumns().add(createCounterAccountColumn());
 		transactionTable.setRowFactory(table -> createTransactionRow());
+	}
+
+	private TableColumn<TransactionSummary, List<Booking>> createCounterAccountColumn() {
+		TableColumn<TransactionSummary, List<Booking>> column = TableColumnFactory.createValueColumn(
+				getText("UI_TABLE_COUNTER_ACCOUNT"),
+				transaction -> settlementBookings.getOrDefault(transaction.transactionId(), List.of()), 180);
+		column.setSortable(false);
+		column.setCellFactory(ignored -> new TableCell<>() {
+			@Override
+			protected void updateItem(List<Booking> bookings, boolean empty) {
+				super.updateItem(bookings, empty);
+				setText(null);
+				setGraphic(null);
+				if (!empty && bookings != null && !bookings.isEmpty()) {
+					VBox links = new VBox();
+					for (Booking booking : bookings) {
+						Hyperlink link = new Hyperlink(booking.getAccountName());
+						link.setMaxWidth(Double.MAX_VALUE);
+						link.setOnAction(event -> GuiContext.showAccountBooking(booking));
+						links.getChildren().add(link);
+					}
+					setGraphic(links);
+				}
+			}
+		});
+		return column;
 	}
 
 	private String transactionLabel(TransactionSummary summary) {
@@ -495,6 +548,8 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 				Booking::getPurpose, 180, 320));
 		accountTransactionTable.getColumns().add(TableColumnFactory.createAmountColumn(getText("UI_STOCK_COLUMN_AMOUNT"),
 				Booking::getAmount));
+		accountTransactionTable.getColumns().add(TableColumnFactory.createTextColumn(getText("UI_TABLE_COUNTER_ACCOUNT"),
+				Booking::getCrossAccountName, 100, 160));
 		accountTransactionTable.getColumns().add(TableColumnFactory.createAmountColumn(getText("UI_STOCK_FIELD_BALANCE"),
 				Booking::getBalance));
 	}
@@ -733,6 +788,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		selectedPortfolio = portfolio;
 		updateDetails();
 		if (portfolio == null) {
+			settlementBookings = Map.of();
 			positionTable.getItems().clear();
 			transactionTable.getItems().clear();
 			accountTransactionTable.getItems().clear();
@@ -741,6 +797,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		}
 		positionTable.setItems(FXCollections.observableArrayList(service.getPositions(portfolio.portfolioId())));
 		linkedExchangeIds = service.linkedExchangeTransactionIds(portfolio.portfolioId());
+		settlementBookings = service.getSettlementBookings(portfolio.portfolioId());
 		updateTransactionHistory();
 		accountTransactionTable.setItems(FXCollections.observableArrayList(
 				service.getAccountTransactions(portfolio.settlementAccountId())));

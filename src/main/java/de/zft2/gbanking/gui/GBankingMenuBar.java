@@ -141,6 +141,7 @@ final class GBankingMenuBar extends MenuBar implements BaseGui {
 		CheckMenuItem onlyOnlineAccountsMenuItem = new CheckMenuItem(getText("UI_MENU_VIEW_ONLY_ONLINE_ACCOUNTS"));
 		onlyOnlineAccountsMenuItem.setSelected(gui.isOnlyOnlineAccountsVisible());
 		onlyOnlineAccountsMenuItem.setOnAction(event -> gui.setOnlyOnlineAccountsVisible(onlyOnlineAccountsMenuItem.isSelected()));
+		viewMenu.setOnShowing(event -> onlyOnlineAccountsMenuItem.setSelected(gui.isOnlyOnlineAccountsVisible()));
 		CheckMenuItem onlySecuritiesWithHoldingsMenuItem = new CheckMenuItem(
 				getText("UI_MENU_VIEW_ONLY_SECURITIES_WITH_HOLDINGS"));
 		onlySecuritiesWithHoldingsMenuItem.setSelected(gui.isOnlySecuritiesWithHoldingsVisible());

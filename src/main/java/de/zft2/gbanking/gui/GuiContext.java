@@ -11,6 +11,8 @@ public final class GuiContext {
 
 	private static BiConsumer<Booking, OrderType> moneyTransferTemplateHandler;
 	private static Consumer<Booking> categoryRuleTemplateHandler;
+	private static Consumer<Booking> stockTransactionNavigationHandler;
+	private static Consumer<Booking> accountBookingNavigationHandler;
 	private static Integer selectedAccountId;
 	private static boolean onlyOnlineAccountsVisible;
 	private static boolean onlySecuritiesWithHoldingsVisible;
@@ -40,6 +42,34 @@ public final class GuiContext {
 		Consumer<Booking> handler;
 		synchronized (GuiContext.class) {
 			handler = categoryRuleTemplateHandler;
+		}
+		if (handler != null) {
+			handler.accept(booking);
+		}
+	}
+
+	public static synchronized void setStockTransactionNavigationHandler(Consumer<Booking> handler) {
+		stockTransactionNavigationHandler = handler;
+	}
+
+	public static void showLinkedStockTransaction(Booking booking) {
+		Consumer<Booking> handler;
+		synchronized (GuiContext.class) {
+			handler = stockTransactionNavigationHandler;
+		}
+		if (handler != null) {
+			handler.accept(booking);
+		}
+	}
+
+	public static synchronized void setAccountBookingNavigationHandler(Consumer<Booking> handler) {
+		accountBookingNavigationHandler = handler;
+	}
+
+	public static void showAccountBooking(Booking booking) {
+		Consumer<Booking> handler;
+		synchronized (GuiContext.class) {
+			handler = accountBookingNavigationHandler;
 		}
 		if (handler != null) {
 			handler.accept(booking);

@@ -21,8 +21,10 @@ import org.apache.logging.log4j.Logger;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingNoteDetails;
-import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.Recipient;
+import de.zft2.gbanking.db.dao.enu.AccountType;
+import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.gui.GuiContext;
 import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.gui.panel.AbstractFilterableTablePanel;
 import de.zft2.gbanking.gui.panel.overview.AccountsTransactionsOverviewPanel;
@@ -540,7 +542,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	}
 
 	private void navigateToCrossBooking(Booking booking) {
-		if (!hasLinkedCrossBooking(booking) || !(parentPanel instanceof AccountsTransactionsOverviewPanel accountsPanel)) {
+		if (!hasLinkedCrossBooking(booking)) {
 			return;
 		}
 
@@ -549,8 +551,12 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 			return;
 		}
 
-		accountsPanel.getAccountListPanel().selectAccount(crossAccount);
-		selectBookingById(booking.getCrossBookingId());
+		if (crossAccount.getAccountType() == AccountType.DEPOT) {
+			GuiContext.showLinkedStockTransaction(booking);
+		} else if (parentPanel instanceof AccountsTransactionsOverviewPanel accountsPanel) {
+			accountsPanel.getAccountListPanel().selectAccount(crossAccount);
+			selectBookingById(booking.getCrossBookingId());
+		}
 	}
 
 	private void configureDefaultSorting() {
@@ -718,6 +724,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 			return false;
 		}
 
+		applyFilter();
 		if (!filteredData.contains(bookingToSelect)) {
 			resetFilters();
 		}

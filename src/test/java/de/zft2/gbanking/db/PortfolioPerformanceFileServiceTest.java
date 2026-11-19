@@ -129,7 +129,8 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		int transactionCount = db.getAll(StockTransaction.class).size();
 		int bookingCount = db.getAll(Booking.class).size();
 
-		assertEquals(3, bookingCount);
+		assertEquals(3, db.getAllByParentFull(Booking.class, portfolio.settlementAccountId()).size());
+		assertEquals(6, bookingCount);
 		int incomingId = incoming.transactionId();
 		int outgoingId = outgoing.transactionId();
 		assertThrows(GBankingException.class, () -> service.linkSecurityExchange(portfolio, incomingId, outgoingId));
@@ -294,7 +295,7 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		var cash = db.getAll(StockTransactionCashLeg.class).get(0);
 		cash.setBookingId(null);
 		assertThrows(GBankingException.class, () -> db.insertOrUpdate(cash));
-		Booking reference = db.getAll(Booking.class).stream()
+		Booking reference = db.getAllByParentFull(Booking.class, portfolio.settlementAccountId()).stream()
 				.filter(booking -> booking.getDateBooking().equals(LocalDate.of(2026, Month.JANUARY, deleteFromDate ? 2 : 3)))
 				.findFirst().orElseThrow();
 		assertEquals(2, new BookingService().deleteBookingsInBlock(reference, deleteFromDate));

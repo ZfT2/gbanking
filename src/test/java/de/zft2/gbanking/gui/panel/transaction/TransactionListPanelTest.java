@@ -17,6 +17,7 @@ import java.time.Month;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -26,8 +27,10 @@ import org.junit.jupiter.params.provider.CsvSource;
 import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.Booking;
+import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.gui.GuiContext;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.panel.overview.AccountsTransactionsOverviewPanel;
@@ -37,13 +40,16 @@ import de.zft2.gbanking.service.account.AccountTransactionService;
 import de.zft2.gbanking.service.booking.BookingCategoryService;
 import de.zft2.gbanking.service.booking.BookingService;
 import de.zft2.gbanking.service.booking.BookingSplitService;
+import de.zft2.gbanking.testdata.TestDataFactory;
 import javafx.collections.FXCollections;
 import javafx.geometry.Bounds;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TabPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 
@@ -57,6 +63,57 @@ class TransactionListPanelTest {
 
 	@RegisterExtension
 	static final TestDatabaseExtension database = TestDatabaseExtension.withoutClearing();
+
+	@Test
+	void depotCounterAccountLinkShouldNavigateToThePortfolioTransaction() {
+		var depot = TestDataFactory.createSampleAccount(null);
+		depot.setAccountType(AccountType.DEPOT);
+		database.controller().insertOrUpdate(depot);
+		JavaFxTestSupport.runFx(() -> {
+			AccountsTransactionsOverviewPanel overview = new AccountsTransactionsOverviewPanel();
+			TransactionListPanel panel = overview.getTransactionListPanel();
+			Booking booking = createBooking("Wertpapierkauf");
+			booking.setCrossAccountId(depot.getId());
+			booking.setCrossBookingId(42);
+			booking.setCrossAccountName("Depot");
+			panel.updateModelBooking(List.of(booking));
+			layoutInScene(overview, 1600);
+			AtomicReference<Booking> navigated = new AtomicReference<>();
+			GuiContext.setStockTransactionNavigationHandler(item -> navigated.set(item));
+			try {
+				Hyperlink link = panel.lookupAll(".hyperlink").stream().filter(Hyperlink.class::isInstance)
+						.map(Hyperlink.class::cast).filter(item -> "Depot".equals(item.getText())).findFirst().orElseThrow();
+				link.fire();
+				assertEquals(booking, navigated.get());
+			} finally {
+				GuiContext.setStockTransactionNavigationHandler(null);
+			}
+		});
+	}
+
+	@Test
+	void returningFromPortfolioShouldRevealTheAccountBookingDespiteFiltersAndStatementsTab() {
+		var account = database.controller().insertOrUpdate(TestDataFactory.createSampleAccount(null));
+		Booking booking = database.controller().insertOrUpdate(TestDataFactory.createSampleBooking(account.getId()));
+		JavaFxTestSupport.runFx(() -> {
+			AccountsTransactionsOverviewPanel overview = new AccountsTransactionsOverviewPanel();
+			layoutInScene(overview, 1200);
+			TabPane tabs = (TabPane) overview.lookup(".tab-pane");
+			tabs.getSelectionModel().select(1);
+			TextField accountFilter = (TextField) overview.getAccountListPanel().lookup(".text-field");
+			accountFilter.setText("No matching account");
+			TransactionListPanel transactions = overview.getTransactionListPanel();
+			filterText(transactions).setText("No matching booking");
+
+			assertTrue(overview.selectBooking(account, booking.getId()));
+
+			assertEquals(account.getId(), overview.getSelectedAccount().getId());
+			assertEquals(booking.getId(), transactions.getSelectedItem().getId());
+			assertEquals(0, tabs.getSelectionModel().getSelectedIndex());
+			assertEquals("", accountFilter.getText());
+			assertEquals("", filterText(transactions).getText());
+		});
+	}
 
 	@Test
 	void shouldShowTransactionCountOfAllTransactions() {

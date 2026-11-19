@@ -2,6 +2,7 @@ package de.zft2.gbanking.gui.panel.overview;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -10,6 +11,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Month;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.db.DBControllerTestUtil;
 import de.zft2.gbanking.db.dao.BankAccount;
+import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.StockQuantityType;
@@ -34,8 +38,10 @@ import javafx.beans.property.BooleanProperty;
 import javafx.geometry.Orientation;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.Hyperlink;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TreeTableView;
@@ -90,9 +96,63 @@ class StockPortfolioOverviewPanelTest {
 			assertEquals(List.of(oldTrade, newTrade), List.copyOf(transactions.getItems()));
 			include.fire();
 			assertEquals(List.of(newTrade), List.copyOf(transactions.getItems()));
+			TabPane tabs = (TabPane) right.getChildren().get(0);
+			tabs.getSelectionModel().select(1);
+			assertTrue(panel.selectTransaction(1, oldTrade.transactionId()));
+			assertEquals(oldTrade, transactions.getSelectionModel().getSelectedItem());
+			assertEquals(tabs.getTabs().get(0), tabs.getSelectionModel().getSelectedItem());
+			assertFalse(include.isVisible());
 			((Button) header.getChildren().get(2)).fire();
 			assertEquals(List.of(oldTrade, newTrade), List.copyOf(transactions.getItems()));
 			assertFalse(include.isVisible());
+		});
+	}
+
+	@Test
+	void transactionNavigationShouldSelectTheMatchingPortfolioRatherThanTheFirst() {
+		StockPortfolioService service = mock(StockPortfolioService.class);
+		PortfolioSummary first = portfolio(1, "Erstes Depot"), target = portfolio(2, "Zieldepot");
+		TransactionSummary transaction = new TransactionSummary(7, StockTransactionType.BUY, 2, "Aktie", null, null,
+				LocalDate.of(2026, Month.JANUARY, 1), BigDecimal.ONE, null, null, Currency.EUR, 0, false, null);
+		when(service.getPortfolios()).thenReturn(List.of(first, target));
+		when(service.getTransactions(2)).thenReturn(List.of(transaction));
+		Booking booking = new Booking();
+		booking.setId(42);
+		booking.setAccountId(101);
+		booking.setAccountName("Früheres Verrechnungskonto");
+		when(service.getSettlementBookings(2)).thenReturn(Map.of(7, List.of(booking)));
+		JavaFxTestSupport.runFx(() -> {
+			StockPortfolioOverviewPanel panel = new StockPortfolioOverviewPanel(service, mock(BankingCapabilityService.class));
+			panel.refreshOnShow();
+			assertEquals(first, panel.getSelectedPortfolio());
+			assertTrue(panel.selectTransaction(2, 7));
+			assertEquals(target, panel.getSelectedPortfolio());
+			SplitPane main = (SplitPane) panel.getChildren().get(1);
+			VBox right = (VBox) main.getItems().get(1);
+			SplitPane tables = (SplitPane) ((StackPane) right.getChildren().get(1)).getChildren().get(0);
+			@SuppressWarnings("unchecked")
+			TableView<TransactionSummary> transactions = (TableView<TransactionSummary>) ((VBox) tables.getItems().get(1)).getChildren().get(1);
+			@SuppressWarnings("unchecked")
+			TableColumn<TransactionSummary, List<Booking>> column =
+					(TableColumn<TransactionSummary, List<Booking>>) transactions.getColumns().get(9);
+			TableCell<TransactionSummary, List<Booking>> cell = column.getCellFactory().call(column);
+			cell.updateTableView(transactions);
+			cell.updateTableColumn(column);
+			cell.updateIndex(0);
+			AtomicReference<Booking> navigated = new AtomicReference<>();
+			GuiContext.setAccountBookingNavigationHandler(item -> navigated.set(item));
+			try {
+				Hyperlink link = (Hyperlink) ((VBox) cell.getGraphic()).getChildren().get(0);
+				assertEquals(booking.getAccountName(), link.getText());
+				link.fire();
+				assertEquals(booking, navigated.get());
+			} finally {
+				GuiContext.setAccountBookingNavigationHandler(null);
+			}
+			cell.updateIndex(-1);
+			assertNull(cell.getGraphic());
+			assertFalse(panel.selectTransaction(2, 999));
+			assertFalse(panel.selectTransaction(999, 7));
 		});
 	}
 
@@ -148,7 +208,8 @@ class StockPortfolioOverviewPanelTest {
 			assertEquals(BaseMessages.getTextStatic("UI_STOCK_COLUMN_PERFORMANCE"),
 					positions.getColumns().get(9).getText());
 			TableView<?> transactions = (TableView<?>) ((VBox) portfolioTables.getItems().get(1)).getChildren().get(1);
-			assertEquals(9, transactions.getColumns().size());
+			assertEquals(10, transactions.getColumns().size());
+			assertEquals(BaseMessages.getTextStatic("UI_TABLE_COUNTER_ACCOUNT"), transactions.getColumns().get(9).getText());
 			assertEquals(190, transactions.getColumns().get(1).getPrefWidth());
 			assertEquals(BaseMessages.getTextStatic("UI_STOCK_COLUMN_PRICE"),
 					transactions.getColumns().get(6).getText());

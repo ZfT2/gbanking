@@ -66,6 +66,7 @@ import de.zft2.gbanking.service.HbciSessionRunner;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.account.BookingDuplicateChecker.Candidates;
 import de.zft2.gbanking.service.bankaccess.BankAccessService;
+import de.zft2.gbanking.service.stock.StockSettlementLinkService;
 
 public class AccountTransactionService extends AbstractDbService {
 
@@ -83,12 +84,14 @@ public class AccountTransactionService extends AbstractDbService {
 	private final HbciSessionRunner hbciSessionRunner;
 	private final BookingDuplicateChecker bookingDuplicateChecker;
 	private final RebookingService rebookingService;
+	private final StockSettlementLinkService stockSettlementLinkService;
 
 	public AccountTransactionService() {
 		this.logHandler = new GBankingLoggingHandler();
 		this.hbciSessionRunner = new HbciSessionRunner();
 		this.bookingDuplicateChecker = new BookingDuplicateChecker();
 		this.rebookingService = new RebookingService();
+		this.stockSettlementLinkService = new StockSettlementLinkService();
 	}
 
 	public boolean retrieveAccountTransactions(BankAccount bankAccount, char[] pin) {
@@ -315,6 +318,15 @@ public class AccountTransactionService extends AbstractDbService {
 			newBooking.setAccountId(bankAccount.getId());
 			newBooking.setSource(source);
 			BookingCurrencyMapper.validate(newBooking, bankAccount.getBaseCurrency());
+
+			Booking coveringStockBooking = stockSettlementLinkService.resolveCoveringStockBooking(newBooking);
+			if (coveringStockBooking != null) {
+				skippedDuplicates++;
+				log.info("Skipped {} booking of account id {} because the securities transaction {} already covers it.",
+						providerName, bankAccount.getId(), coveringStockBooking.getId());
+				processedIncomingBookings.add(newBooking);
+				continue;
+			}
 
 			if (bookingDuplicateChecker.isDuplicate(newBooking, duplicateCheckBookings, processedIncomingBookings)) {
 				skippedDuplicates++;

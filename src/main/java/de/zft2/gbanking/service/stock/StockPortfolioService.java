@@ -67,6 +67,7 @@ import de.zft2.gbanking.db.dao.stock.StockTransactionMetadata;
 import de.zft2.gbanking.db.dao.stock.StockTransactionSecurityLeg;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.service.AbstractDbService;
+import de.zft2.gbanking.service.ServiceRegistry;
 
 public class StockPortfolioService extends AbstractDbService {
 
@@ -485,6 +486,24 @@ public class StockPortfolioService extends AbstractDbService {
 							? affectedPositions.stream().map(PositionKey::securityId).collect(Collectors.toSet()) : Set.of());
 			return null;
 		});
+	}
+
+	public Map<Integer, List<Booking>> getSettlementBookings(int portfolioId) {
+		Map<Integer, Booking> bookings = dbController.getAllByParentFull(Booking.class, portfolioId,
+				"SQL_SELECT_STOCK_SETTLEMENT_BOOKINGS_BY_PORTFOLIO").stream()
+				.collect(Collectors.toMap(Booking::getId, booking -> booking));
+		Map<Integer, List<Booking>> result = new HashMap<>();
+		for (StockTransactionCashLeg leg : dbController.getAllByParent(StockTransactionCashLeg.class, portfolioId,
+				"SQL_SELECT_STOCK_CASH_LEGS_BY_PORTFOLIO")) {
+			Booking booking = bookings.get(leg.getBookingId());
+			if (booking != null && booking.getAccountId() == leg.getAccountId()) {
+				List<Booking> linked = result.computeIfAbsent(leg.getTransactionId(), id -> new ArrayList<>());
+				if (linked.stream().noneMatch(existing -> existing.getId() == booking.getId())) {
+					linked.add(booking);
+				}
+			}
+		}
+		return result;
 	}
 
 	public List<Booking> getAccountTransactions(int accountId) {
@@ -927,6 +946,7 @@ public class StockPortfolioService extends AbstractDbService {
 	}
 
 	void removeManualSettlementBookings(StockTransaction transaction) {
+		StockSettlementLinkService linkService = ServiceRegistry.getService(StockSettlementLinkService.class);
 		Set<Integer> bookingIds = dbController.getAllByParent(StockTransactionCashLeg.class, transaction.getId()).stream()
 				.map(StockTransactionCashLeg::getBookingId).filter(Objects::nonNull).collect(Collectors.toSet());
 		for (Integer bookingId : bookingIds) {
@@ -934,6 +954,12 @@ public class StockPortfolioService extends AbstractDbService {
 			if (booking == null) {
 				continue;
 			}
+			if (booking.getSource() != Source.MANUELL_NEW) {
+				// Keep bank bookings; remove only their depot links.
+				linkService.releaseDepotLink(booking);
+				continue;
+			}
+			linkService.deleteDepotCounterpart(booking);
 			BankAccount account = dbController.getById(BankAccount.class, booking.getAccountId());
 			if (account != null && account.getBalance() != null && booking.getAmount() != null) {
 				account.setBalance(account.getBalance().subtract(booking.getAmount()));
@@ -1408,7 +1434,8 @@ public class StockPortfolioService extends AbstractDbService {
 		Currency currency = requireCurrency(account);
 		BigDecimal netAmount = cashComponents.stream().map(CashComponent::amount)
 				.reduce(BigDecimal.ZERO, BigDecimal::add).setScale(currency.getMinorUnitDigits(), RoundingMode.HALF_UP);
-		Booking booking = netAmount.signum() == 0 ? null : createBooking(account, date, purpose, netAmount);
+		Booking booking = netAmount.signum() == 0 ? null
+				: createSettlementBooking(transaction, account, date, purpose, netAmount);
 		int legNumber = 1;
 		for (CashComponent component : cashComponents) {
 			long amountMinor = toMinorUnits(component.amount(), currency);
@@ -1444,6 +1471,17 @@ public class StockPortfolioService extends AbstractDbService {
 			dbController.insertOrUpdate(account);
 		}
 		return dbController.insertOrUpdate(booking);
+	}
+
+	private Booking createSettlementBooking(StockTransaction transaction, BankAccount account, LocalDate date,
+			String purpose, BigDecimal amount) {
+		StockSettlementLinkService linkService = ServiceRegistry.getService(StockSettlementLinkService.class);
+		Booking booking = linkService.findCoveringSettlementBooking(account, date, amount);
+		if (booking == null) {
+			booking = createBooking(account, date, purpose, amount);
+		}
+		linkService.linkWithDepot(booking, account, linkService.getDepotAccount(transaction.getPortfolioId()));
+		return booking;
 	}
 
 	private void settle(StockTransaction transaction, LocalDate settlementDate) {

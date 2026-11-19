@@ -2,6 +2,7 @@ package de.zft2.gbanking.db;
 
 import java.nio.file.Path;
 import java.sql.ResultSet;
+import java.time.LocalDate;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -37,6 +38,7 @@ import de.zft2.gbanking.db.dao.enu.AccountIdentifierType;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.SourceGroup;
 import de.zft2.gbanking.db.dao.logic.StatementsLogic;
+import de.zft2.gbanking.db.dao.stock.StockTransactionCashLeg;
 import de.zft2.gbanking.db.dao.logic.StatementsLogicRecipient;
 import de.zft2.gbanking.db.dao.mapper.AbstractDaoMapper;
 import de.zft2.gbanking.db.dao.mapper.BookingMapper;
@@ -498,6 +500,12 @@ public class DBController extends DbExecutor {
 				throw databaseReadFailure(getText(SqlErrors.ERROR_DB_SELECT), exception);
 			}
 		});
+	}
+
+	public List<StockTransactionCashLeg> getStockCashLegsByAccountAndDateRange(int accountId, LocalDate from, LocalDate to) {
+		return withDbAccess(() -> executeSqlSelectStatementForList(
+				DaoSqlStatements.SQL_SELECT_STOCK_CASH_LEGS_BY_ACCOUNT_AND_DATE_RANGE, StockTransactionCashLeg.class,
+				List.of(accountId, from.toString(), to.toString())));
 	}
 
 	public Map<String, Integer> getAccountsIdsByAccountName() {

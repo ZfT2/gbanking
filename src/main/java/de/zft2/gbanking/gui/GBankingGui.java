@@ -77,6 +77,7 @@ import de.zft2.gbanking.service.moneytransfer.MoneyTransferService;
 import de.zft2.gbanking.service.stock.StockPortfolioFinTsRetrievalResult;
 import de.zft2.gbanking.service.stock.StockPortfolioFinTsService;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
+import de.zft2.gbanking.service.stock.StockSettlementLinkService;
 import de.zft2.gbanking.util.AccountDisplay;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -140,6 +141,8 @@ public class GBankingGui extends Application implements BaseGui {
 		fileTransferCoordinator = new FileTransferCoordinator(stage);
 		GuiContext.setMoneyTransferTemplateHandler((booking, orderType) -> openMoneyTransferTemplate(booking, orderType));
 		GuiContext.setCategoryRuleTemplateHandler(booking -> openCategoryRuleTemplate(booking));
+		GuiContext.setStockTransactionNavigationHandler(booking -> openLinkedStockTransaction(booking));
+		GuiContext.setAccountBookingNavigationHandler(booking -> openAccountBooking(booking));
 		log.info("Starting GBanking application.");
 
 		restoreOptions();
@@ -296,6 +299,45 @@ public class GBankingGui extends Application implements BaseGui {
 
 		CategoryOverviewPanel categoryPanel = (CategoryOverviewPanel) activateOverview(PageContext.CATEGORIES);
 		categoryPanel.useBookingAsRuleTemplate(account, booking);
+	}
+
+	private void openLinkedStockTransaction(Booking booking) {
+		var transaction = ServiceRegistry.getService(StockSettlementLinkService.class)
+				.getLinkedTransaction(booking);
+		if (transaction == null) {
+			showWarning(primaryStage, getText("ALERT_STOCK_LINKED_TRANSACTION_MISSING"));
+			return;
+		}
+		BankAccount depot = DBController.getInstance(".").getById(BankAccount.class, booking.getCrossAccountId());
+		if (GuiContext.isOnlyOnlineAccountsVisible() && !bankingCapabilityService.supportsStockPortfolio(depot)) {
+			setOnlyOnlineAccountsVisible(false);
+		}
+		StockPortfolioOverviewPanel panel = (StockPortfolioOverviewPanel) activateOverview(PageContext.STOCK_PORTFOLIOS);
+		if (!panel.selectTransaction(transaction.getPortfolioId(), transaction.getId())) {
+			showWarning(primaryStage, getText("ALERT_STOCK_LINKED_TRANSACTION_MISSING"));
+		}
+	}
+
+	private void openAccountBooking(Booking booking) {
+		BankAccount account = DBController.getInstance(".").getById(BankAccount.class, booking.getAccountId());
+		if (account == null) {
+			showWarning(primaryStage, getText("ALERT_LINKED_ACCOUNT_BOOKING_MISSING"));
+			return;
+		}
+		AccountsTransactionsOverviewPanel panel = (AccountsTransactionsOverviewPanel) OverviewPanelFactory
+				.retrievePanel(PageContext.ACCOUNTS_TRANSACTIONS.name());
+		if (!panel.canChangeAccountSelection()) {
+			return;
+		}
+		panel.getTransactionDetailPanel().clearDisplayedBooking();
+		if (GuiContext.isOnlyOnlineAccountsVisible()
+				&& (account.getBankAccessId() == null || account.getBankAccessId() <= 0)) {
+			setOnlyOnlineAccountsVisible(false);
+		}
+		activateOverview(PageContext.ACCOUNTS_TRANSACTIONS);
+		if (!panel.selectBooking(account, booking.getId())) {
+			showWarning(primaryStage, getText("ALERT_LINKED_ACCOUNT_BOOKING_MISSING"));
+		}
 	}
 
 	List<BankAccount> getSelectedAccountsForAccountUpdate() {

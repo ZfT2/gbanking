@@ -73,6 +73,7 @@ import de.zft2.gbanking.file.imp.csv.CsvImportTarget;
 import de.zft2.gbanking.file.imp.csv.CsvImportValueParser;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.service.AbstractDbService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceData.Document;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceData.Account;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceData.Price;
@@ -816,6 +817,11 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		transaction = dbController.insertOrUpdate(transaction);
 
 		createSecurityLeg(transaction, security, data, importedType);
+		if (booking != null) {
+			StockSettlementLinkService linkService = ServiceRegistry.getService(StockSettlementLinkService.class);
+			linkService.linkWithDepot(booking, dbController.getById(BankAccount.class, portfolio.settlementAccountId()),
+					linkService.getDepotAccount(transaction.getPortfolioId()));
+		}
 		createCashLegs(transaction, portfolio, data, importedType, booking);
 		if (data.note() != null) {
 			StockTransactionMetadata metadata = new StockTransactionMetadata();

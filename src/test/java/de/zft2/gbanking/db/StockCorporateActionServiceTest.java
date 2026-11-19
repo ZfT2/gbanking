@@ -83,7 +83,7 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		amount("11", holding(portfolio, young).quantity());
 		amount("220", holding(portfolio, young).acquisitionValue());
 		assertEquals(2, portfolios.getPositions(portfolio.portfolioId()).size());
-		assertEquals(3, db.getAll(Booking.class).size());
+		assertEquals(3, db.getAllByParentFull(Booking.class, portfolio.settlementAccountId()).size());
 		amount("8853", db.getById(BankAccount.class, portfolio.settlementAccountId()).getBalance());
 		assertNull(service.getResults(portfolio.portfolioId()).get(2).realizedResult());
 		int allocationId = service.getResults(portfolio.portfolioId()).get(0).associationId();
@@ -170,7 +170,7 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		StockCorporateAction nominal = definition(stock, null, stock, StockCorporateActionType.NOMINAL_REDUCTION);
 		recordOperation(portfolio, nominal, StockCorporateActionOperation.NOMINAL_REDUCTION, null, null, null, DATE);
 		amount("1000", holding(portfolio, stock).acquisitionValue());
-		assertEquals(1, db.getAll(Booking.class).size());
+		assertEquals(1, db.getAllByParentFull(Booking.class, portfolio.settlementAccountId()).size());
 		assertEquals(100_000_000L, db.getById(StockCorporateAction.class, nominal.getId()).getNewNominalE8());
 		StockCorporateAction reduction = definition(stock, null, stock, StockCorporateActionType.CAPITAL_REDUCTION);
 		recordOperation(portfolio, reduction, StockCorporateActionOperation.CAPITAL_RETURN, null, "70", "50", DATE.plusDays(1));
@@ -202,7 +202,7 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		service.unlink(service.getResults(portfolio.portfolioId()).get(1).associationId());
 		amount("103", holding(portfolio, rights).quantity());
 		amount("8970", db.getById(BankAccount.class, portfolio.settlementAccountId()).getBalance());
-		assertEquals(1, db.getAll(Booking.class).size());
+		assertEquals(1, db.getAllByParentFull(Booking.class, portfolio.settlementAccountId()).size());
 		assertEquals(1, db.getAll(StockCorporateActionTransaction.class).size());
 		int transactionId = db.getAll(StockCorporateActionMember.class).get(0).getTransactionId();
 		assertThrows(GBankingException.class, () -> portfolios.deleteTransaction(transactionId));
@@ -232,7 +232,7 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		assertThrows(GBankingException.class, () -> db.insertOrUpdate(cash));
 		service.unlink(service.getResults(portfolio.portfolioId()).get(1).associationId());
 		service.recordOperation(portfolio, request);
-		assertEquals(2, db.getAll(Booking.class).size());
+		assertEquals(2, db.getAllByParentFull(Booking.class, portfolio.settlementAccountId()).size());
 		amount("8970", db.getById(BankAccount.class, portfolio.settlementAccountId()).getBalance());
 		assertEquals("Originalbankumsatz", db.getById(Booking.class, booking.getId()).getPurpose());
 		amount("2", service.getResults(portfolio.portfolioId()).get(1).realizedResult());
@@ -304,7 +304,7 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 		amount("200", holding(portfolio, young).acquisitionValue());
 		amount("3", holding(portfolio, rights).quantity());
 		assertEquals(4, db.getAll(StockTransaction.class).size());
-		assertEquals(2, db.getAll(Booking.class).size());
+		assertEquals(2, db.getAllByParentFull(Booking.class, portfolio.settlementAccountId()).size());
 		assertTrue(portfolios.getTransactions(portfolio.portfolioId()).stream()
 				.anyMatch(row -> row.transactionId() == outgoing && row.corporateOperation() == StockCorporateActionOperation.SUBSCRIPTION));
 		service.unlink(service.getResults(portfolio.portfolioId()).get(1).associationId());
@@ -400,7 +400,7 @@ class StockCorporateActionServiceTest extends DBControllerIntegrationBaseTest {
 				StockCorporateActionOperation.SUBSCRIPTION, "60", null, null, secondExerciseDate));
 		amount("53", holding(portfolio, rights).quantity());
 		assertEquals(2, db.getAll(StockCorporateActionTransaction.class).size());
-		assertEquals(3, db.getAll(Booking.class).size());
+		assertEquals(3, db.getAllByParentFull(Booking.class, portfolio.settlementAccountId()).size());
 		assertThrows(GBankingException.class, () -> StockCorporateActionService.ratio(BigDecimal.ONE, 3, 1));
 	}
 
