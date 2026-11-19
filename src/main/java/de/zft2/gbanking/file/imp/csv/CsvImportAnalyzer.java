@@ -89,7 +89,9 @@ public class CsvImportAnalyzer {
 	}
 
 	private List<Match> bestMatches(List<Match> matches) {
-		Comparator<Match> comparator = Comparator.comparingInt(Match::differenceCount)
+		// Dynamic price headers must not outrank a concrete format missing only optional columns.
+		Comparator<Match> comparator = Comparator.comparing((Match match) -> match.definition().getType().acceptsDynamicHeaders())
+				.thenComparingInt(Match::differenceCount)
 				.thenComparing(Match::headerless)
 				.thenComparing(Comparator.comparingInt(Match::matchingHeaderCount).reversed());
 		Match best = matches.stream().min(comparator).orElseThrow();

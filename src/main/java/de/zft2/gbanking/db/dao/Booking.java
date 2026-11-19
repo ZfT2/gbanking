@@ -28,6 +28,7 @@ public class Booking extends Dao implements Serializable, BookingDetails {
 	private BigDecimal amount;
 	private BookingSepaDetails sepaDetails;
 	private BookingNoteDetails noteDetails;
+	private String additionalSource;
 	private BigDecimal balance;
 	private BookingAdditionalDetails additionalDetails;
 	private BookingCreditCardDetails creditCardDetails;
@@ -71,6 +72,7 @@ public class Booking extends Dao implements Serializable, BookingDetails {
 		this.amount = bookingToCopy.amount;
 		this.sepaDetails = bookingToCopy.sepaDetails != null ? new BookingSepaDetails(bookingToCopy.sepaDetails) : null;
 		this.noteDetails = bookingToCopy.noteDetails != null ? new BookingNoteDetails(bookingToCopy.noteDetails) : null;
+		this.additionalSource = bookingToCopy.additionalSource;
 		this.balance = bookingToCopy.balance;
 		this.additionalDetails = bookingToCopy.additionalDetails != null ? new BookingAdditionalDetails(bookingToCopy.additionalDetails) : null;
 		this.creditCardDetails = bookingToCopy.creditCardDetails != null ? new BookingCreditCardDetails(bookingToCopy.creditCardDetails) : null;
@@ -252,6 +254,14 @@ public class Booking extends Dao implements Serializable, BookingDetails {
 
 	public void setNoteDetails(BookingNoteDetails noteDetails) {
 		this.noteDetails = noteDetails == null || noteDetails.isEmpty() ? null : new BookingNoteDetails(noteDetails);
+	}
+
+	public String getAdditionalSource() {
+		return additionalSource;
+	}
+
+	public void setAdditionalSource(String additionalSource) {
+		this.additionalSource = additionalSource;
 	}
 
 	public BigDecimal getBalance() {

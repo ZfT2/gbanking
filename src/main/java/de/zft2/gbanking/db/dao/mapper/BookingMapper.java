@@ -109,6 +109,12 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 		ps.setTimestamp(index, TypeConverter.toSqlTimestampNow());
 	}
 
+	public void setParamsAdditionalSource(Booking booking, PreparedStatement ps) throws SQLException {
+		ps.setInt(1, booking.getId());
+		ps.setString(2, booking.getAdditionalSource());
+		ps.setTimestamp(3, TypeConverter.toSqlTimestampNow());
+	}
+
 	public void setParamsAdditionalCreditcard(Booking booking, PreparedStatement ps) throws SQLException {
 		int index = 1;
 		BookingCreditCardDetails details = Objects.requireNonNull(booking.getCreditCardDetails(), "creditCardDetails");
@@ -149,6 +155,10 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 	public boolean hasAdditionalNoteData(Booking booking) {
 		BookingNoteDetails details = booking.getNoteDetails();
 		return details != null && !details.isEmpty();
+	}
+
+	public boolean hasAdditionalSourceData(Booking booking) {
+		return hasText(booking.getAdditionalSource());
 	}
 
 	public boolean hasAdditionalCreditcardData(Booking booking) {
@@ -206,6 +216,7 @@ public class BookingMapper extends AbstractDaoMapper<Booking, Void> {
 
 		booking.setSepaDetails(mapSepaDetails(rs));
 		booking.setNoteDetails(mapNoteDetails(rs));
+		booking.setAdditionalSource(rs.getString("additionalSource"));
 		booking.setAdditionalDetails(mapAdditionalDetails(rs));
 		booking.setCreditCardDetails(mapCreditCardDetails(rs));
 		booking.setForeignCurrencyDetails(mapForeignCurrencyDetails(rs));

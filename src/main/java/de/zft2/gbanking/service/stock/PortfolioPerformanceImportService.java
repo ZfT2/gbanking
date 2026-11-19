@@ -644,7 +644,8 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 					value(row, definition, CsvImportTarget.SECURITY_WKN),
 					value(row, definition, CsvImportTarget.SECURITY_TICKER),
 					value(row, definition, CsvImportTarget.SECURITY_NAME),
-					value(row, definition, CsvImportTarget.STOCK_NOTE)));
+					value(row, definition, CsvImportTarget.STOCK_NOTE),
+					value(row, definition, CsvImportTarget.STOCK_SOURCE)));
 		}
 		return result;
 	}
@@ -707,8 +708,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		}
 		validateTransaction(data, type, portfolio, security);
 		if (lookups.fingerprints(portfolio.portfolioId()).add(transactionFingerprint(portfolio, data, type, security))) {
-			Booking proposed = proposeBooking(portfolio.settlementAccountId(), data.date(), accountAmount(data, type), type,
-					bookingPurpose(type, security.getName(), data.note()), lookups);
+			Booking proposed = proposeBooking(portfolio.settlementAccountId(), data, type, lookups);
 			lookups.pendingTransactions.add(() -> saveStockTransaction(portfolio, data, type, security, source, importRecord,
 					lookups.persistBooking(proposed, counters)));
 			counters.transactions++;
@@ -893,24 +893,24 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 	}
 
 	private void prepareGeneralBooking(int accountId, Transaction data, ImportedType type, ImportLookups lookups, Counters counters) {
-		String purpose = data.note() != null ? data.note() : type.displayName();
-		Booking proposed = proposeBooking(accountId, data.date(), accountAmount(data, type), type, purpose, lookups);
+		Booking proposed = proposeBooking(accountId, data, type, lookups);
 		if (proposed != null) {
 			lookups.pendingTransactions.add(() -> lookups.persistBooking(proposed, counters));
 		}
 	}
 
-	private Booking proposeBooking(int accountId, LocalDateTime date, BigDecimal amount, ImportedType type, String purpose,
-			ImportLookups lookups) {
+	private Booking proposeBooking(int accountId, Transaction data, ImportedType type, ImportLookups lookups) {
+		BigDecimal amount = accountAmount(data, type);
 		if (amount == null || amount.signum() == 0) {
 			return null;
 		}
 		Booking booking = new Booking();
 		booking.setAccountId(accountId);
-		booking.setDateBooking(date.toLocalDate());
-		booking.setDateValue(date.toLocalDate());
+		booking.setDateBooking(data.date().toLocalDate());
+		booking.setDateValue(data.date().toLocalDate());
 		booking.setAmount(amount);
-		booking.setPurpose(purpose);
+		booking.setPurpose((nullToEmpty(data.note()) + " " + type.displayName()).strip());
+		booking.setAdditionalSource(data.source());
 		booking.setBookingType(type == ImportedType.INTEREST_CHARGE ? BookingType.INTEREST_CHARGE : BookingType.fromAmount(amount));
 		booking.setSource(Source.IMPORT_NEW);
 		lookups.proposedBookings.add(booking);
@@ -972,10 +972,6 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		case DELIVERY_IN, DELIVERY_OUT -> null;
 		default -> data.value();
 		};
-	}
-
-	private static String bookingPurpose(ImportedType type, String securityName, String note) {
-		return note != null ? note : type.displayName() + " " + securityName;
 	}
 
 	private static int editableFieldMask(Transaction data) {

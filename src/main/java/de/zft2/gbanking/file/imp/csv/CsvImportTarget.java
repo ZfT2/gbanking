@@ -51,6 +51,7 @@ public enum CsvImportTarget {
 	STOCK_TAXES("Transaktion.Steuern"),
 	STOCK_QUANTITY("Transaktion.Stueck"),
 	STOCK_NOTE("Transaktion.Notiz"),
+	STOCK_SOURCE("Transaktion.Quelle"),
 	SECURITY_NAME("Wertpapier.Name"),
 	SECURITY_CURRENCY("Wertpapier.Waehrung"),
 	SECURITY_ISIN("Wertpapier.Isin"),

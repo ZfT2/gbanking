@@ -1,5 +1,5 @@
 [SQL_SELECT_BOOKING_COLUMNS]
-b.id, b.account_id, b.parentBooking_id, b.bookingType, b.bookingSource, b.dateBooking, b.dateValue, b.purpose, b.amount, b.sepaCustomerRef, b.sepaCreditorId, b.sepaEndToEnd, b.sepaMandate, b.sepaPersonId, b.sepaPurpose, b.sepaTyp, b.bookingNote, b.bookingReviewRequired, b.addInstref, b.addGvcode, b.addText, b.addPrimanota, b.addKey, b.addIsStorno, b.addRawData, b.addIsSepa, b.addIsCamt, b.addBankSaldo, b.creditcardTransactionDate, b.creditcardType, b.creditcardMerchantArea, b.creditcardMerchantCategory, b.foreignAmount, b.foreignCurrency, b.exchangeRateToBaseCurrency, b.feeAmount, b.feeCurrency, b.crossAccount_id, b.recipient_id, b.category_id, b.categoryRule_id, b.crossBooking_id, b.updatedAt
+b.id, b.account_id, b.parentBooking_id, b.bookingType, b.bookingSource, b.dateBooking, b.dateValue, b.purpose, b.amount, b.sepaCustomerRef, b.sepaCreditorId, b.sepaEndToEnd, b.sepaMandate, b.sepaPersonId, b.sepaPurpose, b.sepaTyp, b.bookingNote, b.bookingReviewRequired, b.additionalSource, b.addInstref, b.addGvcode, b.addText, b.addPrimanota, b.addKey, b.addIsStorno, b.addRawData, b.addIsSepa, b.addIsCamt, b.addBankSaldo, b.creditcardTransactionDate, b.creditcardType, b.creditcardMerchantArea, b.creditcardMerchantCategory, b.foreignAmount, b.foreignCurrency, b.exchangeRateToBaseCurrency, b.feeAmount, b.feeCurrency, b.crossAccount_id, b.recipient_id, b.category_id, b.categoryRule_id, b.crossBooking_id, b.updatedAt
 ;
 
 [SQL_SELECT_ALL_BOOKINGS_FULL_BASE]
@@ -125,6 +125,13 @@ ON CONFLICT(booking_id) DO UPDATE SET
     add_bank_saldo = excluded.add_bank_saldo,
     updatedAt = excluded.updatedAt;
 
+[SQL_INSERT_BOOKING_ADDITIONAL_SOURCE]
+INSERT INTO bookingAdditionalSource (booking_id, source, updatedAt)
+VALUES (?, ?, ?)
+ON CONFLICT(booking_id) DO UPDATE SET
+    source = excluded.source,
+    updatedAt = excluded.updatedAt;
+
 [SQL_INSERT_BOOKING_ADDITIONAL_CREDITCARD]
 INSERT INTO bookingAdditionalCreditcard (booking_id, creditcard_transaction_date, creditcard_type, creditcard_merchant_area, creditcard_merchant_category, updatedAt)
 VALUES (?, ?, ?, ?, ?, ?)
@@ -157,6 +164,9 @@ DELETE FROM bookingAdditionalSepa WHERE booking_id = ?;
 
 [SQL_DELETE_BOOKING_ADDITIONAL_NOTE]
 DELETE FROM bookingAdditionalNote WHERE booking_id = ?;
+
+[SQL_DELETE_BOOKING_ADDITIONAL_SOURCE]
+DELETE FROM bookingAdditionalSource WHERE booking_id = ?;
 
 [SQL_DELETE_BOOKING_ADDITIONAL]
 DELETE FROM bookingAdditional WHERE booking_id = ?;

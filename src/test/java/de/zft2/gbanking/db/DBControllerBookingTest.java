@@ -22,8 +22,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import de.zft2.gbanking.concurrent.CancellationSupport;
 import de.zft2.gbanking.db.dao.BankAccess;
@@ -47,6 +50,32 @@ import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.testdata.TestDataFactory;
 
 class DBControllerBookingTest extends DBControllerIntegrationBaseTest {
+
+	private static final String ADDITIONAL_SOURCE_TABLE = "bookingAdditionalSource";
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void additionalSourceShouldSupportSingleAndBatchPersistenceAndCascadeDeletion(boolean batch) throws Exception {
+		BankAccount account = db.insertOrUpdate(TestDataFactory.createSampleAccount(null));
+		Booking booking = TestDataFactory.createSampleBooking(account.getId());
+		Consumer<Booking> save = batch ? item -> db.insertAll(Set.of(item)) : item -> db.insertOrUpdate(item);
+		booking.setAdditionalSource("initial.pdf");
+		save.accept(booking);
+		Booking reloaded = db.getByIdFull(Booking.class, booking.getId());
+		assertEquals("initial.pdf", new Booking(reloaded).getAdditionalSource());
+		booking.setAdditionalSource("updated.pdf");
+		save.accept(booking);
+		assertEquals("updated.pdf", db.getById(Booking.class, booking.getId()).getAdditionalSource());
+		assertEquals(1, countBookingDetailRows(ADDITIONAL_SOURCE_TABLE, booking.getId()));
+		booking.setAdditionalSource(" ");
+		save.accept(booking);
+		assertNull(db.getByIdFull(Booking.class, booking.getId()).getAdditionalSource());
+		assertEquals(0, countBookingDetailRows(ADDITIONAL_SOURCE_TABLE, booking.getId()));
+		booking.setAdditionalSource("retained.pdf");
+		save.accept(booking);
+		assertTrue(db.delete(booking, null));
+		assertEquals(0, countBookingDetailRows(ADDITIONAL_SOURCE_TABLE, booking.getId()));
+	}
 
 	// ------------------------------------------------------------
 	// Tests - Booking insertion

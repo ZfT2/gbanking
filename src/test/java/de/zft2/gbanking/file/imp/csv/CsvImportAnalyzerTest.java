@@ -17,6 +17,8 @@ import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer.Analysis;
@@ -125,14 +127,17 @@ class CsvImportAnalyzerTest {
 		assertEquals(List.of(), definition.getSourceFields(CsvImportTarget.DATE));
 	}
 
-	@Test
-	void bundledDefinitionsShouldRecognizePortfolioPerformanceStockFormats() throws Exception {
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void bundledDefinitionsShouldRecognizePortfolioPerformanceStockFormats(boolean withSource) throws Exception {
 		CsvImportAnalyzer analyzer = new CsvImportAnalyzer(
 				new CsvImportDefinitionRepository(tempDir.resolve("missing-csv-format.properties")));
+		String sourceHeader = withSource ? ";Quelle" : "";
+		String sourceValue = withSource ? ";buy.pdf" : "";
 		Path transactions = csv("""
-				Datum;Typ;Wert;Buchungswährung;Bruttobetrag;Währung Bruttobetrag;Wechselkurs;Gebühren;Steuern;Stück;ISIN;WKN;Ticker-Symbol;Wertpapiername;Notiz
-				2026-01-02T12:00;Kauf;102,00;EUR;;;;2,00;;10;DE0000000001;ABC123;ABC.DE;Beispiel AG;Erstkauf
-				""");
+				Datum;Typ;Wert;Buchungswährung;Bruttobetrag;Währung Bruttobetrag;Wechselkurs;Gebühren;Steuern;Stück;ISIN;WKN;Ticker-Symbol;Wertpapiername;Notiz%s
+				2026-01-02T12:00;Kauf;102,00;EUR;;;;2,00;;10;DE0000000001;ABC123;ABC.DE;Beispiel AG;Erstkauf%s
+				""".formatted(sourceHeader, sourceValue));
 
 		Analysis transactionAnalysis = analyzer.analyzeStock(transactions);
 		Analysis securityAnalysis = analyzer.analyzeStock(csv("""

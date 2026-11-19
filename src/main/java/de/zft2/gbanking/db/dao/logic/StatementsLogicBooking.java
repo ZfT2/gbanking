@@ -73,6 +73,8 @@ public class StatementsLogicBooking extends StatementsLogicDefault<Booking> impl
 				DaoSqlStatements.SQL_DELETE_BOOKING_ADDITIONAL, ps -> mapper.setParamsAdditional(booking, ps));
 		persistSingleDetail(booking, mapper.hasAdditionalNoteData(booking), DaoSqlStatements.SQL_INSERT_BOOKING_ADDITIONAL_NOTE,
 				DaoSqlStatements.SQL_DELETE_BOOKING_ADDITIONAL_NOTE, ps -> mapper.setParamsAdditionalNote(booking, ps));
+		persistSingleDetail(booking, mapper.hasAdditionalSourceData(booking), DaoSqlStatements.SQL_INSERT_BOOKING_ADDITIONAL_SOURCE,
+				DaoSqlStatements.SQL_DELETE_BOOKING_ADDITIONAL_SOURCE, ps -> mapper.setParamsAdditionalSource(booking, ps));
 		persistSingleDetail(booking, mapper.hasAdditionalCreditcardData(booking), DaoSqlStatements.SQL_INSERT_BOOKING_ADDITIONAL_CREDITCARD,
 				DaoSqlStatements.SQL_DELETE_BOOKING_ADDITIONAL_CREDITCARD, ps -> mapper.setParamsAdditionalCreditcard(booking, ps));
 		persistSingleDetail(booking, mapper.hasForeignCurrencyData(booking), DaoSqlStatements.SQL_INSERT_BOOKING_ADDITIONAL_FOREIGNCURRENCY,
@@ -104,6 +106,10 @@ public class StatementsLogicBooking extends StatementsLogicDefault<Booking> impl
 				DaoSqlStatements.SQL_INSERT_BOOKING_ADDITIONAL_NOTE,
 				DaoSqlStatements.SQL_DELETE_BOOKING_ADDITIONAL_NOTE,
 				mapper::setParamsAdditionalNote);
+		persistDetailBatch(bookings, updates, mapper::hasAdditionalSourceData,
+				DaoSqlStatements.SQL_INSERT_BOOKING_ADDITIONAL_SOURCE,
+				DaoSqlStatements.SQL_DELETE_BOOKING_ADDITIONAL_SOURCE,
+				mapper::setParamsAdditionalSource);
 		persistDetailBatch(bookings, updates, mapper::hasAdditionalCreditcardData,
 				DaoSqlStatements.SQL_INSERT_BOOKING_ADDITIONAL_CREDITCARD,
 				DaoSqlStatements.SQL_DELETE_BOOKING_ADDITIONAL_CREDITCARD,

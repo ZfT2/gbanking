@@ -182,7 +182,7 @@ final class PortfolioPerformanceXmlReader {
 					requiredText(element, "type", "Transaktionsart"), minorAmount(text(element, AMOUNT)),
 					Currency.forCode(currencyCode), null, null, null, fees, taxes,
 					scaledValue(text(element, "shares")), resolveSecurityReference(directChild(element, "security"), externalIds),
-					null, null, null, null, text(element, "note")));
+					null, null, null, null, text(element, "note"), text(element, "source")));
 		}
 		return result;
 	}

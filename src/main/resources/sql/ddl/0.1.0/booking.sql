@@ -18,6 +18,11 @@ DROP TABLE IF EXISTS bookingAdditionalNote;
 
 ;
 
+[SQL_SETUP_DROP_BOOKING_ADDITIONAL_SOURCE]
+DROP TABLE IF EXISTS bookingAdditionalSource;
+
+;
+
 [SQL_SETUP_DROP_BOOKING_ADDITIONAL]
 DROP TABLE IF EXISTS bookingAdditional;
 
@@ -116,6 +121,16 @@ CREATE TABLE bookingAdditional (
 
 ;
 
+[SQL_SETUP_CREATE_BOOKING_ADDITIONAL_SOURCE]
+CREATE TABLE bookingAdditionalSource (
+   id INTEGER PRIMARY KEY,
+   booking_id INTEGER NOT NULL UNIQUE,
+   source TEXT NOT NULL,
+   updatedAt TEXT NOT NULL,
+   FOREIGN KEY(booking_id) REFERENCES booking(id) ON DELETE CASCADE);
+
+;
+
 [SQL_SETUP_CREATE_BOOKING_ADDITIONAL_CREDITCARD]
 CREATE TABLE bookingAdditionalCreditcard (
    id INTEGER PRIMARY KEY,
@@ -173,6 +188,7 @@ SELECT b.id,
    bse.sepa_typ AS sepaTyp,
    bno.note AS bookingNote,
    bno.review_required AS bookingReviewRequired,
+   bso.source AS additionalSource,
    bad.add_instref AS addInstref,
    bad.add_gvcode AS addGvcode,
    bad.add_text AS addText,
@@ -200,10 +216,11 @@ SELECT b.id,
    b.categoryRule_id,
    cgr.name AS categoryRuleName,
    b.crossBooking_id,
-   MAX(b.updatedAt, COALESCE(bse.updatedAt, b.updatedAt), COALESCE(bno.updatedAt, b.updatedAt), COALESCE(bad.updatedAt, b.updatedAt), COALESCE(bac.updatedAt, b.updatedAt), COALESCE(baf.updatedAt, b.updatedAt), COALESCE(bf.updatedAt, b.updatedAt)) AS updatedAt
+   MAX(b.updatedAt, COALESCE(bse.updatedAt, b.updatedAt), COALESCE(bno.updatedAt, b.updatedAt), COALESCE(bso.updatedAt, b.updatedAt), COALESCE(bad.updatedAt, b.updatedAt), COALESCE(bac.updatedAt, b.updatedAt), COALESCE(baf.updatedAt, b.updatedAt), COALESCE(bf.updatedAt, b.updatedAt)) AS updatedAt
 FROM booking b
 LEFT JOIN bookingAdditionalSepa bse ON bse.booking_id = b.id
 LEFT JOIN bookingAdditionalNote bno ON bno.booking_id = b.id
+LEFT JOIN bookingAdditionalSource bso ON bso.booking_id = b.id
 LEFT JOIN bookingAdditional bad ON bad.booking_id = b.id
 LEFT JOIN bookingAdditionalCreditcard bac ON bac.booking_id = b.id
 LEFT JOIN bookingAdditionalForeigncurrency baf ON baf.booking_id = b.id

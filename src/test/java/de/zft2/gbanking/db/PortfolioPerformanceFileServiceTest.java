@@ -62,7 +62,7 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		PortfolioSummary portfolio = createPortfolio();
 		createSource();
 		LocalDate date = LocalDate.of(2026, Month.JANUARY, 2);
-		Booking existing = new Booking(portfolio.settlementAccountId(), date, date, "Strict", BigDecimal.TEN, BookingType.DEPOSIT, 0);
+		Booking existing = new Booking(portfolio.settlementAccountId(), date, date, "Strict Einlage", BigDecimal.TEN, BookingType.DEPOSIT, 0);
 		existing.setSource(Source.ONLINE);
 		db.insertOrUpdate(existing);
 		Path file = write("review.csv", transactionHeader()
@@ -73,7 +73,7 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 				portfolio, false, null, null, matches -> {
 					calls.incrementAndGet();
 					assertEquals(1, matches.size());
-					assertEquals("Different purpose", matches.get(0).incoming().getPurpose());
+					assertEquals("Different purpose Einlage", matches.get(0).incoming().getPurpose());
 					return accept ? Set.of(matches.get(0).incoming()) : Set.of();
 				});
 		assertEquals(1, calls.get());
@@ -209,12 +209,13 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 				ISIN;WKN;Ticker-Symbol;Wertpapiername;Währung;Notiz;Gesamtkostenquote (TER);Fondsgröße;Anbieter;Kaufgebühr (prozentual);Verwaltungsgebühr (prozentual)
 				DE0000000001;ABC123;ABC.DE;Beispiel AG;EUR;;;;Beispielbank;;
 				""");
-		Path transactions = write("transactions.csv", transactionHeader()
-				+ "2026-01-02T12:00;Kauf;102,00;EUR;;;;2,00;;10;DE0000000001;ABC123;ABC.DE;Beispiel AG;Erstkauf\n");
-		Path accountTransactions = write("account.csv", transactionHeader()
-				+ "2026-01-01T00:00;Einlage;500,00;EUR;;;;;;0;;;;;Start\n"
-				+ "2026-01-02T12:00;Kauf;-102,00;EUR;;;;2,00;;10;DE0000000001;ABC123;ABC.DE;Beispiel AG;Erstkauf\n"
-				+ "2026-03-01T00:00;Dividende;8,00;EUR;;;;;2,00;10;DE0000000001;ABC123;ABC.DE;Beispiel AG;Ausschüttung\n");
+		String headerWithSource = transactionHeader().stripTrailing() + ";Quelle\n";
+		Path transactions = write("transactions.csv", headerWithSource
+				+ "2026-01-02T12:00;Kauf;102,00;EUR;;;;2,00;;10;DE0000000001;ABC123;ABC.DE;Beispiel AG;Erstkauf;buy.pdf\n");
+		Path accountTransactions = write("account.csv", headerWithSource
+				+ "2026-01-01T00:00;Einlage;500,00;EUR;;;;;;0;;;;;Start;\n"
+				+ "2026-01-02T12:00;Kauf;-102,00;EUR;;;;2,00;;10;DE0000000001;ABC123;ABC.DE;Beispiel AG;Erstkauf;buy.pdf\n"
+				+ "2026-03-01T00:00;Dividende;8,00;EUR;;;;;2,00;10;DE0000000001;ABC123;ABC.DE;Beispiel AG;Ausschüttung;dividend.pdf\n");
 		Path prices = write("prices.csv", "Datum;DE0000000001\n2026-03-02;12,50\n");
 
 		assertEquals(1, importer.importFile(securities, ExportType.STOCK_PP_SECURITIES_CSV, portfolio).securities());
@@ -228,6 +229,11 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		assertEquals(0, new BigDecimal("10").compareTo(portfolioService.getPositions(portfolio.portfolioId()).get(0).acquisitionPrice()));
 		assertEquals(2, portfolioService.getTransactions(portfolio.portfolioId()).size());
 		assertEquals(3, db.getAllByParent(Booking.class, portfolio.settlementAccountId()).size());
+		Map<String, Booking> importedBookings = db.getAllByParent(Booking.class, portfolio.settlementAccountId()).stream()
+				.collect(java.util.stream.Collectors.toMap(Booking::getPurpose, booking -> booking));
+		assertEquals("buy.pdf", importedBookings.get("Erstkauf Kauf").getAdditionalSource());
+		assertEquals("dividend.pdf", importedBookings.get("Ausschüttung Dividende").getAdditionalSource());
+		assertNull(importedBookings.get("Start Einlage").getAdditionalSource());
 
 		PortfolioPerformanceExportService exporter = new PortfolioPerformanceExportService();
 		assertFalse(exporter.losesCorporateActionAssociations(portfolio));
@@ -320,6 +326,7 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 				<type>INTEREST_CHARGE</type></account-transaction>
 				<account-transaction><uuid>fees-refund</uuid><date>2026-04-05T00:00</date>
 				<currencyCode>EUR</currencyCode><amount>250</amount><shares>0</shares>
+				<note>Erstattung</note><source>refund.pdf</source>
 				<type>FEES_REFUND</type></account-transaction></transactions></account>
 				"""));
 		PortfolioPerformanceImportService importer = new PortfolioPerformanceImportService();
@@ -338,7 +345,8 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		assertEquals("Sollzinsen", interestCharge.getPurpose());
 		assertEquals(portfolio.settlementAccountId(), interestCharge.getAccountId());
 		Booking feesRefund = db.getAll(Booking.class).stream()
-				.filter(booking -> "Gebührenerstattung".equals(booking.getPurpose())).findFirst().orElseThrow();
+				.filter(booking -> "Erstattung Gebührenerstattung".equals(booking.getPurpose())).findFirst().orElseThrow();
+		assertEquals("refund.pdf", feesRefund.getAdditionalSource());
 		assertEquals(0, new BigDecimal("2.50").compareTo(feesRefund.getAmount()));
 		assertEquals(BookingType.DEPOSIT, feesRefund.getBookingType());
 		assertEquals(portfolio.settlementAccountId(), feesRefund.getAccountId());
@@ -404,7 +412,7 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 				<portfolio><uuid>portfolio-a</uuid><name>Depot A</name><referenceAccount reference="../../../accounts/account"/><transactions/></portfolio>
 				<portfolio><uuid>portfolio-b</uuid><name>Depot B</name><referenceAccount reference="../../../accounts/account[2]"/><transactions/></portfolio>
 				</portfolios></client>
-				""");
+				""".replace("<type>DEPOSIT</type>", "<note>Original file purpose</note><type>DEPOSIT</type>"));
 		PortfolioPerformanceImportService importer = new PortfolioPerformanceImportService();
 
 		var preview = importer.previewXml(xml);
@@ -427,7 +435,7 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		assertTrue(importer.previewXml(xml).portfolios().stream()
 				.allMatch(portfolio -> portfolio.suggestedTargetId() != null));
 		Path reviewFile = write("review-multiple.xml", Files.readString(xml)
-				.replace("<type>DEPOSIT</type>", "<note>Different file purpose</note><type>DEPOSIT</type>"));
+				.replace("<note>Original file purpose</note>", "<note>Different file purpose</note>"));
 		AtomicInteger reviews = new AtomicInteger();
 		var reviewed = importer.importFile(reviewFile, ExportType.STOCK_PP_XML, null, false, assignments, null, matches -> {
 			reviews.incrementAndGet();

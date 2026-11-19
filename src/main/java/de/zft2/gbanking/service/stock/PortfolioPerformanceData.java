@@ -24,7 +24,7 @@ final class PortfolioPerformanceData {
 	record Transaction(String externalId, LocalDateTime date, String type, BigDecimal value,
 			Currency bookingCurrency, BigDecimal grossValue, Currency grossCurrency, BigDecimal exchangeRate,
 			BigDecimal fees, BigDecimal taxes, BigDecimal shares, String securityExternalId,
-			String isin, String wkn, String ticker, String securityName, String note) {
+			String isin, String wkn, String ticker, String securityName, String note, String source) {
 	}
 
 	record Account(String externalId, String name, Currency currency, boolean retired,
