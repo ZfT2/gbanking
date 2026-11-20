@@ -1093,12 +1093,18 @@ public class StockPortfolioService extends AbstractDbService {
 
 	Map<PositionKey, AcquisitionPriceState> acquisitionPricesByPosition(int portfolioId,
 			List<StockCorporateActionService.ActionResult> actionResults) {
+		return acquisitionPricesByPosition(portfolioId, actionResults, null);
+	}
+
+	private Map<PositionKey, AcquisitionPriceState> acquisitionPricesByPosition(int portfolioId,
+			List<StockCorporateActionService.ActionResult> actionResults, StockTransaction before) {
 		Map<PositionKey, AcquisitionPriceState> result = new HashMap<>();
 		SettledTransactions settled = settledTransactions(portfolioId);
 		StockCorporateActionService corporate = new StockCorporateActionService();
 		Map<Integer, StockCorporateActionService.Event> events = corporate.events(settled.transactions());
 		List<StockTransaction> transactions = settled.transactions().stream()
 				.filter(transaction -> transaction.getTransactionType() != StockTransactionType.RECONCILIATION_ADJUSTMENT)
+				.filter(transaction -> before == null || SETTLED_TRANSACTION_ORDER.compare(transaction, before) < 0)
 				.sorted(SETTLED_TRANSACTION_ORDER)
 				.toList();
 		seedCorporateOpeningBalances(portfolioId, transactions, settled, events, result);
@@ -1123,6 +1129,33 @@ public class StockPortfolioService extends AbstractDbService {
 			}
 		}
 		return result;
+	}
+
+	List<PositionSummary> positionsBeforeTransfer(PortfolioSummary portfolio, StockTransaction before) {
+		Map<Integer, StockSecurity> securities = securitiesById();
+		Map<PositionKey, AcquisitionPriceState> prices = acquisitionPricesByPosition(portfolio.portfolioId(), new ArrayList<>(), before);
+		Map<PositionKey, AcquisitionPriceValue> bankPrices = latestFinTsAcquisitionPrices(portfolio.portfolioId(), before.getSettledAt());
+		SettledTransactions settled = settledTransactions(portfolio.portfolioId());
+		Map<PositionKey, Long> quantities = new HashMap<>();
+		settled.transactions().stream()
+				.filter(transaction -> SETTLED_TRANSACTION_ORDER.compare(transaction, before) < 0)
+				.flatMap(transaction -> settled.legs(transaction).stream())
+				.filter(leg -> leg.getLegRole() != StockSecurityLegRole.REFERENCE)
+				.forEach(leg -> quantities.merge(positionKey(leg), leg.getQuantityE9(), Math::addExact));
+		return quantities.entrySet().stream()
+				.filter(entry -> entry.getValue() != 0)
+				.map(entry -> {
+					StockSecurity security = securities.get(entry.getKey().securityId());
+					BigDecimal quantity = fromScaled(entry.getValue(), QUANTITY_SCALE);
+					AcquisitionPriceState state = prices.get(entry.getKey());
+					AcquisitionPriceValue price = bankPrices.get(entry.getKey());
+					if (state != null && state.quantity.compareTo(quantity) == 0 && state.averagePrice != null) {
+						price = new AcquisitionPriceValue(state.averagePrice, state.currency);
+					}
+					return new PositionSummary(portfolio.portfolioId(), security.getId(), security.getName(), null, null,
+							entry.getKey().quantityType(), quantity, price != null ? price.price() : null, null, null, null,
+							price != null ? price.currency() : security.getDefaultQuoteCurrency(), null);
+				}).sorted(Comparator.comparingInt(PositionSummary::securityId)).toList();
 	}
 
 	private void applyAcquisitionLegs(Map<PositionKey, AcquisitionPriceState> states, StockTransaction transaction,
@@ -1492,28 +1525,28 @@ public class StockPortfolioService extends AbstractDbService {
 
 	private void persistPositionTransfer(PortfolioSummary source, PortfolioSummary target, PositionSummary position,
 			BigDecimal quantity, LocalDate date) {
+		persistTransferSide(source, position, quantity, date, true);
+		persistTransferSide(target, position, quantity, date, false);
+	}
+
+	void persistTransferSide(PortfolioSummary portfolio, PositionSummary position, BigDecimal quantity, LocalDate date,
+			boolean outgoing) {
 		StockSecurity security = requireSecurity(position);
 		StockQuantityType quantityType = position.quantityType();
 		BigDecimal acquisitionPrice = position.acquisitionPrice();
 		Currency acquisitionCurrency = position.currency();
 		long quantityE9 = toScaledLong(quantity, QUANTITY_SCALE, QUANTITY_LABEL);
 		Long priceE8 = acquisitionPrice != null ? toScaledLong(acquisitionPrice, PRICE_SCALE, "Einstandskurs") : null;
-		StockTransaction outgoing = createPendingTransaction(source.portfolioId(), StockTransactionType.TRANSFER_OUT, date, date);
-		StockTransactionSecurityLeg outgoingLeg = createPositionLeg(outgoing.getId(), security, -quantityE9, priceE8,
+		StockTransaction transaction = createPendingTransaction(portfolio.portfolioId(),
+				outgoing ? StockTransactionType.TRANSFER_OUT : StockTransactionType.TRANSFER_IN, date, date);
+		StockTransactionSecurityLeg leg = createPositionLeg(transaction.getId(), security, outgoing ? -quantityE9 : quantityE9, priceE8,
 				acquisitionCurrency);
-		outgoingLeg.setQuantityType(quantityType);
-		dbController.insertOrUpdate(outgoingLeg);
-		settle(outgoing, date);
-
-		StockTransaction incoming = createPendingTransaction(target.portfolioId(), StockTransactionType.TRANSFER_IN, date, date);
-		StockTransactionSecurityLeg incomingLeg = createPositionLeg(incoming.getId(), security, quantityE9, priceE8,
-				acquisitionCurrency);
-		incomingLeg.setQuantityType(quantityType);
-		dbController.insertOrUpdate(incomingLeg);
-		settle(incoming, date);
+		leg.setQuantityType(quantityType);
+		dbController.insertOrUpdate(leg);
+		settle(transaction, date);
 	}
 
-	private void transferSettlementBalance(BankAccount source, BankAccount target, LocalDate date, BigDecimal exchangeRate) {
+	void transferSettlementBalance(BankAccount source, BankAccount target, LocalDate date, BigDecimal exchangeRate) {
 		if (source.getId() == target.getId()) {
 			return;
 		}
@@ -1873,7 +1906,7 @@ public class StockPortfolioService extends AbstractDbService {
 		}
 	}
 
-	private BankAccount requireSettlementAccount(PortfolioSummary portfolio) {
+	BankAccount requireSettlementAccount(PortfolioSummary portfolio) {
 		return requireSettlementAccount(portfolio.settlementAccountId());
 	}
 

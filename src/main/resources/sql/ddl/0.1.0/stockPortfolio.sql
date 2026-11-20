@@ -986,10 +986,30 @@ BEGIN
   SELECT RAISE(FAIL, 'invalid reversal or reconciliation transaction');
 END;
 
+[SQL_STOCK_TRANSACTION_NOT_DELIVERY_TRANSFER]
+-- Reclassify cash-free deliveries without replacing their original legs or import identity.
+NOT (
+  OLD.transactionStatus = 2 AND NEW.transactionStatus = 2
+  AND ((OLD.transactionType = 5 AND NEW.transactionType = 3)
+    OR (OLD.transactionType = 6 AND NEW.transactionType = 4))
+  AND (NEW.id, NEW.portfolio_id, NEW.source_id, NEW.importRecord_id, NEW.providerBookedAt,
+       NEW.settlementDateInferred, NEW.reversalOfTransaction_id, NEW.reconciliationStatement_id,
+       NEW.fingerprint, NEW.editableFieldMask, NEW.createdAt)
+   IS (OLD.id, OLD.portfolio_id, OLD.source_id, OLD.importRecord_id, OLD.providerBookedAt,
+       OLD.settlementDateInferred, OLD.reversalOfTransaction_id, OLD.reconciliationStatement_id,
+       OLD.fingerprint, OLD.editableFieldMask, OLD.createdAt)
+  AND EXISTS (SELECT 1 FROM stockTransactionSecurityLeg WHERE transaction_id = OLD.id)
+  AND NOT EXISTS (SELECT 1 FROM stockTransactionCashLeg WHERE transaction_id = OLD.id)
+  AND NOT EXISTS (SELECT 1 FROM stockTransactionSecurityLeg
+    WHERE transaction_id = OLD.id AND (legRole <> 1
+      OR (OLD.transactionType = 5 AND quantityE9 <= 0)
+      OR (OLD.transactionType = 6 AND quantityE9 >= 0))))
+
 [SQL_SETUP_CREATE_TRIGGER_STOCK_TRANSACTION_BLOCK_UPDATE]
 CREATE TRIGGER block_immutable_stocktransaction_update
 BEFORE UPDATE ON stockTransaction
 WHEN EXISTS (SELECT 1 FROM stockImmutableTransaction immutable WHERE immutable.id = OLD.id)
+  AND ${SQL_STOCK_TRANSACTION_NOT_DELIVERY_TRANSFER}
   AND NOT (
     OLD.transactionStatus = 2
     AND NEW.transactionStatus = 3
@@ -1024,6 +1044,7 @@ END;
 CREATE TRIGGER validate_final_stocktransaction_masked_update
 BEFORE UPDATE ON stockTransaction
 WHEN EXISTS (SELECT 1 FROM stockFinalTransaction finalEntry WHERE finalEntry.id = OLD.id)
+  AND ${SQL_STOCK_TRANSACTION_NOT_DELIVERY_TRANSFER}
   AND NOT (
     OLD.transactionStatus = 2
     AND NEW.transactionStatus = 3

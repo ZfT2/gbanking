@@ -3,15 +3,26 @@ package de.zft2.gbanking.db;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.Month;
+import java.time.ZoneId;
+import java.util.Date;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.kapott.hbci.GV_Result.GVRWPDepotList.Entry;
+import org.kapott.hbci.GV_Result.GVRWPDepotList.Entry.Gattung;
+import org.kapott.hbci.structures.BigDecimalValue;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
@@ -33,8 +44,13 @@ import de.zft2.gbanking.db.dao.stock.StockSecurity;
 import de.zft2.gbanking.db.dao.stock.StockSecurityPrice;
 import de.zft2.gbanking.db.dao.stock.StockSecurityPriceSource;
 import de.zft2.gbanking.db.dao.stock.StockTransaction;
+import de.zft2.gbanking.db.dao.stock.StockTransactionSecurityLeg;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.service.stock.StockPortfolioService;
+import de.zft2.gbanking.service.stock.StockPortfolioFinTsService;
+import de.zft2.gbanking.service.stock.StockPortfolioTransferService;
+import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService;
+import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.service.stock.StockPortfolioService.IncomeRequest;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PositionSummary;
@@ -48,6 +64,170 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 
 	private static final LocalDate TRADE_DATE = LocalDate.of(2026, Month.SEPTEMBER, 10);
 	private static final LocalDate SETTLEMENT_DATE = LocalDate.of(2026, Month.SEPTEMBER, 14);
+
+	@TempDir
+	Path files;
+
+	@ParameterizedTest
+	@ValueSource(strings = { "both", "outgoing", "incoming", "split outgoing", "split dates" })
+	void portfolioTransferShouldReuseCompleteImportedDeliveriesAndPreserveLots(String sides) throws Exception {
+		PortfolioSummary source = createPortfolio(100, 200, "Depot A", "Verrechnung A", BigDecimal.ZERO);
+		PortfolioSummary target = createPortfolio(101, 201, "Depot B", "Verrechnung B", BigDecimal.ZERO);
+		String outgoing = sides.equals("split dates")
+				? deliveryRow("2026-09-15", "Auslieferung", 50, 5000) + deliveryRow("2026-09-16", "Auslieferung", 150, 15000)
+				: sides.equals("split outgoing")
+				? deliveryRow("2026-09-15", "Auslieferung", 50, 5000) + deliveryRow("2026-09-15", "Auslieferung", 150, 15000)
+				: deliveryRow("2026-09-15", "Auslieferung", 200, 20000);
+		importDeliveries(source, deliveryRow("2026-09-10", "Einlieferung", 200, 20000)
+				+ (sides.equals("incoming") ? "" : outgoing));
+		if (!sides.equals("outgoing")) {
+			importDeliveries(target, sides.equals("split outgoing")
+					? deliveryRow("2026-09-16", "Einlieferung", 200, 16250)
+					: deliveryRow("2026-09-16", "Einlieferung", 50, 5000)
+							+ deliveryRow(sides.equals("split dates") ? "2026-09-17" : "2026-09-16", "Einlieferung", 150, 11250));
+		}
+		List<StockTransaction> originals = db.getAll(StockTransaction.class);
+		List<StockTransactionSecurityLeg> lots = db.getAll(StockTransactionSecurityLeg.class);
+		StockPortfolioTransferService transfers = new StockPortfolioTransferService();
+		var plan = transfers.findExistingDeliveries(source, target, SETTLEMENT_DATE.plusDays(10));
+		assertNotNull(plan);
+		assertEquals(originals.size(), db.getAll(StockTransaction.class).size());
+		transfers.transferExistingDeliveries(source, target, plan, null, BigDecimal.ONE);
+
+		StockPortfolioService portfolios = new StockPortfolioService();
+		assertTrue(portfolios.getPositions(source.portfolioId()).isEmpty());
+		PositionSummary holding = portfolios.getPositions(target.portfolioId()).get(0);
+		assertEquals(0, new BigDecimal("200").compareTo(holding.quantity()));
+		assertEquals(0, new BigDecimal(sides.equals("outgoing") ? "100" : "81.25").compareTo(holding.acquisitionPrice()));
+		assertEquals(originals.size() + (sides.equals("incoming") || sides.equals("outgoing") ? 1 : 0),
+				db.getAll(StockTransaction.class).size());
+		for (StockTransaction original : originals) {
+			StockTransaction stored = db.getById(StockTransaction.class, original.getId());
+			assertEquals(original.getFingerprint(), stored.getFingerprint());
+			assertEquals(original.getImportRecordId(), stored.getImportRecordId());
+			assertEquals(original.getSettledAt(), stored.getSettledAt());
+			if (plan.outgoingIds().contains(original.getId()) || plan.incomingIds().contains(original.getId())) {
+				assertEquals(original.getPortfolioId() == source.portfolioId()
+						? StockTransactionType.TRANSFER_OUT : StockTransactionType.TRANSFER_IN, stored.getTransactionType());
+			}
+		}
+		for (StockTransactionSecurityLeg lot : lots) {
+			StockTransactionSecurityLeg stored = db.getById(StockTransactionSecurityLeg.class, lot.getId());
+			assertEquals(lot.getQuantityE9(), stored.getQuantityE9());
+			assertEquals(lot.getPriceE8(), stored.getPriceE8());
+		}
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void portfolioTransferShouldRevalidateAndRollBackAnInvalidOverrideDate(boolean changeHoldings) throws Exception {
+		PortfolioSummary source = createPortfolio(100, 200, "Depot A", "Verrechnung A", BigDecimal.ZERO);
+		PortfolioSummary target = createPortfolio(101, 201, "Depot B", "Verrechnung B", BigDecimal.ZERO);
+		importDeliveries(source, deliveryRow("2026-09-10", "Einlieferung", 200, 20000));
+		importDeliveries(target, deliveryRow("2026-09-16", "Einlieferung", 50, 5000)
+				+ deliveryRow("2026-09-16", "Einlieferung", 150, 11250));
+		StockPortfolioTransferService transfers = new StockPortfolioTransferService();
+		var plan = transfers.findExistingDeliveries(source, target, null);
+		if (changeHoldings) {
+			importDeliveries(source, deliveryRow("2026-09-17", "Einlieferung", 1, 100));
+		}
+		int count = db.getAll(StockTransaction.class).size();
+		assertThrows(GBankingException.class, () -> transfers.transferExistingDeliveries(source, target, plan,
+				changeHoldings ? null : TRADE_DATE.minusDays(1), BigDecimal.ONE));
+		assertEquals(count, db.getAll(StockTransaction.class).size());
+		assertTrue(db.getAllByParent(StockTransaction.class, target.portfolioId()).stream()
+				.allMatch(transaction -> transaction.getTransactionType() == StockTransactionType.DELIVERY_IN));
+	}
+
+	@Test
+	void portfolioTransferShouldRequireCompleteQuantitiesAndAllowExplicitDateOverride() throws Exception {
+		PortfolioSummary source = createPortfolio(100, 200, "Depot A", "Verrechnung A", BigDecimal.ZERO);
+		PortfolioSummary target = createPortfolio(101, 201, "Depot B", "Verrechnung B", BigDecimal.ZERO);
+		importDeliveries(source, deliveryRow("2026-09-10", "Einlieferung", 200, 20000));
+		importDeliveries(target, deliveryRow("2026-09-16", "Einlieferung", 199, 19900));
+		StockPortfolioTransferService transfers = new StockPortfolioTransferService();
+		assertNull(transfers.findExistingDeliveries(source, target, null));
+		importDeliveries(target, deliveryRow("2026-09-16", "Einlieferung", 1, 100));
+		var plan = transfers.findExistingDeliveries(source, target, null);
+		LocalDate date = SETTLEMENT_DATE.plusDays(5);
+		transfers.transferExistingDeliveries(source, target, plan, date, BigDecimal.ONE);
+		assertTrue(db.getAllByParent(StockTransaction.class, target.portfolioId()).stream()
+				.allMatch(transaction -> transaction.getSettledAt().toLocalDate().equals(date)
+						&& transaction.getTransactionType() == StockTransactionType.TRANSFER_IN));
+	}
+
+	private void importDeliveries(PortfolioSummary portfolio, String rows) throws Exception {
+		if (db.getAll(StockDataSource.class).stream().noneMatch(source -> source.getSourceCode().equals("PORTFOLIO_PERFORMANCE"))) {
+			StockDataSource source = new StockDataSource();
+			source.setSourceCode("PORTFOLIO_PERFORMANCE");
+			source.setSourceName("Portfolio Performance");
+			source.setSourceType(StockDataSourceType.FILE);
+			db.insertOrUpdate(source);
+		}
+		Path csv = Files.createTempFile(files, "deliveries-", ".csv");
+		Files.writeString(csv, "Datum;Typ;Wert;Buchungswährung;Bruttobetrag;Währung Bruttobetrag;Wechselkurs;"
+				+ "Gebühren;Steuern;Stück;ISIN;WKN;Ticker-Symbol;Wertpapiername;Notiz\n" + rows);
+		new PortfolioPerformanceImportService().importFile(csv, ExportType.STOCK_PP_TRANSACTIONS_CSV, portfolio);
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void portfolioTransferShouldRejectIncompleteHoldingsAndRequireAnUnambiguousDate(boolean incomplete) throws Exception {
+		PortfolioSummary source = createPortfolio(100, 200, "Depot A", "Verrechnung A", BigDecimal.ZERO);
+		PortfolioSummary target = createPortfolio(101, 201, "Depot B", "Verrechnung B", BigDecimal.ZERO);
+		importDeliveries(source, deliveryRow("2026-09-10", "Einlieferung", 200, 20000)
+				+ (incomplete ? deliveryRow("2026-09-10", "Einlieferung", 1, 100).replace("DE0000000001", "DE0000000002") : "")
+				+ deliveryRow("2026-09-15", "Auslieferung", 200, 20000));
+		importDeliveries(target, deliveryRow("2026-09-16", "Einlieferung", 200, 20000)
+				+ (incomplete ? "" : deliveryRow("2026-09-17", "Einlieferung", 200, 20000)));
+		StockPortfolioTransferService transfers = new StockPortfolioTransferService();
+		if (incomplete) {
+			assertNull(transfers.findExistingDeliveries(source, target, null));
+		} else {
+			assertThrows(GBankingException.class, () -> transfers.findExistingDeliveries(source, target, null));
+			assertNotNull(transfers.findExistingDeliveries(source, target, LocalDate.of(2026, 9, 16)));
+		}
+	}
+
+	private static String deliveryRow(String date, String type, int quantity, int value) {
+		return date + "T12:00;" + type + ";" + value + ",00;EUR;;;;;;" + quantity + ";DE0000000001;;;Aktie;\n";
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void portfolioTransferShouldIncludeBankOnlyPositionsAndQuantities(boolean sameSecurity) throws Exception {
+		PortfolioSummary source = createPortfolio(100, 200, "Depot A", "Verrechnung A", BigDecimal.ZERO);
+		PortfolioSummary target = createPortfolio(101, 201, "Depot B", "Verrechnung B", BigDecimal.ZERO);
+		importDeliveries(source, deliveryRow("2026-09-10", "Einlieferung", 200, 20000));
+		Entry statement = new Entry();
+		statement.timestamp = Date.from(TRADE_DATE.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant());
+		statement.total = new BigDecimalValue(new BigDecimal("20100"), "EUR");
+		for (String isin : sameSecurity ? List.of("DE0000000001") : List.of("DE0000000001", "DE0000000002")) {
+			Gattung security = new Gattung();
+			security.isin = isin;
+			security.name = isin;
+			security.curr = "EUR";
+			security.saldo_type = Entry.SALDO_TYPE_STCK;
+			long quantity = isin.endsWith("1") ? 200 : 1;
+			security.saldo = new BigDecimalValue(BigDecimal.valueOf(sameSecurity ? quantity + 1 : quantity), "");
+			security.einstandspreis = new BigDecimalValue(new BigDecimal("100"), "EUR");
+			statement.addEntry(security);
+		}
+		new StockPortfolioFinTsService().persistPortfolioStatement(source.portfolioId(),
+				db.getById(BankAccount.class, db.getById(StockPortfolio.class, source.portfolioId()).getAccountId()), statement);
+		importDeliveries(source, deliveryRow("2026-09-15", "Auslieferung", 200, 20000));
+		importDeliveries(target, deliveryRow("2026-09-16", "Einlieferung", 200, 20000));
+		StockPortfolioTransferService transfers = new StockPortfolioTransferService();
+		assertNull(transfers.findExistingDeliveries(source, target, null));
+		importDeliveries(source, deliveryRow("2026-09-15", "Auslieferung", 1, 100)
+				.replace("DE0000000001", sameSecurity ? "DE0000000001" : "DE0000000002"));
+		importDeliveries(target, deliveryRow("2026-09-16", "Einlieferung", 1, 100)
+				.replace("DE0000000001", sameSecurity ? "DE0000000001" : "DE0000000002"));
+		var plan = transfers.findExistingDeliveries(source, target, null);
+		assertNotNull(plan);
+		transfers.transferExistingDeliveries(source, target, plan, null, BigDecimal.ONE);
+		assertTrue(new StockPortfolioService().getPositions(source.portfolioId()).isEmpty());
+	}
 
 	@Test
 	void replacementShouldCarryBasisAndHistoryAcrossMultipleSecuritiesWithoutCashFlow() {
@@ -379,7 +559,9 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 		List<PortfolioSummary> reloaded = service.getPortfolios();
 		source = findPortfolio(reloaded, source.portfolioId());
 		target = findPortfolio(reloaded, target.portfolioId());
-		service.transferPortfolio(source, target, SETTLEMENT_DATE.plusDays(1), new BigDecimal("1.10"));
+		StockPortfolioTransferService transfers = new StockPortfolioTransferService();
+		assertNull(transfers.findExistingDeliveries(source, target, null));
+		transfers.transferManually(source, target, SETTLEMENT_DATE.plusDays(1), new BigDecimal("1.10"));
 
 		assertEquals(List.of(), service.getPositions(source.portfolioId()));
 		assertEquals(new BigDecimal("1E+1"), service.getPositions(target.portfolioId()).get(0).quantity());

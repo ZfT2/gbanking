@@ -45,6 +45,7 @@ import de.zft2.gbanking.service.stock.StockPortfolioService.PositionSummary;
 import de.zft2.gbanking.service.stock.StockPortfolioService.SecuritySummary;
 import de.zft2.gbanking.service.stock.StockPortfolioService.TransactionPrefill;
 import de.zft2.gbanking.service.stock.StockPortfolioService.TransactionSummary;
+import de.zft2.gbanking.service.stock.StockPortfolioTransferService;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -953,7 +954,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 			return;
 		}
 		new StockPortfolioTransferDialog(getOwnerWindow(), portfolio, targets,
-				(target, date, exchangeRate) -> service.transferPortfolio(portfolio, target, date, exchangeRate),
+				ServiceRegistry.getService(StockPortfolioTransferService.class),
 				this::refreshSelectedPortfolio).show();
 	}
 
