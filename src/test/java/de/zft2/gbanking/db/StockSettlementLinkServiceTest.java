@@ -3,6 +3,7 @@ package de.zft2.gbanking.db;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
@@ -20,15 +21,22 @@ import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.db.dao.enu.StockCashLegRole;
+import de.zft2.gbanking.db.dao.enu.StockDataSourceType;
 import de.zft2.gbanking.db.dao.enu.StockQuantityType;
 import de.zft2.gbanking.db.dao.enu.StockQuotationType;
 import de.zft2.gbanking.db.dao.enu.StockSecurityType;
 import de.zft2.gbanking.db.dao.enu.StockTransactionType;
+import de.zft2.gbanking.db.dao.enu.StockTransactionStatus;
+import de.zft2.gbanking.db.dao.stock.StockDataSource;
 import de.zft2.gbanking.db.dao.stock.StockPortfolio;
 import de.zft2.gbanking.db.dao.stock.StockPortfolioSettlementAccount;
 import de.zft2.gbanking.db.dao.stock.StockSecurity;
+import de.zft2.gbanking.db.dao.stock.StockTransaction;
 import de.zft2.gbanking.db.dao.stock.StockTransactionCashLeg;
 import de.zft2.gbanking.file.imp.ImportedBookingPersistence;
+import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.service.account.AccountTransactionService;
 import de.zft2.gbanking.service.stock.StockPortfolioService;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PositionSummary;
@@ -41,6 +49,113 @@ class StockSettlementLinkServiceTest extends DBControllerIntegrationBaseTest {
 	private static final LocalDate TRANSACTION_DATE = LocalDate.of(2026, 10, 19);
 	private static final LocalDate BOOKING_DATE = LocalDate.of(2026, 10, 20);
 	private static final BigDecimal AMOUNT = new BigDecimal("-72.00");
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void assignmentToolShouldLinkExistingTransactionsOnlyAfterConfirmation(boolean selectDepot) {
+		PortfolioSummary portfolio = createPortfolio();
+		StockTransaction transaction = createUnlinkedTrade(portfolio, Currency.EUR);
+		BankAccount account = db.getById(BankAccount.class, portfolio.settlementAccountId());
+		Booking booking = createBankBooking(account, selectDepot ? TRANSACTION_DATE.plusDays(6) : BOOKING_DATE, AMOUNT, Source.ONLINE);
+		BankAccount other = createAccount("Anderes Konto", AccountType.CURRENT_ACCOUNT, BigDecimal.ZERO);
+		createBankBooking(other, BOOKING_DATE, AMOUNT, Source.ONLINE);
+		createBankBooking(account, TRANSACTION_DATE.plusDays(7), AMOUNT, Source.ONLINE);
+		AccountTransactionService tool = new AccountTransactionService();
+		BankAccount selected = selectDepot ? new StockSettlementLinkService().getDepotAccount(portfolio.portfolioId()) : account;
+		var summary = tool.detectRebookings(TRANSACTION_DATE, TRANSACTION_DATE,
+				List.of(selected));
+		assertEquals(1, summary.pairCount());
+		assertEquals(2, summary.accountSummaries().size());
+		assertNull(db.getById(Booking.class, booking.getId()).getCrossBookingId());
+		assertTrue(db.getAll(StockTransactionCashLeg.class).stream().allMatch(leg -> leg.getBookingId() == null));
+
+		assertEquals(1, tool.persistDetectedRebookingLinks(summary));
+		assertEquals(0, tool.persistDetectedRebookingLinks(summary));
+		Booking linked = db.getByIdFull(Booking.class, booking.getId());
+		assertEquals(transaction.getId(), new StockSettlementLinkService().getLinkedTransaction(linked).getId());
+		assertEquals(booking.getId(), db.getById(Booking.class, linked.getCrossBookingId()).getCrossBookingId());
+		assertEquals(2, db.getAllByParent(Booking.class, account.getId()).size());
+		List<StockTransactionCashLeg> legs = db.getAllByParent(StockTransactionCashLeg.class, transaction.getId());
+		assertTrue(legs.stream().allMatch(leg -> Integer.valueOf(booking.getId()).equals(leg.getBookingId())));
+		assertEquals(-7200, legs.stream().mapToLong(leg -> leg.getAmountMinor()).sum());
+		StockTransactionCashLeg leg = legs.get(0);
+		leg.setAmountMinor(-1);
+		assertThrows(GBankingException.class, () -> db.insertOrUpdate(leg));
+		StockTransactionCashLeg linkedLeg = db.getById(StockTransactionCashLeg.class, leg.getId());
+		linkedLeg.setBookingId(null);
+		assertThrows(GBankingException.class, () -> db.insertOrUpdate(linkedLeg));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "two bookings", "two transactions", "wrong account", "wrong currency", "wrong selection", "prenotification" })
+	void assignmentToolShouldSkipAmbiguousOrIneligibleMatches(String scenario) {
+		PortfolioSummary portfolio = createPortfolio();
+		createUnlinkedTrade(portfolio, scenario.equals("wrong currency") ? Currency.USD : Currency.EUR);
+		BankAccount account = db.getById(BankAccount.class, portfolio.settlementAccountId());
+		BankAccount other = createAccount("Anderes Konto", AccountType.CURRENT_ACCOUNT, BigDecimal.ZERO);
+		createBankBooking(scenario.equals("wrong account") ? other : account, BOOKING_DATE, AMOUNT,
+				scenario.equals("prenotification") ? Source.ONLINE_PRENO : Source.ONLINE);
+		if (scenario.equals("two bookings")) {
+			createBankBooking(account, BOOKING_DATE.plusDays(1), AMOUNT, Source.ONLINE);
+		}
+		if (scenario.equals("two transactions")) {
+			createUnlinkedTrade(portfolio, Currency.EUR);
+		}
+		var summary = new AccountTransactionService().detectRebookings(TRANSACTION_DATE, TRANSACTION_DATE,
+				List.of(scenario.equals("wrong selection") ? other : account));
+		assertTrue(summary.isEmpty());
+		assertTrue(db.getAll(StockTransactionCashLeg.class).stream().allMatch(leg -> leg.getBookingId() == null));
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void assignmentToolShouldRecheckAmbiguityAndSettlementAccountBeforeSaving(boolean changeAccount) {
+		PortfolioSummary portfolio = createPortfolio();
+		createUnlinkedTrade(portfolio, Currency.EUR);
+		BankAccount account = db.getById(BankAccount.class, portfolio.settlementAccountId());
+		Booking booking = createBankBooking(account, BOOKING_DATE, AMOUNT, Source.ONLINE);
+		AccountTransactionService tool = new AccountTransactionService();
+		var summary = tool.detectRebookings(TRANSACTION_DATE, TRANSACTION_DATE, List.of(account));
+		assertEquals(1, summary.pairCount());
+		if (changeAccount) {
+			new StockPortfolioService().changeSettlementAccount(portfolio,
+					createAccount("Neues Konto", AccountType.CURRENT_ACCOUNT, BigDecimal.ZERO), BOOKING_DATE.plusDays(1));
+		} else {
+			createBankBooking(account, BOOKING_DATE.plusDays(1), AMOUNT, Source.ONLINE);
+		}
+		assertEquals(0, tool.persistDetectedRebookingLinks(summary));
+		assertNull(db.getById(Booking.class, booking.getId()).getCrossBookingId());
+	}
+
+	private StockTransaction createUnlinkedTrade(PortfolioSummary portfolio, Currency currency) {
+		StockDataSource source = new StockDataSource();
+		source.setSourceCode("TEST_" + db.getAll(StockTransaction.class).size());
+		source.setSourceName("Test");
+		source.setSourceType(StockDataSourceType.MANUAL);
+		source = db.insertOrUpdate(source);
+		StockTransaction transaction = new StockTransaction();
+		transaction.setPortfolioId(portfolio.portfolioId());
+		transaction.setSourceId(source.getId());
+		transaction.setTransactionType(StockTransactionType.BUY);
+		transaction.setTransactionStatus(StockTransactionStatus.PENDING);
+		transaction.setTradeAt(TRANSACTION_DATE.atStartOfDay());
+		transaction.setCashValueAt(transaction.getTradeAt());
+		transaction = db.insertOrUpdate(transaction);
+		for (int number = 1; number <= 2; number++) {
+			StockTransactionCashLeg leg = new StockTransactionCashLeg();
+			leg.setTransactionId(transaction.getId());
+			leg.setLegNumber(number);
+			leg.setAccountId(portfolio.settlementAccountId());
+			leg.setCurrency(currency);
+			leg.setAmountMinor(number == 1 ? -7000 : -200);
+			leg.setLegRole(number == 1 ? StockCashLegRole.TRADE_VALUE : StockCashLegRole.FEE);
+			leg.setValueAt(transaction.getTradeAt());
+			db.insertOrUpdate(leg);
+		}
+		transaction.setTransactionStatus(StockTransactionStatus.SETTLED);
+		transaction.setSettledAt(transaction.getTradeAt());
+		return db.insertOrUpdate(transaction);
+	}
 
 	@Test
 	void existingSettlementBookingShouldBeReusedAndLinkedOnlyOnce() {

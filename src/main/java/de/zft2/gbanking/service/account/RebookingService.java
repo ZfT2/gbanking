@@ -34,11 +34,13 @@ import de.zft2.gbanking.rebooking.MissingRebookingCreationSummary;
 import de.zft2.gbanking.rebooking.MissingRebookingRouteSummary;
 import de.zft2.gbanking.rebooking.RebookingAccountSummary;
 import de.zft2.gbanking.rebooking.RebookingAssignmentSummary;
+import de.zft2.gbanking.rebooking.RebookingAssignmentSummary.StockSettlementAssignment;
 import de.zft2.gbanking.rebooking.RebookingLinkWriter;
 import de.zft2.gbanking.rebooking.RebookingRules;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.importproperties.ImportPropertiesSynchronizationService;
+import de.zft2.gbanking.service.stock.StockSettlementLinkService;
 import de.zft2.gbanking.util.AppPaths;
 
 final class RebookingService extends AbstractDbService {
@@ -71,7 +73,36 @@ final class RebookingService extends AbstractDbService {
 
 	RebookingAssignmentSummary detectRebookings(LocalDate dateFrom, LocalDate dateTo,
 			Collection<BankAccount> anchorAccounts) {
-		return detectRebookingLinks(createManualSearchScope(dateFrom, dateTo, anchorAccounts));
+		RebookingSearchScope scope = createManualSearchScope(dateFrom, dateTo, anchorAccounts);
+		RebookingAssignmentSummary summary = detectRebookingLinks(scope);
+		if (scope == null) {
+			return summary;
+		}
+		Set<Integer> reservedIds = new HashSet<>();
+		for (DetectedRebookingPair pair : summary.pairs()) {
+			reservedIds.add(pair.booking().getId());
+			reservedIds.add(pair.crossBooking().getId());
+		}
+		List<StockSettlementAssignment> assignments = ServiceRegistry.getService(StockSettlementLinkService.class)
+				.detectAssignments(dateFrom, dateTo, anchorAccounts, reservedIds);
+		if (assignments.isEmpty()) {
+			return summary;
+		}
+		Map<Integer, Integer> counts = new HashMap<>();
+		for (RebookingAccountSummary account : summary.accountSummaries()) {
+			counts.put(account.accountId(), account.foundRebookings());
+		}
+		for (StockSettlementAssignment assignment : assignments) {
+			addRebookingCount(counts, assignment.depotAccountId());
+			addRebookingCount(counts, assignment.settlementAccountId());
+		}
+		List<RebookingAccountSummary> accounts = dbController.getAll(BankAccount.class).stream()
+				.filter(account -> counts.containsKey(account.getId()))
+				.map(account -> new RebookingAccountSummary(account.getId(),
+						RebookingLinkWriter.accountName(account, account.getId()), counts.get(account.getId())))
+				.sorted(Comparator.comparing(RebookingAccountSummary::accountName, String.CASE_INSENSITIVE_ORDER)
+						.thenComparingInt(RebookingAccountSummary::accountId)).toList();
+		return new RebookingAssignmentSummary(summary.pairs(), accounts, assignments);
 	}
 
 	MissingRebookingCreationSummary detectMissingRebookings(LocalDate dateFrom, LocalDate dateTo,
@@ -116,7 +147,8 @@ final class RebookingService extends AbstractDbService {
 				linkedBookings++;
 			}
 		}
-		return linkedBookings;
+		return linkedBookings + ServiceRegistry.getService(StockSettlementLinkService.class)
+				.persistAssignments(summary.stockAssignments());
 	}
 
 	int releaseRebookingLinks(Collection<Booking> bookings) {

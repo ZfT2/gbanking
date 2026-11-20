@@ -44,6 +44,7 @@ import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.file.imp.csv.CsvImportAnalyzer;
 import de.zft2.gbanking.file.imp.csv.CsvImportDefinitionRepository;
 import de.zft2.gbanking.gui.enu.ExportType;
+import de.zft2.gbanking.service.account.AccountTransactionService;
 import de.zft2.gbanking.service.booking.BookingService;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceExportService;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService;
@@ -149,6 +150,14 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		if (scenario == 2) {
 			assertNull(leg.getBookingId());
 			assertNull(reloaded.getCrossBookingId());
+			Booking other = db.getAllByParent(Booking.class, portfolio.settlementAccountId()).stream()
+					.filter(booking -> booking.getId() != existing.getId()).findFirst().orElseThrow();
+			db.delete(other, StatementsConfig.StatementType.DELETE);
+			AccountTransactionService tool = new AccountTransactionService();
+			var summary = tool.detectRebookings(date, date,
+					List.of(db.getById(BankAccount.class, portfolio.settlementAccountId())));
+			assertEquals(1, tool.persistDetectedRebookingLinks(summary));
+			assertEquals(existing.getId(), db.getAll(StockTransactionCashLeg.class).get(0).getBookingId());
 		} else if (scenario == 3) {
 			assertTrue(leg.getBookingId() != existing.getId());
 			assertNull(reloaded.getCrossBookingId());

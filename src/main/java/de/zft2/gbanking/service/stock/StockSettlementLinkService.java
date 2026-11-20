@@ -3,8 +3,12 @@ package de.zft2.gbanking.service.stock;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -20,8 +24,10 @@ import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.SourceGroup;
 import de.zft2.gbanking.db.dao.enu.StockTransactionStatus;
 import de.zft2.gbanking.db.dao.stock.StockPortfolio;
+import de.zft2.gbanking.db.dao.stock.StockPortfolioSettlementAccount;
 import de.zft2.gbanking.db.dao.stock.StockTransaction;
 import de.zft2.gbanking.db.dao.stock.StockTransactionCashLeg;
+import de.zft2.gbanking.rebooking.RebookingAssignmentSummary.StockSettlementAssignment;
 import de.zft2.gbanking.rebooking.RebookingLinkWriter;
 import de.zft2.gbanking.rebooking.RebookingRules;
 import de.zft2.gbanking.service.AbstractDbService;
@@ -37,6 +43,124 @@ public class StockSettlementLinkService extends AbstractDbService {
 	private static final int SEARCH_WINDOW_DAYS = 6;
 
 	private final RebookingLinkWriter linkWriter = new RebookingLinkWriter(dbController);
+
+	public List<StockSettlementAssignment> detectAssignments(LocalDate from, LocalDate to,
+			Collection<BankAccount> anchorAccounts, Set<Integer> reservedBookingIds) {
+		Set<Integer> anchors = anchorAccounts.stream().filter(account -> account != null)
+				.map(account -> account.getId()).collect(Collectors.toSet());
+		Map<Integer, StockTransaction> transactions = dbController.getAll(StockTransaction.class).stream()
+				.collect(Collectors.toMap(transaction -> transaction.getId(), transaction -> transaction));
+		List<StockSettlementAssignment> candidates = collectAssignmentCandidates(transactions, reservedBookingIds);
+		Map<Integer, Long> bookingCounts = candidates.stream()
+				.collect(Collectors.groupingBy(candidate -> candidate.bookingId(), Collectors.counting()));
+		Map<Integer, Long> transactionCounts = candidates.stream()
+				.collect(Collectors.groupingBy(candidate -> candidate.transactionId(), Collectors.counting()));
+		// Check uniqueness in both directions, including competing transactions outside the selected period.
+		return candidates.stream()
+				.filter(candidate -> bookingCounts.get(candidate.bookingId()) == 1
+						&& transactionCounts.get(candidate.transactionId()) == 1)
+				.filter(candidate -> anchors.contains(candidate.depotAccountId()) || anchors.contains(candidate.settlementAccountId()))
+				.filter(candidate -> {
+					LocalDate date = cashDate(transactions.get(candidate.transactionId()));
+					return !date.isBefore(from) && !date.isAfter(to);
+				}).toList();
+	}
+
+	public int persistAssignments(List<StockSettlementAssignment> assignments) {
+		if (assignments.isEmpty()) {
+			return 0;
+		}
+		return dbController.executeInTransaction(() -> {
+			Set<StockSettlementAssignment> eligible = Set.copyOf(detectAssignments(LocalDate.MIN, LocalDate.MAX,
+					dbController.getAll(BankAccount.class), Set.of()));
+			int linked = 0;
+			for (StockSettlementAssignment assignment : Set.copyOf(assignments)) {
+				if (!eligible.contains(assignment)) {
+					log.info("Skipped changed or ambiguous settlement assignment for transaction {}.", assignment.transactionId());
+					continue;
+				}
+				Booking booking = dbController.getByIdFull(Booking.class, assignment.bookingId());
+				if (linkWithDepot(booking, dbController.getById(BankAccount.class, assignment.settlementAccountId()),
+						dbController.getById(BankAccount.class, assignment.depotAccountId())) == null) {
+					throw new IllegalStateException("Could not link settlement booking " + assignment.bookingId());
+				}
+				for (StockTransactionCashLeg leg : dbController.getAllByParent(StockTransactionCashLeg.class, assignment.transactionId())) {
+					leg.setBookingId(booking.getId());
+					dbController.insertOrUpdate(leg);
+				}
+				linked++;
+			}
+			return linked;
+		});
+	}
+
+	private List<StockSettlementAssignment> collectAssignmentCandidates(Map<Integer, StockTransaction> transactions,
+			Set<Integer> reservedBookingIds) {
+		List<StockTransactionCashLeg> cashLegs = dbController.getAll(StockTransactionCashLeg.class);
+		Map<Integer, List<StockTransactionCashLeg>> legsByTransaction = cashLegs.stream()
+				.collect(Collectors.groupingBy(leg -> leg.getTransactionId()));
+		Set<Integer> usedBookingIds = cashLegs.stream().map(leg -> leg.getBookingId())
+				.filter(id -> id != null).collect(Collectors.toSet());
+		usedBookingIds.addAll(reservedBookingIds);
+		Set<Integer> reversedIds = transactions.values().stream().map(transaction -> transaction.getReversalOfTransactionId())
+				.filter(id -> id != null).collect(Collectors.toSet());
+		Map<Integer, List<StockTransaction>> transactionsByPortfolio = transactions.values().stream()
+				.filter(transaction -> transaction.getTransactionStatus() == StockTransactionStatus.SETTLED
+						&& cashDate(transaction) != null && transaction.getReversalOfTransactionId() == null
+						&& !reversedIds.contains(transaction.getId()))
+				.collect(Collectors.groupingBy(transaction -> transaction.getPortfolioId()));
+		Map<Integer, Map<BigDecimal, List<Booking>>> bookingsByAccount = new HashMap<>();
+		List<StockSettlementAssignment> candidates = new ArrayList<>();
+		for (StockPortfolio portfolio : dbController.getAll(StockPortfolio.class)) {
+			if (!transactionsByPortfolio.containsKey(portfolio.getId())) {
+				continue;
+			}
+			StockPortfolioSettlementAccount relation = dbController.getById(StockPortfolioSettlementAccount.class,
+					portfolio.getCurrentSettlementRelationId());
+			if (relation == null || relation.getPortfolioId() != portfolio.getId()) {
+				continue;
+			}
+			BankAccount account = dbController.getById(BankAccount.class, relation.getAccountId());
+			BankAccount depot = dbController.getById(BankAccount.class, portfolio.getAccountId());
+			if (account == null || depot == null || account.getBaseCurrency() == null) {
+				continue;
+			}
+			Map<BigDecimal, List<Booking>> bookings = bookingsByAccount.computeIfAbsent(account.getId(),
+					id -> dbController.getAllByParentFull(Booking.class, id).stream()
+							.filter(booking -> booking.getAmount() != null)
+							.collect(Collectors.groupingBy(booking -> booking.getAmount().stripTrailingZeros())));
+			for (StockTransaction transaction : transactionsByPortfolio.getOrDefault(portfolio.getId(), List.of())) {
+				candidates.addAll(findAssignmentCandidates(transaction, legsByTransaction.getOrDefault(transaction.getId(), List.of()),
+						account, depot, bookings, usedBookingIds));
+			}
+		}
+		return candidates;
+	}
+
+	private List<StockSettlementAssignment> findAssignmentCandidates(StockTransaction transaction,
+			List<StockTransactionCashLeg> legs, BankAccount account, BankAccount depot,
+			Map<BigDecimal, List<Booking>> bookings, Set<Integer> usedIds) {
+		if (legs.isEmpty() || legs.stream().anyMatch(leg -> leg.getBookingId() != null
+				|| leg.getAccountId() != account.getId() || leg.getCurrency() != account.getBaseCurrency())) {
+			return List.of();
+		}
+		long minor = legs.stream().mapToLong(leg -> leg.getAmountMinor()).reduce(0L, Math::addExact);
+		if (minor == 0) {
+			return List.of();
+		}
+		BigDecimal amount = StockNumericValues.fromScaled(minor, account.getBaseCurrency().getMinorUnitDigits());
+		return bookings.getOrDefault(amount, List.of()).stream()
+				.filter(booking -> !usedIds.contains(booking.getId()) && isCoveringCandidate(booking, amount))
+				.filter(booking -> dateDistance(booking.getDate(), cashDate(transaction)) <= SEARCH_WINDOW_DAYS)
+				.filter(booking -> RebookingLinkWriter.canLinkWithCounterBooking(booking, account, depot))
+				.map(booking -> new StockSettlementAssignment(transaction.getId(), booking.getId(), depot.getId(), account.getId()))
+				.toList();
+	}
+
+	private static LocalDate cashDate(StockTransaction transaction) {
+		var date = transaction.getCashValueAt() != null ? transaction.getCashValueAt() : transaction.getSettledAt();
+		return date != null ? date.toLocalDate() : null;
+	}
 
 	/**
 	 * Finds an unused settlement booking with the same amount and the nearest date within the search window.

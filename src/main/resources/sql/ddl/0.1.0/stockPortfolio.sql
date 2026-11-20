@@ -1194,11 +1194,13 @@ BEGIN
   SELECT RAISE(FAIL, 'cash leg and booking must use the same bankAccount');
 END;
 
-[SQL_STOCK_CASH_LEG_NOT_BOOKING_DELETE]
--- Allow ON DELETE SET NULL only after the booking disappears, without changing economic data.
+[SQL_STOCK_CASH_LEG_NOT_BOOKING_REFERENCE_UPDATE]
+-- Allow initial settlement assignment or ON DELETE SET NULL without changing economic data.
 NOT (
-  OLD.booking_id IS NOT NULL AND NEW.booking_id IS NULL
-  AND NOT EXISTS (SELECT 1 FROM booking WHERE id = OLD.booking_id)
+  ((OLD.booking_id IS NOT NULL AND NEW.booking_id IS NULL
+    AND NOT EXISTS (SELECT 1 FROM booking WHERE id = OLD.booking_id))
+   OR (OLD.booking_id IS NULL AND NEW.booking_id IS NOT NULL
+    AND EXISTS (SELECT 1 FROM stockTransaction WHERE id = OLD.transaction_id AND transactionStatus = 2)))
   AND (NEW.id, NEW.transaction_id, NEW.legNumber, NEW.account_id, NEW.legRole,
        NEW.amountMinor, NEW.currency, NEW.exchangeRate_id, NEW.valueAt, NEW.createdAt)
    IS (OLD.id, OLD.transaction_id, OLD.legNumber, OLD.account_id, OLD.legRole,
@@ -1208,7 +1210,7 @@ NOT (
 CREATE TRIGGER validate_final_stocktransactioncashleg_masked_update
 BEFORE UPDATE ON stockTransactionCashLeg
 WHEN EXISTS (SELECT 1 FROM stockFinalTransaction finalEntry WHERE finalEntry.id = OLD.transaction_id)
-  AND ${SQL_STOCK_CASH_LEG_NOT_BOOKING_DELETE}
+  AND ${SQL_STOCK_CASH_LEG_NOT_BOOKING_REFERENCE_UPDATE}
   AND (
     NEW.transaction_id IS NOT OLD.transaction_id
     OR NEW.legNumber IS NOT OLD.legNumber
@@ -1268,7 +1270,7 @@ END;
 CREATE TRIGGER block_immutable_stocktransactioncashleg_update
 BEFORE UPDATE ON stockTransactionCashLeg
 WHEN EXISTS (SELECT 1 FROM stockImmutableTransaction immutable WHERE immutable.id = OLD.transaction_id)
-  AND ${SQL_STOCK_CASH_LEG_NOT_BOOKING_DELETE}
+  AND ${SQL_STOCK_CASH_LEG_NOT_BOOKING_REFERENCE_UPDATE}
 BEGIN
   SELECT RAISE(FAIL, 'cash leg of settled or imported transaction is immutable');
 END;
@@ -1493,7 +1495,7 @@ END;
 [SQL_SETUP_CREATE_TRIGGER_STOCK_CORPORATE_ACTION_CASH_LEG_BLOCK_UPDATE]
 CREATE TRIGGER block_corporateaction_stockcashleg_update BEFORE UPDATE ON stockTransactionCashLeg
 WHEN EXISTS (SELECT 1 FROM stockCorporateActionMember WHERE transaction_id IN (OLD.transaction_id, NEW.transaction_id))
-  AND ${SQL_STOCK_CASH_LEG_NOT_BOOKING_DELETE}
+  AND ${SQL_STOCK_CASH_LEG_NOT_BOOKING_REFERENCE_UPDATE}
 BEGIN
   SELECT RAISE(FAIL, 'remove the corporate action association before changing its cash legs');
 END;
