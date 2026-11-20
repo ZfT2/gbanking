@@ -1,6 +1,7 @@
 package de.zft2.gbanking.gui.dialog.stock;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -19,10 +20,13 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.db.dao.enu.Currency;
+import de.zft2.gbanking.db.dao.enu.StockQuantityType;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
 import de.zft2.gbanking.service.stock.StockPortfolioTransferService;
 import de.zft2.gbanking.service.stock.StockPortfolioTransferService.TransferPlan;
+import de.zft2.gbanking.service.stock.StockPortfolioTransferService.DeliveryComparison;
+import de.zft2.gbanking.service.stock.StockPortfolioTransferService.DeliveryDifference;
 import javafx.application.Platform;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
@@ -30,6 +34,7 @@ import javafx.scene.control.ButtonBar;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
+import javafx.scene.control.TableView;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
@@ -42,10 +47,14 @@ class StockPortfolioTransferDialogTest {
 		LocalDate entered = original.plusDays(5);
 		PortfolioSummary source = portfolio(1);
 		PortfolioSummary target = portfolio(2);
-		TransferPlan plan = new TransferPlan(1, 2, List.of(10), List.of(20), List.of(original), List.of());
+		TransferPlan plan = new TransferPlan(1, 2, List.of(10), List.of(20), List.of(original), List.of(), original);
 		StockPortfolioTransferService service = mock(StockPortfolioTransferService.class);
 		LocalDate requested = scenario.equals("empty") || scenario.equals("manual") ? null : entered;
 		when(service.findExistingDeliveries(source, target, requested)).thenReturn(scenario.equals("manual") ? null : plan);
+		DeliveryDifference difference = new DeliveryDifference("Aktie", StockQuantityType.UNITS,
+				new BigDecimal("200"), new BigDecimal("200"), new BigDecimal("199"), 17, "SG1N28909355", "A2DG57");
+		when(service.compareDeliveries(source, target, null)).thenReturn(new DeliveryComparison(original, List.of(difference)));
+		when(service.compareDeliveries(source, target, entered)).thenReturn(new DeliveryComparison(entered, List.of()));
 		Runnable saved = mock(Runnable.class);
 		AtomicReference<Throwable> failure = new AtomicReference<>();
 
@@ -79,7 +88,15 @@ class StockPortfolioTransferDialogTest {
 			if (scenario.equals("manual")) {
 				assertTrue(pane.lookupAll(".label").stream().filter(node -> node instanceof Label)
 						.anyMatch(node -> ((Label) node).getText().equals(text("UI_STOCK_PORTFOLIO_TRANSFER_MANUAL_HINT"))));
+				TableView<?> differences = (TableView<?>) pane.lookup(".table-view");
+				assertEquals(1, differences.getItems().size());
+				assertEquals("Aktie", differences.getColumns().get(0).getCellData(0));
+				assertEquals("199", differences.getColumns().get(4).getCellData(0));
+				assertEquals("17", differences.getColumns().get(7).getCellData(0));
+				assertEquals("SG1N28909355", differences.getColumns().get(8).getCellData(0));
+				assertEquals("A2DG57", differences.getColumns().get(9).getCellData(0));
 				((DatePicker) pane.lookup(".date-picker")).setValue(entered);
+				assertTrue(differences.getItems().isEmpty());
 			} else if (requested != null) {
 				assertTrue(button(pane, text("UI_STOCK_PORTFOLIO_TRANSFER_USE_ORIGINAL")).isDefaultButton());
 				assertFalse(button(pane, text("UI_STOCK_PORTFOLIO_TRANSFER_USE_ENTERED")).isDefaultButton());

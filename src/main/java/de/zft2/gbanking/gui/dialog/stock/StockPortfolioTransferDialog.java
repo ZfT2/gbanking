@@ -2,7 +2,6 @@ package de.zft2.gbanking.gui.dialog.stock;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -11,9 +10,12 @@ import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.util.DateFormatUtils;
 import de.zft2.gbanking.gui.util.FormGridHelper;
+import de.zft2.gbanking.gui.util.TableColumnFactory;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
 import de.zft2.gbanking.service.stock.StockPortfolioTransferService;
 import de.zft2.gbanking.service.stock.StockPortfolioTransferService.TransferPlan;
+import de.zft2.gbanking.service.stock.StockPortfolioTransferService.DeliveryComparison;
+import de.zft2.gbanking.service.stock.StockPortfolioTransferService.DeliveryDifference;
 import javafx.collections.FXCollections;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -23,6 +25,8 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Window;
@@ -125,14 +129,23 @@ public final class StockPortfolioTransferDialog extends AbstractStockDialog {
 	}
 
 	private boolean transferManually(PortfolioSummary target, BigDecimal exchangeRate) {
-		DatePicker cutoff = new DatePicker(dateField.getValue() != null ? dateField.getValue() : LocalDate.now(ZoneId.systemDefault()));
+		DeliveryComparison comparison = service.compareDeliveries(source, target, dateField.getValue());
+		DatePicker cutoff = new DatePicker(comparison.cutoff());
 		Label hint = new Label(getText("UI_STOCK_PORTFOLIO_TRANSFER_MANUAL_HINT"));
 		hint.setWrapText(true);
+		TableView<DeliveryDifference> differences = differenceTable(comparison);
+		Label identityHint = new Label(getText("UI_STOCK_PORTFOLIO_TRANSFER_IDENTITY_HINT"));
+		identityHint.setWrapText(true);
+		cutoff.valueProperty().addListener((observable, previous, selected) -> {
+			if (selected != null) {
+				differences.getItems().setAll(service.compareDeliveries(source, target, selected).differences());
+			}
+		});
 		Label confirmation = new Label(getText("UI_STOCK_PORTFOLIO_TRANSFER_CONFIRM_TEXT", source.displayName(), target.displayName()));
 		confirmation.setWrapText(true);
 		if (!DialogWindowSupport.showConfirmation(dialog(), Alert.AlertType.WARNING,
 				getText("UI_STOCK_PORTFOLIO_TRANSFER_CONFIRM_TITLE"), getText("UI_STOCK_PORTFOLIO_TRANSFER_CONFIRM_HEADER"),
-				new VBox(12, hint, cutoff, confirmation),
+				new VBox(12, hint, differences, identityHint, new Label(getText("UI_STOCK_PORTFOLIO_TRANSFER_CUTOFF")), cutoff, confirmation),
 				new ButtonType(getText("UI_STOCK_ACTION_TRANSFER")), ButtonType.CANCEL)) {
 			return false;
 		}
@@ -142,6 +155,31 @@ public final class StockPortfolioTransferDialog extends AbstractStockDialog {
 		service.transferManually(source, target, cutoff.getValue(), exchangeRate);
 		savedHandler.run();
 		return true;
+	}
+
+	private TableView<DeliveryDifference> differenceTable(DeliveryComparison comparison) {
+		TableView<DeliveryDifference> table = new TableView<>(FXCollections.observableArrayList(comparison.differences()));
+		table.getColumns().setAll(List.<TableColumn<DeliveryDifference, ?>>of(
+				TableColumnFactory.createTextColumn(getText("UI_STOCK_COLUMN_SECURITY"), row -> row.securityName(), 160),
+				TableColumnFactory.createTextColumn(getText("UI_STOCK_SECURITY_QUANTITY_TYPE"), row -> row.quantityType().toString(), 85),
+				TableColumnFactory.createTextColumn(getText("UI_STOCK_PORTFOLIO_TRANSFER_EXPECTED"),
+						row -> StockDialogSupport.formatDecimal(row.expected()), 95),
+				TableColumnFactory.createTextColumn(getText("UI_STOCK_PORTFOLIO_TRANSFER_OUTGOING"),
+						row -> StockDialogSupport.formatDecimal(row.outgoing()), 95),
+				TableColumnFactory.createTextColumn(getText("UI_STOCK_PORTFOLIO_TRANSFER_INCOMING"),
+						row -> StockDialogSupport.formatDecimal(row.incoming()), 95),
+				TableColumnFactory.createTextColumn(getText("UI_STOCK_PORTFOLIO_TRANSFER_OUT_DIFFERENCE"),
+						row -> StockDialogSupport.formatDecimal(row.outgoingDifference()), 95),
+				TableColumnFactory.createTextColumn(getText("UI_STOCK_PORTFOLIO_TRANSFER_IN_DIFFERENCE"),
+						row -> StockDialogSupport.formatDecimal(row.incomingDifference()), 95),
+				TableColumnFactory.createTextColumn(getText("UI_STOCK_PORTFOLIO_TRANSFER_SECURITY_ID"),
+						row -> Integer.toString(row.securityId()), 85),
+				TableColumnFactory.createTextColumn(getText("UI_STOCK_COLUMN_ISIN"), row -> row.isin(), 120),
+				TableColumnFactory.createTextColumn(getText("UI_STOCK_COLUMN_WKN"), row -> row.wkn(), 80)));
+		table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+		table.setPlaceholder(new Label(getText("UI_STOCK_PORTFOLIO_TRANSFER_NO_DIFFERENCES")));
+		table.setPrefSize(760, 160);
+		return table;
 	}
 
 	private static String formatDates(TransferPlan plan) {

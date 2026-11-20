@@ -20,6 +20,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import de.zft2.gbanking.db.dao.BankAccount;
@@ -703,7 +704,7 @@ public class StockPortfolioService extends AbstractDbService {
 			throw new GBankingException("Das Übertragungsdatum muss angegeben werden");
 		}
 		dbController.executeInTransaction(() -> {
-			for (PositionSummary position : getPositions(source.portfolioId())) {
+			for (PositionSummary position : positionsAtTransferDate(source, date)) {
 				if (position.quantity().signum() != 0) {
 					persistPositionTransfer(source, target, position, position.quantity(), date);
 				}
@@ -1093,18 +1094,19 @@ public class StockPortfolioService extends AbstractDbService {
 
 	Map<PositionKey, AcquisitionPriceState> acquisitionPricesByPosition(int portfolioId,
 			List<StockCorporateActionService.ActionResult> actionResults) {
-		return acquisitionPricesByPosition(portfolioId, actionResults, null);
+		return acquisitionPricesByPosition(portfolioId, actionResults, transaction -> true);
 	}
 
 	private Map<PositionKey, AcquisitionPriceState> acquisitionPricesByPosition(int portfolioId,
-			List<StockCorporateActionService.ActionResult> actionResults, StockTransaction before) {
+			List<StockCorporateActionService.ActionResult> actionResults,
+			Predicate<StockTransaction> included) {
 		Map<PositionKey, AcquisitionPriceState> result = new HashMap<>();
 		SettledTransactions settled = settledTransactions(portfolioId);
 		StockCorporateActionService corporate = new StockCorporateActionService();
 		Map<Integer, StockCorporateActionService.Event> events = corporate.events(settled.transactions());
 		List<StockTransaction> transactions = settled.transactions().stream()
 				.filter(transaction -> transaction.getTransactionType() != StockTransactionType.RECONCILIATION_ADJUSTMENT)
-				.filter(transaction -> before == null || SETTLED_TRANSACTION_ORDER.compare(transaction, before) < 0)
+				.filter(included)
 				.sorted(SETTLED_TRANSACTION_ORDER)
 				.toList();
 		seedCorporateOpeningBalances(portfolioId, transactions, settled, events, result);
@@ -1132,13 +1134,24 @@ public class StockPortfolioService extends AbstractDbService {
 	}
 
 	List<PositionSummary> positionsBeforeTransfer(PortfolioSummary portfolio, StockTransaction before) {
+		return positionsForTransfer(portfolio, before.getSettledAt(),
+				transaction -> SETTLED_TRANSACTION_ORDER.compare(transaction, before) < 0);
+	}
+
+	List<PositionSummary> positionsAtTransferDate(PortfolioSummary portfolio, LocalDate date) {
+		return positionsForTransfer(portfolio, date.plusDays(1).atStartOfDay(),
+				transaction -> !transaction.getSettledAt().toLocalDate().isAfter(date));
+	}
+
+	private List<PositionSummary> positionsForTransfer(PortfolioSummary portfolio, LocalDateTime bankPriceBefore,
+			Predicate<StockTransaction> included) {
 		Map<Integer, StockSecurity> securities = securitiesById();
-		Map<PositionKey, AcquisitionPriceState> prices = acquisitionPricesByPosition(portfolio.portfolioId(), new ArrayList<>(), before);
-		Map<PositionKey, AcquisitionPriceValue> bankPrices = latestFinTsAcquisitionPrices(portfolio.portfolioId(), before.getSettledAt());
+		Map<PositionKey, AcquisitionPriceState> prices = acquisitionPricesByPosition(portfolio.portfolioId(), new ArrayList<>(), included);
+		Map<PositionKey, AcquisitionPriceValue> bankPrices = latestFinTsAcquisitionPrices(portfolio.portfolioId(), bankPriceBefore);
 		SettledTransactions settled = settledTransactions(portfolio.portfolioId());
 		Map<PositionKey, Long> quantities = new HashMap<>();
 		settled.transactions().stream()
-				.filter(transaction -> SETTLED_TRANSACTION_ORDER.compare(transaction, before) < 0)
+				.filter(included)
 				.flatMap(transaction -> settled.legs(transaction).stream())
 				.filter(leg -> leg.getLegRole() != StockSecurityLegRole.REFERENCE)
 				.forEach(leg -> quantities.merge(positionKey(leg), leg.getQuantityE9(), Math::addExact));

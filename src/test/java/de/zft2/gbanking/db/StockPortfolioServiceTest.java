@@ -129,7 +129,7 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 		StockPortfolioTransferService transfers = new StockPortfolioTransferService();
 		var plan = transfers.findExistingDeliveries(source, target, null);
 		if (changeHoldings) {
-			importDeliveries(source, deliveryRow("2026-09-17", "Einlieferung", 1, 100));
+			importDeliveries(source, deliveryRow("2026-09-15", "Einlieferung", 1, 100));
 		}
 		int count = db.getAll(StockTransaction.class).size();
 		assertThrows(GBankingException.class, () -> transfers.transferExistingDeliveries(source, target, plan,
@@ -191,6 +191,118 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 
 	private static String deliveryRow(String date, String type, int quantity, int value) {
 		return date + "T12:00;" + type + ";" + value + ",00;EUR;;;;;;" + quantity + ";DE0000000001;;;Aktie;\n";
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void portfolioTransferShouldCompareAtTheCutoffAndIgnoreLaterMovements(boolean explicitDate) throws Exception {
+		PortfolioSummary source = createPortfolio(100, 200, "Depot A", "Verrechnung A", BigDecimal.ZERO);
+		PortfolioSummary target = createPortfolio(101, 201, "Depot B", "Verrechnung B", BigDecimal.ZERO);
+		importDeliveries(source, deliveryRow("2026-09-10", "Einlieferung", 200, 20000)
+				+ deliveryRow("2026-09-20", "Einlieferung", 10, 1000));
+		importDeliveries(target, deliveryRow("2026-09-16", "Einlieferung", 200, 20000)
+				+ deliveryRow("2026-09-20", "Auslieferung", 50, 5000)
+				+ deliveryRow("2026-09-21", "Einlieferung", 25, 2500));
+		StockPortfolioTransferService transfers = new StockPortfolioTransferService();
+		LocalDate cutoff = LocalDate.of(2026, 9, 16);
+		var plan = transfers.findExistingDeliveries(source, target, explicitDate ? cutoff : null);
+		assertNotNull(plan);
+		assertEquals(cutoff, plan.cutoff());
+		assertEquals(0, new BigDecimal("200").compareTo(plan.positions().get(0).quantity()));
+		importDeliveries(target, deliveryRow("2026-09-22", "Einlieferung", 200, 20000));
+		transfers.transferExistingDeliveries(source, target, plan, null, BigDecimal.ONE);
+		StockPortfolioService portfolios = new StockPortfolioService();
+		assertEquals(0, BigDecimal.TEN.compareTo(portfolios.getPositions(source.portfolioId()).get(0).quantity()));
+		assertEquals(0, new BigDecimal("375").compareTo(portfolios.getPositions(target.portfolioId()).get(0).quantity()));
+		assertEquals(3, portfolios.getTransactions(target.portfolioId()).stream()
+				.filter(transaction -> transaction.date().isAfter(cutoff))
+				.filter(transaction -> transaction.transactionType() != StockTransactionType.TRANSFER_IN).count());
+	}
+
+	@Test
+	void partialOutgoingDeliveriesMustNotMakePartialIncomingDeliveriesLookComplete() throws Exception {
+		PortfolioSummary source = createPortfolio(100, 200, "Depot A", "Verrechnung A", BigDecimal.ZERO);
+		PortfolioSummary target = createPortfolio(101, 201, "Depot B", "Verrechnung B", BigDecimal.ZERO);
+		importDeliveries(source, deliveryRow("2026-09-10", "Einlieferung", 200, 20000)
+				+ deliveryRow("2026-09-15", "Auslieferung", 100, 10000));
+		importDeliveries(target, deliveryRow("2026-09-16", "Einlieferung", 100, 10000));
+		assertNull(new StockPortfolioTransferService().findExistingDeliveries(source, target, LocalDate.of(2026, 9, 16)));
+	}
+
+	@Test
+	void manualPortfolioTransferShouldUseSourceHoldingsAtTheCutoff() throws Exception {
+		PortfolioSummary source = createPortfolio(100, 200, "Depot A", "Verrechnung A", BigDecimal.ZERO);
+		PortfolioSummary target = createPortfolio(101, 201, "Depot B", "Verrechnung B", BigDecimal.ZERO);
+		importDeliveries(source, deliveryRow("2026-09-10", "Einlieferung", 200, 20000)
+				+ deliveryRow("2026-09-20", "Einlieferung", 10, 1000));
+		new StockPortfolioTransferService().transferManually(source, target, LocalDate.of(2026, 9, 16), BigDecimal.ONE);
+		StockPortfolioService portfolios = new StockPortfolioService();
+		assertEquals(0, BigDecimal.TEN.compareTo(portfolios.getPositions(source.portfolioId()).get(0).quantity()));
+		assertEquals(0, new BigDecimal("200").compareTo(portfolios.getPositions(target.portfolioId()).get(0).quantity()));
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void laterPurchasesMustNotPreventMatchingButDifferentSecurityRecordsMust(boolean sameSecurity) throws Exception {
+		PortfolioSummary source = createPortfolio(100, 200, "Depot A", "Verrechnung A", BigDecimal.ZERO);
+		PortfolioSummary target = createPortfolio(101, 201, "Depot B", "Verrechnung B", BigDecimal.ZERO);
+		StockPortfolioService portfolios = new StockPortfolioService();
+		StockSecurity old;
+		if (sameSecurity) {
+			importDeliveries(source, deliveryRow("2026-09-10", "Einlieferung", 430, 43)
+					.replace("DE0000000001", "SG1N28909355").replace("Aktie", "Ocean Sky International"));
+			old = db.getById(StockSecurity.class, portfolios.getPositions(source.portfolioId()).get(0).securityId());
+		} else {
+			old = createSecurity("$ Ocean Sky Intl");
+			portfolios.recordTrade(source, position(source, old), new TradeRequest(StockTransactionType.BUY,
+					TRADE_DATE, SETTLEMENT_DATE, new BigDecimal("430"), new BigDecimal("0.05"),
+					Currency.EUR, BigDecimal.ONE, null, null, null));
+		}
+		importDeliveries(target, deliveryRow("2026-09-16", "Einlieferung", 430, 43)
+				.replace("DE0000000001", "SG1N28909355").replace("Aktie", "Ocean Sky International"));
+		var incoming = portfolios.getPositions(target.portfolioId()).get(0);
+		portfolios.recordTrade(target, incoming, new TradeRequest(StockTransactionType.BUY,
+				LocalDate.of(2026, 9, 20), LocalDate.of(2026, 9, 20), new BigDecimal("4570"),
+				new BigDecimal("0.01"), Currency.EUR, BigDecimal.ONE, null, null, null));
+		StockPortfolioTransferService transfers = new StockPortfolioTransferService();
+		LocalDate cutoff = LocalDate.of(2026, 9, 16);
+		if (sameSecurity) {
+			var plan = transfers.findExistingDeliveries(source, target, cutoff);
+			assertNotNull(plan);
+			assertEquals(0, new BigDecimal("430").compareTo(plan.positions().get(0).quantity()));
+			transfers.transferExistingDeliveries(source, target, plan, null, BigDecimal.ONE);
+			assertTrue(portfolios.getPositions(source.portfolioId()).isEmpty());
+			assertEquals(0, new BigDecimal("5000").compareTo(portfolios.getPositions(target.portfolioId()).get(0).quantity()));
+			return;
+		}
+		assertNull(transfers.findExistingDeliveries(source, target, cutoff));
+		var differences = transfers.compareDeliveries(source, target, cutoff).differences();
+		assertEquals(2, differences.size());
+		assertTrue(differences.stream().anyMatch(row -> row.securityId() == old.getId() && row.isin().isEmpty()
+				&& row.expected().compareTo(new BigDecimal("430")) == 0 && row.incoming().signum() == 0));
+		assertTrue(differences.stream().anyMatch(row -> row.securityId() == incoming.securityId()
+				&& row.isin().equals("SG1N28909355") && row.expected().signum() == 0
+				&& row.incoming().compareTo(new BigDecimal("430")) == 0));
+	}
+
+	@Test
+	void deliveryDifferencesShouldIncludeMissingAndExcessQuantitiesOnlyThroughTheCutoff() throws Exception {
+		PortfolioSummary source = createPortfolio(100, 200, "Depot A", "Verrechnung A", BigDecimal.ZERO);
+		PortfolioSummary target = createPortfolio(101, 201, "Depot B", "Verrechnung B", BigDecimal.ZERO);
+		importDeliveries(source, deliveryRow("2026-09-10", "Einlieferung", 200, 20000)
+				+ deliveryRow("2026-09-15", "Auslieferung", 200, 20000));
+		importDeliveries(target, deliveryRow("2026-09-16", "Einlieferung", 199, 19900)
+				+ deliveryRow("2026-09-20", "Einlieferung", 1, 100));
+		StockPortfolioTransferService transfers = new StockPortfolioTransferService();
+		assertNull(transfers.findExistingDeliveries(source, target, LocalDate.of(2026, 9, 16)));
+		importDeliveries(target, deliveryRow("2026-09-16", "Einlieferung", 5, 500)
+				.replace("DE0000000001", "DE0000000002").replace("Aktie", "Zusatzaktie"));
+		var differences = transfers.compareDeliveries(source, target, LocalDate.of(2026, 9, 16)).differences();
+		assertEquals(2, differences.size(), differences.toString());
+		assertTrue(differences.stream().anyMatch(row -> row.expected().compareTo(new BigDecimal("200")) == 0
+				&& row.outgoingDifference().signum() == 0 && row.incomingDifference().compareTo(BigDecimal.ONE.negate()) == 0));
+		assertTrue(differences.stream().anyMatch(row -> row.expected().signum() == 0
+				&& row.incomingDifference().compareTo(new BigDecimal("5")) == 0));
 	}
 
 	@ParameterizedTest
