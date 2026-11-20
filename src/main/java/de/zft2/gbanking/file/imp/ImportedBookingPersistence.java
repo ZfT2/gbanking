@@ -33,6 +33,7 @@ public final class ImportedBookingPersistence {
 	// Equal bookings can still represent distinct file rows with independent review decisions.
 	private final Set<Booking> excludedBookings = Collections.newSetFromMap(new IdentityHashMap<>());
 	private final Map<Booking, Booking> reviewedStrictMatches = new IdentityHashMap<>();
+	private final Map<Booking, List<Booking>> reviewedPotentialMatches = new IdentityHashMap<>();
 
 	public ImportedBookingPersistence(DBController dbController) {
 		this.dbController = dbController;
@@ -43,6 +44,7 @@ public final class ImportedBookingPersistence {
 		processedBookingsByAccountId.clear();
 		excludedBookings.clear();
 		reviewedStrictMatches.clear();
+		reviewedPotentialMatches.clear();
 	}
 
 	public void review(Collection<Booking> bookings, BookingDuplicateReviewHandler handler) {
@@ -60,6 +62,7 @@ public final class ImportedBookingPersistence {
 			reviewedStrictMatches.put(booking, strictMatch);
 			if (strictMatch == null) {
 				List<Booking> potential = checker.findPotentialDuplicates(booking, existing);
+				reviewedPotentialMatches.put(booking, potential);
 				if (!potential.isEmpty()) {
 					booking.setAccountName(accountNames.computeIfAbsent(booking.getAccountId(),
 							id -> dbController.getById(BankAccount.class, id).getAccountName()));
@@ -82,6 +85,11 @@ public final class ImportedBookingPersistence {
 
 	int existingBookingCount(int accountId) {
 		return existingBookings(accountId).size();
+	}
+
+	public Booking getExistingBookingForExcludedImport(Booking booking) {
+		List<Booking> matches = reviewedPotentialMatches.getOrDefault(booking, List.of());
+		return excludedBookings.contains(booking) && matches.size() == 1 ? matches.get(0) : null;
 	}
 
 	public Result persist(Booking booking) {

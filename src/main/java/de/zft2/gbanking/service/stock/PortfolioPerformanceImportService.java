@@ -72,6 +72,7 @@ import de.zft2.gbanking.file.imp.csv.CsvImportDefinitionType;
 import de.zft2.gbanking.file.imp.csv.CsvImportTarget;
 import de.zft2.gbanking.file.imp.csv.CsvImportValueParser;
 import de.zft2.gbanking.gui.enu.ExportType;
+import de.zft2.gbanking.rebooking.RebookingLinkWriter;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceData.Document;
@@ -710,7 +711,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		if (lookups.fingerprints(portfolio.portfolioId()).add(transactionFingerprint(portfolio, data, type, security))) {
 			Booking proposed = proposeBooking(portfolio.settlementAccountId(), data, type, lookups);
 			lookups.pendingTransactions.add(() -> saveStockTransaction(portfolio, data, type, security, source, importRecord,
-					lookups.persistBooking(proposed, counters)));
+					lookups.persistStockBooking(proposed, portfolio, counters)));
 			counters.transactions++;
 		}
 	}
@@ -1177,6 +1178,23 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		private final List<Booking> proposedBookings = new ArrayList<>();
 		private final List<Runnable> pendingTransactions = new ArrayList<>();
 		private PortfolioPerformancePriceImporter priceImporter;
+
+		private Booking persistStockBooking(Booking proposed, PortfolioSummary portfolio, Counters counters) {
+			Booking booking = persistBooking(proposed, counters);
+			if (booking != null || proposed == null) {
+				return booking;
+			}
+			Booking existing = bookingPersistence.getExistingBookingForExcludedImport(proposed);
+			// Reuse only an unambiguous, unused booking; excluding a file row must not create another booking.
+			if (existing == null || !dbController.getAllByParent(StockTransactionCashLeg.class, existing.getId(),
+					"SQL_SELECT_STOCK_CASH_LEGS_BY_BOOKING").isEmpty()) {
+				return null;
+			}
+			return RebookingLinkWriter.canLinkWithCounterBooking(existing,
+					dbController.getById(BankAccount.class, existing.getAccountId()),
+					ServiceRegistry.getService(StockSettlementLinkService.class).getDepotAccount(portfolio.portfolioId()))
+					? existing : null;
+		}
 
 		private Booking persistBooking(Booking proposed, Counters counters) {
 			if (proposed == null) {

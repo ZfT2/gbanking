@@ -2,6 +2,7 @@ package de.zft2.gbanking.db;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -102,8 +103,82 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		assertFalse(result.alreadyImported());
 		assertEquals(1, result.transactions());
 		assertEquals(0, result.bookings());
-		assertEquals(1, db.getAll(Booking.class).size());
-		assertNull(db.getAll(StockTransactionCashLeg.class).get(0).getBookingId());
+		assertEquals(1, db.getAllByParent(Booking.class, portfolio.settlementAccountId()).size());
+		assertEquals(existing.getId(), db.getAll(StockTransactionCashLeg.class).get(0).getBookingId());
+		assertNotNull(db.getById(Booking.class, existing.getId()).getCrossBookingId());
+	}
+
+	@ParameterizedTest
+	@ValueSource(ints = { 0, 1, 2, 3 })
+	void totalXmlShouldReuseOnlyUnambiguousExistingSettlementBookings(int scenario) throws Exception {
+		PortfolioSummary portfolio = createPortfolio();
+		createSource();
+		LocalDate date = LocalDate.of(2026, Month.JANUARY, 2);
+		Booking existing = new Booking(portfolio.settlementAccountId(), date, date,
+				scenario == 0 ? "Erstkauf Kauf" : "Bankabrechnung", new BigDecimal("-102"), BookingType.REMOVAL, 0);
+		existing.setSource(Source.ONLINE);
+		db.insertOrUpdate(existing);
+		if (scenario == 2) {
+			Booking other = new Booking(existing);
+			other.setPurpose("Andere Bankabrechnung");
+			other.setSource(Source.ONLINE);
+			db.insertOrUpdate(other);
+		}
+		Path xml = write("existing-settlement.xml", """
+				<client><version>70</version><securities><security><uuid>security-1</uuid>
+				<name>Aktie</name><currencyCode>EUR</currencyCode><isin>DE0000000001</isin>
+				</security></securities><accounts><account><uuid>account-1</uuid><name>Konto</name>
+				<currencyCode>EUR</currencyCode><transactions><account-transaction><uuid>cash-buy</uuid>
+				<date>2026-01-02T12:00</date><currencyCode>EUR</currencyCode><amount>10200</amount>
+				<type>BUY</type></account-transaction></transactions></account></accounts>
+				<portfolios><portfolio><uuid>portfolio-1</uuid><name>Depot</name>
+				<referenceAccount reference="../../../accounts/account"/><transactions><portfolio-transaction>
+				<uuid>buy-1</uuid><date>2026-01-02T12:00</date><currencyCode>EUR</currencyCode>
+				<amount>10200</amount><shares>1000000000</shares><type>BUY</type><note>Erstkauf</note>
+				<security reference="../../../../securities/security"/>
+				</portfolio-transaction></transactions></portfolio></portfolios></client>
+				""");
+		var result = new PortfolioPerformanceImportService().importFile(xml, ExportType.STOCK_PP_XML,
+				portfolio, false, null, null, matches -> scenario == 3 ? Set.of(matches.get(0).incoming()) : Set.of());
+		assertEquals(scenario == 3 ? 1 : 0, result.bookings());
+		assertEquals(1, result.transactions());
+		assertEquals(scenario >= 2 ? 2 : 1,
+				db.getAllByParent(Booking.class, portfolio.settlementAccountId()).size());
+		var leg = db.getAll(StockTransactionCashLeg.class).get(0);
+		Booking reloaded = db.getById(Booking.class, existing.getId());
+		if (scenario == 2) {
+			assertNull(leg.getBookingId());
+			assertNull(reloaded.getCrossBookingId());
+		} else if (scenario == 3) {
+			assertTrue(leg.getBookingId() != existing.getId());
+			assertNull(reloaded.getCrossBookingId());
+			assertNotNull(db.getById(Booking.class, leg.getBookingId()).getCrossBookingId());
+		} else {
+			assertEquals(existing.getId(), leg.getBookingId());
+			assertEquals(existing.getPurpose(), reloaded.getPurpose());
+			Booking counterpart = db.getById(Booking.class, reloaded.getCrossBookingId());
+			assertEquals(existing.getId(), counterpart.getCrossBookingId());
+		}
+	}
+
+	@Test
+	void excludedPortfolioBookingsShouldNotShareOneExistingSettlementBooking() throws Exception {
+		PortfolioSummary portfolio = createPortfolio();
+		createSource();
+		LocalDate date = LocalDate.of(2026, Month.JANUARY, 2);
+		Booking existing = new Booking(portfolio.settlementAccountId(), date, date,
+				"Bankabrechnung", new BigDecimal("-200"), BookingType.REMOVAL, 0);
+		existing.setSource(Source.ONLINE);
+		db.insertOrUpdate(existing);
+		Path csv = write("same-amount.csv", transactionHeader()
+				+ "2026-01-02T12:00;Kauf;200,00;EUR;;;;;;10;DE0000000001;;;Aktie;Erster Kauf\n"
+				+ "2026-01-02T12:00;Kauf;200,00;EUR;;;;;;20;DE0000000001;;;Aktie;Zweiter Kauf\n");
+		var result = new PortfolioPerformanceImportService().importFile(csv, ExportType.STOCK_PP_TRANSACTIONS_CSV,
+				portfolio, false, null, null, matches -> Set.of());
+		assertEquals(2, result.transactions());
+		assertEquals(0, result.bookings());
+		assertEquals(1, db.getAll(StockTransactionCashLeg.class).stream()
+				.filter(leg -> leg.getBookingId() != null).count());
 	}
 
 	@Test
