@@ -175,7 +175,8 @@ public final class StockPortfolioTransferDialog extends AbstractStockDialog {
 				TableColumnFactory.createTextColumn(getText("UI_STOCK_PORTFOLIO_TRANSFER_SECURITY_ID"),
 						row -> Integer.toString(row.securityId()), 85),
 				TableColumnFactory.createTextColumn(getText("UI_STOCK_COLUMN_ISIN"), row -> row.isin(), 120),
-				TableColumnFactory.createTextColumn(getText("UI_STOCK_COLUMN_WKN"), row -> row.wkn(), 80)));
+				TableColumnFactory.createTextColumn(getText("UI_STOCK_COLUMN_WKN"), row -> row.wkn(), 80),
+				TableColumnFactory.createBooleanSymbolColumn(getText("UI_TABLE_STATUS"), row -> row.quantitiesMatch(), 65)));
 		table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 		table.setPlaceholder(new Label(getText("UI_STOCK_PORTFOLIO_TRANSFER_NO_DIFFERENCES")));
 		table.setPrefSize(760, 160);

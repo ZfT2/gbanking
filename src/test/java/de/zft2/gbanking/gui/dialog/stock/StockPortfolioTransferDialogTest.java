@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import de.zft2.gbanking.BaseMessages;
@@ -44,6 +45,17 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 
 class StockPortfolioTransferDialogTest {
+
+	@ParameterizedTest
+	@CsvSource({ "430, 0, 430, true", "430, 430, 0, true", "430, 430, 430, true",
+			"430, 0, 429, false", "430, 429, 430, false", "430, 430, 431, false",
+			"0, 0, 430, false", "430, 0, 0, false", "0, 0, 0, false" })
+	void transferStatusShouldAllowMissingCounterpartsButRejectMismatchedQuantities(
+			BigDecimal expected, BigDecimal outgoing, BigDecimal incoming, boolean matches) {
+		DeliveryDifference difference = new DeliveryDifference("Aktie", StockQuantityType.UNITS,
+				expected, outgoing, incoming, 17, "SG1N28909355", "A2DG57");
+		assertEquals(matches, difference.quantitiesMatch());
+	}
 
 	@ParameterizedTest
 	@ValueSource(strings = { "existing", "existing-in", "create", "cancel" })
@@ -111,13 +123,15 @@ class StockPortfolioTransferDialogTest {
 		LocalDate entered = original.plusDays(5);
 		PortfolioSummary source = portfolio(1);
 		PortfolioSummary target = portfolio(2);
-		TransferPlan plan = new TransferPlan(1, 2, List.of(10), List.of(20), List.of(original), List.of(), original);
+		TransferPlan plan = new TransferPlan(1, 2, List.of(10), List.of(20), List.of(original), List.of(), original, true);
 		StockPortfolioTransferService service = mock(StockPortfolioTransferService.class);
 		LocalDate requested = scenario.equals("empty") || scenario.equals("manual") ? null : entered;
 		when(service.findExistingDeliveries(source, target, requested)).thenReturn(scenario.equals("manual") ? null : plan);
 		DeliveryDifference difference = new DeliveryDifference("Aktie", StockQuantityType.UNITS,
 				new BigDecimal("200"), new BigDecimal("200"), new BigDecimal("199"), 17, "SG1N28909355", "A2DG57");
-		when(service.compareDeliveries(source, target, null)).thenReturn(new DeliveryComparison(original, List.of(difference)));
+		DeliveryDifference matching = new DeliveryDifference("Weitere Aktie", StockQuantityType.UNITS,
+				new BigDecimal("430"), BigDecimal.ZERO, new BigDecimal("430"), 18, "", "");
+		when(service.compareDeliveries(source, target, null)).thenReturn(new DeliveryComparison(original, List.of(difference, matching)));
 		when(service.compareDeliveries(source, target, entered)).thenReturn(new DeliveryComparison(entered, List.of()));
 		Runnable saved = mock(Runnable.class);
 		AtomicReference<Throwable> failure = new AtomicReference<>();
@@ -153,12 +167,15 @@ class StockPortfolioTransferDialogTest {
 				assertTrue(pane.lookupAll(".label").stream().filter(node -> node instanceof Label)
 						.anyMatch(node -> ((Label) node).getText().equals(text("UI_STOCK_PORTFOLIO_TRANSFER_MANUAL_HINT"))));
 				TableView<?> differences = (TableView<?>) pane.lookup(".table-view");
-				assertEquals(1, differences.getItems().size());
+				assertEquals(2, differences.getItems().size());
 				assertEquals("Aktie", differences.getColumns().get(0).getCellData(0));
 				assertEquals("199", differences.getColumns().get(4).getCellData(0));
 				assertEquals("17", differences.getColumns().get(7).getCellData(0));
 				assertEquals("SG1N28909355", differences.getColumns().get(8).getCellData(0));
 				assertEquals("A2DG57", differences.getColumns().get(9).getCellData(0));
+				assertEquals(text("UI_TABLE_STATUS"), differences.getColumns().get(10).getText());
+				assertEquals(Boolean.FALSE, differences.getColumns().get(10).getCellData(0));
+				assertEquals(Boolean.TRUE, differences.getColumns().get(10).getCellData(1));
 				((DatePicker) pane.lookup(".date-picker")).setValue(entered);
 				assertTrue(differences.getItems().isEmpty());
 			} else if (requested != null) {

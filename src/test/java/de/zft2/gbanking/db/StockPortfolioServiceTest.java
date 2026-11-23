@@ -270,7 +270,7 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 
 	@ParameterizedTest
 	@ValueSource(booleans = { false, true })
-	void portfolioTransferShouldRejectIncompleteHoldingsAndRequireAnUnambiguousDate(boolean incomplete) throws Exception {
+	void portfolioTransferShouldRejectIncompleteHoldingsAndPreferOldestIncomingDeliveries(boolean incomplete) throws Exception {
 		PortfolioSummary source = createPortfolio(100, 200, "Depot A", "Verrechnung A", BigDecimal.ZERO);
 		PortfolioSummary target = createPortfolio(101, 201, "Depot B", "Verrechnung B", BigDecimal.ZERO);
 		importDeliveries(source, deliveryRow("2026-09-10", "Einlieferung", 200, 20000)
@@ -282,13 +282,112 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 		if (incomplete) {
 			assertNull(transfers.findExistingDeliveries(source, target, null));
 		} else {
-			assertThrows(GBankingException.class, () -> transfers.findExistingDeliveries(source, target, null));
+			assertEquals(List.of(LocalDate.of(2026, 9, 15), LocalDate.of(2026, 9, 16)),
+					transfers.findExistingDeliveries(source, target, null).dates());
 			assertNotNull(transfers.findExistingDeliveries(source, target, LocalDate.of(2026, 9, 16)));
+			assertTrue(transfers.findExistingDeliveries(source, target, LocalDate.of(2026, 9, 17))
+					.dates().contains(LocalDate.of(2026, 9, 17)));
 		}
 	}
 
 	private static String deliveryRow(String date, String type, int quantity, int value) {
 		return date + "T12:00;" + type + ";" + value + ",00;EUR;;;;;;" + quantity + ";DE0000000001;;;Aktie;\n";
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "single", "split lots", "split dates" })
+	void incomingOnlyTransferShouldReuseOldestLotsAndIgnoreLaterMatchingDeliveries(String lots) throws Exception {
+		PortfolioSummary source = createPortfolio(100, 200, "Depot A", "Verrechnung A", BigDecimal.ZERO);
+		PortfolioSummary target = createPortfolio(101, 201, "Depot B", "Verrechnung B", BigDecimal.ZERO);
+		importDeliveries(source, deliveryRow("2010-10-30", "Einlieferung", 430, 43));
+		boolean splitDates = lots.equals("split dates");
+		importDeliveries(target, (lots.equals("single") ? deliveryRow("2010-10-31", "Einlieferung", 430, 43)
+				: deliveryRow("2010-10-31", "Einlieferung", 50, 5)
+						+ deliveryRow(splitDates ? "2010-11-01" : "2010-10-31", "Einlieferung", 380, 19))
+				+ deliveryRow("2015-10-31", "Einlieferung", 430, 43));
+		StockPortfolioService portfolios = new StockPortfolioService();
+		StockPortfolioTransferService transfers = new StockPortfolioTransferService();
+		var plan = transfers.findExistingDeliveries(source, target, null);
+		assertNotNull(plan);
+		assertTrue(plan.outgoingIds().isEmpty());
+		assertEquals(lots.equals("single") ? 1 : 2, plan.incomingIds().size());
+		assertEquals(LocalDate.of(2010, splitDates ? 11 : 10, splitDates ? 1 : 31), plan.cutoff());
+		var comparison = transfers.compareDeliveries(source, target, null);
+		assertEquals(plan.cutoff(), comparison.cutoff());
+		assertEquals(0, new BigDecimal("430").compareTo(comparison.differences().get(0).incoming()));
+		int count = db.getAll(StockTransaction.class).size();
+		transfers.transferExistingDeliveries(source, target, plan, null, BigDecimal.ONE);
+		assertTrue(portfolios.getPositions(source.portfolioId()).isEmpty());
+		assertEquals(0, new BigDecimal("860").compareTo(portfolios.getPositions(target.portfolioId()).get(0).quantity()));
+		assertEquals(count + 1, db.getAll(StockTransaction.class).size());
+		assertEquals(StockTransactionType.DELIVERY_IN, portfolios.getTransactions(target.portfolioId()).stream()
+				.filter(transaction -> transaction.date().getYear() == 2015).findFirst().orElseThrow().transactionType());
+	}
+
+	@Test
+	void incomingOnlyTransferMustNotSkipAnIncompleteInitialDelivery() throws Exception {
+		PortfolioSummary source = createPortfolio(100, 200, "Depot A", "Verrechnung A", BigDecimal.ZERO);
+		PortfolioSummary target = createPortfolio(101, 201, "Depot B", "Verrechnung B", BigDecimal.ZERO);
+		importDeliveries(source, deliveryRow("2026-09-10", "Einlieferung", 430, 43));
+		importDeliveries(target, deliveryRow("2026-09-16", "Einlieferung", 429, 43)
+				+ deliveryRow("2026-09-20", "Einlieferung", 430, 43));
+		StockPortfolioTransferService transfers = new StockPortfolioTransferService();
+		assertNull(transfers.findExistingDeliveries(source, target, null));
+		var comparison = transfers.compareDeliveries(source, target, null);
+		assertEquals(LocalDate.of(2026, 9, 16), comparison.cutoff());
+		assertEquals(0, new BigDecimal("429").compareTo(comparison.differences().get(0).incoming()));
+		assertNotNull(transfers.findExistingDeliveries(source, target, LocalDate.of(2026, 9, 20)));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "automatic", "explicit", "incomplete", "same day" })
+	void historicalOutgoingDeliveriesMustNotReplaceTheSourceHoldingsAtTheTransferDate(String scenario) throws Exception {
+		PortfolioSummary source = createPortfolio(100, 200, "Depot A", "Verrechnung A", BigDecimal.ZERO);
+		PortfolioSummary target = createPortfolio(101, 201, "Depot B", "Verrechnung B", BigDecimal.ZERO);
+		String historicalDate = scenario.equals("same day") ? "2009-12-28" : "2008-01-01";
+		importDeliveries(source, (deliveryRow("2007-01-01", "Einlieferung", 50, 50)
+				+ deliveryRow(historicalDate, "Auslieferung", 50, 50)).replace("DE0000000001", "DE0000000002")
+				+ deliveryRow("2009-12-28", "Einlieferung", 1, 1));
+		boolean incomplete = scenario.equals("incomplete");
+		importDeliveries(target, deliveryRow("2010-10-31", "Einlieferung", incomplete ? 2 : 1, 1));
+		StockPortfolioTransferService transfers = new StockPortfolioTransferService();
+		LocalDate cutoff = LocalDate.of(2010, 10, 31);
+		LocalDate requested = scenario.equals("explicit") ? cutoff : null;
+		var comparison = transfers.compareDeliveries(source, target, requested);
+		assertEquals(cutoff, comparison.cutoff());
+		assertEquals(1, comparison.differences().size());
+		var difference = comparison.differences().get(0);
+		assertEquals(0, BigDecimal.ONE.compareTo(difference.expected()));
+		assertEquals(!incomplete, difference.quantitiesMatch());
+		var plan = transfers.findExistingDeliveries(source, target, requested);
+		if (incomplete) {
+			assertNull(plan);
+			return;
+		}
+		assertNotNull(plan);
+		assertTrue(plan.outgoingIds().isEmpty());
+		int count = db.getAll(StockTransaction.class).size();
+		transfers.transferExistingDeliveries(source, target, plan, null, BigDecimal.ONE);
+		assertEquals(count + 1, db.getAll(StockTransaction.class).size());
+		assertTrue(new StockPortfolioService().getPositions(source.portfolioId()).isEmpty());
+		assertEquals(1, db.getAllByParent(StockTransaction.class, source.portfolioId()).stream()
+				.filter(transaction -> transaction.getTransactionType() == StockTransactionType.DELIVERY_OUT).count());
+	}
+
+	@Test
+	void incomingOnlyTransferMustRecheckTheOldestDeliveriesBeforeSaving() throws Exception {
+		PortfolioSummary source = createPortfolio(100, 200, "Depot A", "Verrechnung A", BigDecimal.ZERO);
+		PortfolioSummary target = createPortfolio(101, 201, "Depot B", "Verrechnung B", BigDecimal.ZERO);
+		importDeliveries(source, deliveryRow("2026-09-10", "Einlieferung", 430, 43));
+		importDeliveries(target, deliveryRow("2026-09-16", "Einlieferung", 430, 43));
+		StockPortfolioTransferService transfers = new StockPortfolioTransferService();
+		var plan = transfers.findExistingDeliveries(source, target, null);
+		importDeliveries(target, deliveryRow("2026-09-15", "Einlieferung", 1, 1));
+		int count = db.getAll(StockTransaction.class).size();
+		assertThrows(GBankingException.class, () -> transfers.transferExistingDeliveries(source, target, plan, null, BigDecimal.ONE));
+		assertEquals(count, db.getAll(StockTransaction.class).size());
+		assertTrue(db.getAll(StockTransaction.class).stream()
+				.allMatch(transaction -> transaction.getTransactionType() == StockTransactionType.DELIVERY_IN));
 	}
 
 	@ParameterizedTest
@@ -365,7 +464,7 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 		StockPortfolioTransferService transfers = new StockPortfolioTransferService();
 		LocalDate cutoff = LocalDate.of(2026, 9, 16);
 		if (sameSecurity) {
-			var plan = transfers.findExistingDeliveries(source, target, cutoff);
+			var plan = transfers.findExistingDeliveries(source, target, null);
 			assertNotNull(plan);
 			assertEquals(0, new BigDecimal("430").compareTo(plan.positions().get(0).quantity()));
 			transfers.transferExistingDeliveries(source, target, plan, null, BigDecimal.ONE);

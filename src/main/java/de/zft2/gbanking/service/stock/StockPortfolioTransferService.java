@@ -35,6 +35,9 @@ import de.zft2.gbanking.service.stock.StockSecurityAdministrationService.Securit
 
 public class StockPortfolioTransferService extends AbstractDbService {
 
+	private static final Comparator<StockTransaction> TRANSACTION_ORDER =
+			Comparator.comparing(StockTransaction::getSettledAt).thenComparingInt(StockTransaction::getId);
+
 	private final StockPortfolioService portfolios = new StockPortfolioService();
 
 	public record PositionTransferPlan(int portfolioId, int otherPortfolioId, int transactionId,
@@ -134,7 +137,7 @@ public class StockPortfolioTransferService extends AbstractDbService {
 	}
 
 	public record TransferPlan(int sourceId, int targetId, List<Integer> outgoingIds, List<Integer> incomingIds,
-			List<LocalDate> dates, List<PositionSummary> positions, LocalDate cutoff) {
+			List<LocalDate> dates, List<PositionSummary> positions, LocalDate cutoff, boolean initialIncoming) {
 		public TransferPlan {
 			outgoingIds = List.copyOf(outgoingIds);
 			incomingIds = List.copyOf(incomingIds);
@@ -143,10 +146,24 @@ public class StockPortfolioTransferService extends AbstractDbService {
 		}
 	}
 
+	private record DeliverySearch(LocalDate cutoff, boolean initialIncoming) {
+		private int incomingStarts(List<DeliveryDay> incoming) {
+			return initialIncoming ? Math.min(1, incoming.size()) : incoming.size();
+		}
+	}
+
 	public record DeliveryDifference(String securityName, StockQuantityType quantityType, BigDecimal expected,
 			BigDecimal outgoing, BigDecimal incoming, int securityId, String isin, String wkn) {
 		public BigDecimal outgoingDifference() { return outgoing.subtract(expected); }
 		public BigDecimal incomingDifference() { return incoming.subtract(expected); }
+
+		public boolean quantitiesMatch() {
+			if (expected.signum() <= 0 || (outgoing.signum() == 0 && incoming.signum() == 0)) {
+				return false;
+			}
+			return (outgoing.signum() == 0 || outgoingDifference().signum() == 0)
+					&& (incoming.signum() == 0 || incomingDifference().signum() == 0);
+		}
 	}
 
 	public record DeliveryComparison(LocalDate cutoff, List<DeliveryDifference> differences) {
@@ -156,12 +173,19 @@ public class StockPortfolioTransferService extends AbstractDbService {
 	}
 
 	public DeliveryComparison compareDeliveries(PortfolioSummary source, PortfolioSummary target, LocalDate date) {
-		List<DeliveryDay> outgoing = deliveryDays(source.portfolioId(), StockTransactionType.DELIVERY_OUT, date);
 		List<DeliveryDay> incoming = deliveryDays(target.portfolioId(), StockTransactionType.DELIVERY_IN, date);
-		LocalDate cutoff = date != null ? date : Stream.concat(outgoing.stream(), incoming.stream())
-				.map(DeliveryDay::date).max(LocalDate::compareTo).orElse(LocalDate.now());
+		List<DeliveryDay> outgoing = outgoingDays(source.portfolioId(), incoming, date);
+		LocalDate cutoff = date != null ? date : comparisonDate(outgoing, incoming);
 		List<PositionSummary> positions = outgoing.isEmpty() ? portfolios.positionsAtTransferDate(source, cutoff)
 				: portfolios.positionsBeforeTransfer(source, outgoing.get(0).transactions().get(0));
+		if (date == null && !incoming.isEmpty()) {
+			DeliveryDay initial = completeDelivery(incoming, 0, positionQuantities(positions));
+			incoming = List.of(initial != null ? initial : incoming.get(0));
+			if (initial != null && outgoing.isEmpty()) {
+				cutoff = initial.lastDate();
+				positions = portfolios.positionsAtTransferDate(source, cutoff);
+			}
+		}
 		Map<PositionKey, Long> expected = positionQuantities(positions);
 		Map<PositionKey, Long> out = deliveryQuantities(outgoing);
 		Map<PositionKey, Long> in = deliveryQuantities(incoming);
@@ -180,6 +204,13 @@ public class StockPortfolioTransferService extends AbstractDbService {
 				})
 				.sorted(Comparator.comparing(DeliveryDifference::securityName).thenComparing(DeliveryDifference::quantityType)).toList();
 		return new DeliveryComparison(cutoff, differences);
+	}
+
+	private static LocalDate comparisonDate(List<DeliveryDay> outgoing, List<DeliveryDay> incoming) {
+		if (!outgoing.isEmpty()) {
+			return outgoing.get(outgoing.size() - 1).date();
+		}
+		return incoming.isEmpty() ? LocalDate.now() : incoming.get(0).date();
 	}
 
 	private static Map<PositionKey, Long> deliveryQuantities(List<DeliveryDay> days) {
@@ -213,7 +244,8 @@ public class StockPortfolioTransferService extends AbstractDbService {
 	public void transferExistingDeliveries(PortfolioSummary source, PortfolioSummary target, TransferPlan plan,
 			LocalDate overrideDate, BigDecimal exchangeRate) {
 		dbController.executeInTransaction(() -> {
-			if (plan == null || !transferPlans(source, target, plan.cutoff()).contains(plan)) {
+			if (plan == null || !transferPlans(source, target,
+					new DeliverySearch(plan.cutoff(), plan.initialIncoming())).contains(plan)) {
 				throw new GBankingException("Die Lieferungen oder Bestände haben sich geändert. Bitte den Depotübertrag erneut prüfen.");
 			}
 			LocalDate date = overrideDate != null ? overrideDate : plan.dates().get(0);
@@ -237,22 +269,26 @@ public class StockPortfolioTransferService extends AbstractDbService {
 	}
 
 	private List<TransferPlan> transferPlans(PortfolioSummary source, PortfolioSummary target, LocalDate cutoff) {
+		return transferPlans(source, target, new DeliverySearch(cutoff, cutoff == null));
+	}
+
+	private List<TransferPlan> transferPlans(PortfolioSummary source, PortfolioSummary target, DeliverySearch search) {
 		if (source == null || target == null || source.portfolioId() == target.portfolioId()) {
 			throw new GBankingException("Bitte verschiedene Quell- und Zieldepots auswählen.");
 		}
-		List<DeliveryDay> outgoing = deliveryDays(source.portfolioId(), StockTransactionType.DELIVERY_OUT, cutoff);
-		List<DeliveryDay> incoming = deliveryDays(target.portfolioId(), StockTransactionType.DELIVERY_IN, cutoff);
+		List<DeliveryDay> incoming = deliveryDays(target.portfolioId(), StockTransactionType.DELIVERY_IN, search.cutoff());
+		List<DeliveryDay> outgoing = outgoingDays(source.portfolioId(), incoming, search.cutoff());
 		List<TransferPlan> plans = new ArrayList<>();
 		for (int index = 0; index < outgoing.size(); index++) {
 			DeliveryDay day = outgoing.get(index);
 			List<PositionSummary> positions = portfolios.positionsBeforeTransfer(source, day.transactions().get(0));
 			DeliveryDay complete = completeDelivery(outgoing, index, positionQuantities(positions));
 			if (complete != null && clearsSourcePortfolio(source, complete)) {
-				addPlans(plans, source, target, complete, incoming, positions, cutoff);
+				addPlans(plans, source, target, complete, incoming, positions, search);
 			}
 		}
 		if (plans.isEmpty()) {
-			addIncomingPlans(plans, source, target, outgoing, incoming, cutoff);
+			addIncomingPlans(plans, source, target, outgoing, incoming, search);
 		}
 		// A later partial delivery is not a second transfer when it belongs to a complete earlier sequence.
 		return plans.stream().filter(plan -> plans.stream().noneMatch(other -> other != plan
@@ -261,19 +297,18 @@ public class StockPortfolioTransferService extends AbstractDbService {
 	}
 
 	private void addIncomingPlans(List<TransferPlan> plans, PortfolioSummary source, PortfolioSummary target,
-			List<DeliveryDay> outgoing, List<DeliveryDay> incoming, LocalDate cutoff) {
-		for (int index = 0; index < incoming.size(); index++) {
+			List<DeliveryDay> outgoing, List<DeliveryDay> incoming, DeliverySearch search) {
+		for (int index = 0; index < search.incomingStarts(incoming); index++) {
 			List<PositionSummary> positions = portfolios.positionsAtTransferDate(source,
-					cutoff != null ? cutoff : incoming.get(index).date());
+					search.cutoff() != null ? search.cutoff() : incoming.get(index).date());
 			DeliveryDay complete = completeDelivery(incoming, index, positionQuantities(positions));
 			if (complete == null) {
 				continue;
 			}
-			LocalDate date = cutoff != null ? cutoff : complete.transactions().get(complete.transactions().size() - 1)
-					.getSettledAt().toLocalDate();
+			LocalDate date = search.cutoff() != null ? search.cutoff() : complete.lastDate();
 			if (outgoing.stream().noneMatch(day -> !day.date().isAfter(date))
 					&& positionQuantities(positions).equals(positionQuantities(portfolios.positionsAtTransferDate(source, date)))) {
-				plans.add(plan(source, target, null, complete, positions, cutoff));
+				plans.add(plan(source, target, null, complete, positions, search));
 			}
 		}
 	}
@@ -287,38 +322,38 @@ public class StockPortfolioTransferService extends AbstractDbService {
 	}
 
 	private static void addPlans(List<TransferPlan> plans, PortfolioSummary source, PortfolioSummary target,
-			DeliveryDay outgoing, List<DeliveryDay> incoming, List<PositionSummary> positions, LocalDate cutoff) {
+			DeliveryDay outgoing, List<DeliveryDay> incoming, List<PositionSummary> positions, DeliverySearch search) {
 		Map<PositionKey, Long> quantities = positionQuantities(positions);
 		if (quantities.isEmpty() || quantities.values().stream().anyMatch(quantity -> quantity <= 0)) {
 			return;
 		}
 		List<DeliveryDay> matches = new ArrayList<>();
-		for (int index = 0; index < incoming.size(); index++) {
+		for (int index = 0; index < search.incomingStarts(incoming); index++) {
 			DeliveryDay complete = completeDelivery(incoming, index, quantities);
 			if (complete != null) {
 				matches.add(complete);
 			}
 		}
 		for (DeliveryDay day : matches) {
-			plans.add(plan(source, target, outgoing, day, positions, cutoff));
+			plans.add(plan(source, target, outgoing, day, positions, search));
 		}
 		if (matches.isEmpty()) {
 			boolean partial = incoming.stream().anyMatch(day -> day.quantities().keySet().stream().anyMatch(quantities::containsKey));
 			if (partial) {
 				return;
 			}
-			plans.add(plan(source, target, outgoing, null, positions, cutoff));
+			plans.add(plan(source, target, outgoing, null, positions, search));
 		}
 	}
 
 	private static TransferPlan plan(PortfolioSummary source, PortfolioSummary target, DeliveryDay outgoing,
-			DeliveryDay incoming, List<PositionSummary> positions, LocalDate cutoff) {
+			DeliveryDay incoming, List<PositionSummary> positions, DeliverySearch search) {
 		List<LocalDate> dates = Stream.of(outgoing, incoming).filter(day -> day != null)
 				.flatMap(day -> day.transactions().stream()).map(transaction -> transaction.getSettledAt().toLocalDate())
 				.distinct().sorted().toList();
 		return new TransferPlan(source.portfolioId(), target.portfolioId(),
 				outgoing != null ? outgoing.ids() : List.of(), incoming != null ? incoming.ids() : List.of(),
-				dates, positions, cutoff != null ? cutoff : dates.get(dates.size() - 1));
+				dates, positions, search.cutoff() != null ? search.cutoff() : dates.get(dates.size() - 1), search.initialIncoming());
 	}
 
 	private static DeliveryDay completeDelivery(List<DeliveryDay> days, int start, Map<PositionKey, Long> expected) {
@@ -340,7 +375,29 @@ public class StockPortfolioTransferService extends AbstractDbService {
 		return null;
 	}
 
+	private List<DeliveryDay> outgoingDays(int portfolioId, List<DeliveryDay> incoming, LocalDate cutoff) {
+		if (incoming.isEmpty()) {
+			return deliveryDays(portfolioId, StockTransactionType.DELIVERY_OUT, cutoff);
+		}
+		LocalDate date = cutoff != null ? cutoff : incoming.get(0).date();
+		Set<Integer> additions = dbController.getAllByParent(StockTransactionSecurityLeg.class, portfolioId,
+				StockPortfolioService.SQL_SELECT_SECURITY_LEGS_BY_PORTFOLIO).stream()
+				.filter(leg -> leg.getLegRole() != StockSecurityLegRole.REFERENCE && leg.getQuantityE9() > 0)
+				.map(leg -> leg.getTransactionId()).collect(Collectors.toSet());
+		StockTransaction lastAddition = dbController.getAllByParent(StockTransaction.class, portfolioId).stream()
+				.filter(transaction -> transaction.getTransactionStatus() == StockTransactionStatus.SETTLED
+						&& transaction.getTransactionType() != StockTransactionType.DELIVERY_OUT
+						&& additions.contains(transaction.getId()) && !transaction.getSettledAt().toLocalDate().isAfter(date))
+				.max(TRANSACTION_ORDER).orElse(null);
+		// Earlier deliveries cannot belong to a complete transfer of the subsequently increased holdings.
+		return deliveryDays(portfolioId, StockTransactionType.DELIVERY_OUT, cutoff, lastAddition);
+	}
+
 	private List<DeliveryDay> deliveryDays(int portfolioId, StockTransactionType type, LocalDate cutoff) {
+		return deliveryDays(portfolioId, type, cutoff, null);
+	}
+
+	private List<DeliveryDay> deliveryDays(int portfolioId, StockTransactionType type, LocalDate cutoff, StockTransaction after) {
 		List<StockTransaction> transactions = dbController.getAllByParent(StockTransaction.class, portfolioId);
 		Map<Integer, List<StockTransactionSecurityLeg>> legs = dbController.getAllByParent(StockTransactionSecurityLeg.class,
 				portfolioId, StockPortfolioService.SQL_SELECT_SECURITY_LEGS_BY_PORTFOLIO).stream()
@@ -351,8 +408,9 @@ public class StockPortfolioTransferService extends AbstractDbService {
 						&& transaction.getTransactionStatus() == StockTransactionStatus.SETTLED
 						&& !blocked.contains(transaction.getId()))
 				.filter(transaction -> cutoff == null || !transaction.getSettledAt().toLocalDate().isAfter(cutoff))
+				.filter(transaction -> after == null || TRANSACTION_ORDER.compare(transaction, after) > 0)
 				.filter(transaction -> validLegs(legs.getOrDefault(transaction.getId(), List.of()), type))
-				.sorted(Comparator.comparing(StockTransaction::getSettledAt).thenComparingInt(StockTransaction::getId))
+				.sorted(TRANSACTION_ORDER)
 				.collect(Collectors.groupingBy(transaction -> transaction.getSettledAt().toLocalDate()));
 		return days.entrySet().stream().sorted(Map.Entry.comparingByKey())
 				.map(entry -> new DeliveryDay(entry.getKey(), entry.getValue(), entry.getValue().stream()
@@ -420,7 +478,7 @@ public class StockPortfolioTransferService extends AbstractDbService {
 		List<StockTransaction> transactions = dbController.getAllByParent(StockTransaction.class, portfolioId).stream()
 				.filter(transaction -> transaction.getTransactionStatus() == StockTransactionStatus.SETTLED)
 				.filter(transaction -> !transaction.getSettledAt().toLocalDate().isAfter(cutoff))
-				.sorted(Comparator.comparing(StockTransaction::getSettledAt).thenComparingInt(StockTransaction::getId)).toList();
+				.sorted(TRANSACTION_ORDER).toList();
 		for (StockTransaction transaction : transactions) {
 			for (StockTransactionSecurityLeg leg : legs.getOrDefault(transaction.getId(), List.of())) {
 				PositionKey key = new PositionKey(leg.getSecurityId(), leg.getQuantityType());
@@ -433,6 +491,10 @@ public class StockPortfolioTransferService extends AbstractDbService {
 	}
 
 	private record DeliveryDay(LocalDate date, List<StockTransaction> transactions, List<StockTransactionSecurityLeg> legs) {
+		private LocalDate lastDate() {
+			return transactions.get(transactions.size() - 1).getSettledAt().toLocalDate();
+		}
+
 		private List<Integer> ids() {
 			return transactions.stream().map(transaction -> transaction.getId()).toList();
 		}
