@@ -69,6 +69,7 @@ import de.zft2.gbanking.db.dao.stock.StockTransactionSecurityLeg;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.ServiceRegistry;
+import de.zft2.gbanking.service.booking.BookingRunningBalanceCalculator;
 
 public class StockPortfolioService extends AbstractDbService {
 
@@ -522,14 +523,7 @@ public class StockPortfolioService extends AbstractDbService {
 		List<Booking> result = new ArrayList<>(dbController.getAllByParentFull(Booking.class, accountId));
 		result.sort(Comparator.comparing(Booking::getDate, Comparator.nullsLast(Comparator.reverseOrder()))
 				.thenComparing(Booking::getId, Comparator.reverseOrder()));
-		BankAccount account = dbController.getById(BankAccount.class, accountId);
-		BigDecimal runningBalance = account != null ? account.getBalance() : null;
-		for (Booking booking : result) {
-			booking.setBalance(runningBalance);
-			if (runningBalance != null) {
-				runningBalance = runningBalance.subtract(booking.getAmount());
-			}
-		}
+		BookingRunningBalanceCalculator.applyTo(result);
 		return result;
 	}
 

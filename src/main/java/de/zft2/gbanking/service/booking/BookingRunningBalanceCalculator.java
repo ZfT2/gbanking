@@ -1,4 +1,4 @@
-package de.zft2.gbanking.gui.panel.transaction;
+package de.zft2.gbanking.service.booking;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -11,12 +11,12 @@ import java.util.Objects;
 
 import de.zft2.gbanking.db.dao.Booking;
 
-final class BookingRunningBalanceCalculator {
+public final class BookingRunningBalanceCalculator {
 
 	private BookingRunningBalanceCalculator() {
 	}
 
-	static void applyTo(List<Booking> bookings) {
+	public static void applyTo(List<Booking> bookings) {
 		if (bookings == null || bookings.isEmpty()) {
 			return;
 		}

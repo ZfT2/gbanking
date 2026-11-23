@@ -15,6 +15,7 @@ import java.time.Month;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -900,8 +901,37 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 		assertNotNull(incoming.getCrossAccountId());
 		assertEquals(Currency.EUR, incoming.getForeignCurrencyDetails().getForeignCurrency());
 		assertEquals(new BigDecimal("1.1"), incoming.getForeignCurrencyDetails().getExchangeRateToBaseCurrency());
-		assertEquals(new BigDecimal("0.00"), outgoing.getBalance());
-		assertEquals(new BigDecimal("1189.00"), incoming.getBalance());
+		assertEquals(new BigDecimal("-1000.00"), outgoing.getBalance());
+		assertEquals(new BigDecimal("1089.00"), incoming.getBalance());
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void settlementRunningBalancesShouldStartAtZeroAndUseBookingDatesWithoutPendingAmounts(boolean knownBalance) {
+		PortfolioSummary portfolio = createPortfolio(100, 200, "Depot", "Verrechnung",
+				knownBalance ? new BigDecimal("999") : null);
+		int accountId = portfolio.settlementAccountId();
+		Booking first = new Booking(accountId, TRADE_DATE, TRADE_DATE.plusDays(5), "Deposit",
+				new BigDecimal("100"), BookingType.DEPOSIT, 0);
+		Booking pending = new Booking(accountId, TRADE_DATE.plusDays(1), TRADE_DATE.plusDays(1), "Pending",
+				new BigDecimal("-80"), BookingType.REMOVAL, 0);
+		Booking last = new Booking(accountId, TRADE_DATE.plusDays(2), TRADE_DATE.plusDays(2), "Removal",
+				new BigDecimal("-20"), BookingType.REMOVAL, 0);
+		first.setSource(Source.MANUELL_NEW);
+		pending.setSource(Source.ONLINE_PRENO);
+		last.setSource(Source.MANUELL_NEW);
+		for (Booking booking : List.of(last, pending, first)) {
+			booking.setCrossAccountId(null);
+			db.insertOrUpdate(booking);
+		}
+		List<Booking> bookings = new StockPortfolioService().getAccountTransactions(accountId);
+		assertEquals(first.getId(), bookings.get(0).getId());
+		Map<Integer, BigDecimal> balances = Map.of(first.getId(), new BigDecimal("100.00"), last.getId(), new BigDecimal("80.00"));
+		for (Booking booking : bookings) {
+			assertEquals(balances.get(booking.getId()), booking.getBalance());
+		}
+		assertEquals(knownBalance ? new BigDecimal("999.00") : null,
+				db.getById(BankAccount.class, accountId).getBalance());
 	}
 
 	@ParameterizedTest

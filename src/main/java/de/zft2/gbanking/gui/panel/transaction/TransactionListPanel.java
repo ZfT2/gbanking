@@ -35,6 +35,7 @@ import de.zft2.gbanking.gui.util.FxTableUtils;
 import de.zft2.gbanking.gui.util.FxNodeSupport;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
 import de.zft2.gbanking.service.booking.BookingService;
+import de.zft2.gbanking.service.booking.BookingRunningBalanceCalculator;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.util.DecimalText;
 import javafx.beans.property.ReadOnlyObjectWrapper;
