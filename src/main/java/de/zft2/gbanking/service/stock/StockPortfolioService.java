@@ -156,6 +156,17 @@ public class StockPortfolioService extends AbstractDbService {
 		});
 	}
 
+	public List<SecurityHolding> getSecurityHoldings(int securityId) {
+		Map<Integer, PortfolioSummary> portfolios = getPortfolios().stream()
+				.collect(Collectors.toMap(PortfolioSummary::portfolioId, Function.identity()));
+		return dbController.getAll(StockPortfolioPosition.class).stream()
+				.filter(position -> position.getSecurityId() == securityId && position.getQuantityE9() != 0)
+				.map(position -> new SecurityHolding(portfolios.get(position.getPortfolioId()), position.getQuantityType(),
+						BigDecimal.valueOf(position.getQuantityE9(), 9)))
+				.sorted(Comparator.comparing(holding -> holding.portfolio().displayName(), String.CASE_INSENSITIVE_ORDER))
+				.toList();
+	}
+
 	public List<PositionSummary> getPositions(int portfolioId) {
 		Map<Integer, StockSecurity> securities = securitiesById();
 		Map<Integer, SecurityIdentifiers> identifiers = identifiersBySecurity();
@@ -1947,6 +1958,9 @@ public class StockPortfolioService extends AbstractDbService {
 		public String toString() {
 			return displayName();
 		}
+	}
+
+	public record SecurityHolding(PortfolioSummary portfolio, StockQuantityType quantityType, BigDecimal quantity) {
 	}
 
 	public record PositionSummary(int portfolioId, int securityId, String securityName, String isin, String wkn,

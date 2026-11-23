@@ -76,6 +76,7 @@ import de.zft2.gbanking.service.bankaccess.BankAccessService;
 import de.zft2.gbanking.service.moneytransfer.MoneyTransferService;
 import de.zft2.gbanking.service.stock.StockPortfolioFinTsRetrievalResult;
 import de.zft2.gbanking.service.stock.StockPortfolioFinTsService;
+import de.zft2.gbanking.service.stock.StockPortfolioService;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
 import de.zft2.gbanking.service.stock.StockSettlementLinkService;
 import de.zft2.gbanking.util.AccountDisplay;
@@ -143,6 +144,7 @@ public class GBankingGui extends Application implements BaseGui {
 		GuiContext.setCategoryRuleTemplateHandler(booking -> openCategoryRuleTemplate(booking));
 		GuiContext.setStockTransactionNavigationHandler(booking -> openLinkedStockTransaction(booking));
 		GuiContext.setAccountBookingNavigationHandler(booking -> openAccountBooking(booking));
+		GuiContext.setStockPortfolioNavigationHandler(portfolioId -> openStockPortfolio(portfolioId));
 		log.info("Starting GBanking application.");
 
 		restoreOptions();
@@ -315,6 +317,23 @@ public class GBankingGui extends Application implements BaseGui {
 		StockPortfolioOverviewPanel panel = (StockPortfolioOverviewPanel) activateOverview(PageContext.STOCK_PORTFOLIOS);
 		if (!panel.selectTransaction(transaction.getPortfolioId(), transaction.getId())) {
 			showWarning(primaryStage, getText("ALERT_STOCK_LINKED_TRANSACTION_MISSING"));
+		}
+	}
+
+	private void openStockPortfolio(int portfolioId) {
+		var service = ServiceRegistry.getService(StockPortfolioService.class);
+		var portfolio = service.getPortfolios().stream().filter(item -> item.portfolioId() == portfolioId).findFirst().orElse(null);
+		if (portfolio == null) {
+			showWarning(primaryStage, getText("ALERT_STOCK_PORTFOLIO_MISSING"));
+			return;
+		}
+		if (GuiContext.isOnlyOnlineAccountsVisible()
+				&& !bankingCapabilityService.supportsStockPortfolio(service.getPortfolioAccount(portfolio))) {
+			setOnlyOnlineAccountsVisible(false);
+		}
+		StockPortfolioOverviewPanel panel = (StockPortfolioOverviewPanel) activateOverview(PageContext.STOCK_PORTFOLIOS);
+		if (!panel.selectPortfolioById(portfolioId)) {
+			showWarning(primaryStage, getText("ALERT_STOCK_PORTFOLIO_MISSING"));
 		}
 	}
 

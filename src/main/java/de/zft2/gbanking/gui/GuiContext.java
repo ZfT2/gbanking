@@ -13,6 +13,7 @@ public final class GuiContext {
 	private static Consumer<Booking> categoryRuleTemplateHandler;
 	private static Consumer<Booking> stockTransactionNavigationHandler;
 	private static Consumer<Booking> accountBookingNavigationHandler;
+	private static Consumer<Integer> stockPortfolioNavigationHandler;
 	private static Integer selectedAccountId;
 	private static boolean onlyOnlineAccountsVisible;
 	private static boolean onlySecuritiesWithHoldingsVisible;
@@ -73,6 +74,20 @@ public final class GuiContext {
 		}
 		if (handler != null) {
 			handler.accept(booking);
+		}
+	}
+
+	public static synchronized void setStockPortfolioNavigationHandler(Consumer<Integer> handler) {
+		stockPortfolioNavigationHandler = handler;
+	}
+
+	public static void showStockPortfolio(int portfolioId) {
+		Consumer<Integer> handler;
+		synchronized (GuiContext.class) {
+			handler = stockPortfolioNavigationHandler;
+		}
+		if (handler != null) {
+			handler.accept(portfolioId);
 		}
 	}
 

@@ -28,6 +28,9 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Control;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 
 public class StockSecurityDetailPanel extends AbstractReadonlyDetailPanel {
 
@@ -64,6 +67,8 @@ public class StockSecurityDetailPanel extends AbstractReadonlyDetailPanel {
 	private final Button newButton = new Button(getText("UI_BUTTON_STOCK_SECURITY_NEW"));
 	private final Button saveButton = new Button(getText("UI_BUTTON_SAVE"));
 	private final Button cancelButton = new Button(getText("UI_BUTTON_CANCEL"));
+	private final Button holdingsButton = new Button(getText("UI_STOCK_SECURITY_HOLDINGS"));
+	private Consumer<SecurityDetails> holdingsHandler;
 
 	private SecurityDetails currentSecurity;
 	private boolean creatingNewSecurity;
@@ -84,7 +89,15 @@ public class StockSecurityDetailPanel extends AbstractReadonlyDetailPanel {
 		configureButtons();
 		makeReadOnly(nameText, isinText, wknText, tickerText, marketIdentifierCodeText, issuerText,
 				domicileCountryText, createdAtText, updatedAtText);
-		addContentNode(FormStyleUtils.createButtonBar(editButton, newButton, saveButton, cancelButton));
+		HBox buttons = FormStyleUtils.createButtonBar(editButton, newButton, saveButton, cancelButton);
+		Region spacer = new Region();
+		HBox.setHgrow(spacer, Priority.ALWAYS);
+		FormStyleUtils.styleButtons(holdingsButton);
+		buttons.getChildren().addAll(spacer, holdingsButton);
+		holdingsButton.setVisible(false);
+		holdingsButton.setManaged(false);
+		holdingsButton.setOnAction(event -> holdingsHandler.accept(currentSecurity));
+		addContentNode(buttons);
 		editModeController = new DetailFormEditMode(editableControls(), List.of(createdAtText, updatedAtText),
 				List.of(newButton), List.of(editButton), List.of(saveButton, cancelButton));
 		quotationTypeCombo.valueProperty().addListener((observable, previous, selected) -> updateQuotationControls());
@@ -130,6 +143,12 @@ public class StockSecurityDetailPanel extends AbstractReadonlyDetailPanel {
 		currentSecurity = security;
 		fillForm(security);
 		setEditMode(false);
+	}
+
+	public void setHoldingsHandler(Consumer<SecurityDetails> handler) {
+		holdingsHandler = handler;
+		holdingsButton.setVisible(handler != null);
+		holdingsButton.setManaged(handler != null);
 	}
 
 	public void editSecurity(SecurityDetails security) {
@@ -230,6 +249,7 @@ public class StockSecurityDetailPanel extends AbstractReadonlyDetailPanel {
 
 	private void setEditMode(boolean editMode) {
 		editModeController.apply(editMode, currentSecurity != null);
+		holdingsButton.setDisable(currentSecurity == null || creatingNewSecurity);
 		updateQuotationControls();
 	}
 

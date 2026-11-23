@@ -752,6 +752,16 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 		var filtered = new StockSecurityAdministrationService().getSecurities(true);
 
 		assertEquals(List.of(heldSecurity.getId()), filtered.stream().map(security -> security.securityId()).toList());
+		PortfolioSummary second = createPortfolio(101, 201, "Depot B", "Verrechnung B", new BigDecimal("1000"));
+		portfolioService.recordTrade(second, position(second, heldSecurity), new TradeRequest(StockTransactionType.BUY,
+				TRADE_DATE, SETTLEMENT_DATE, new BigDecimal("0.123456789"), BigDecimal.ONE, Currency.EUR,
+				BigDecimal.ONE, null, null, null));
+		var holdings = portfolioService.getSecurityHoldings(heldSecurity.getId());
+		assertEquals(List.of(portfolio.portfolioId(), second.portfolioId()),
+				holdings.stream().map(row -> row.portfolio().portfolioId()).toList());
+		assertEquals(0, new BigDecimal("10").compareTo(holdings.get(0).quantity()));
+		assertEquals(0, new BigDecimal("0.123456789").compareTo(holdings.get(1).quantity()));
+		assertTrue(portfolioService.getSecurityHoldings(historicalSecurity.getId()).isEmpty());
 	}
 
 	@Test

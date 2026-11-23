@@ -196,6 +196,22 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	}
 
 	public boolean selectTransaction(int portfolioId, int transactionId) {
+		if (!selectPortfolioById(portfolioId)) {
+			return false;
+		}
+		detailTabs.getSelectionModel().select(transactionsTab);
+		for (TransactionSummary transaction : transactionTable.getItems()) {
+			if (transaction.transactionId() == transactionId) {
+				transactionTable.getSelectionModel().select(transaction);
+				transactionTable.scrollTo(transaction);
+				transactionTable.requestFocus();
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public boolean selectPortfolioById(int portfolioId) {
 		TreeItem<NavigationEntry> item = findPortfolioItem(navigationTree.getRoot(), portfolioId);
 		if (item == null) {
 			return false;
@@ -207,16 +223,8 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 			navigationTree.getSelectionModel().select(item);
 		}
 		navigationTree.scrollTo(navigationTree.getRow(item));
-		detailTabs.getSelectionModel().select(transactionsTab);
-		for (TransactionSummary transaction : transactionTable.getItems()) {
-			if (transaction.transactionId() == transactionId) {
-				transactionTable.getSelectionModel().select(transaction);
-				transactionTable.scrollTo(transaction);
-				transactionTable.requestFocus();
-				return true;
-			}
-		}
-		return false;
+		detailTabs.getSelectionModel().select(positionsTab);
+		return true;
 	}
 
 	private void configureNavigation() {

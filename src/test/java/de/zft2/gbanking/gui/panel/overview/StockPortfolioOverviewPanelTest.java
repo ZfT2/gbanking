@@ -241,6 +241,10 @@ class StockPortfolioOverviewPanelTest {
 			assertNull(cell.getGraphic());
 			assertFalse(panel.selectTransaction(2, 999));
 			assertFalse(panel.selectTransaction(999, 7));
+			assertTrue(panel.selectPortfolioById(1));
+			assertEquals(first, panel.getSelectedPortfolio());
+			assertEquals(1, tabs.getSelectionModel().getSelectedIndex());
+			assertFalse(panel.selectPortfolioById(999));
 		});
 	}
 
