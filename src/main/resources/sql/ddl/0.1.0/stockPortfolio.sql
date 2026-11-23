@@ -222,7 +222,7 @@ END;
 [SQL_SETUP_CREATE_TRIGGER_STOCK_PORTFOLIO_SETTLEMENT_VALIDATE_INSERT]
 CREATE TRIGGER validate_stockportfolio_settlement_insert
 BEFORE INSERT ON stockPortfolioSettlementAccount
-WHEN (SELECT accountType FROM bankAccount WHERE id = NEW.account_id) NOT IN (1, 12)
+WHEN (SELECT accountType FROM bankAccount WHERE id = NEW.account_id) NOT IN (1, 2, 12)
     OR NEW.account_id = (SELECT account_id FROM stockPortfolio WHERE id = NEW.portfolio_id)
     OR (NEW.validTo IS NOT NULL AND EXISTS (
       SELECT 1
@@ -241,7 +241,7 @@ END;
 [SQL_SETUP_CREATE_TRIGGER_STOCK_PORTFOLIO_SETTLEMENT_VALIDATE_UPDATE]
 CREATE TRIGGER validate_stockportfolio_settlement_update
 BEFORE UPDATE ON stockPortfolioSettlementAccount
-WHEN (SELECT accountType FROM bankAccount WHERE id = NEW.account_id) NOT IN (1, 12)
+WHEN (SELECT accountType FROM bankAccount WHERE id = NEW.account_id) NOT IN (1, 2, 12)
     OR NEW.account_id = (SELECT account_id FROM stockPortfolio WHERE id = NEW.portfolio_id)
     OR (NEW.validTo IS NOT NULL AND EXISTS (
       SELECT 1
@@ -274,7 +274,7 @@ CREATE TRIGGER validate_bankaccount_stock_roles
 BEFORE UPDATE OF accountType ON bankAccount
 WHEN (NEW.accountType <> 16 AND EXISTS (
       SELECT 1 FROM stockPortfolio portfolio WHERE portfolio.account_id = OLD.id))
-    OR (NEW.accountType NOT IN (1, 12) AND EXISTS (
+    OR (NEW.accountType NOT IN (1, 2, 12) AND EXISTS (
       SELECT 1 FROM stockPortfolioSettlementAccount relation WHERE relation.account_id = OLD.id))
 BEGIN
   SELECT RAISE(FAIL, 'bankAccount type conflicts with its portfolio role');

@@ -644,8 +644,9 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 	private BankAccount requireSettlementAccount(int accountId) {
 		BankAccount stored = dbController.getById(BankAccount.class, accountId);
 		if (stored == null || (stored.getAccountType() != AccountType.CURRENT_ACCOUNT
+				&& stored.getAccountType() != AccountType.OVERNIGHT_MONEY
 				&& stored.getAccountType() != AccountType.DEPOT_ACCOUNT)) {
-			throw new GBankingException("Es muss ein gültiges Giro- oder Verrechnungskonto ausgewählt werden.");
+			throw new GBankingException("Es muss ein gültiges Giro-, Tagesgeld- oder Verrechnungskonto ausgewählt werden.");
 		}
 		return stored;
 	}

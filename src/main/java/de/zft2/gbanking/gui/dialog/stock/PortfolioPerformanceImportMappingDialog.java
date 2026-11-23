@@ -124,6 +124,7 @@ public final class PortfolioPerformanceImportMappingDialog implements BaseMessag
 		}
 		return type != MappingType.SETTLEMENT_ACCOUNT
 				|| target.accountType() == AccountType.CURRENT_ACCOUNT
+				|| target.accountType() == AccountType.OVERNIGHT_MONEY
 				|| target.accountType() == AccountType.DEPOT_ACCOUNT;
 	}
 

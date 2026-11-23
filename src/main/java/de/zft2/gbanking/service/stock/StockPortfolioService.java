@@ -998,6 +998,7 @@ public class StockPortfolioService extends AbstractDbService {
 
 	private static boolean isSettlementAccount(BankAccount account) {
 		return account != null && (account.getAccountType() == AccountType.CURRENT_ACCOUNT
+				|| account.getAccountType() == AccountType.OVERNIGHT_MONEY
 				|| account.getAccountType() == AccountType.DEPOT_ACCOUNT);
 	}
 

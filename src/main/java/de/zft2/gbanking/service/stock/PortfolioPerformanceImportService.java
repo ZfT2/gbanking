@@ -474,6 +474,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 			throw new GBankingException("Das zugeordnete Konto für '" + data.name() + "' ist nicht kompatibel");
 		}
 		if (accountType == AccountType.DEPOT_ACCOUNT && account.getAccountType() != AccountType.CURRENT_ACCOUNT
+				&& account.getAccountType() != AccountType.OVERNIGHT_MONEY
 				&& account.getAccountType() != AccountType.DEPOT_ACCOUNT) {
 			throw new GBankingException("Das zugeordnete Verrechnungskonto für '" + data.name()
 					+ "' hat keine passende Kontoart");

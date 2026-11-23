@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
@@ -532,9 +533,14 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		assertEquals(4, db.getAll(Booking.class).size());
 	}
 
-	@Test
-	void totalXmlShouldMapPortfolioAndAccountToExistingTargets() throws Exception {
+	@ParameterizedTest
+	@EnumSource(value = AccountType.class,
+			names = { "CURRENT_ACCOUNT", "DEPOT_ACCOUNT", "OVERNIGHT_MONEY" })
+	void totalXmlShouldMapPortfolioAndAccountToExistingTargets(AccountType accountType) throws Exception {
 		PortfolioSummary portfolio = createPortfolio();
+		BankAccount settlement = db.getById(BankAccount.class, portfolio.settlementAccountId());
+		settlement.setAccountType(accountType);
+		db.insertOrUpdate(settlement);
 		createSource();
 		Path xml = write("mapped-portfolio.xml", """
 				<client><version>70</version><securities/><accounts>
@@ -556,6 +562,7 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		assertEquals(1, result.bookings());
 		assertEquals(2, db.getAll(BankAccount.class).size());
 		assertEquals(1, db.getAll(StockPortfolio.class).size());
+		assertEquals(accountType, db.getById(BankAccount.class, portfolio.settlementAccountId()).getAccountType());
 		assertEquals(0, new BigDecimal("125.00").compareTo(
 				db.getById(BankAccount.class, portfolio.settlementAccountId()).getBalance()));
 	}
