@@ -14,6 +14,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import de.zft2.gbanking.db.dao.BankAccount;
+import de.zft2.gbanking.db.dao.Booking;
+import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.StockSecurityLegRole;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.StockQuantityType;
@@ -262,10 +265,22 @@ public class StockPortfolioTransferService extends AbstractDbService {
 			LocalDate cutoff = date.isAfter(plan.cutoff()) ? date : plan.cutoff();
 			requireNonNegativeHistory(source.portfolioId(), plan.positions(), cutoff);
 			requireNonNegativeHistory(target.portfolioId(), plan.positions(), cutoff);
-			portfolios.transferSettlementBalance(portfolios.requireSettlementAccount(source),
-					portfolios.requireSettlementAccount(target), date, exchangeRate);
+			BankAccount sourceAccount = portfolios.requireSettlementAccount(source);
+			BankAccount targetAccount = portfolios.requireSettlementAccount(target);
+			if (!settlementBalanceAlreadyTransferred(sourceAccount, targetAccount)) {
+				portfolios.transferSettlementBalance(sourceAccount, targetAccount, date, exchangeRate);
+			}
 			return null;
 		});
+	}
+
+	private boolean settlementBalanceAlreadyTransferred(BankAccount source, BankAccount target) {
+		return source.getBalance() != null && source.getBalance().signum() == 0
+				&& dbController.getAllByParent(Booking.class, source.getId()).stream()
+						.anyMatch(booking -> booking.getBookingType() == BookingType.REBOOKING_OUT
+								&& Integer.valueOf(target.getId()).equals(booking.getCrossAccountId())
+								&& booking.getAmount() != null && booking.getAmount().signum() < 0
+								&& !booking.isPrenotification());
 	}
 
 	private List<TransferPlan> transferPlans(PortfolioSummary source, PortfolioSummary target, LocalDate cutoff) {

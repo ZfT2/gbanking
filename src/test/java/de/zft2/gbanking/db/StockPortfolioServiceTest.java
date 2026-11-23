@@ -27,7 +27,9 @@ import org.kapott.hbci.structures.BigDecimalValue;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.AccountType;
+import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Currency;
+import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.StockDataSourceType;
 import de.zft2.gbanking.db.dao.enu.StockQuantityType;
 import de.zft2.gbanking.db.dao.enu.StockPriceType;
@@ -900,6 +902,43 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 		assertEquals(new BigDecimal("1.1"), incoming.getForeignCurrencyDetails().getExchangeRateToBaseCurrency());
 		assertEquals(new BigDecimal("0.00"), outgoing.getBalance());
 		assertEquals(new BigDecimal("1189.00"), incoming.getBalance());
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "existing", "unknown target balance", "remaining balance", "different target", "opposite direction" })
+	void recognizedPortfolioTransferShouldPreserveExistingSettlementTransfers(String scenario) throws Exception {
+		PortfolioSummary source = createPortfolio(100, 200, "Depot A", "Verrechnung A", new BigDecimal("100"));
+		PortfolioSummary target = createPortfolio(101, 201, "Depot B", "Verrechnung B", new BigDecimal("100"));
+		importDeliveries(source, deliveryRow("2026-09-10", "Einlieferung", 1, 1));
+		importDeliveries(target, deliveryRow("2026-09-16", "Einlieferung", 1, 1));
+		boolean remaining = scenario.equals("remaining balance");
+		boolean unrelated = scenario.equals("different target") || scenario.equals("opposite direction");
+		Booking existing = new Booking(source.settlementAccountId(), TRADE_DATE, TRADE_DATE, "Existing transfer",
+				new BigDecimal(scenario.equals("opposite direction") ? "100" : "-100"),
+				scenario.equals("opposite direction") ? BookingType.REBOOKING_IN : BookingType.REBOOKING_OUT,
+				scenario.equals("different target") ? source.settlementAccountId() : target.settlementAccountId());
+		existing.setSource(Source.MANUELL_NEW);
+		db.insertOrUpdate(existing);
+		BankAccount sourceAccount = db.getById(BankAccount.class, source.settlementAccountId());
+		sourceAccount.setBalance(remaining ? BigDecimal.TEN : BigDecimal.ZERO);
+		db.insertOrUpdate(sourceAccount);
+		BankAccount targetAccount = db.getById(BankAccount.class, target.settlementAccountId());
+		boolean unknown = scenario.equals("unknown target balance") || unrelated;
+		targetAccount.setBalance(unknown ? null : new BigDecimal("100"));
+		db.insertOrUpdate(targetAccount);
+		StockPortfolioTransferService transfers = new StockPortfolioTransferService();
+		var plan = transfers.findExistingDeliveries(source, target, null);
+		if (unrelated) {
+			assertThrows(GBankingException.class, () -> transfers.transferExistingDeliveries(source, target, plan, null, BigDecimal.ONE));
+		} else {
+			transfers.transferExistingDeliveries(source, target, plan, null, BigDecimal.ONE);
+			assertTrue(new StockPortfolioService().getPositions(source.portfolioId()).isEmpty());
+		}
+		assertEquals(remaining ? 3 : 1, db.getAll(Booking.class).size());
+		assertEquals(0, db.getById(BankAccount.class, source.settlementAccountId()).getBalance().signum());
+		assertEquals(unknown ? null : new BigDecimal(remaining ? "110.00" : "100.00"),
+				db.getById(BankAccount.class, target.settlementAccountId()).getBalance());
+		assertEquals(0, existing.getAmount().compareTo(db.getById(Booking.class, existing.getId()).getAmount()));
 	}
 
 	@Test
