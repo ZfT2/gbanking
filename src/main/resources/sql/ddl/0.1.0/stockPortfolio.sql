@@ -1322,6 +1322,54 @@ CREATE TABLE stockSecurityExchangeLink (
   FOREIGN KEY(targetLeg_id) REFERENCES stockTransactionSecurityLeg(id) ON DELETE RESTRICT,
   CHECK (sourceLeg_id <> targetLeg_id));
 
+[SQL_SETUP_CREATE_STOCK_TRANSFER_LINK]
+CREATE TABLE stockTransferLink (
+  id INTEGER PRIMARY KEY,
+  outgoingTransaction_id INTEGER NOT NULL UNIQUE,
+  incomingTransaction_id INTEGER NOT NULL UNIQUE,
+  createdAt TEXT NOT NULL,
+  FOREIGN KEY(outgoingTransaction_id) REFERENCES stockTransaction(id) ON DELETE RESTRICT,
+  FOREIGN KEY(incomingTransaction_id) REFERENCES stockTransaction(id) ON DELETE RESTRICT,
+  CHECK (outgoingTransaction_id <> incomingTransaction_id));
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_TRANSFER_LINK_VALIDATE]
+CREATE TRIGGER validate_stocktransferlink_insert BEFORE INSERT ON stockTransferLink
+WHEN NOT EXISTS (
+  SELECT 1 FROM stockTransaction outgoing
+  JOIN stockTransaction incoming ON incoming.id = NEW.incomingTransaction_id
+  JOIN stockTransactionSecurityLeg outLeg ON outLeg.transaction_id = outgoing.id
+  JOIN stockTransactionSecurityLeg inLeg ON inLeg.transaction_id = incoming.id
+  WHERE outgoing.id = NEW.outgoingTransaction_id
+    AND outgoing.transactionType = 4 AND incoming.transactionType = 3
+    AND outgoing.transactionStatus = 2 AND incoming.transactionStatus = 2
+    AND outgoing.portfolio_id <> incoming.portfolio_id
+    AND date(outgoing.settledAt) = date(incoming.settledAt)
+    AND outLeg.security_id = inLeg.security_id AND outLeg.quantityType = inLeg.quantityType
+    AND outLeg.quantityE9 < 0 AND outLeg.quantityE9 = -inLeg.quantityE9
+    AND outLeg.legRole = 1 AND inLeg.legRole = 1
+    AND (SELECT COUNT(*) FROM stockTransactionSecurityLeg WHERE transaction_id = outgoing.id) = 1
+    AND (SELECT COUNT(*) FROM stockTransactionSecurityLeg WHERE transaction_id = incoming.id) = 1
+    AND NOT EXISTS (SELECT 1 FROM stockTransactionCashLeg WHERE transaction_id IN (outgoing.id, incoming.id)))
+BEGIN
+  SELECT RAISE(FAIL, 'invalid position transfer counterpart');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_TRANSFER_LINK_BLOCK_UPDATE]
+CREATE TRIGGER block_stocktransferlink_update BEFORE UPDATE ON stockTransferLink
+BEGIN
+  SELECT RAISE(FAIL, 'position transfer links are immutable');
+END;
+
+[SQL_SETUP_CREATE_TRIGGER_STOCK_TRANSFER_TRANSACTION_BLOCK_UPDATE]
+CREATE TRIGGER block_stocktransfer_transaction_update BEFORE UPDATE ON stockTransaction
+WHEN (NEW.transactionType, NEW.transactionStatus, NEW.settledAt, NEW.portfolio_id)
+  IS NOT (OLD.transactionType, OLD.transactionStatus, OLD.settledAt, OLD.portfolio_id)
+  AND EXISTS (SELECT 1 FROM stockTransferLink
+    WHERE outgoingTransaction_id = OLD.id OR incomingTransaction_id = OLD.id)
+BEGIN
+  SELECT RAISE(FAIL, 'linked position transfer cannot be changed');
+END;
+
 [SQL_SETUP_CREATE_TRIGGER_STOCK_SECURITY_EXCHANGE_LINK_VALIDATE]
 CREATE TRIGGER validate_stocksecurityexchangelink_insert
 BEFORE INSERT ON stockSecurityExchangeLink

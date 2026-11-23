@@ -461,7 +461,11 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		MenuItem unlink = new MenuItem(getText(UI_STOCK_EXCHANGE_UNLINK));
 		unlink.setDisable(!linkedExchangeIds.contains(transaction.transactionId()));
 		unlink.setOnAction(event -> unlinkSecurityExchange(transaction.transactionId()));
-		return new ContextMenu(history, link, unlink);
+		MenuItem transfer = new MenuItem(getText("UI_STOCK_CONVERT_TO_TRANSFER"));
+		transfer.setDisable(transaction.transactionType() != StockTransactionType.DELIVERY_IN
+				&& transaction.transactionType() != StockTransactionType.DELIVERY_OUT);
+		transfer.setOnAction(event -> openDeliveryTransfer(transaction));
+		return new ContextMenu(history, link, unlink, transfer);
 	}
 
 	private VBox createTransactionSection() {
@@ -945,6 +949,19 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		new StockPositionTransferDialog(getOwnerWindow(), position, targets,
 				(target, quantity, date) -> service.transferPosition(selectedPortfolio, target, position, quantity, date),
 				this::refreshSelectedPortfolio).show();
+	}
+
+	private void openDeliveryTransfer(TransactionSummary transaction) {
+		if (selectedPortfolio == null) {
+			return;
+		}
+		List<PortfolioSummary> targets = transferTargets(selectedPortfolio);
+		if (targets.isEmpty()) {
+			showNoTransferTarget();
+			return;
+		}
+		new StockPositionTransferDialog(getOwnerWindow(), selectedPortfolio, transaction, targets,
+				ServiceRegistry.getService(StockPortfolioTransferService.class), this::refreshSelectedPortfolio).show();
 	}
 
 	private void openPortfolioTransfer(PortfolioSummary portfolio) {

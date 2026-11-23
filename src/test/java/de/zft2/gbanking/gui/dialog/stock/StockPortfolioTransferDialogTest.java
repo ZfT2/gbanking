@@ -21,12 +21,16 @@ import org.junit.jupiter.params.provider.ValueSource;
 import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.StockQuantityType;
+import de.zft2.gbanking.db.dao.enu.StockTransactionType;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
+import de.zft2.gbanking.service.stock.StockPortfolioService.PositionSummary;
+import de.zft2.gbanking.service.stock.StockPortfolioService.TransactionSummary;
 import de.zft2.gbanking.service.stock.StockPortfolioTransferService;
 import de.zft2.gbanking.service.stock.StockPortfolioTransferService.TransferPlan;
 import de.zft2.gbanking.service.stock.StockPortfolioTransferService.DeliveryComparison;
 import de.zft2.gbanking.service.stock.StockPortfolioTransferService.DeliveryDifference;
+import de.zft2.gbanking.service.stock.StockPortfolioTransferService.PositionTransferPlan;
 import javafx.application.Platform;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
@@ -35,10 +39,70 @@ import javafx.scene.control.DatePicker;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
 class StockPortfolioTransferDialogTest {
+
+	@ParameterizedTest
+	@ValueSource(strings = { "existing", "existing-in", "create", "cancel" })
+	void deliveryConversionShouldLockQuantityAndDateAndRequireConfirmation(String scenario) {
+		PortfolioSummary source = portfolio(1), target = portfolio(2);
+		LocalDate date = LocalDate.of(2026, 9, 16);
+		boolean outgoing = !scenario.equals("existing-in");
+		boolean existing = scenario.startsWith("existing");
+		TransactionSummary transaction = new TransactionSummary(10,
+				outgoing ? StockTransactionType.DELIVERY_OUT : StockTransactionType.DELIVERY_IN, 3,
+				"Aktie", "SG1N28909355", null, date, BigDecimal.TEN, BigDecimal.ONE, BigDecimal.TEN, Currency.EUR, 0, true, null);
+		PositionSummary position = new PositionSummary(1, 3, "Aktie", null, null, StockQuantityType.UNITS,
+				BigDecimal.TEN, BigDecimal.ONE, null, null, null, Currency.EUR, null);
+		PositionTransferPlan plan = new PositionTransferPlan(1, 2, 10, existing ? 20 : null, outgoing, date, position);
+		StockPortfolioTransferService service = mock(StockPortfolioTransferService.class);
+		when(service.preparePositionTransfer(source, target, 10)).thenReturn(plan);
+		Runnable saved = mock(Runnable.class);
+		AtomicReference<Throwable> failure = new AtomicReference<>();
+		JavaFxTestSupport.runFx(() -> {
+			StockPositionTransferDialog dialog = new StockPositionTransferDialog(null, source, transaction, List.of(target), service, saved);
+			Parent root = dialog.dialog().getScene().getRoot();
+			assertFalse(((TextField) root.lookup(".text-field")).isEditable());
+			assertTrue(root.lookup(".text-field").isDisabled());
+			DatePicker picker = (DatePicker) root.lookup(".date-picker");
+			assertTrue(picker.isDisabled());
+			assertEquals(date, picker.getValue());
+			Platform.runLater(() -> {
+				DialogPane pane = openDialog();
+				try {
+					String key = existing ? "UI_STOCK_DELIVERY_TRANSFER_LINK" : "UI_STOCK_DELIVERY_TRANSFER_CREATE";
+					assertEquals(java.text.MessageFormat.format(text(key), target.displayName(),
+							text(outgoing ? "UI_STOCK_DELIVERY_TRANSFER_IN" : "UI_STOCK_DELIVERY_TRANSFER_OUT"),
+							"16.09.2026", text(outgoing ? "ENUM_STOCKTRANSACTIONTYPE_DELIVERY_IN" : "ENUM_STOCKTRANSACTIONTYPE_DELIVERY_OUT"),
+							"SG1N28909355", "Aktie"), pane.getContentText());
+					if (existing) {
+						for (String detail : List.of("16.09.2026", "SG1N28909355", "Aktie",
+								text(outgoing ? "ENUM_STOCKTRANSACTIONTYPE_DELIVERY_IN" : "ENUM_STOCKTRANSACTIONTYPE_DELIVERY_OUT"))) {
+							assertTrue(pane.getContentText().contains(detail), detail);
+						}
+					}
+				} catch (AssertionError error) {
+					failure.set(error);
+				} finally {
+					var type = scenario.equals("cancel") ? javafx.scene.control.ButtonType.CANCEL : javafx.scene.control.ButtonType.OK;
+					((Button) pane.lookupButton(type)).fire();
+				}
+			});
+			button(root, text("UI_STOCK_ACTION_TRANSFER")).fire();
+			dialog.dialog().close();
+		});
+		assertNull(failure.get());
+		if (scenario.equals("cancel")) {
+			verify(service, never()).convertPositionDelivery(any(), any(), any());
+			verify(saved, never()).run();
+		} else {
+			verify(service).convertPositionDelivery(source, target, plan);
+			verify(saved).run();
+		}
+	}
 
 	@ParameterizedTest
 	@ValueSource(strings = { "empty", "original", "entered", "manual", "cancel" })

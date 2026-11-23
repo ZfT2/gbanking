@@ -45,6 +45,7 @@ import de.zft2.gbanking.db.dao.stock.StockSecurityPrice;
 import de.zft2.gbanking.db.dao.stock.StockSecurityPriceSource;
 import de.zft2.gbanking.db.dao.stock.StockTransaction;
 import de.zft2.gbanking.db.dao.stock.StockTransactionSecurityLeg;
+import de.zft2.gbanking.db.dao.stock.StockTransferLink;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.service.stock.StockPortfolioService;
 import de.zft2.gbanking.service.stock.StockPortfolioFinTsService;
@@ -67,6 +68,86 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 
 	@TempDir
 	Path files;
+
+	@ParameterizedTest
+	@ValueSource(strings = { "outgoing matched", "incoming matched", "outgoing missing", "incoming missing" })
+	void singleDeliveryShouldBecomeALinkedTransferWithoutDuplicatingExistingMovements(String scenario) throws Exception {
+		PortfolioSummary source = createPortfolio(100, 200, "Depot A", "Verrechnung A", BigDecimal.ZERO);
+		PortfolioSummary target = createPortfolio(101, 201, "Depot B", "Verrechnung B", BigDecimal.ZERO);
+		boolean outgoing = scenario.startsWith("outgoing");
+		boolean matched = scenario.endsWith("matched");
+		importDeliveries(source, deliveryRow("2026-09-10", "Einlieferung", 200, 20000)
+				+ (outgoing || matched ? deliveryRow("2026-09-16", "Auslieferung", 50, 5000) : ""));
+		if (!outgoing || matched) {
+			importDeliveries(target, deliveryRow("2026-09-16", "Einlieferung", 50, 3750));
+		}
+		PortfolioSummary selected = outgoing ? source : target;
+		PortfolioSummary other = outgoing ? target : source;
+		StockTransaction original = db.getAllByParent(StockTransaction.class, selected.portfolioId()).stream()
+				.filter(transaction -> transaction.getTransactionType() == (outgoing
+						? StockTransactionType.DELIVERY_OUT : StockTransactionType.DELIVERY_IN)).findFirst().orElseThrow();
+		int count = db.getAll(StockTransaction.class).size();
+		StockPortfolioTransferService transfers = new StockPortfolioTransferService();
+		var plan = transfers.preparePositionTransfer(selected, other, original.getId());
+		assertEquals(matched, plan.counterpartId() != null);
+		assertEquals(0, new BigDecimal("50").compareTo(plan.position().quantity()));
+		transfers.convertPositionDelivery(selected, other, plan);
+		assertEquals(count + (matched ? 0 : 1), db.getAll(StockTransaction.class).size());
+		StockTransferLink link = db.getAll(StockTransferLink.class).get(0);
+		assertEquals(StockTransactionType.TRANSFER_OUT,
+				db.getById(StockTransaction.class, link.getOutgoingTransactionId()).getTransactionType());
+		assertEquals(StockTransactionType.TRANSFER_IN,
+				db.getById(StockTransaction.class, link.getIncomingTransactionId()).getTransactionType());
+		StockTransaction stored = db.getById(StockTransaction.class, original.getId());
+		assertEquals(original.getSettledAt(), stored.getSettledAt());
+		assertEquals(original.getFingerprint(), stored.getFingerprint());
+		assertEquals(original.getImportRecordId(), stored.getImportRecordId());
+		assertEquals(original.getId(), outgoing ? link.getOutgoingTransactionId() : link.getIncomingTransactionId());
+		if (matched) {
+			assertEquals(plan.counterpartId(), outgoing ? link.getIncomingTransactionId() : link.getOutgoingTransactionId());
+		}
+		StockPortfolioService portfolios = new StockPortfolioService();
+		assertEquals(0, new BigDecimal("150").compareTo(portfolios.getPositions(source.portfolioId()).get(0).quantity()));
+		assertEquals(0, new BigDecimal("50").compareTo(portfolios.getPositions(target.portfolioId()).get(0).quantity()));
+		assertTrue(db.getAll(Booking.class).isEmpty());
+		assertThrows(GBankingException.class, () -> transfers.convertPositionDelivery(selected, other, plan));
+	}
+
+	@Test
+	void singleDeliveryShouldRejectAmbiguousCounterpartsAndStalePreviews() throws Exception {
+		PortfolioSummary source = createPortfolio(100, 200, "Depot A", "Verrechnung A", BigDecimal.ZERO);
+		PortfolioSummary target = createPortfolio(101, 201, "Depot B", "Verrechnung B", BigDecimal.ZERO);
+		importDeliveries(source, deliveryRow("2026-09-10", "Einlieferung", 200, 20000)
+				+ deliveryRow("2026-09-16", "Auslieferung", 50, 5000));
+		StockTransaction original = db.getAllByParent(StockTransaction.class, source.portfolioId()).stream()
+				.filter(transaction -> transaction.getTransactionType() == StockTransactionType.DELIVERY_OUT).findFirst().orElseThrow();
+		StockPortfolioTransferService transfers = new StockPortfolioTransferService();
+		importDeliveries(target, deliveryRow("2026-09-17", "Einlieferung", 50, 3750)
+				+ deliveryRow("2026-09-16", "Einlieferung", 49, 3675));
+		var plan = transfers.preparePositionTransfer(source, target, original.getId());
+		assertNull(plan.counterpartId());
+		importDeliveries(target, deliveryRow("2026-09-16", "Einlieferung", 50, 3750));
+		assertThrows(GBankingException.class, () -> transfers.convertPositionDelivery(source, target, plan));
+		importDeliveries(target, deliveryRow("2026-09-16", "Einlieferung", 50, 4000));
+		assertThrows(GBankingException.class, () -> transfers.preparePositionTransfer(source, target, original.getId()));
+		assertEquals(StockTransactionType.DELIVERY_OUT, db.getById(StockTransaction.class, original.getId()).getTransactionType());
+		assertTrue(db.getAll(StockTransferLink.class).isEmpty());
+	}
+
+	@Test
+	void incomingDeliveryMustNotCreateAnUnfundedOutgoingTransfer() throws Exception {
+		PortfolioSummary source = createPortfolio(100, 200, "Depot A", "Verrechnung A", BigDecimal.ZERO);
+		PortfolioSummary target = createPortfolio(101, 201, "Depot B", "Verrechnung B", BigDecimal.ZERO);
+		importDeliveries(target, deliveryRow("2026-09-16", "Einlieferung", 50, 3750));
+		StockTransaction original = db.getAllByParent(StockTransaction.class, target.portfolioId()).get(0);
+		StockPortfolioTransferService transfers = new StockPortfolioTransferService();
+		var plan = transfers.preparePositionTransfer(target, source, original.getId());
+		int count = db.getAll(StockTransaction.class).size();
+		assertThrows(GBankingException.class, () -> transfers.convertPositionDelivery(target, source, plan));
+		assertEquals(count, db.getAll(StockTransaction.class).size());
+		assertEquals(StockTransactionType.DELIVERY_IN, db.getById(StockTransaction.class, original.getId()).getTransactionType());
+		assertTrue(db.getAll(StockTransferLink.class).isEmpty());
+	}
 
 	@ParameterizedTest
 	@ValueSource(strings = { "both", "outgoing", "incoming", "split outgoing", "split dates" })

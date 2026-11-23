@@ -84,6 +84,17 @@ class StockPortfolioOverviewPanelTest {
 			SplitPane tables = (SplitPane) ((StackPane) right.getChildren().get(1)).getChildren().get(0);
 			TableView<PositionSummary> positions = (TableView<PositionSummary>) ((VBox) tables.getItems().get(0)).getChildren().get(1);
 			TableView<TransactionSummary> transactions = (TableView<TransactionSummary>) ((VBox) tables.getItems().get(1)).getChildren().get(1);
+			var transactionRow = transactions.getRowFactory().call(transactions);
+			transactionRow.setItem(oldTrade);
+			assertTrue(transactionRow.getContextMenu().getItems().stream()
+					.filter(item -> item.getText().equals(BaseMessages.getTextStatic("UI_STOCK_CONVERT_TO_TRANSFER")))
+					.findFirst().orElseThrow().isDisable());
+			TransactionSummary delivery = new TransactionSummary(3, StockTransactionType.DELIVERY_IN, 2, "Neu AG", null, null,
+					LocalDate.of(2026, 2, 1), BigDecimal.TEN, null, null, Currency.EUR, 0, true, null);
+			transactionRow.setItem(delivery);
+			assertFalse(transactionRow.getContextMenu().getItems().stream()
+					.filter(item -> item.getText().equals(BaseMessages.getTextStatic("UI_STOCK_CONVERT_TO_TRANSFER")))
+					.findFirst().orElseThrow().isDisable());
 			var row = positions.getRowFactory().call(positions);
 			row.setItem(position);
 			row.getContextMenu().getItems().stream()

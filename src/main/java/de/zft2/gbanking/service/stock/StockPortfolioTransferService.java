@@ -15,14 +15,17 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import de.zft2.gbanking.db.dao.enu.StockSecurityLegRole;
+import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.StockQuantityType;
 import de.zft2.gbanking.db.dao.enu.StockTransactionStatus;
 import de.zft2.gbanking.db.dao.enu.StockTransactionType;
 import de.zft2.gbanking.db.dao.stock.StockCorporateActionMember;
 import de.zft2.gbanking.db.dao.stock.StockSecurityExchangeLink;
+import de.zft2.gbanking.db.dao.stock.StockSecurity;
 import de.zft2.gbanking.db.dao.stock.StockTransaction;
 import de.zft2.gbanking.db.dao.stock.StockTransactionCashLeg;
 import de.zft2.gbanking.db.dao.stock.StockTransactionSecurityLeg;
+import de.zft2.gbanking.db.dao.stock.StockTransferLink;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
@@ -33,6 +36,102 @@ import de.zft2.gbanking.service.stock.StockSecurityAdministrationService.Securit
 public class StockPortfolioTransferService extends AbstractDbService {
 
 	private final StockPortfolioService portfolios = new StockPortfolioService();
+
+	public record PositionTransferPlan(int portfolioId, int otherPortfolioId, int transactionId,
+			Integer counterpartId, boolean outgoing, LocalDate date, PositionSummary position) {
+	}
+
+	public PositionTransferPlan preparePositionTransfer(PortfolioSummary portfolio, PortfolioSummary other, int transactionId) {
+		if (portfolio == null || other == null || portfolio.portfolioId() == other.portfolioId()) {
+			throw new GBankingException("Bitte verschiedene Quell- und Zieldepots auswählen.");
+		}
+		StockTransaction transaction = dbController.getById(StockTransaction.class, transactionId);
+		if (transaction == null || transaction.getPortfolioId() != portfolio.portfolioId()
+				|| (transaction.getTransactionType() != StockTransactionType.DELIVERY_OUT
+						&& transaction.getTransactionType() != StockTransactionType.DELIVERY_IN)) {
+			throw new GBankingException("Bitte eine gültige Ein- oder Auslieferung auswählen.");
+		}
+		boolean outgoing = transaction.getTransactionType() == StockTransactionType.DELIVERY_OUT;
+		DeliveryDay delivery = requireSingleDelivery(portfolio.portfolioId(), transaction);
+		StockTransactionSecurityLeg leg = delivery.legs().get(0);
+		LocalDate date = delivery.date();
+		Integer counterpart = findPositionCounterpart(other.portfolioId(), outgoing, leg, date);
+		return new PositionTransferPlan(portfolio.portfolioId(), other.portfolioId(), transactionId,
+				counterpart, outgoing, date, deliveryPosition(portfolio, transaction, leg));
+	}
+
+	private Integer findPositionCounterpart(int portfolioId, boolean outgoing, StockTransactionSecurityLeg leg, LocalDate date) {
+		StockTransactionType opposite = outgoing ? StockTransactionType.DELIVERY_IN : StockTransactionType.DELIVERY_OUT;
+		List<Integer> matches = deliveryDays(portfolioId, opposite, date).stream()
+				.filter(day -> day.date().equals(date)).flatMap(day -> day.transactions().stream())
+				.filter(candidate -> {
+					List<StockTransactionSecurityLeg> legs = dbController.getAllByParent(StockTransactionSecurityLeg.class, candidate.getId());
+					return legs.size() == 1 && legs.get(0).getSecurityId() == leg.getSecurityId()
+							&& legs.get(0).getQuantityType() == leg.getQuantityType()
+							&& legs.get(0).getQuantityE9() == -leg.getQuantityE9();
+				}).map(candidate -> candidate.getId()).toList();
+		if (matches.size() > 1) {
+			throw new GBankingException("Mehrere passende Gegenbuchungen gefunden. Die Umbuchung ist nicht eindeutig.");
+		}
+		return matches.isEmpty() ? null : matches.get(0);
+	}
+
+	private PositionSummary deliveryPosition(PortfolioSummary portfolio, StockTransaction transaction, StockTransactionSecurityLeg leg) {
+		List<PositionSummary> positions = transaction.getTransactionType() == StockTransactionType.DELIVERY_OUT
+				? portfolios.positionsBeforeTransfer(portfolio, transaction)
+				: portfolios.positionsAtTransferDate(portfolio, transaction.getSettledAt().toLocalDate());
+		PositionSummary position = positions.stream()
+				.filter(row -> row.securityId() == leg.getSecurityId() && row.quantityType() == leg.getQuantityType())
+				.findFirst().orElse(null);
+		StockSecurity security = dbController.getById(StockSecurity.class, leg.getSecurityId());
+		BigDecimal quantity = BigDecimal.valueOf(leg.getQuantityE9(), 9).abs().stripTrailingZeros();
+		BigDecimal price = leg.getPriceE8() != null ? BigDecimal.valueOf(leg.getPriceE8(), 8) : null;
+		if (price == null && position != null) {
+			price = position.acquisitionPrice();
+		}
+		Currency currency = leg.getPriceCurrency();
+		if (currency == null) {
+			currency = position != null ? position.currency() : security.getDefaultQuoteCurrency();
+		}
+		return new PositionSummary(portfolio.portfolioId(), security.getId(), security.getName(), null, null,
+				leg.getQuantityType(), quantity, price, null, null, null, currency, null);
+	}
+
+	private DeliveryDay requireSingleDelivery(int portfolioId, StockTransaction transaction) {
+		return deliveryDays(portfolioId, transaction.getTransactionType(), transaction.getSettledAt() != null
+				? transaction.getSettledAt().toLocalDate() : null).stream()
+				.filter(day -> day.ids().contains(transaction.getId()))
+				.map(day -> new DeliveryDay(day.date(), List.of(transaction), day.legs().stream()
+						.filter(leg -> leg.getTransactionId() == transaction.getId()).toList()))
+				.filter(day -> day.legs().size() == 1).findFirst()
+				.orElseThrow(() -> new GBankingException("Diese Lieferung kann nicht in eine Umbuchung umgewandelt werden."));
+	}
+
+	public void convertPositionDelivery(PortfolioSummary portfolio, PortfolioSummary other, PositionTransferPlan plan) {
+		dbController.executeInTransaction(() -> {
+			if (plan == null || !preparePositionTransfer(portfolio, other, plan.transactionId()).equals(plan)) {
+				throw new GBankingException("Die Lieferung oder Gegenbuchung hat sich geändert. Bitte erneut prüfen.");
+			}
+			int counterpart;
+			convertDeliveries(List.of(plan.transactionId()),
+					plan.outgoing() ? StockTransactionType.TRANSFER_OUT : StockTransactionType.TRANSFER_IN, null);
+			if (plan.counterpartId() == null) {
+				counterpart = portfolios.persistTransferSide(other, plan.position(), plan.position().quantity(),
+						plan.date(), !plan.outgoing());
+			} else {
+				counterpart = plan.counterpartId();
+				convertDeliveries(List.of(counterpart),
+						plan.outgoing() ? StockTransactionType.TRANSFER_IN : StockTransactionType.TRANSFER_OUT, null);
+			}
+			requireNonNegativeHistory(portfolio.portfolioId(), List.of(plan.position()), plan.date());
+			requireNonNegativeHistory(other.portfolioId(), List.of(plan.position()), plan.date());
+			StockTransferLink link = new StockTransferLink();
+			link.setOutgoingTransactionId(plan.outgoing() ? plan.transactionId() : counterpart);
+			link.setIncomingTransactionId(plan.outgoing() ? counterpart : plan.transactionId());
+			dbController.insertOrUpdate(link);
+			return null;
+		});
+	}
 
 	public record TransferPlan(int sourceId, int targetId, List<Integer> outgoingIds, List<Integer> incomingIds,
 			List<LocalDate> dates, List<PositionSummary> positions, LocalDate cutoff) {

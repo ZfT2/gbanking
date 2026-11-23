@@ -1543,7 +1543,7 @@ public class StockPortfolioService extends AbstractDbService {
 		persistTransferSide(target, position, quantity, date, false);
 	}
 
-	void persistTransferSide(PortfolioSummary portfolio, PositionSummary position, BigDecimal quantity, LocalDate date,
+	int persistTransferSide(PortfolioSummary portfolio, PositionSummary position, BigDecimal quantity, LocalDate date,
 			boolean outgoing) {
 		StockSecurity security = requireSecurity(position);
 		StockQuantityType quantityType = position.quantityType();
@@ -1558,6 +1558,7 @@ public class StockPortfolioService extends AbstractDbService {
 		leg.setQuantityType(quantityType);
 		dbController.insertOrUpdate(leg);
 		settle(transaction, date);
+		return transaction.getId();
 	}
 
 	void transferSettlementBalance(BankAccount source, BankAccount target, LocalDate date, BigDecimal exchangeRate) {

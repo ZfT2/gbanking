@@ -27,6 +27,7 @@ public final class StockDaoTypes {
 			StockTransactionExternalReference.class,
 			StockTransactionSecurityLeg.class,
 			StockSecurityExchangeLink.class,
+			StockTransferLink.class,
 			StockCorporateAction.class,
 			StockCorporateActionTransaction.class,
 			StockCorporateActionMember.class,
