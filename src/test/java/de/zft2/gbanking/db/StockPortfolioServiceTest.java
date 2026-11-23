@@ -69,6 +69,23 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 	@TempDir
 	Path files;
 
+	@Test
+	void securityDeletionShouldRejectHoldingsAndHistoricalReferences() throws Exception {
+		PortfolioSummary portfolio = createPortfolio(100, 200, "Depot", "Verrechnung", BigDecimal.ZERO);
+		importDeliveries(portfolio, deliveryRow("2026-09-10", "Einlieferung", 50, 5000));
+		StockPortfolioService portfolios = new StockPortfolioService();
+		int securityId = portfolios.getPositions(portfolio.portfolioId()).get(0).securityId();
+		StockSecurityAdministrationService securities = new StockSecurityAdministrationService();
+		assertFalse(securities.canDelete(securityId));
+		assertThrows(GBankingException.class, () -> securities.delete(securityId));
+		importDeliveries(portfolio, deliveryRow("2026-09-16", "Auslieferung", 50, 5000));
+		assertTrue(portfolios.getPositions(portfolio.portfolioId()).isEmpty());
+		assertFalse(securities.canDelete(securityId));
+		assertThrows(GBankingException.class, () -> securities.delete(securityId));
+		assertNotNull(db.getById(StockSecurity.class, securityId));
+		assertEquals(2, portfolios.getTransactions(portfolio.portfolioId()).size());
+	}
+
 	@ParameterizedTest
 	@ValueSource(strings = { "outgoing matched", "incoming matched", "outgoing missing", "incoming missing" })
 	void singleDeliveryShouldBecomeALinkedTransferWithoutDuplicatingExistingMovements(String scenario) throws Exception {

@@ -2,6 +2,8 @@ package de.zft2.gbanking.db;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
@@ -10,6 +12,7 @@ import de.zft2.gbanking.db.dao.enu.StockQuantityType;
 import de.zft2.gbanking.db.dao.enu.StockQuotationType;
 import de.zft2.gbanking.db.dao.enu.StockSecurityState;
 import de.zft2.gbanking.db.dao.enu.StockSecurityType;
+import de.zft2.gbanking.db.dao.stock.StockSecurityIdentifier;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.service.stock.StockSecurityAdministrationService;
 import de.zft2.gbanking.service.stock.StockSecurityAdministrationService.SecuritySaveRequest;
@@ -40,6 +43,18 @@ class StockSecurityAdministrationServiceTest extends DBControllerIntegrationBase
 
 		SecuritySaveRequest duplicate = request(null, "Zweites Wertpapier", "DE0000000001", null);
 		assertThrows(GBankingException.class, () -> service.save(duplicate));
+	}
+
+	@Test
+	void shouldDeleteUnreferencedSecurityWithItsIdentifiers() {
+		StockSecurityAdministrationService service = new StockSecurityAdministrationService();
+		int id = service.save(request(null, "Unbenutzt AG", "DE0000000001", "ABC123")).securityId();
+		assertTrue(service.canDelete(id));
+		service.delete(id);
+		assertTrue(service.getSecurities().isEmpty());
+		assertTrue(db.getAll(StockSecurityIdentifier.class).isEmpty());
+		assertFalse(service.canDelete(id));
+		assertThrows(GBankingException.class, () -> service.delete(id));
 	}
 
 	private static SecuritySaveRequest request(Integer id, String name, String isin, String wkn) {

@@ -16,6 +16,7 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.StockTransactionType;
+import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.GuiContext;
 import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.component.GBankingTableView;
@@ -31,6 +32,7 @@ import de.zft2.gbanking.gui.dialog.stock.StockTradeDialog;
 import de.zft2.gbanking.gui.dialog.stock.StockTransactionDialog;
 import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.gui.panel.layout.MasterContentPane;
+import de.zft2.gbanking.gui.panel.stock.StockSecurityDetailPanel;
 import de.zft2.gbanking.gui.util.DateFormatUtils;
 import de.zft2.gbanking.gui.util.FormGridHelper;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
@@ -46,6 +48,7 @@ import de.zft2.gbanking.service.stock.StockPortfolioService.SecuritySummary;
 import de.zft2.gbanking.service.stock.StockPortfolioService.TransactionPrefill;
 import de.zft2.gbanking.service.stock.StockPortfolioService.TransactionSummary;
 import de.zft2.gbanking.service.stock.StockPortfolioTransferService;
+import de.zft2.gbanking.service.stock.StockSecurityAdministrationService;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -76,7 +79,6 @@ import javafx.scene.control.TreeTableView;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
@@ -91,19 +93,25 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	private static final double TABLE_DIVIDER = 0.5;
 
 	private final StockPortfolioService service;
+	private final StockSecurityAdministrationService securityService;
 	private final BankingCapabilityService capabilityService;
 	private final TreeTableView<NavigationEntry> navigationTree = new TreeTableView<>();
 	private final CheckBox portfolioSelectAll = new CheckBox();
 	private final Set<Integer> selectedPortfolioIds = new HashSet<>();
 	private final TabPane detailTabs = new TabPane();
 	private final Tab portfolioTab;
+	private final Tab positionsTab;
+	private final Tab transactionsTab;
 	private final Tab settlementAccountTab;
 	private final GBankingTableView<PositionSummary> positionTable = new GBankingTableView<>();
 	private final GBankingTableView<TransactionSummary> transactionTable = new GBankingTableView<>();
 	private final GBankingTableView<Booking> accountTransactionTable = new GBankingTableView<>();
-	private final StackPane tableContent = new StackPane();
-	private final SplitPane portfolioTables;
-	private final VBox accountTransactions;
+	private final VBox positionSection;
+	private final VBox transactionSection;
+	private final StackPane positionSlot = new StackPane();
+	private final StackPane transactionSlot = new StackPane();
+	private final StackPane fullPositionSlot = new StackPane();
+	private final StackPane fullTransactionSlot = new StackPane();
 	private final Label portfolioNameValue = new Label();
 	private final Label portfolioBankValue = new Label();
 	private final Label portfolioNumberValue = new Label();
@@ -115,6 +123,9 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	private final Label settlementCurrencyValue = new Label();
 	private final Label settlementBalanceValue = new Label();
 	private final Button transactionNewButton = new Button();
+	private final Button securityNewButton = new Button();
+	private final Button securityEditButton = new Button();
+	private final Button securityDeleteButton = new Button();
 	private final Button transactionEditButton = new Button();
 	private final Button transactionDeleteButton = new Button();
 	private final Button exchangeButton = new Button();
@@ -135,32 +146,41 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	}
 
 	StockPortfolioOverviewPanel(StockPortfolioService service, BankingCapabilityService capabilityService) {
+		this(service, capabilityService, ServiceRegistry.getService(StockSecurityAdministrationService.class));
+	}
+
+	StockPortfolioOverviewPanel(StockPortfolioService service, BankingCapabilityService capabilityService,
+			StockSecurityAdministrationService securityService) {
 		this.service = service;
 		this.capabilityService = capabilityService;
+		this.securityService = securityService;
 		setPageContext(PageContext.STOCK_PORTFOLIOS);
 		configureNavigation();
 		configurePositionTable();
 		configureTransactionTable();
 		configureAccountTransactionTable();
 
-		portfolioTab = createTab("UI_STOCK_TAB_PORTFOLIO", createPortfolioDetails());
-		settlementAccountTab = createTab("UI_STOCK_TAB_SETTLEMENT_ACCOUNT", createSettlementDetails());
-		detailTabs.getTabs().setAll(portfolioTab, settlementAccountTab);
-		detailTabs.setMinHeight(Region.USE_PREF_SIZE);
-		detailTabs.setMaxHeight(Region.USE_PREF_SIZE);
-		detailTabs.getSelectionModel().selectedItemProperty().addListener((observable, previous, selected) -> updateTableMode());
-
-		VBox positionSection = createTableSection("UI_STOCK_POSITIONS", positionTable);
-		VBox transactionSection = createTransactionSection();
-		portfolioTables = new SplitPane(positionSection, transactionSection);
+		configureTransactionButtons();
+		configureSecurityButtons();
+		positionSection = createTableSection("UI_STOCK_POSITIONS", positionTable);
+		transactionSection = createTransactionSection();
+		SplitPane portfolioTables = new SplitPane(positionSlot, transactionSlot);
 		portfolioTables.setOrientation(javafx.geometry.Orientation.VERTICAL);
 		portfolioTables.setDividerPositions(TABLE_DIVIDER);
 		GuiLayoutState.configureSplitPane(portfolioTables, "stockPortfolios.tables");
-		accountTransactions = createTableSection("UI_STOCK_SETTLEMENT_TRANSACTIONS", accountTransactionTable);
-		tableContent.getChildren().addAll(portfolioTables, accountTransactions);
+		VBox accountTransactions = createTableSection("UI_STOCK_SETTLEMENT_TRANSACTIONS", accountTransactionTable);
 
-		VBox right = new VBox(detailTabs, tableContent);
-		VBox.setVgrow(tableContent, Priority.ALWAYS);
+		portfolioTab = createTab("UI_STOCK_TAB_PORTFOLIO", createDetailContent(createPortfolioDetails(), portfolioTables));
+		positionsTab = createTab("UI_STOCK_TAB_POSITIONS", createDetailContent(FormStyleUtils.createButtonBar(
+				securityNewButton, securityEditButton, securityDeleteButton, exchangeButton), fullPositionSlot));
+		transactionsTab = createTab("UI_STOCK_TAB_TRANSACTIONS", createDetailContent(FormStyleUtils.createButtonBar(
+				transactionNewButton, transactionEditButton, transactionDeleteButton, corporateButton), fullTransactionSlot));
+		settlementAccountTab = createTab("UI_STOCK_TAB_SETTLEMENT_ACCOUNT", createDetailContent(createSettlementDetails(), accountTransactions));
+		detailTabs.getTabs().setAll(portfolioTab, positionsTab, transactionsTab, settlementAccountTab);
+		detailTabs.getSelectionModel().selectedItemProperty().addListener((observable, previous, selected) -> updateTableMode());
+
+		VBox right = new VBox(detailTabs);
+		VBox.setVgrow(detailTabs, Priority.ALWAYS);
 		MasterContentPane content = new MasterContentPane(createNavigationPane(), right, "stockPortfolios.main", MASTER_DIVIDER);
 		setOverviewContent("UI_PANEL_STOCK_PORTFOLIOS", content);
 		updateTableMode();
@@ -187,7 +207,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 			navigationTree.getSelectionModel().select(item);
 		}
 		navigationTree.scrollTo(navigationTree.getRow(item));
-		detailTabs.getSelectionModel().select(portfolioTab);
+		detailTabs.getSelectionModel().select(transactionsTab);
 		for (TransactionSummary transaction : transactionTable.getItems()) {
 			if (transaction.transactionId() == transactionId) {
 				transactionTable.getSelectionModel().select(transaction);
@@ -213,7 +233,11 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 			}
 			NavigationEntry entry = selected.getValue();
 			selectPortfolio(entry.portfolio());
-			detailTabs.getSelectionModel().select(entry.accountNode() ? settlementAccountTab : portfolioTab);
+			if (entry.accountNode()) {
+				detailTabs.getSelectionModel().select(settlementAccountTab);
+			} else if (detailTabs.getSelectionModel().getSelectedItem() == settlementAccountTab) {
+				detailTabs.getSelectionModel().select(portfolioTab);
+			}
 		});
 	}
 
@@ -291,10 +315,19 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		FormGridHelper.addFieldAbove(grid, getText("UI_STOCK_FIELD_ACCOUNT_NUMBER"), portfolioNumberValue, 2, 0);
 		FormGridHelper.addFieldAbove(grid, getText("UI_STOCK_FIELD_OPENED_AT"), portfolioOpenedValue, 0, 1);
 		FormGridHelper.addFieldAbove(grid, getText("UI_STOCK_FIELD_SETTLEMENT_ACCOUNT"), portfolioSettlementValue, 1, 1, 2);
-		configureTransactionButtons();
-		grid.add(FormStyleUtils.createButtonBar(transactionNewButton, transactionEditButton,
-				transactionDeleteButton, exchangeButton, corporateButton), 0, 4, 3, 1);
 		return grid;
+	}
+
+	private void configureSecurityButtons() {
+		securityNewButton.setText(getText("UI_BUTTON_NEW"));
+		securityEditButton.setText(getText("UI_BUTTON_EDIT"));
+		securityDeleteButton.setText(getText("UI_BUTTON_DELETE"));
+		securityNewButton.setOnAction(event -> openSecurityEditor(null));
+		securityEditButton.setOnAction(event -> openSecurityEditor(positionTable.getSelectionModel().getSelectedItem()));
+		securityDeleteButton.setOnAction(event -> deleteSelectedSecurity());
+		positionTable.getSelectionModel().selectedItemProperty().addListener(
+				(observable, previous, selected) -> updateSecurityButtons());
+		updateSecurityButtons();
 	}
 
 	private void configureTransactionButtons() {
@@ -305,7 +338,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		transactionEditButton.setOnAction(event -> openSelectedTransaction());
 		transactionDeleteButton.setOnAction(event -> deleteSelectedTransaction());
 		exchangeButton.setText(getText("UI_STOCK_ACTION_EXCHANGE"));
-		exchangeButton.setOnAction(event -> openSecurityExchange(null, false));
+		exchangeButton.setOnAction(event -> openSecurityExchange(positionTable.getSelectionModel().getSelectedItem(), false));
 		corporateButton.setText(getText("UI_STOCK_CORPORATE_TITLE"));
 		corporateButton.setOnAction(event -> {
 			try {
@@ -490,6 +523,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	private void showPositionHistory(int securityId) {
 		historySecurityId = securityId;
 		updateTransactionHistory();
+		detailTabs.getSelectionModel().select(transactionsTab);
 	}
 
 	private void updateTransactionHistory() {
@@ -697,7 +731,14 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		return tab;
 	}
 
+	private static VBox createDetailContent(Node header, Node content) {
+		VBox result = new VBox(header, content);
+		VBox.setVgrow(content, Priority.ALWAYS);
+		return result;
+	}
+
 	private void reloadPortfolios() {
+		Tab selectedTab = detailTabs.getSelectionModel().getSelectedItem();
 		int selectedId = selectedPortfolio != null ? selectedPortfolio.portfolioId() : 0;
 		portfolios = loadVisiblePortfolios();
 		selectedPortfolioIds.retainAll(portfolios.stream().map(PortfolioSummary::portfolioId).toList());
@@ -721,6 +762,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		} else {
 			selectPortfolio(null);
 		}
+		detailTabs.getSelectionModel().select(selectedTab);
 	}
 
 	private List<PortfolioSummary> loadVisiblePortfolios() {
@@ -822,14 +864,23 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		settlementBalanceValue.setText(selectedPortfolio != null
 				? formatAmount(selectedPortfolio.settlementBalance(), selectedPortfolio.settlementCurrency()) : "");
 		updateTransactionButtons();
+		updateSecurityButtons();
 	}
 
 	private void updateTableMode() {
-		boolean portfolioMode = detailTabs.getSelectionModel().getSelectedItem() != settlementAccountTab;
-		portfolioTables.setVisible(portfolioMode);
-		portfolioTables.setManaged(portfolioMode);
-		accountTransactions.setVisible(!portfolioMode);
-		accountTransactions.setManaged(!portfolioMode);
+		Tab selected = detailTabs.getSelectionModel().getSelectedItem();
+		positionSlot.getChildren().clear();
+		transactionSlot.getChildren().clear();
+		fullPositionSlot.getChildren().clear();
+		fullTransactionSlot.getChildren().clear();
+		if (selected == positionsTab) {
+			fullPositionSlot.getChildren().add(positionSection);
+		} else if (selected == transactionsTab) {
+			fullTransactionSlot.getChildren().add(transactionSection);
+		} else {
+			positionSlot.getChildren().add(positionSection);
+			transactionSlot.getChildren().add(transactionSection);
+		}
 	}
 
 	private void refreshSelectedPortfolio() {
@@ -843,6 +894,47 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		corporateButton.setDisable(selectedPortfolio == null);
 		transactionEditButton.setDisable(!canEdit(selected));
 		transactionDeleteButton.setDisable(selected == null);
+	}
+
+	private void updateSecurityButtons() {
+		PositionSummary selected = positionTable.getSelectionModel().getSelectedItem();
+		securityNewButton.setDisable(selectedPortfolio == null);
+		securityEditButton.setDisable(selected == null);
+		securityDeleteButton.setDisable(selected == null || selected.quantity().signum() != 0
+				|| !securityService.canDelete(selected.securityId()));
+	}
+
+	private void openSecurityEditor(PositionSummary position) {
+		try {
+			var security = position == null ? null : securityService.getSecurities().stream()
+					.filter(item -> item.securityId() == position.securityId()).findFirst()
+					.orElseThrow(() -> new GBankingException("Das Wertpapier wurde nicht gefunden"));
+			var dialog = DialogWindowSupport.createModalStage(getOwnerWindow(), "UI_PANEL_STOCK_SECURITY_DETAILS");
+			StockSecurityDetailPanel editor = new StockSecurityDetailPanel(securityService, id -> {
+				refreshSelectedPortfolio();
+				dialog.close();
+			}, () -> dialog.close());
+			editor.editSecurity(security);
+			dialog.setScene(DialogWindowSupport.createScene(editor, 1050, 600));
+			dialog.showAndWait();
+		} catch (RuntimeException exception) {
+			DialogWindowSupport.showAlert(getOwnerWindow(), Alert.AlertType.WARNING, exception.getMessage());
+		}
+	}
+
+	private void deleteSelectedSecurity() {
+		PositionSummary selected = positionTable.getSelectionModel().getSelectedItem();
+		if (selected == null || !DialogWindowSupport.showConfirmation(getOwnerWindow(), Alert.AlertType.CONFIRMATION,
+				getText("UI_BUTTON_DELETE"), getText("UI_PANEL_STOCK_SECURITY_DETAILS"),
+				getText("UI_STOCK_SECURITY_DELETE_CONFIRM", selected.securityName()), ButtonType.OK, ButtonType.CANCEL)) {
+			return;
+		}
+		try {
+			securityService.delete(selected.securityId());
+			refreshSelectedPortfolio();
+		} catch (RuntimeException exception) {
+			DialogWindowSupport.showAlert(getOwnerWindow(), Alert.AlertType.WARNING, exception.getMessage());
+		}
 	}
 
 	private static boolean canEdit(TransactionSummary transaction) {

@@ -33,6 +33,7 @@ public class StockSecurityDetailPanel extends AbstractReadonlyDetailPanel {
 
 	private final StockSecurityAdministrationService service;
 	private final Consumer<Integer> afterSave;
+	private final Runnable afterCancel;
 
 	private final TextField nameText = FormFields.textL();
 	private final ComboBox<StockSecurityType> typeCombo = FormFields.comboM(
@@ -69,9 +70,15 @@ public class StockSecurityDetailPanel extends AbstractReadonlyDetailPanel {
 	private final DetailFormEditMode editModeController;
 
 	public StockSecurityDetailPanel(StockSecurityAdministrationService service, Consumer<Integer> afterSave) {
+		this(service, afterSave, null);
+	}
+
+	public StockSecurityDetailPanel(StockSecurityAdministrationService service, Consumer<Integer> afterSave,
+			Runnable afterCancel) {
 		super("UI_PANEL_STOCK_SECURITY_DETAILS");
 		this.service = service;
 		this.afterSave = afterSave;
+		this.afterCancel = afterCancel;
 		FormGridHelper.setEqualGrowColumns(formGrid, 3);
 		createFields();
 		configureButtons();
@@ -125,6 +132,15 @@ public class StockSecurityDetailPanel extends AbstractReadonlyDetailPanel {
 		setEditMode(false);
 	}
 
+	public void editSecurity(SecurityDetails security) {
+		updatePanel(security);
+		if (security == null) {
+			startNewSecurity();
+		} else {
+			setEditMode(true);
+		}
+	}
+
 	private void startNewSecurity() {
 		creatingNewSecurity = true;
 		clearForm();
@@ -161,6 +177,9 @@ public class StockSecurityDetailPanel extends AbstractReadonlyDetailPanel {
 		creatingNewSecurity = false;
 		fillForm(currentSecurity);
 		setEditMode(false);
+		if (afterCancel != null) {
+			afterCancel.run();
+		}
 	}
 
 	private void fillForm(SecurityDetails security) {

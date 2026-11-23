@@ -22,9 +22,13 @@ import de.zft2.gbanking.db.dao.enu.StockQuantityType;
 import de.zft2.gbanking.db.dao.enu.StockQuotationType;
 import de.zft2.gbanking.db.dao.enu.StockSecurityState;
 import de.zft2.gbanking.db.dao.enu.StockSecurityType;
+import de.zft2.gbanking.db.dao.stock.StockCorporateAction;
 import de.zft2.gbanking.db.dao.stock.StockPortfolioPosition;
+import de.zft2.gbanking.db.dao.stock.StockPortfolioStatementPosition;
 import de.zft2.gbanking.db.dao.stock.StockSecurity;
 import de.zft2.gbanking.db.dao.stock.StockSecurityIdentifier;
+import de.zft2.gbanking.db.dao.stock.StockSecurityPriceSource;
+import de.zft2.gbanking.db.dao.stock.StockTransactionSecurityLeg;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.service.AbstractDbService;
 
@@ -49,6 +53,29 @@ public class StockSecurityAdministrationService extends AbstractDbService {
 				.filter(position -> position.getQuantityE9() != 0)
 				.map(StockPortfolioPosition::getSecurityId)
 				.collect(Collectors.toSet());
+	}
+
+	public boolean canDelete(int securityId) {
+		return dbController.getById(StockSecurity.class, securityId) != null
+				&& !securitiesWithHoldings().contains(securityId)
+				&& dbController.getAll(StockTransactionSecurityLeg.class).stream()
+						.noneMatch(leg -> leg.getSecurityId() == securityId)
+				&& dbController.getAll(StockPortfolioStatementPosition.class).stream()
+						.noneMatch(position -> position.getSecurityId() == securityId)
+				&& dbController.getAll(StockCorporateAction.class).stream()
+						.noneMatch(action -> action.getUnderlyingSecurityId() == securityId
+								|| Integer.valueOf(securityId).equals(action.getRightsSecurityId())
+								|| action.getTargetSecurityId() == securityId)
+				&& dbController.getAllByParent(StockSecurityPriceSource.class, securityId).isEmpty();
+	}
+
+	public void delete(int securityId) {
+		dbController.executeInTransaction(() -> {
+			if (!canDelete(securityId)) {
+				throw new GBankingException("Das Wertpapier kann nur ohne Bestand und ohne Referenzen gelöscht werden.");
+			}
+			dbController.delete(dbController.getById(StockSecurity.class, securityId), null);
+		});
 	}
 
 	public SecurityDetails save(SecuritySaveRequest request) {
