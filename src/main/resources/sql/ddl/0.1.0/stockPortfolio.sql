@@ -298,7 +298,7 @@ CREATE TABLE stockSecurity (
   updatedAt TEXT NOT NULL,
   CHECK (TRIM(name) <> ''),
   CHECK (domicileCountry IS NULL OR LENGTH(domicileCountry) = 2),
-  CHECK (securityType BETWEEN 1 AND 14),
+  CHECK (securityType BETWEEN 1 AND 30),
   CHECK (defaultQuantityType BETWEEN 1 AND 2),
   CHECK (defaultQuotationType BETWEEN 1 AND 3),
   CHECK (defaultPriceBasis IS NULL OR defaultPriceBasis BETWEEN 1 AND 2),

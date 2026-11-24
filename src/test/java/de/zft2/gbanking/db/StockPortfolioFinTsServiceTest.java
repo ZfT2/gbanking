@@ -21,6 +21,8 @@ import java.util.Date;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.kapott.hbci.GV.HBCIJob;
 import org.kapott.hbci.GV_Result.GVRWPDepotList;
 import org.kapott.hbci.GV_Result.GVRWPDepotList.Entry;
@@ -41,6 +43,7 @@ import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.StockCustodyType;
 import de.zft2.gbanking.db.dao.enu.StockImportStatus;
+import de.zft2.gbanking.db.dao.enu.StockSecurityType;
 import de.zft2.gbanking.db.dao.enu.StockStatementStatus;
 import de.zft2.gbanking.db.dao.enu.StockTransactionType;
 import de.zft2.gbanking.db.dao.stock.StockImportBatch;
@@ -66,6 +69,20 @@ import de.zft2.gbanking.testdata.TestDataFactory;
 class StockPortfolioFinTsServiceTest extends DBControllerIntegrationBaseTest {
 
 	private static final LocalDate STATEMENT_DATE = LocalDate.of(2026, Month.SEPTEMBER, 15);
+
+	@ParameterizedTest
+	@CsvSource({ "ETF,ETF", "Anleihe,BOND", "Aktie,STOCK", "Nicht zugeordnet,UNKNOWN" })
+	void shouldKeepKnownImportTypesAndUseUnknownOtherwise(String description, StockSecurityType expected) {
+		BankAccount depot = createAccount("FinTS-Depot", AccountType.DEPOT);
+		BankAccount settlement = createAccount("Girokonto", AccountType.CURRENT_ACCOUNT);
+		StockPortfolioFinTsService service = new StockPortfolioFinTsService();
+		PortfolioSummary portfolio = service.ensurePortfolio(depot.getId(), settlement.getId());
+		Entry statement = createStatement(BigDecimal.ONE, STATEMENT_DATE);
+		statement.getEntries()[0].name = "Testpapier";
+		statement.getEntries()[0].wptype = description;
+		service.persistPortfolioStatement(portfolio.portfolioId(), depot, statement);
+		assertEquals(expected, db.getAll(StockSecurity.class).get(0).getSecurityType());
+	}
 
 	@Test
 	void backfilledReplacementShouldCarryEarlierBankBasisAndRebalanceAlreadyRetrievedSuccessor() {

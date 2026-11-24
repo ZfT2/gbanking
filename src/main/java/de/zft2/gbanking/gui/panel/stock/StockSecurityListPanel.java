@@ -24,9 +24,9 @@ import javafx.geometry.Pos;
 
 public class StockSecurityListPanel extends AbstractFilterableTablePanel<SecurityDetails> {
 
-	private static final double LIST_MIN_WIDTH = 320;
-	private static final double LIST_PREF_WIDTH = 400;
-	private static final double LIST_MAX_WIDTH = 520;
+	private static final double LIST_MIN_WIDTH = 400;
+	private static final double LIST_PREF_WIDTH = 480;
+	private static final double LIST_MAX_WIDTH = 600;
 
 	private final StockSecurityAdministrationService service;
 	private final StockPortfolioService portfolioService;
@@ -87,8 +87,8 @@ public class StockSecurityListPanel extends AbstractFilterableTablePanel<Securit
 	private List<TableColumn<SecurityDetails, ?>> createColumns() {
 		return List.of(
 				TableColumnFactory.createTextColumn(getText("UI_STOCK_SECURITY_NAME"), SecurityDetails::name, 150, 210),
-				TableColumnFactory.createTextColumn(getText("UI_STOCK_COLUMN_ISIN"), SecurityDetails::isin, 105, 125),
-				TableColumnFactory.createTextColumn(getText("UI_STOCK_COLUMN_WKN"), SecurityDetails::wkn, 75, 90));
+				TableColumnFactory.createFixedTextColumn(getText("UI_STOCK_COLUMN_ISIN"), SecurityDetails::isin, 115),
+				TableColumnFactory.createFixedTextColumn(getText("UI_STOCK_COLUMN_WKN"), SecurityDetails::wkn, 85));
 	}
 
 	@Override
@@ -105,7 +105,7 @@ public class StockSecurityListPanel extends AbstractFilterableTablePanel<Securit
 			SecurityFilter selected = filter.getValue();
 			boolean currentHoldingsOnly = GuiContext.isOnlySecuritiesWithHoldingsVisible();
 			if (selected == null || currentHoldingsOnly != holdingsOnly) {
-				selected = new SecurityFilter(currentHoldingsOnly ? "HOLDINGS" : "ALL", null, "");
+				selected = choice(selected == null || currentHoldingsOnly ? "HOLDINGS" : "ALL");
 			}
 			holdingsOnly = currentHoldingsOnly;
 			usage = service.getSecurityUsage();

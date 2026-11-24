@@ -1,5 +1,6 @@
 package de.zft2.gbanking.gui.panel.stock;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -7,6 +8,7 @@ import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.StockPriceBasis;
 import de.zft2.gbanking.db.dao.enu.StockQuantityType;
 import de.zft2.gbanking.db.dao.enu.StockQuotationType;
+import de.zft2.gbanking.db.dao.enu.StockSecurityCategory;
 import de.zft2.gbanking.db.dao.enu.StockSecurityState;
 import de.zft2.gbanking.db.dao.enu.StockSecurityType;
 import de.zft2.gbanking.exception.GBankingException;
@@ -22,15 +24,21 @@ import de.zft2.gbanking.service.stock.StockSecurityAdministrationService;
 import de.zft2.gbanking.service.stock.StockSecurityAdministrationService.SecurityDetails;
 import de.zft2.gbanking.service.stock.StockSecurityAdministrationService.SecuritySaveRequest;
 import javafx.collections.FXCollections;
+import javafx.geometry.Insets;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Control;
 import javafx.scene.control.DatePicker;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.TextField;
+import javafx.scene.control.skin.ComboBoxListViewSkin;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
 
 public class StockSecurityDetailPanel extends AbstractReadonlyDetailPanel {
 
@@ -86,6 +94,7 @@ public class StockSecurityDetailPanel extends AbstractReadonlyDetailPanel {
 		this.afterCancel = afterCancel;
 		FormGridHelper.setEqualGrowColumns(formGrid, 3);
 		createFields();
+		configureTypeChoices();
 		configureButtons();
 		makeReadOnly(nameText, isinText, wknText, tickerText, marketIdentifierCodeText, issuerText,
 				domicileCountryText, createdAtText, updatedAtText);
@@ -138,6 +147,61 @@ public class StockSecurityDetailPanel extends AbstractReadonlyDetailPanel {
 		cancelButton.setOnAction(event -> cancelChanges());
 	}
 
+	private void configureTypeChoices() {
+		typeCombo.setId("security-type");
+		// Heading clicks must not trigger the skin's mouse-release popup dismissal.
+		typeCombo.skinProperty().addListener((observable, previous, skin) -> {
+			if (skin instanceof ComboBoxListViewSkin<?> listSkin) {
+				listSkin.setHideOnClick(false);
+			}
+		});
+		typeCombo.setCellFactory(list -> createTypeCell());
+	}
+
+	private ListCell<StockSecurityType> createTypeCell() {
+		ListCell<StockSecurityType> cell = new ListCell<>() {
+			@Override
+			protected void updateItem(StockSecurityType type, boolean empty) {
+				super.updateItem(type, empty);
+				setText(null);
+				setGraphic(null);
+				if (empty || type == null) {
+					return;
+				}
+				int index = typeCombo.getItems().indexOf(type);
+				List<StockSecurityCategory> previous = index > 0
+						? categoryPath(typeCombo.getItems().get(index - 1)) : List.of();
+				List<StockSecurityCategory> path = categoryPath(type);
+				VBox content = new VBox(4);
+				for (int depth = 0; depth < path.size(); depth++) {
+					StockSecurityCategory category = path.get(depth);
+					if (!previous.contains(category)) {
+						Label heading = new Label(category.getDisplayName());
+						heading.getStyleClass().add("security-type-heading");
+						heading.setPadding(new Insets(0, 0, 0, depth * 12.0));
+						heading.setMaxWidth(Double.MAX_VALUE);
+						heading.addEventHandler(MouseEvent.ANY, event -> event.consume());
+						content.getChildren().add(heading);
+					}
+				}
+				Label product = new Label(type.getDisplayName());
+				product.setPadding(new Insets(0, 0, 0, path.size() * 12.0));
+				content.getChildren().add(product);
+				setGraphic(content);
+			}
+		};
+		cell.setOnMouseClicked(event -> typeCombo.hide());
+		return cell;
+	}
+
+	private static List<StockSecurityCategory> categoryPath(StockSecurityType type) {
+		List<StockSecurityCategory> path = new ArrayList<>();
+		for (StockSecurityCategory category = type.getCategory(); category != null; category = category.getParent()) {
+			path.add(0, category);
+		}
+		return path;
+	}
+
 	public void updatePanel(SecurityDetails security) {
 		creatingNewSecurity = false;
 		currentSecurity = security;
@@ -163,7 +227,7 @@ public class StockSecurityDetailPanel extends AbstractReadonlyDetailPanel {
 	private void startNewSecurity() {
 		creatingNewSecurity = true;
 		clearForm();
-		typeCombo.setValue(StockSecurityType.STOCK);
+		typeCombo.setValue(StockSecurityType.UNKNOWN);
 		stateCombo.setValue(StockSecurityState.ACTIVE);
 		quantityTypeCombo.setValue(StockQuantityType.UNITS);
 		quoteCurrencyCombo.setValue(Currency.EUR);

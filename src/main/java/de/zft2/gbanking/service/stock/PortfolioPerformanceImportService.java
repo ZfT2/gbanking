@@ -45,7 +45,6 @@ import de.zft2.gbanking.db.dao.enu.StockQuantityType;
 import de.zft2.gbanking.db.dao.enu.StockQuotationType;
 import de.zft2.gbanking.db.dao.enu.StockSecurityLegRole;
 import de.zft2.gbanking.db.dao.enu.StockSecurityState;
-import de.zft2.gbanking.db.dao.enu.StockSecurityType;
 import de.zft2.gbanking.db.dao.enu.StockTransactionEditField;
 import de.zft2.gbanking.db.dao.enu.StockTransactionStatus;
 import de.zft2.gbanking.db.dao.enu.StockTransactionType;
@@ -744,7 +743,6 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		StockSecurity security = findSecurity(data, lookups);
 		if (security == null) {
 			security = new StockSecurity();
-			security.setSecurityType(StockSecurityType.OTHER);
 			security.setName(data.name());
 			security.setIssuer(data.issuer());
 			security.setDefaultQuantityType(StockQuantityType.UNITS);

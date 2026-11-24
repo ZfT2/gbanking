@@ -101,13 +101,13 @@ INSERT INTO stockSecurity (
     nominalCurrency, defaultQuoteCurrency, defaultQuotationType, defaultPriceBasis,
     securityState, createdAt, updatedAt
 ) VALUES
-    (900201, 4, 'Weltweit Demo ETF', 'Demo Asset Management', 'DE', NULL, 1,
+    (900201, 7, 'Weltweit Demo ETF', 'Demo Asset Management', 'DE', NULL, 1,
      NULL, 1, 1, NULL, 1, '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
-    (900202, 1, 'Demo Technologie AG', 'Demo Technologie AG', 'DE', NULL, 1,
+    (900202, 2, 'Demo Technologie AG', 'Demo Technologie AG', 'DE', NULL, 1,
      NULL, 1, 1, NULL, 1, '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
-    (900203, 1, 'Historische Demo AG', 'Historische Demo AG', 'DE', NULL, 1,
+    (900203, 2, 'Historische Demo AG', 'Historische Demo AG', 'DE', NULL, 1,
      NULL, 1, 1, NULL, 2, '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000'),
-    (900204, 4, 'Gruene Zukunft ETF', 'Demo Nachhaltig Invest', 'DE', NULL, 1,
+    (900204, 7, 'Gruene Zukunft ETF', 'Demo Nachhaltig Invest', 'DE', NULL, 1,
      NULL, 1, 1, NULL, 1, '2026-01-01 09:00:00.000', '2026-06-30 18:00:00.000');
 
 [SQL_DEMO_INSERT_STOCK_SECURITY_IDENTIFIERS]

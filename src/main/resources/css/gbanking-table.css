@@ -81,6 +81,10 @@
     -fx-pref-width: 200px;
 }
 
+.security-type-heading {
+    -fx-font-weight: bold;
+}
+
 .account-group-separator {
     -fx-background-color: -fx-control-inner-background;
     -fx-padding: 0 8 0 8;

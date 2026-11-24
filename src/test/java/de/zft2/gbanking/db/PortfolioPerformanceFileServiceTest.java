@@ -32,6 +32,7 @@ import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.StockDataSourceType;
+import de.zft2.gbanking.db.dao.enu.StockSecurityType;
 import de.zft2.gbanking.db.dao.enu.StockTransactionStatus;
 import de.zft2.gbanking.db.dao.stock.StockDataSource;
 import de.zft2.gbanking.db.dao.stock.StockPortfolio;
@@ -105,6 +106,7 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		assertFalse(result.alreadyImported());
 		assertEquals(1, result.transactions());
 		assertEquals(0, result.bookings());
+		assertEquals(StockSecurityType.UNKNOWN, db.getAll(StockSecurity.class).get(0).getSecurityType());
 		assertEquals(1, db.getAllByParent(Booking.class, portfolio.settlementAccountId()).size());
 		assertEquals(existing.getId(), db.getAll(StockTransactionCashLeg.class).get(0).getBookingId());
 		assertNotNull(db.getById(Booking.class, existing.getId()).getCrossBookingId());

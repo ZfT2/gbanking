@@ -42,6 +42,25 @@ import de.zft2.gbanking.testdata.TestDataFactory;
 class StockPersistenceTest extends DBControllerIntegrationBaseTest {
 
 	@Test
+	void shouldRoundTripAllProductTypesAndRejectInvalidIds() throws Exception {
+		StockSecurity security = createSecurity();
+		for (StockSecurityType type : StockSecurityType.values()) {
+			security.setSecurityType(type);
+			db.insertOrUpdate(security);
+			assertEquals(type, db.getById(StockSecurity.class, security.getId()).getSecurityType());
+		}
+		security.setSecurityType(new StockSecurity().getSecurityType());
+		db.insertOrUpdate(security);
+		assertEquals(StockSecurityType.UNKNOWN, db.getById(StockSecurity.class, security.getId()).getSecurityType());
+		try (var statement = DBController.getConnection().createStatement()) {
+			for (int invalid : List.of(0, 31)) {
+				assertThrows(java.sql.SQLException.class, () -> statement.executeUpdate(
+						"UPDATE stockSecurity SET securityType = " + invalid + " WHERE id = " + security.getId()));
+			}
+		}
+	}
+
+	@Test
 	void shouldPersistTypedPortfolioTransactionAndPriceData() {
 		StockDataSource source = createManualSource();
 		BankAccount depotAccount = createAccount(AccountType.DEPOT);

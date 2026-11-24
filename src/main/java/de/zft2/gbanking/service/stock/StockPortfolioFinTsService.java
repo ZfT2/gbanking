@@ -688,7 +688,7 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 		if (description.contains("AKTIE") || description.contains("STOCK")) {
 			return StockSecurityType.STOCK;
 		}
-		return StockSecurityType.OTHER;
+		return StockSecurityType.UNKNOWN;
 	}
 
 	private static StockSubBalanceQualifier mapSubBalanceQualifier(SubSaldo source) {

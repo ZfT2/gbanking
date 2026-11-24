@@ -12,7 +12,7 @@ import de.zft2.gbanking.db.dao.enu.StockSecurityType;
 @StockTable(name = "stockSecurity", createdAt = true, updatedAt = true)
 public class StockSecurity extends StockDao {
 
-	private StockSecurityType securityType;
+	private StockSecurityType securityType = StockSecurityType.UNKNOWN;
 	private String name;
 	private String issuer;
 	private String domicileCountry;

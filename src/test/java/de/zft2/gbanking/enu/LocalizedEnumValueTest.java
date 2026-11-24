@@ -28,6 +28,7 @@ import de.zft2.gbanking.db.dao.enu.StockQuantityType;
 import de.zft2.gbanking.db.dao.enu.StockQuotationType;
 import de.zft2.gbanking.db.dao.enu.StockSecurityState;
 import de.zft2.gbanking.db.dao.enu.StockSecurityType;
+import de.zft2.gbanking.db.dao.enu.StockSecurityCategory;
 import de.zft2.gbanking.db.dao.enu.TanProcedure;
 import de.zft2.gbanking.gui.enu.ButtonContext;
 import de.zft2.gbanking.gui.enu.FileType;
@@ -63,6 +64,7 @@ class LocalizedEnumValueTest {
 		assertLocalized(StockQuotationType.values());
 		assertLocalized(StockSecurityState.values());
 		assertLocalized(StockSecurityType.values());
+		assertLocalized(StockSecurityCategory.values());
 		assertLocalized(TanProcedure.values());
 		assertLocalized(PageContext.values());
 		assertLocalized(ButtonContext.values());

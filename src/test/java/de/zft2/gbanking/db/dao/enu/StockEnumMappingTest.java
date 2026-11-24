@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.util.HashSet;
 import java.util.List;
@@ -53,6 +54,20 @@ class StockEnumMappingTest {
 						() -> type.getSimpleName() + " has duplicate database ID " + idType.getDbStateId());
 			}
 		}
+	}
+
+	@Test
+	void productCategoriesShouldBeAcyclicAndNotHaveDatabaseIds() {
+		assertFalse(IdType.class.isAssignableFrom(StockSecurityCategory.class));
+		Set<StockSecurityCategory> used = new HashSet<>();
+		for (StockSecurityType type : StockSecurityType.values()) {
+			Set<StockSecurityCategory> path = new HashSet<>();
+			for (StockSecurityCategory category = type.getCategory(); category != null; category = category.getParent()) {
+				assertTrue(path.add(category), "Product category cycle");
+				used.add(category);
+			}
+		}
+		assertEquals(Set.of(StockSecurityCategory.values()), used);
 	}
 
 	@Test

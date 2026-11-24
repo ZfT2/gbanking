@@ -23,6 +23,8 @@ import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.SepaOrderStatus;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.db.dao.enu.StockSecurityType;
+import de.zft2.gbanking.db.dao.stock.StockSecurity;
 import de.zft2.gbanking.demo.DemoDataInstaller;
 import de.zft2.gbanking.service.BankingCapabilityService;
 
@@ -38,6 +40,8 @@ class DemoDataInstallerTest extends DBControllerIntegrationBaseTest {
 		assertEquals(7, countRows("moneytransfer"));
 		assertEquals(2, countRows("stockPortfolio"));
 		assertEquals(4, countRows("stockSecurity"));
+		assertEquals(StockSecurityType.ETF, db.getById(StockSecurity.class, 900201).getSecurityType());
+		assertEquals(StockSecurityType.STOCK, db.getById(StockSecurity.class, 900202).getSecurityType());
 		assertEquals(10, countRows("stockTransaction"));
 		assertEquals(12, countRows("stockSecurityPrice"));
 		assertEquals(6, countRows("stockPortfolioPosition"));
