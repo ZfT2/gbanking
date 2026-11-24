@@ -22,6 +22,8 @@ import de.zft2.gbanking.db.dao.enu.StockQuantityType;
 import de.zft2.gbanking.db.dao.enu.StockQuotationType;
 import de.zft2.gbanking.db.dao.enu.StockSecurityState;
 import de.zft2.gbanking.db.dao.enu.StockSecurityType;
+import de.zft2.gbanking.db.dao.enu.StockSecurityLegRole;
+import de.zft2.gbanking.db.dao.enu.StockTransactionStatus;
 import de.zft2.gbanking.db.dao.stock.StockCorporateAction;
 import de.zft2.gbanking.db.dao.stock.StockPortfolioPosition;
 import de.zft2.gbanking.db.dao.stock.StockPortfolioStatementPosition;
@@ -29,10 +31,32 @@ import de.zft2.gbanking.db.dao.stock.StockSecurity;
 import de.zft2.gbanking.db.dao.stock.StockSecurityIdentifier;
 import de.zft2.gbanking.db.dao.stock.StockSecurityPriceSource;
 import de.zft2.gbanking.db.dao.stock.StockTransactionSecurityLeg;
+import de.zft2.gbanking.db.dao.stock.StockTransaction;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.service.AbstractDbService;
 
 public class StockSecurityAdministrationService extends AbstractDbService {
+
+	public record SecurityUsage(Set<Integer> referenced, Map<Integer, Set<Integer>> holdingsByPortfolio) {
+	}
+
+	public SecurityUsage getSecurityUsage() {
+		Set<Integer> settled = dbController.getAll(StockTransaction.class).stream()
+				.filter(transaction -> transaction.getTransactionStatus() == StockTransactionStatus.SETTLED)
+				.map(transaction -> transaction.getId()).collect(Collectors.toSet());
+		Set<Integer> referenced = dbController.getAll(StockTransactionSecurityLeg.class).stream()
+				.filter(leg -> settled.contains(leg.getTransactionId())
+						&& leg.getLegRole() != StockSecurityLegRole.REFERENCE && leg.getQuantityE9() != 0)
+				.map(leg -> leg.getSecurityId()).collect(Collectors.toSet());
+		dbController.getAll(StockPortfolioStatementPosition.class).stream()
+				.filter(position -> position.getQuantityE9() != 0).forEach(position -> referenced.add(position.getSecurityId()));
+		Map<Integer, Set<Integer>> holdings = dbController.getAll(StockPortfolioPosition.class).stream()
+				.filter(position -> position.getQuantityE9() != 0)
+				.collect(Collectors.groupingBy(position -> position.getPortfolioId(),
+						Collectors.mapping(position -> position.getSecurityId(), Collectors.toSet())));
+		holdings.values().forEach(ids -> referenced.addAll(ids));
+		return new SecurityUsage(referenced, holdings);
+	}
 
 	public List<SecurityDetails> getSecurities() {
 		return getSecurities(false);

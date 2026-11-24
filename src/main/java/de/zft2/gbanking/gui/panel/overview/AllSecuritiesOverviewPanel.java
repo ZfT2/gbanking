@@ -50,7 +50,7 @@ public class AllSecuritiesOverviewPanel extends OverviewBasePanel {
 			}
 		});
 		pricePanel = new StockSecurityPricePanel(portfolioService);
-		listPanel = new StockSecurityListPanel(securityService, this::showSecurity);
+		listPanel = new StockSecurityListPanel(securityService, portfolioService, this::showSecurity);
 
 		VBox content = new VBox(detailPanel, pricePanel);
 		VBox.setVgrow(pricePanel, Priority.ALWAYS);

@@ -77,6 +77,10 @@
     -fx-min-width: 110px;
 }
 
+.security-filter-choice {
+    -fx-pref-width: 200px;
+}
+
 .account-group-separator {
     -fx-background-color: -fx-control-inner-background;
     -fx-padding: 0 8 0 8;

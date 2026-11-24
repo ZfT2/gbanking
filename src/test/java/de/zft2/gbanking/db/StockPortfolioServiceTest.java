@@ -89,6 +89,25 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 		assertEquals(2, portfolios.getTransactions(portfolio.portfolioId()).size());
 	}
 
+	@Test
+	void securityUsageShouldDistinguishHistoricalAndCurrentHoldingsPerPortfolio() throws Exception {
+		PortfolioSummary first = createPortfolio(100, 200, "Depot A", "Verrechnung A", BigDecimal.ZERO);
+		PortfolioSummary second = createPortfolio(101, 201, "Depot B", "Verrechnung B", BigDecimal.ZERO);
+		importDeliveries(first, deliveryRow("2026-09-10", "Einlieferung", 50, 50)
+				+ deliveryRow("2026-09-16", "Auslieferung", 50, 50));
+		importDeliveries(second, deliveryRow("2026-09-10", "Einlieferung", 1, 1)
+				.replace("DE0000000001", "DE0000000002"));
+		int unused = createSecurity("Unused").getId();
+		StockPortfolioService portfolios = new StockPortfolioService();
+		int historical = portfolios.getTransactions(first.portfolioId()).get(0).securityId();
+		int current = portfolios.getPositions(second.portfolioId()).get(0).securityId();
+		var usage = new StockSecurityAdministrationService().getSecurityUsage();
+		assertTrue(usage.referenced().containsAll(List.of(historical, current)));
+		assertFalse(usage.referenced().contains(unused));
+		assertFalse(usage.holdingsByPortfolio().containsKey(first.portfolioId()));
+		assertEquals(java.util.Set.of(current), usage.holdingsByPortfolio().get(second.portfolioId()));
+	}
+
 	@ParameterizedTest
 	@ValueSource(strings = { "outgoing matched", "incoming matched", "outgoing missing", "incoming missing" })
 	void singleDeliveryShouldBecomeALinkedTransferWithoutDuplicatingExistingMovements(String scenario) throws Exception {
