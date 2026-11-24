@@ -46,6 +46,7 @@ import de.zft2.gbanking.service.stock.StockPortfolioService.TransactionSummary;
 import de.zft2.gbanking.service.stock.StockSecurityAdministrationService;
 import de.zft2.gbanking.service.stock.StockSecurityAdministrationService.SecurityDetails;
 import javafx.application.Platform;
+import javafx.event.ActionEvent;
 import javafx.beans.property.BooleanProperty;
 import javafx.geometry.Orientation;
 import javafx.scene.control.Button;
@@ -68,6 +69,90 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 
 class StockPortfolioOverviewPanelTest {
+
+	@ParameterizedTest
+	@ValueSource(ints = { 1, 2, 3 })
+	@SuppressWarnings("unchecked")
+	void dedicatedTabsShouldFilterWithOrTermsWithoutFilteringTheOverview(int tabIndex) {
+		StockPortfolioService service = mock(StockPortfolioService.class);
+		PortfolioSummary portfolio = portfolio(1, "Depot");
+		when(service.getPortfolios()).thenReturn(List.of(portfolio));
+		when(service.getPositions(1)).thenReturn(List.of(
+				new PositionSummary(1, 1, "Äpfel", "DE0000000001", "WKN-A", StockQuantityType.UNITS,
+						BigDecimal.ONE, null, null, null, null, Currency.EUR, null),
+				new PositionSummary(1, 2, "Beta", "DE0000000002", "WKN-B", StockQuantityType.UNITS,
+						new BigDecimal("1234.50"), null, null, null, null, Currency.EUR, null)));
+		when(service.getTransactions(1)).thenReturn(List.of(
+				new TransactionSummary(1, StockTransactionType.BUY, 1, "Äpfel", "DE0000000001", "WKN-A",
+						LocalDate.of(2026, 1, 2), BigDecimal.ONE, null, null, Currency.EUR, 0, false, null),
+				new TransactionSummary(2, StockTransactionType.SELL, 2, "Beta", "DE0000000002", "WKN-B",
+						LocalDate.of(2026, 3, 4), new BigDecimal("1234.50"), null, null, Currency.EUR, 0, false, null)));
+		Booking first = new Booking(), second = new Booking();
+		first.setPurpose("Äpfel");
+		first.setAmount(BigDecimal.ONE);
+		first.setDateBooking(LocalDate.of(2026, 1, 2));
+		second.setPurpose("Beta");
+		second.setAmount(new BigDecimal("1234.50"));
+		second.setDateBooking(LocalDate.of(2026, 3, 4));
+		second.setBalance(new BigDecimal("1235.50"));
+		when(service.getAccountTransactions(portfolio.settlementAccountId())).thenReturn(List.of(first, second));
+		JavaFxTestSupport.runFx(() -> {
+			StockPortfolioOverviewPanel panel = new StockPortfolioOverviewPanel(service, mock(BankingCapabilityService.class));
+			panel.refreshOnShow();
+			TabPane tabs = (TabPane) ((VBox) ((SplitPane) panel.getChildren().get(1)).getItems().get(1)).getChildren().get(0);
+			SplitPane overview = (SplitPane) tabContent(tabs, 0).getChildren().get(1);
+			assertFalse(tableSection(overview, 0).getChildren().get(2).isManaged());
+			assertFalse(tableSection(overview, 1).getChildren().get(2).isVisible());
+			tabs.getSelectionModel().select(tabIndex);
+			VBox section = tabIndex == 3 ? (VBox) tabContent(tabs, 3).getChildren().get(1)
+					: (VBox) ((StackPane) tabContent(tabs, tabIndex).getChildren().get(1)).getChildren().get(0);
+			TableView<Object> table = (TableView<Object>) section.getChildren().get(1);
+			HBox searchRow = (HBox) section.getChildren().get(2);
+			TextField search = (TextField) searchRow.getChildren().get(1);
+			assertTrue(searchRow.isManaged());
+			List<Object> all = List.copyOf(table.getItems());
+			search.setText("  äPFEL   nonexistent  ");
+			search.fireEvent(new ActionEvent());
+			assertEquals(List.of(all.get(0)), List.copyOf(table.getItems()));
+			table.getSelectionModel().selectFirst();
+			search.setText("1.234,50");
+			search.fireEvent(new ActionEvent());
+			assertEquals(List.of(all.get(1)), List.copyOf(table.getItems()));
+			assertNull(table.getSelectionModel().getSelectedItem());
+			search.setText("äpfel beta");
+			search.fireEvent(new ActionEvent());
+			assertEquals(2, table.getItems().size());
+			search.setText(tabIndex == 1 ? "WKN-A" : "02.01.2026");
+			search.fireEvent(new ActionEvent());
+			assertEquals(List.of(all.get(0)), List.copyOf(table.getItems()));
+			panel.refreshOnShow();
+			assertEquals(1, table.getItems().size());
+			tabs.getSelectionModel().select(0);
+			assertFalse(searchRow.isVisible());
+			assertFalse(searchRow.isManaged());
+			assertEquals(2, table.getItems().size());
+			tabs.getSelectionModel().select(tabIndex);
+			assertEquals(1, table.getItems().size());
+			((Button) searchRow.getChildren().get(2)).fire();
+			assertTrue(search.getText().isEmpty());
+			assertEquals(all, List.copyOf(table.getItems()));
+			String amountKey = tabIndex == 3 ? "UI_STOCK_COLUMN_AMOUNT" : "UI_STOCK_COLUMN_QUANTITY";
+			TableColumn<Object, ?> column = table.getColumns().stream()
+					.filter(item -> item.getText().equals(BaseMessages.getTextStatic(amountKey))).findFirst().orElseThrow();
+			column.setSortType(TableColumn.SortType.DESCENDING);
+			table.getSortOrder().add(column);
+			table.sort();
+			assertEquals(List.of(all.get(1), all.get(0)), List.copyOf(table.getItems()));
+			if (tabIndex == 2) {
+				search.setText("nonexistent");
+				search.fireEvent(new ActionEvent());
+				assertTrue(panel.selectTransaction(1, 2));
+				assertTrue(search.getText().isEmpty());
+				assertEquals(all.get(1), table.getSelectionModel().getSelectedItem());
+			}
+			assertEquals(new BigDecimal("1235.50"), second.getBalance());
+		});
+	}
 
 	@AfterEach
 	void closeDatabase() {

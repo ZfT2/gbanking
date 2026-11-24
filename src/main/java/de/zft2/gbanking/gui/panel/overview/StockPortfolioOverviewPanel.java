@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
+import java.util.stream.Collectors;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
@@ -38,6 +39,7 @@ import de.zft2.gbanking.gui.util.FormGridHelper;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.gui.util.FxTableUtils;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
+import de.zft2.gbanking.gui.util.TableSearchBar;
 import de.zft2.gbanking.service.BankingCapabilityService;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.StockPortfolioService;
@@ -106,6 +108,9 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	private final GBankingTableView<PositionSummary> positionTable = new GBankingTableView<>();
 	private final GBankingTableView<TransactionSummary> transactionTable = new GBankingTableView<>();
 	private final GBankingTableView<Booking> accountTransactionTable = new GBankingTableView<>();
+	private final TableSearchBar<PositionSummary> positionSearch;
+	private final TableSearchBar<TransactionSummary> transactionSearch;
+	private final TableSearchBar<Booking> accountSearch;
 	private final VBox positionSection;
 	private final VBox transactionSection;
 	private final StackPane positionSlot = new StackPane();
@@ -159,16 +164,31 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		configurePositionTable();
 		configureTransactionTable();
 		configureAccountTransactionTable();
+		positionSearch = new TableSearchBar<>(positionTable, position -> TableSearchBar.text(
+				position.securityName(), position.isin(), position.wkn(), position.quantity(), position.acquisitionPrice(),
+				position.acquisitionValue(), position.unitPrice(), position.totalValue(), position.currency(), position.performancePercent()));
+		transactionSearch = new TableSearchBar<>(transactionTable, transaction -> TableSearchBar.text(
+				transaction.date(), transactionLabel(transaction), transaction.securityName(), transaction.isin(), transaction.wkn(),
+				transaction.quantity(), transaction.unitPrice(), transaction.totalPrice(), transaction.currency(),
+				settlementBookings.getOrDefault(transaction.transactionId(), List.of()).stream()
+						.map(booking -> booking.getAccountName()).collect(Collectors.joining(" "))));
+		accountSearch = new TableSearchBar<>(accountTransactionTable, booking -> TableSearchBar.text(
+				booking.getDate(), booking.getDateBooking(), booking.getDateValue(), booking.getPurpose(), booking.getAmount(),
+				booking.getCrossAccountName(), booking.getBalance(),
+				booking.getNoteDetails() != null ? booking.getNoteDetails().getNote() : null));
 
 		configureTransactionButtons();
 		configureSecurityButtons();
 		positionSection = createTableSection("UI_STOCK_POSITIONS", positionTable);
+		positionSection.getChildren().add(positionSearch);
 		transactionSection = createTransactionSection();
+		transactionSection.getChildren().add(transactionSearch);
 		SplitPane portfolioTables = new SplitPane(positionSlot, transactionSlot);
 		portfolioTables.setOrientation(javafx.geometry.Orientation.VERTICAL);
 		portfolioTables.setDividerPositions(TABLE_DIVIDER);
 		GuiLayoutState.configureSplitPane(portfolioTables, "stockPortfolios.tables");
 		VBox accountTransactions = createTableSection("UI_STOCK_SETTLEMENT_TRANSACTIONS", accountTransactionTable);
+		accountTransactions.getChildren().add(accountSearch);
 
 		portfolioTab = createTab("UI_STOCK_TAB_PORTFOLIO", createDetailContent(createPortfolioDetails(), portfolioTables));
 		positionsTab = createTab("UI_STOCK_TAB_POSITIONS", createDetailContent(FormStyleUtils.createButtonBar(
@@ -200,6 +220,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 			return false;
 		}
 		detailTabs.getSelectionModel().select(transactionsTab);
+		transactionSearch.clear();
 		for (TransactionSummary transaction : transactionTable.getItems()) {
 			if (transaction.transactionId() == transactionId) {
 				transactionTable.getSelectionModel().select(transaction);
@@ -530,6 +551,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 
 	private void showPositionHistory(int securityId) {
 		historySecurityId = securityId;
+		transactionSearch.clear();
 		updateTransactionHistory();
 		detailTabs.getSelectionModel().select(transactionsTab);
 	}
@@ -542,13 +564,13 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		showAllTransactions.setManaged(filtered);
 		if (!filtered) {
 			historyLabel.setText(getText("UI_STOCK_PORTFOLIO_TRANSACTIONS"));
-			transactionTable.setItems(FXCollections.observableArrayList(selectedPortfolio != null
-					? service.getTransactions(selectedPortfolio.portfolioId()) : List.of()));
+			transactionSearch.setRows(selectedPortfolio != null
+					? service.getTransactions(selectedPortfolio.portfolioId()) : List.of());
 			return;
 		}
 		PositionHistory history = service.getPositionHistory(selectedPortfolio.portfolioId(), historySecurityId, includePredecessors.isSelected());
 		historyLabel.setText(String.join(" <- ", history.securityNames()));
-		transactionTable.setItems(FXCollections.observableArrayList(history.transactions()));
+		transactionSearch.setRows(history.transactions());
 	}
 
 	private void openSecurityExchange(PositionSummary position, boolean linkImported) {
@@ -844,18 +866,17 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 		updateDetails();
 		if (portfolio == null) {
 			settlementBookings = Map.of();
-			positionTable.getItems().clear();
-			transactionTable.getItems().clear();
-			accountTransactionTable.getItems().clear();
+			positionSearch.setRows(List.of());
+			transactionSearch.setRows(List.of());
+			accountSearch.setRows(List.of());
 			updateTransactionHistory();
 			return;
 		}
-		positionTable.setItems(FXCollections.observableArrayList(service.getPositions(portfolio.portfolioId())));
+		positionSearch.setRows(service.getPositions(portfolio.portfolioId()));
 		linkedExchangeIds = service.linkedExchangeTransactionIds(portfolio.portfolioId());
 		settlementBookings = service.getSettlementBookings(portfolio.portfolioId());
 		updateTransactionHistory();
-		accountTransactionTable.setItems(FXCollections.observableArrayList(
-				service.getAccountTransactions(portfolio.settlementAccountId())));
+		accountSearch.setRows(service.getAccountTransactions(portfolio.settlementAccountId()));
 	}
 
 	private void updateDetails() {
@@ -877,6 +898,9 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 
 	private void updateTableMode() {
 		Tab selected = detailTabs.getSelectionModel().getSelectedItem();
+		positionSearch.setActive(selected == positionsTab);
+		transactionSearch.setActive(selected == transactionsTab);
+		accountSearch.setActive(selected == settlementAccountTab);
 		positionSlot.getChildren().clear();
 		transactionSlot.getChildren().clear();
 		fullPositionSlot.getChildren().clear();
