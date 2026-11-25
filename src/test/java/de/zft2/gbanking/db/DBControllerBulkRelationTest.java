@@ -101,7 +101,7 @@ class DBControllerBulkRelationTest extends DBControllerIntegrationBaseTest {
 	}
 
 	@Test
-	void fullCategoryRuleListShouldLoadAccountGraphsWithFourQueries() {
+	void fullCategoryRuleListShouldLoadAccountGraphsAndPurposesWithFiveQueries() {
 		BankAccess bankAccess = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("12345678"));
 		BankAccount firstAccount = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
 		BankAccount secondAccount = db.insertOrUpdate(TestDataFactory.createSampleAccount(bankAccess.getId()));
@@ -114,7 +114,7 @@ class DBControllerBulkRelationTest extends DBControllerIntegrationBaseTest {
 		DatabaseQueryCounter.Measurement<List<CategoryRule>> measurement =
 				DatabaseQueryCounter.measure(() -> db.getAllFull(CategoryRule.class));
 
-		assertEquals(4, measurement.queryCount());
+		assertEquals(5, measurement.queryCount());
 		CategoryRule storedFirstRule = findById(measurement.result(), firstRule.getId());
 		CategoryRule storedSecondRule = findById(measurement.result(), secondRule.getId());
 		assertEquals(Set.of(firstAccount.getId()), accountIds(storedFirstRule.getBankAccountList()));
@@ -126,6 +126,8 @@ class DBControllerBulkRelationTest extends DBControllerIntegrationBaseTest {
 				businessCaseValues(findById(storedSecondRule.getBankAccountList(), secondAccount.getId())));
 		assertEquals("Mobilitaet:Bahn", storedFirstRule.getCategory().getFullName());
 		assertEquals("Mobilitaet:Bahn", storedSecondRule.getCategory().getFullName());
+		assertEquals(List.of("Bahn"), storedFirstRule.getFilterPurposes());
+		assertEquals(List.of("Taxi"), storedSecondRule.getFilterPurposes());
 	}
 
 	@Test
@@ -170,7 +172,7 @@ class DBControllerBulkRelationTest extends DBControllerIntegrationBaseTest {
 		CategoryRule rule = new CategoryRule();
 		rule.setName(name);
 		rule.setCategory(category);
-		rule.setFilterPurpose(name);
+		rule.setFilterPurposes(List.of(name));
 		rule.setBankAccountList(accounts);
 		return db.insertOrUpdate(rule);
 	}

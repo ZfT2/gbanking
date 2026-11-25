@@ -18,6 +18,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.kapott.hbci.GV_Result.GVRKUms.UmsLine;
 import org.kapott.hbci.structures.Konto;
 import org.kapott.hbci.structures.Saldo;
@@ -284,7 +286,7 @@ class GBankingServiceTest {
 		CategoryRule categoryRule = new CategoryRule();
 		categoryRule.setCategory(category);
 		categoryRule.setJoinType(CategoryRule.JoinType.AND);
-		categoryRule.setFilterPurpose("einkauf");
+		categoryRule.setFilterPurposes(List.of("einkauf"));
 		categoryRule.setFilterRecipientName("supermarkt.*");
 		categoryRule.setFilterRecipientIban("001000");
 		categoryRule.setFilterRecipientAccountNumber("1000");
@@ -309,7 +311,8 @@ class GBankingServiceTest {
 
 		CategoryRule categoryRule = new CategoryRule();
 		categoryRule.setCategory(dbController.insertOrUpdate(TestDataFactory.createSampleCategory("Bahn")));
-		categoryRule.setFilterPurpose("(Monatskarte");
+		categoryRule.setFilterPurposes(List.of("Ticket", "(Monatskarte"));
+		categoryRule.setJoinTypePurpose(CategoryRule.JoinType.AND);
 		categoryRule.setFilterPurposeIsRegex(true);
 
 		bookingCategoryService.applyCategoryRule(categoryRule);
@@ -327,12 +330,39 @@ class GBankingServiceTest {
 		Category category = dbController.insertOrUpdate(TestDataFactory.createSampleCategory("Energie"));
 		CategoryRule categoryRule = new CategoryRule();
 		categoryRule.setCategory(category);
-		categoryRule.setFilterPurpose("stadtwerke münchen");
+		categoryRule.setFilterPurposes(List.of("stadtwerke\\s+münchen", "abschlag$"));
+		categoryRule.setJoinTypePurpose(CategoryRule.JoinType.AND);
 		categoryRule.setFilterPurposeIsRegex(true);
 
 		bookingCategoryService.applyCategoryRule(categoryRule);
 
 		assertEquals(category.getId(), dbController.getByIdFull(Booking.class, booking.getId()).getCategoryId());
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "AND, AND, 1", "AND, OR, 2", "OR, AND, 2", "OR, OR, 3" })
+	void purposeConditionsShouldCombineAsOneRuleGroup(CategoryRule.JoinType ruleJoin, CategoryRule.JoinType purposeJoin, int expectedCount) {
+		BankAccount account = dbController.insertOrUpdate(TestDataFactory.createSampleAccount(null));
+		List<Booking> bookings = new ArrayList<>();
+		for (String purpose : Arrays.asList("Ticket München", "Ticket Berlin", "Kaffee München", null)) {
+			Booking booking = TestDataFactory.createSampleBooking(account.getId());
+			booking.setPurpose(purpose);
+			booking.setAmount(BigDecimal.valueOf(bookings.size() < 2 ? -42 : -99));
+			bookings.add(dbController.insertOrUpdate(booking));
+		}
+		Category category = dbController.insertOrUpdate(TestDataFactory.createSampleCategory("Bahn"));
+		CategoryRule rule = new CategoryRule();
+		rule.setCategory(category);
+		rule.setFilterPurposes(List.of(" ticket ", " ", " MÜNCHEN "));
+		rule.setFilterAmountFrom(BigDecimal.valueOf(-50));
+		rule.setJoinType(ruleJoin);
+		rule.setJoinTypePurpose(purposeJoin);
+		dbController.insertOrUpdate(rule);
+		bookingCategoryService.applyCategoryRule(dbController.getByIdFull(CategoryRule.class, rule.getId()));
+		for (int index = 0; index < bookings.size(); index++) {
+			assertEquals(index < expectedCount ? category.getId() : 0,
+					dbController.getByIdFull(Booking.class, bookings.get(index).getId()).getCategoryId());
+		}
 	}
 
 	@Test
@@ -355,7 +385,7 @@ class GBankingServiceTest {
 		CategoryRule categoryRule = new CategoryRule();
 		categoryRule.setCategory(targetCategory);
 		categoryRule.setJoinType(CategoryRule.JoinType.AND);
-		categoryRule.setFilterPurpose("ticket");
+		categoryRule.setFilterPurposes(List.of("ticket"));
 		categoryRule = dbController.insertOrUpdate(categoryRule);
 
 		int updatedBookings = bookingCategoryService.applyCategoryRulesToBookings(List.of(categorizedBooking, uncategorizedBooking), false);
@@ -511,7 +541,7 @@ class GBankingServiceTest {
 		CategoryRule categoryRule = new CategoryRule();
 		categoryRule.setCategory(category);
 		categoryRule.setJoinType(CategoryRule.JoinType.AND);
-		categoryRule.setFilterPurpose("einkauf");
+		categoryRule.setFilterPurposes(List.of("einkauf"));
 		categoryRule = dbController.insertOrUpdate(categoryRule);
 
 		account = dbController.getByIdFull(BankAccount.class, account.getId());
@@ -526,7 +556,7 @@ class GBankingServiceTest {
 	private CategoryRule categoryRule(Category category, String purpose) {
 		CategoryRule categoryRule = new CategoryRule();
 		categoryRule.setCategory(category);
-		categoryRule.setFilterPurpose(purpose);
+		categoryRule.setFilterPurposes(List.of(purpose));
 		return categoryRule;
 	}
 

@@ -28,13 +28,15 @@ import de.zft2.gbanking.gui.util.FxTableUtils;
 import de.zft2.gbanking.util.DecimalText;
 import de.zft2.gbanking.util.Ranges;
 import de.zft2.gbanking.util.TextValues;
+import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
-import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Control;
@@ -63,7 +65,6 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 	private static final double UPDATED_AT_FIELD_WIDTH = 125.0;
 	private static final double RECIPIENT_FILTER_PANEL_WIDTH = 580.0;
 	private static final double GROUP_GAP = 14.0;
-	private static final double RIGHT_COLUMN_WIDTH = PURPOSE_REGEX_FIELD_WIDTH + GROUP_GAP + CONDITION_FIELD_WIDTH;
 	private static final int MAX_RULE_NAME_LENGTH = 40;
 
 	private final CategoryOverviewPanel parentPanel;
@@ -72,6 +73,7 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 	private final ComboBox<AccountRuleScope> accountScopeCombo = new ComboBox<>();
 	private final ComboBox<Category> categoryCombo = new ComboBox<>();
 	private final ComboBox<JoinType> joinTypeCombo = new ComboBox<>();
+	private final ComboBox<JoinType> joinTypePurposeCombo = new ComboBox<>();
 	private final DatePicker filterDateFrom = new DatePicker();
 	private final DatePicker filterDateTo = new DatePicker();
 	private final TextField filterAmountFrom = new TextField();
@@ -79,7 +81,7 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 	private final TextField filterRecipientName = new TextField();
 	private final TextField filterRecipientIban = new TextField();
 	private final TextField filterRecipientAccountNumber = new TextField();
-	private final TextField filterPurpose = new TextField();
+	private final VBox purposeRows = new VBox(6);
 	private final CheckBox filterRecipientRegexCheckbox = new CheckBox();
 	private final CheckBox filterPurposeRegexCheckbox = new CheckBox();
 	private final CheckBox overwriteExistingCategoriesCheckbox = new CheckBox();
@@ -114,10 +116,12 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 		applyFieldWidths();
 		joinTypeCombo.setItems(FXCollections.observableArrayList(JoinType.values()));
 		joinTypeCombo.setValue(JoinType.OR);
+		joinTypePurposeCombo.setItems(FXCollections.observableArrayList(JoinType.values()));
+		joinTypePurposeCombo.setValue(JoinType.OR);
 		accountScopeCombo.setValue(AccountRuleScope.CURRENT_ACCOUNT);
 		overwriteExistingCategoriesCheckbox.setText(getText("UI_CATEGORY_RULE_OVERWRITE_EXISTING"));
 		overwriteExistingCategoriesCheckbox.setTooltip(new Tooltip(getText("UI_TOOLTIP_CATEGORY_RULE_OVERWRITE_EXISTING")));
-		overwriteExistingCategoriesCheckbox.setWrapText(true);
+		overwriteExistingCategoriesCheckbox.setMinWidth(Region.USE_PREF_SIZE);
 		overwriteExistingCategoriesCheckbox.setSelected(true);
 		updatedAtText.setEditable(false);
 		updatedAtText.setDisable(true);
@@ -135,16 +139,13 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 		buttonCancel.setOnAction(event -> resetTextFields());
 		KeyboardShortcutDispatcher.registerForm(this, buttonSubmit, buttonCancel);
 
-		addExpandingFieldAbove("UI_LABEL_RULE_NAME", ruleName, 0, 0, 2);
-		addRightAlignedNode(createRightAlignedFieldBox(getText("UI_LABEL_UPDATED_AT"), updatedAtText, UPDATED_AT_FIELD_WIDTH), 2, 0);
+		addFullWidthRow(createRuleHeaderPane(), 0, 2);
 		addFieldAbove("UI_LABEL_ACCOUNT", accountScopeCombo, 0, 1);
 		addFieldAbove("UI_LABEL_CATEGORY", categoryCombo, 1, 1, 2);
 		addFullWidthRow(createFilterGroupsPane(), 4, 1);
-		addExpandingFieldAbove("UI_LABEL_PURPOSE", filterPurpose, 0, 3, 2);
-		addRightAlignedNode(createPurposeOptionsPane(), 2, 3);
+		addFullWidthRow(createPurposeFilterPane(), 6, 1);
 
-		HBox buttonBar = new HBox(10, buttonNew, buttonSubmit, buttonDelete, buttonCancel);
-		addContentNode(buttonBar);
+		addContentNode(FormStyleUtils.createButtonBar(buttonNew, buttonSubmit, buttonDelete, buttonCancel));
 	}
 
 	private void saveCategoryRule() {
@@ -175,6 +176,7 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 		categoryRule.setName(TextValues.trimToNull(ruleName.getText()));
 		categoryRule.setCategory(categoryCombo.getValue());
 		categoryRule.setJoinType(joinTypeCombo.getValue() != null ? joinTypeCombo.getValue() : JoinType.OR);
+		categoryRule.setJoinTypePurpose(joinTypePurposeCombo.getValue());
 		categoryRule.setFilterDateFrom(toCalendar(filterDateFrom.getValue()));
 		categoryRule.setFilterDateTo(toCalendar(filterDateTo.getValue()));
 		categoryRule.setFilterAmountFrom(amountFrom);
@@ -182,7 +184,8 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 		categoryRule.setFilterRecipientName(TextValues.trimToNull(filterRecipientName.getText()));
 		categoryRule.setFilterRecipientIban(TextValues.trimToNull(filterRecipientIban.getText()));
 		categoryRule.setFilterRecipientAccountNumber(TextValues.trimToNull(filterRecipientAccountNumber.getText()));
-		categoryRule.setFilterPurpose(TextValues.trimToNull(filterPurpose.getText()));
+		categoryRule.setFilterPurposes(purposeRows.getChildren().stream()
+				.map(row -> ((TextField) ((HBox) row).getChildren().get(0)).getText()).toList());
 		categoryRule.setFilterRecipientIsRegex(filterRecipientRegexCheckbox.isSelected());
 		categoryRule.setFilterPurposeIsRegex(filterPurposeRegexCheckbox.isSelected());
 		categoryRule.setOverwriteExistingCategories(overwriteExistingCategoriesCheckbox.isSelected());
@@ -211,6 +214,7 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 		accountScopeCombo.setValue(AccountRuleScope.CURRENT_ACCOUNT);
 		categoryCombo.setValue(null);
 		joinTypeCombo.setValue(JoinType.OR);
+		joinTypePurposeCombo.setValue(JoinType.OR);
 		filterDateFrom.setValue(null);
 		filterDateTo.setValue(null);
 		filterAmountFrom.clear();
@@ -218,7 +222,7 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 		filterRecipientName.clear();
 		filterRecipientIban.clear();
 		filterRecipientAccountNumber.clear();
-		filterPurpose.clear();
+		setPurposeRows(List.of());
 		filterRecipientRegexCheckbox.setSelected(false);
 		filterPurposeRegexCheckbox.setSelected(false);
 		overwriteExistingCategoriesCheckbox.setSelected(true);
@@ -239,6 +243,7 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 		}
 		categoryCombo.setValue(categoryRule.getCategory());
 		joinTypeCombo.setValue(categoryRule.getJoinType());
+		joinTypePurposeCombo.setValue(categoryRule.getJoinTypePurpose());
 		filterDateFrom.setValue(toLocalDate(categoryRule.getFilterDateFrom()));
 		filterDateTo.setValue(toLocalDate(categoryRule.getFilterDateTo()));
 		filterAmountFrom.setText(formatAmount(categoryRule.getFilterAmountFrom()));
@@ -247,7 +252,7 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 		filterRecipientIban.setText(categoryRule.getFilterRecipientIban() != null ? categoryRule.getFilterRecipientIban() : "");
 		filterRecipientAccountNumber.setText(
 				categoryRule.getFilterRecipientAccountNumber() != null ? categoryRule.getFilterRecipientAccountNumber() : "");
-		filterPurpose.setText(categoryRule.getFilterPurpose() != null ? categoryRule.getFilterPurpose() : "");
+		setPurposeRows(categoryRule.getFilterPurposes());
 		filterRecipientRegexCheckbox.setSelected(categoryRule.isFilterRecipientIsRegex());
 		filterPurposeRegexCheckbox.setSelected(categoryRule.isFilterPurposeIsRegex());
 		overwriteExistingCategoriesCheckbox.setSelected(categoryRule.isOverwriteExistingCategories());
@@ -280,7 +285,9 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 		template.setFilterDateTo(booking.getDateBooking());
 		template.setFilterAmountFrom(booking.getAmount());
 		template.setFilterAmountTo(booking.getAmount());
-		template.setFilterPurpose(TextValues.trimToNull(booking.getPurpose()));
+		if (TextValues.hasText(booking.getPurpose())) {
+			template.setFilterPurposes(List.of(booking.getPurpose()));
+		}
 
 		Recipient recipient = booking.getRecipient();
 		if (recipient != null) {
@@ -356,9 +363,9 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 		growingColumn.setHgrow(Priority.ALWAYS);
 
 		ColumnConstraints trailingColumn = new ColumnConstraints();
-		trailingColumn.setMinWidth(RIGHT_COLUMN_WIDTH);
-		trailingColumn.setPrefWidth(RIGHT_COLUMN_WIDTH);
-		trailingColumn.setMaxWidth(RIGHT_COLUMN_WIDTH);
+		trailingColumn.setMinWidth(UPDATED_AT_FIELD_WIDTH);
+		trailingColumn.setPrefWidth(UPDATED_AT_FIELD_WIDTH);
+		trailingColumn.setMaxWidth(UPDATED_AT_FIELD_WIDTH);
 		trailingColumn.setHgrow(Priority.NEVER);
 
 		formGrid.getColumnConstraints().setAll(firstColumn, growingColumn, trailingColumn);
@@ -376,40 +383,29 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 		GridPane.setFillWidth(node, true);
 	}
 
-	private void addExpandingFieldAbove(String key, Node field, int col, int rowGroup, int colspan) {
-		VBox fieldBox = createFieldBox(getText(key), field);
-		fieldBox.setMinWidth(0);
-		fieldBox.setMaxWidth(Double.MAX_VALUE);
-		formGrid.add(fieldBox, col, rowGroup * 2, colspan, 2);
-		GridPane.setHgrow(fieldBox, Priority.ALWAYS);
-		GridPane.setFillWidth(fieldBox, true);
-	}
-
-	private void addRightAlignedNode(Node node, int col, int rowGroup) {
-		formGrid.add(node, col, rowGroup * 2, 1, 2);
-		GridPane.setHalignment(node, HPos.RIGHT);
-		GridPane.setFillWidth(node, false);
+	private HBox createRuleHeaderPane() {
+		VBox nameBox = createFieldBox(getText("UI_LABEL_RULE_NAME"), ruleName);
+		nameBox.setMinWidth(0);
+		HBox.setHgrow(nameBox, Priority.ALWAYS);
+		HBox header = new HBox(GROUP_GAP, nameBox, overwriteExistingCategoriesCheckbox,
+				createRightAlignedFieldBox(getText("UI_LABEL_UPDATED_AT"), updatedAtText, UPDATED_AT_FIELD_WIDTH));
+		header.setAlignment(Pos.BOTTOM_LEFT);
+		return header;
 	}
 
 	private HBox createFilterGroupsPane() {
-		TitledPane dateAmountPane = createDateAmountFilterPane();
-		TitledPane recipientPane = createRecipientFilterPane();
-
-		HBox filterGroups = new HBox(GROUP_GAP, dateAmountPane, recipientPane, overwriteExistingCategoriesCheckbox);
-		filterGroups.setAlignment(Pos.CENTER_LEFT);
+		HBox filterGroups = new HBox(GROUP_GAP, createDateAmountFilterPane(), createRecipientFilterPane(), createCombinationsPane());
+		filterGroups.setAlignment(Pos.TOP_LEFT);
 		filterGroups.setFillHeight(true);
 		filterGroups.setMinWidth(0);
-		dateAmountPane.setMinWidth(0);
-		recipientPane.setMinWidth(RECIPIENT_FILTER_PANEL_WIDTH);
-		recipientPane.setPrefWidth(RECIPIENT_FILTER_PANEL_WIDTH);
-		recipientPane.setMaxWidth(RECIPIENT_FILTER_PANEL_WIDTH);
-		overwriteExistingCategoriesCheckbox.setMinWidth(0);
+		filterGroups.getChildren().forEach(group -> HBox.setHgrow(group, Priority.ALWAYS));
 		return filterGroups;
 	}
 
 	private TitledPane createDateAmountFilterPane() {
 		GridPane dateAmountGrid = FormGridHelper.createDefaultGrid();
 		dateAmountGrid.setPadding(new Insets(6));
+		FormGridHelper.setEqualGrowColumns(dateAmountGrid, 2);
 		FormGridHelper.addFieldAbove(dateAmountGrid, getText("UI_LABEL_DATE_FROM"), filterDateFrom, 0, 0);
 		FormGridHelper.addFieldAbove(dateAmountGrid, getText("UI_LABEL_DATE_TO"), filterDateTo, 1, 0);
 		FormGridHelper.addFieldAbove(dateAmountGrid, getText("UI_LABEL_AMOUNT_FROM"), filterAmountFrom, 0, 1);
@@ -421,24 +417,81 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 	private TitledPane createRecipientFilterPane() {
 		GridPane recipientGrid = FormGridHelper.createDefaultGrid();
 		recipientGrid.setPadding(new Insets(6));
-		FormGridHelper.addFieldAbove(recipientGrid, getText("UI_LABEL_NAME"), filterRecipientName, 0, 0, 2);
-		FormGridHelper.addFieldAbove(recipientGrid, getText("UI_LABEL_REGEX"), filterRecipientRegexCheckbox, 2, 0);
+		FormGridHelper.setEqualGrowColumns(recipientGrid, 2);
+		VBox nameBox = createFieldBox(getText("UI_LABEL_NAME"), filterRecipientName);
+		nameBox.setMinWidth(0);
+		HBox.setHgrow(nameBox, Priority.ALWAYS);
+		VBox regexBox = createFieldBox(getText("UI_LABEL_REGEX"), filterRecipientRegexCheckbox);
+		regexBox.setMinWidth(Region.USE_PREF_SIZE);
+		recipientGrid.add(new HBox(GROUP_GAP, nameBox, regexBox), 0, 0, 2, 2);
 		FormGridHelper.addFieldAbove(recipientGrid, getText("UI_LABEL_IBAN"), filterRecipientIban, 0, 1);
-		FormGridHelper.addFieldAbove(recipientGrid, getText("UI_LABEL_ACCOUNT_NUMBER_SHORT"), filterRecipientAccountNumber, 1, 1, 2);
+		FormGridHelper.addFieldAbove(recipientGrid, getText("UI_LABEL_ACCOUNT_NUMBER_SHORT"), filterRecipientAccountNumber, 1, 1);
 
-		return createFormGroupPane(getText("UI_PANEL_RECIPIENT_SENDER"), recipientGrid);
+		TitledPane recipientPane = createFormGroupPane(getText("UI_PANEL_RECIPIENT_SENDER"), recipientGrid);
+		recipientPane.setPrefWidth(RECIPIENT_FILTER_PANEL_WIDTH);
+		return recipientPane;
 	}
 
-	private HBox createPurposeOptionsPane() {
-		VBox regexBox = createRightAlignedFieldBox(getText("UI_LABEL_REGEX"), filterPurposeRegexCheckbox, PURPOSE_REGEX_FIELD_WIDTH);
-		VBox joinTypeBox = createRightAlignedFieldBox(getText("UI_LABEL_JOIN_TYPE"), joinTypeCombo, CONDITION_FIELD_WIDTH);
+	private TitledPane createCombinationsPane() {
+		GridPane optionsGrid = FormGridHelper.createDefaultGrid();
+		optionsGrid.setPadding(new Insets(6));
+		FormGridHelper.setEqualGrowColumns(optionsGrid, 1);
+		FormGridHelper.addFieldAbove(optionsGrid, getText("UI_LABEL_JOIN_TYPE"), joinTypeCombo, 0, 0);
+		FormGridHelper.addFieldAbove(optionsGrid, getText("UI_LABEL_JOIN_TYPE_PURPOSE"), joinTypePurposeCombo, 0, 1);
+		return createFormGroupPane(getText("UI_PANEL_CATEGORY_RULE_COMBINATIONS"), optionsGrid);
+	}
 
-		HBox purposeOptions = new HBox(GROUP_GAP, regexBox, joinTypeBox);
-		purposeOptions.setAlignment(Pos.TOP_RIGHT);
-		purposeOptions.setMinWidth(Region.USE_PREF_SIZE);
-		purposeOptions.setPrefWidth(PURPOSE_REGEX_FIELD_WIDTH + GROUP_GAP + CONDITION_FIELD_WIDTH);
-		purposeOptions.setMaxWidth(Region.USE_PREF_SIZE);
-		return purposeOptions;
+	private TitledPane createPurposeFilterPane() {
+		GridPane purposeGrid = FormGridHelper.createDefaultGrid();
+		purposeGrid.setPadding(new Insets(6));
+		setPurposeRows(List.of());
+		purposeGrid.add(purposeRows, 0, 0);
+		GridPane.setHgrow(purposeRows, Priority.ALWAYS);
+		filterPurposeRegexCheckbox.setText(getText("UI_LABEL_REGEX"));
+		filterPurposeRegexCheckbox.setWrapText(true);
+		setWidth(filterPurposeRegexCheckbox, PURPOSE_REGEX_FIELD_WIDTH);
+		purposeGrid.add(filterPurposeRegexCheckbox, 1, 0);
+		GridPane.setValignment(filterPurposeRegexCheckbox, VPos.TOP);
+		return createFormGroupPane(getText("UI_PANEL_PURPOSE"), purposeGrid);
+	}
+
+	private void setPurposeRows(List<String> purposes) {
+		purposeRows.getChildren().clear();
+		if (purposes.isEmpty()) {
+			addPurposeRow("");
+		} else {
+			purposes.forEach(purpose -> addPurposeRow(purpose));
+		}
+	}
+
+	private TextField addPurposeRow(String purpose) {
+		TextField field = new TextField(purpose);
+		setFlexibleWidth(field, PURPOSE_FIELD_WIDTH);
+		HBox.setHgrow(field, Priority.ALWAYS);
+		Button add = createPurposeRowButton("+", "UI_TOOLTIP_CATEGORY_RULE_ADD_PURPOSE");
+		Button remove = createPurposeRowButton("-", "UI_TOOLTIP_CATEGORY_RULE_REMOVE_PURPOSE");
+		HBox row = new HBox(6, field, add, remove);
+		row.setAlignment(Pos.CENTER_LEFT);
+		add.setOnAction(event -> addPurposeRow("").requestFocus());
+		remove.setOnAction(event -> {
+			if (field.getLength() == 0 || DialogWindowSupport.showConfirmation(getOwnerWindow(), AlertType.WARNING,
+					getText("UI_PANEL_PURPOSE"), null, getText("ALERT_CATEGORY_RULE_PURPOSE_DELETE"), ButtonType.OK, ButtonType.CANCEL)) {
+				purposeRows.getChildren().remove(row);
+			}
+		});
+		remove.disableProperty().bind(Bindings.size(purposeRows.getChildren()).lessThanOrEqualTo(1));
+		purposeRows.getChildren().add(row);
+		return field;
+	}
+
+	private Button createPurposeRowButton(String text, String tooltipKey) {
+		Button button = new Button(text);
+		button.getStyleClass().add("gbanking-form-button");
+		button.setMinWidth(28);
+		button.setPrefWidth(28);
+		button.setMaxWidth(28);
+		button.setTooltip(new Tooltip(getText(tooltipKey)));
+		return button;
 	}
 
 	private VBox createFieldBox(String labelText, Node field) {
@@ -472,6 +525,7 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 	private TitledPane createFormGroupPane(String title, GridPane content) {
 		TitledPane groupPane = new TitledPane(title, content);
 		groupPane.setCollapsible(false);
+		groupPane.setMinWidth(0);
 		groupPane.setMaxWidth(Double.MAX_VALUE);
 		groupPane.setStyle("-fx-border-color: -fx-box-border; -fx-border-width: 1;");
 		return groupPane;
@@ -495,14 +549,14 @@ public class CategoryRuleInputPanel extends AbstractTitledFormPanel {
 		setWidth(accountScopeCombo, FIELD_WIDTH);
 		setWidth(categoryCombo, WIDE_FIELD_WIDTH);
 		setWidth(joinTypeCombo, CONDITION_FIELD_WIDTH);
+		setWidth(joinTypePurposeCombo, CONDITION_FIELD_WIDTH);
 		setWidth(filterDateFrom, FIELD_WIDTH);
 		setWidth(filterDateTo, FIELD_WIDTH);
 		setWidth(filterAmountFrom, FIELD_WIDTH);
 		setWidth(filterAmountTo, FIELD_WIDTH);
-		setWidth(filterRecipientName, WIDE_FIELD_WIDTH);
-		setWidth(filterRecipientIban, FIELD_WIDTH);
-		setWidth(filterRecipientAccountNumber, WIDE_FIELD_WIDTH);
-		setFlexibleWidth(filterPurpose, PURPOSE_FIELD_WIDTH);
+		setFlexibleWidth(filterRecipientName, WIDE_FIELD_WIDTH);
+		setWidth(filterRecipientIban, WIDE_FIELD_WIDTH);
+		setWidth(filterRecipientAccountNumber, FIELD_WIDTH);
 		setWidth(updatedAtText, UPDATED_AT_FIELD_WIDTH);
 	}
 

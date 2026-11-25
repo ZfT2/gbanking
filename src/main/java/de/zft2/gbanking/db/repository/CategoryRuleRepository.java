@@ -28,6 +28,38 @@ public final class CategoryRuleRepository extends JdbcDaoRepository<CategoryRule
 	}
 
 	@Override
+	public CategoryRule findById(int id, ResultType resultType) throws SQLException {
+		CategoryRule rule = super.findById(id, resultType);
+		if (rule != null) {
+			loadPurposes(List.of(rule));
+		}
+		return rule;
+	}
+
+	@Override
+	public List<CategoryRule> findAll(Query query, Dao criteria) throws SQLException {
+		List<CategoryRule> rules = super.findAll(query, criteria);
+		loadPurposes(rules);
+		return rules;
+	}
+
+	private void loadPurposes(List<CategoryRule> rules) throws SQLException {
+		Map<Integer, List<String>> purposesByRule = new HashMap<>(rules.size());
+		for (CategoryRule rule : rules) {
+			purposesByRule.put(rule.getId(), new ArrayList<>());
+		}
+		consumeByIds(DaoSqlStatements.SQL_SELECT_PURPOSES_BY_CATEGORYRULE_IDS, purposesByRule.keySet(), resultSet -> {
+			while (resultSet.next()) {
+				purposesByRule.get(resultSet.getInt("categoryRule_id")).add(resultSet.getString("filterPurpose"));
+			}
+			return null;
+		});
+		for (CategoryRule rule : rules) {
+			rule.setFilterPurposes(purposesByRule.get(rule.getId()));
+		}
+	}
+
+	@Override
 	protected String selectByIdSql(ResultType resultType) {
 		return resultType.isWithRelations()
 				? DaoSqlStatements.SQL_SELECT_CATEGORYRULE_FULL_BY_ID

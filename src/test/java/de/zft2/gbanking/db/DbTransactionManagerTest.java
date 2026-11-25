@@ -82,19 +82,24 @@ class DbTransactionManagerTest extends DBControllerIntegrationBaseTest {
 	}
 
 	@Test
-	void relationFailureShouldRollBackParentInsert() {
+	void relationFailureShouldRollBackParentInsert() throws Exception {
 		Category category = db.insertOrUpdate(TestDataFactory.createSampleCategory("Mobilitaet:Bahn"));
 		BankAccount missingAccount = new BankAccount();
 		missingAccount.setId(Integer.MAX_VALUE);
 		CategoryRule categoryRule = new CategoryRule();
 		categoryRule.setCategory(category);
-		categoryRule.setFilterPurpose("Ticket");
+		categoryRule.setFilterPurposes(List.of("Ticket"));
 		categoryRule.setBankAccountList(List.of(missingAccount));
 
 		assertThrows(GBankingException.class, () -> db.insertOrUpdate(categoryRule));
 
 		assertEquals(0, categoryRule.getId());
 		assertTrue(db.getAll(CategoryRule.class).isEmpty());
+		try (var statement = DBController.getConnection().createStatement();
+				var rows = statement.executeQuery("SELECT COUNT(*) FROM categoryRuleAdditionalPurpose")) {
+			assertTrue(rows.next());
+			assertEquals(0, rows.getInt(1));
+		}
 	}
 
 	@Test

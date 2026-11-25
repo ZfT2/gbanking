@@ -29,11 +29,11 @@ public class CategoryRuleMapper extends AbstractDaoMapper<CategoryRule, Void> {
 		ps.setString(index++, categoryRule.getFilterRecipientName());
 		ps.setString(index++, categoryRule.getFilterRecipientIban());
 		ps.setString(index++, categoryRule.getFilterRecipientAccountNumber());
-		ps.setString(index++, categoryRule.getFilterPurpose());
 		ps.setBoolean(index++, categoryRule.isFilterRecipientIsRegex());
 		ps.setBoolean(index++, categoryRule.isFilterPurposeIsRegex());
 		ps.setBoolean(index++, categoryRule.isOverwriteExistingCategories());
 		ps.setInt(index++, categoryRule.getJoinType().getDbStateId());
+		ps.setInt(index++, categoryRule.getJoinTypePurpose().getDbStateId());
 		ps.setTimestamp(index++, TypeConverter.toSqlTimestampNow());
 		if (categoryRule.getId() > 0) {
 			ps.setInt(index, categoryRule.getId());
@@ -56,10 +56,10 @@ public class CategoryRuleMapper extends AbstractDaoMapper<CategoryRule, Void> {
 		categoryRule.setFilterRecipientName(rs.getString("filterRecipientName"));
 		categoryRule.setFilterRecipientIban(rs.getString("filterRecipientIban"));
 		categoryRule.setFilterRecipientAccountNumber(rs.getString("filterRecipientAccountNumber"));
-		categoryRule.setFilterPurpose(rs.getString("filterPurpose"));
 		categoryRule.setFilterRecipientIsRegex(rs.getBoolean("filterRecipientIsRegex"));
 		categoryRule.setFilterPurposeIsRegex(rs.getBoolean("filterPurposeIsRegex"));
 		categoryRule.setOverwriteExistingCategories(rs.getBoolean("overwriteExistingCategories"));
 		categoryRule.setJoinType(JoinType.forInt(rs.getInt("joinType")));
+		categoryRule.setJoinTypePurpose(JoinType.forInt(rs.getInt("joinTypePurpose")));
 	}
 }

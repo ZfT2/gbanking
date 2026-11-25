@@ -65,7 +65,7 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 
 		CategoryRule categoryRule = new CategoryRule();
 		categoryRule.setCategory(category);
-		categoryRule.setFilterPurpose("Ticket");
+		categoryRule.setFilterPurposes(List.of("Ticket"));
 		db.insertOrUpdate(categoryRule);
 
 		assertTrue(db.delete(category, null));
@@ -135,7 +135,7 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 		CategoryRule cr = new CategoryRule();
 		
 		cr.setCategory(cg);
-		cr.setFilterPurpose("Fahrkarte");
+		cr.setFilterPurposes(List.of("Fahrkarte"));
 		
 		db.insertOrUpdate(cr);
 		assertTrue(cr.getId() > 0);
@@ -147,7 +147,7 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 		assertTrue(cr.getName().startsWith("Regel:"));
 		assertTrue(cr.getName().length() <= 40);
 		assertEquals(cg.getId(), cr.getCategory().getId());
-		assertEquals("Fahrkarte", cr.getFilterPurpose());
+		assertEquals(List.of("Fahrkarte"), cr.getFilterPurposes());
 		assertTrue(cr.isOverwriteExistingCategories());
 
 		cr.setOverwriteExistingCategories(false);
@@ -157,21 +157,52 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 	}
 
 	@Test
+	void purposeConditionsShouldRoundTripReplaceClearAndCascade() throws Exception {
+		Category category = db.insertOrUpdate(TestDataFactory.createSampleCategory("Bahn"));
+		CategoryRule rule = new CategoryRule();
+		rule.setCategory(category);
+		rule.setFilterPurposes(java.util.Arrays.asList(" Ticket ", "", null, " München ", "Ticket"));
+		rule.setJoinTypePurpose(CategoryRule.JoinType.AND);
+		db.insertOrUpdate(rule);
+		assertEquals(List.of("Ticket", "München", "Ticket"), db.getById(CategoryRule.class, rule.getId()).getFilterPurposes());
+		CategoryRule stored = findById(db.getAll(CategoryRule.class), rule.getId());
+		assertEquals(rule.getFilterPurposes(), stored.getFilterPurposes());
+		assertEquals(CategoryRule.JoinType.AND, stored.getJoinTypePurpose());
+		rule.setFilterPurposes(List.of("Berlin"));
+		rule.setJoinTypePurpose(CategoryRule.JoinType.OR);
+		db.insertOrUpdate(rule);
+		stored = db.getByIdFull(CategoryRule.class, rule.getId());
+		assertEquals(List.of("Berlin"), stored.getFilterPurposes());
+		assertEquals(CategoryRule.JoinType.OR, stored.getJoinTypePurpose());
+		rule.setFilterPurposes(List.of(" "));
+		db.insertOrUpdate(rule);
+		assertTrue(db.getById(CategoryRule.class, rule.getId()).getFilterPurposes().isEmpty());
+		rule.setFilterPurposes(List.of("Fahrkarte"));
+		db.insertOrUpdate(rule);
+		assertTrue(db.delete(rule, null));
+		try (var statement = DBController.getConnection().createStatement();
+				var rows = statement.executeQuery("SELECT COUNT(*) FROM categoryRuleAdditionalPurpose")) {
+			assertTrue(rows.next());
+			assertEquals(0, rows.getInt(1));
+		}
+	}
+
+	@Test
 	void insertCategoryRulesWithBlankNames_shouldGenerateUniqueNames() {
 
 		Category category = db.insertOrUpdate(TestDataFactory.createSampleCategory("Bahn"));
 
 		CategoryRule firstRule = new CategoryRule();
 		firstRule.setCategory(category);
-		firstRule.setFilterPurpose("Ticket");
+		firstRule.setFilterPurposes(List.of("Ticket"));
 
 		CategoryRule secondRule = new CategoryRule();
 		secondRule.setCategory(category);
-		secondRule.setFilterPurpose("Ticket");
+		secondRule.setFilterPurposes(List.of("Ticket"));
 
 		CategoryRule thirdRule = new CategoryRule();
 		thirdRule.setCategory(category);
-		thirdRule.setFilterPurpose("Ticket");
+		thirdRule.setFilterPurposes(List.of("Ticket"));
 
 		db.insertOrUpdate(firstRule);
 		db.insertOrUpdate(secondRule);
@@ -198,7 +229,7 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 
 		CategoryRule categoryRule = new CategoryRule();
 		categoryRule.setCategory(category);
-		categoryRule.setFilterPurpose("Ticket");
+		categoryRule.setFilterPurposes(List.of("Ticket"));
 		categoryRule = db.insertOrUpdate(categoryRule);
 
 		assertTrue(db.updateBookingsWithCategoryRule(categoryRule, Set.of(booking.getId())));
@@ -223,7 +254,7 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 
 		CategoryRule cr = new CategoryRule();
 		cr.setCategory(cg);
-		cr.setFilterPurpose("Ticket");
+		cr.setFilterPurposes(List.of("Ticket"));
 		db.insertOrUpdate(cr);
 
 		List<CategoryRule> categoryRules = db.getAll(CategoryRule.class);
@@ -243,7 +274,7 @@ class DBControllerCategoryTest extends DBControllerIntegrationBaseTest {
 
 		CategoryRule categoryRule = new CategoryRule();
 		categoryRule.setCategory(category);
-		categoryRule.setFilterPurpose("Ticket");
+		categoryRule.setFilterPurposes(List.of("Ticket"));
 		categoryRule.setBankAccountList(List.of(account01, account02));
 
 		db.insertOrUpdate(categoryRule);

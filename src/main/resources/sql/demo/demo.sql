@@ -239,13 +239,17 @@ INSERT INTO category (id, name, parent_id, updatedAt) VALUES
 [SQL_DEMO_INSERT_CATEGORY_RULES]
 INSERT INTO categoryRule (
     id, name, category_id, filterDateFrom, filterDateTo, filterAmountFrom, filterAmountTo,
-    filterRecipientName, filterRecipientIban, filterRecipientAccountNumber, filterPurpose,
+    filterRecipientName, filterRecipientIban, filterRecipientAccountNumber,
     filterRecipientIsRegex, filterPurposeIsRegex, joinType, updatedAt
 ) VALUES
     (921001, 'Supermarkt automatisch', 920021, NULL, NULL, NULL, NULL,
-     NULL, NULL, NULL, 'Supermarkt', 0, 0, 1, '2026-01-01 09:00:00.000'),
+     NULL, NULL, NULL, 0, 0, 1, '2026-01-01 09:00:00.000'),
     (921002, 'Monatliche Miete', 920011, NULL, NULL, -1300.00, -1000.00,
-     'Vermieter Muster GmbH', NULL, NULL, NULL, 0, 0, 1, '2026-01-01 09:00:00.000');
+     'Vermieter Muster GmbH', NULL, NULL, 0, 0, 1, '2026-01-01 09:00:00.000');
+
+[SQL_DEMO_INSERT_CATEGORY_RULE_PURPOSES]
+INSERT INTO categoryRuleAdditionalPurpose (categoryRule_id, filterPurpose, updatedAt) VALUES
+    (921001, 'Supermarkt', '2026-01-01 09:00:00.000');
 
 [SQL_DEMO_LINK_CATEGORY_RULES]
 INSERT INTO categoryRule_bankAccount (id, categoryRule_id, account_id, updatedAt) VALUES

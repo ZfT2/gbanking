@@ -38,8 +38,8 @@ public class CategoryRuleListPanel extends AbstractFilterableTablePanel<Category
 				rule -> rule.getJoinType() != null ? rule.getJoinType().getDescription() : "", 160, 220);
 		TableColumn<CategoryRule, String> recipientCol = TableColumnFactory.createTextColumn(getText("UI_LABEL_RECIPIENT"),
 				CategoryRule::getFilterRecipientName, 160, 220);
-		TableColumn<CategoryRule, String> purposeCol = TableColumnFactory.createTextColumn(getText("UI_LABEL_PURPOSE"), CategoryRule::getFilterPurpose, 220,
-				300);
+		TableColumn<CategoryRule, String> purposeCol = TableColumnFactory.createTextColumn(getText("UI_LABEL_PURPOSE"),
+				rule -> String.join(" | ", rule.getFilterPurposes()), 220, 300);
 		TableColumn<CategoryRule, java.time.LocalDate> updatedCol = TableColumnFactory.createUpdatedAtColumn(getText("UI_LABEL_UPDATED_AT"),
 				CategoryRule::getUpdatedAt, 90);
 		return List.of(nameCol, accountCol, categoryCol, joinTypeCol, recipientCol, purposeCol, updatedCol);
@@ -49,7 +49,8 @@ public class CategoryRuleListPanel extends AbstractFilterableTablePanel<Category
 	protected boolean matchesFilter(CategoryRule categoryRule, String filter) {
 		return matchesAny(filter, categoryRule.getName(), getAccountScopeText(categoryRule),
 				categoryRule.getCategory() != null ? categoryRule.getCategory().getFullName() : null, categoryRule.getFilterRecipientName(),
-				categoryRule.getFilterRecipientIban(), categoryRule.getFilterRecipientAccountNumber(), categoryRule.getFilterPurpose(),
+				categoryRule.getFilterRecipientIban(), categoryRule.getFilterRecipientAccountNumber(), String.join(" ", categoryRule.getFilterPurposes()),
+				categoryRule.getJoinTypePurpose().getDescription(),
 				categoryRule.getJoinType() != null ? categoryRule.getJoinType().getDescription() : null);
 	}
 

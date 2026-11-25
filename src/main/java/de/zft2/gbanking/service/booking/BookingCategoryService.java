@@ -136,7 +136,7 @@ public class BookingCategoryService extends AbstractDbService {
 		}
 
 		List<Predicate<Booking>> filters = buildCategoryRuleFilters(categoryRule);
-		Predicate<Booking> matchesRule = combineCategoryRuleFilters(categoryRule, filters);
+		Predicate<Booking> matchesRule = combineCategoryRuleFilters(categoryRule.getJoinType(), filters);
 
 		Set<Integer> allowedAccountIds = getAllowedAccountIds(categoryRule);
 		boolean overwriteCategories = overwriteExistingCategories && categoryRule.isOverwriteExistingCategories();
@@ -191,7 +191,13 @@ public class BookingCategoryService extends AbstractDbService {
 	}
 
 	private void addTextFilters(CategoryRule categoryRule, List<Predicate<Booking>> filters) {
-		addTextFilter(filters, categoryRule.getFilterPurpose(), categoryRule.isFilterPurposeIsRegex(), booking -> booking.getPurpose());
+		List<Predicate<Booking>> purposeFilters = new ArrayList<>();
+		for (String purpose : categoryRule.getFilterPurposes()) {
+			addTextFilter(purposeFilters, purpose, categoryRule.isFilterPurposeIsRegex(), booking -> booking.getPurpose());
+		}
+		if (!purposeFilters.isEmpty()) {
+			filters.add(combineCategoryRuleFilters(categoryRule.getJoinTypePurpose(), purposeFilters));
+		}
 		addTextFilter(filters, categoryRule.getFilterRecipientName(), categoryRule.isFilterRecipientIsRegex(),
 				booking -> booking.getRecipient() != null ? booking.getRecipient().getName() : null);
 		addTextFilter(filters, categoryRule.getFilterRecipientIban(), false,
@@ -251,12 +257,12 @@ public class BookingCategoryService extends AbstractDbService {
 		return booking.getCategoryId();
 	}
 
-	private Predicate<Booking> combineCategoryRuleFilters(CategoryRule categoryRule, List<Predicate<Booking>> filters) {
+	private Predicate<Booking> combineCategoryRuleFilters(CategoryRule.JoinType joinType, List<Predicate<Booking>> filters) {
 		if (filters.isEmpty()) {
 			return booking -> true;
 		}
 
-		if (categoryRule.getJoinType() == CategoryRule.JoinType.AND) {
+		if (joinType == CategoryRule.JoinType.AND) {
 			return booking -> filters.stream().allMatch(filter -> filter.test(booking));
 		}
 

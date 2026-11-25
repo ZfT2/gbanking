@@ -7,6 +7,7 @@ import java.util.List;
 
 import de.zft2.gbanking.db.enu.IdType;
 import de.zft2.gbanking.enu.LocalizedEnumValue;
+import de.zft2.gbanking.util.TextValues;
 
 public class CategoryRule extends Dao implements Serializable /* MnRelation */ {
 
@@ -54,8 +55,9 @@ public class CategoryRule extends Dao implements Serializable /* MnRelation */ {
 	private String filterRecipientName;
 	private String filterRecipientIban;
 	private String filterRecipientAccountNumber;
-	private String filterPurpose;
+	private List<String> filterPurposes = List.of();
 	private JoinType joinType;
+	private JoinType joinTypePurpose = JoinType.OR;
 	private boolean filterRecipientIsRegex;
 	private boolean filterPurposeIsRegex;
 	private boolean overwriteExistingCategories;
@@ -140,12 +142,21 @@ public class CategoryRule extends Dao implements Serializable /* MnRelation */ {
 		this.filterRecipientAccountNumber = filterRecipientAccountNumber;
 	}
 
-	public String getFilterPurpose() {
-		return filterPurpose;
+	public List<String> getFilterPurposes() {
+		return filterPurposes;
 	}
 
-	public void setFilterPurpose(String filterPurpose) {
-		this.filterPurpose = filterPurpose;
+	public void setFilterPurposes(List<String> filterPurposes) {
+		this.filterPurposes = filterPurposes.stream().map(value -> TextValues.trimToNull(value))
+				.filter(value -> value != null).toList();
+	}
+
+	public JoinType getJoinTypePurpose() {
+		return joinTypePurpose;
+	}
+
+	public void setJoinTypePurpose(JoinType joinTypePurpose) {
+		this.joinTypePurpose = joinTypePurpose;
 	}
 
 	public JoinType getJoinType() {

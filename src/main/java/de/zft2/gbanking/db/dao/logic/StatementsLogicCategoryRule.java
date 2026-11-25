@@ -3,6 +3,7 @@ package de.zft2.gbanking.db.dao.logic;
 import static de.zft2.gbanking.util.TextValues.hasText;
 
 import java.math.BigDecimal;
+import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
@@ -26,8 +27,23 @@ public class StatementsLogicCategoryRule extends StatementsLogicDefault<Category
 	public CategoryRule insertOrUpdateSingle(CategoryRule categoryRule) {
 		applyGeneratedNameIfBlank(categoryRule);
 		CategoryRule savedRule = super.insertOrUpdateSingle(categoryRule);
+		syncPurposes(savedRule);
 		syncBankAccounts(savedRule);
 		return savedRule;
+	}
+
+	private void syncPurposes(CategoryRule categoryRule) {
+		try {
+			deleteDetailsById(DaoSqlStatements.SQL_DELETE_CATEGORYRULE_ADDITIONAL_PURPOSE, categoryRule);
+			executeCachedBatchExactlyOnce(DaoSqlStatements.SQL_INSERT_CATEGORYRULE_ADDITIONAL_PURPOSE,
+					categoryRule.getFilterPurposes(), (purpose, statement) -> {
+						statement.setInt(1, categoryRule.getId());
+						statement.setString(2, purpose);
+						statement.setTimestamp(3, TypeConverter.toSqlTimestampNow());
+					});
+		} catch (SQLException exception) {
+			throw databaseFailure("Error saving purpose conditions for category rule " + categoryRule.getId(), exception);
+		}
 	}
 
 	private void syncBankAccounts(CategoryRule categoryRule) {
@@ -77,7 +93,7 @@ public class StatementsLogicCategoryRule extends StatementsLogicDefault<Category
 		addTextPart(parts, "Name", categoryRule.getFilterRecipientName());
 		addTextPart(parts, "IBAN", categoryRule.getFilterRecipientIban());
 		addTextPart(parts, "Kto.", categoryRule.getFilterRecipientAccountNumber());
-		addTextPart(parts, "Zweck", categoryRule.getFilterPurpose());
+		addTextPart(parts, "Zweck", String.join(" ", categoryRule.getFilterPurposes()));
 		if (categoryRule.getCategory() != null) {
 			addTextPart(parts, "Kat.", categoryRule.getCategory().getFullName());
 		}

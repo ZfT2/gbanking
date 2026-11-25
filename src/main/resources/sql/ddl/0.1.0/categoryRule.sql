@@ -7,6 +7,9 @@ DROP TABLE IF EXISTS categoryRule;
 [SQL_SETUP_DROP_CATEGORYRULE_BANKACCOUNT]
 DROP TABLE IF EXISTS categoryRule_bankAccount;
 
+[SQL_SETUP_DROP_CATEGORYRULE_ADDITIONAL_PURPOSE]
+DROP TABLE IF EXISTS categoryRuleAdditionalPurpose;
+
 [SQL_SETUP_CREATE_CATEGORYRULE]
 CREATE TABLE categoryRule (
   id INTEGER PRIMARY KEY,
@@ -19,19 +22,32 @@ CREATE TABLE categoryRule (
   filterRecipientName TEXT,
   filterRecipientIban TEXT,
   filterRecipientAccountNumber TEXT,
-  filterPurpose TEXT,
   filterRecipientIsRegex REAL NOT NULL,
   filterPurposeIsRegex REAL NOT NULL,
   overwriteExistingCategories REAL NOT NULL DEFAULT 1,
   joinType INTEGER NOT NULL,
+  joinTypePurpose INTEGER NOT NULL DEFAULT 2,
   updatedAt TEXT NOT NULL,
   FOREIGN KEY(category_id) REFERENCES category(id) ON DELETE CASCADE,
   CHECK (joinType BETWEEN 1 AND 2),
+  CHECK (joinTypePurpose BETWEEN 1 AND 2),
   CHECK (filterRecipientIsRegex IN (0, 1)),
   CHECK (filterPurposeIsRegex IN (0, 1)),
   CHECK (overwriteExistingCategories IN (0, 1)),
   CHECK (filterDateFrom IS NULL OR filterDateTo IS NULL OR filterDateFrom <= filterDateTo),
   CHECK (filterAmountFrom IS NULL OR filterAmountTo IS NULL OR filterAmountFrom <= filterAmountTo));
+
+[SQL_SETUP_CREATE_CATEGORYRULE_ADDITIONAL_PURPOSE]
+CREATE TABLE categoryRuleAdditionalPurpose (
+  id INTEGER PRIMARY KEY,
+  categoryRule_id INTEGER NOT NULL,
+  filterPurpose TEXT NOT NULL CHECK (length(trim(filterPurpose)) > 0),
+  updatedAt TEXT NOT NULL,
+  FOREIGN KEY(categoryRule_id) REFERENCES categoryRule(id) ON DELETE CASCADE);
+
+[SQL_SETUP_CREATE_INDEX_CATEGORYRULE_ADDITIONAL_PURPOSE]
+CREATE INDEX IF NOT EXISTS idx_categoryrule_additionalpurpose_rule
+ON categoryRuleAdditionalPurpose (categoryRule_id);
 
 [SQL_SETUP_CREATE_CATEGORYRULE_BANKACCOUNT]
 CREATE TABLE categoryRule_bankAccount (
