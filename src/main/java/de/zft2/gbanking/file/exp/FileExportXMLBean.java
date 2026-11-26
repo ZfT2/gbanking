@@ -1,7 +1,6 @@
 package de.zft2.gbanking.file.exp;
 
-import static de.zft2.gbanking.util.FileNames.fileName;
-
+import java.io.IOException;
 import java.math.RoundingMode;
 import java.nio.file.Path;
 import java.util.List;
@@ -27,7 +26,6 @@ import org.w3c.dom.Element;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Recipient;
-import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.concurrent.ProgressReporter;
 import de.zft2.gbanking.util.TypeConverter;
 
@@ -40,21 +38,9 @@ public class FileExportXMLBean extends FileExportBean {
 	}
 
 	@Override
-	public boolean exportFileFromDatatbase(List<BankAccount> accountList, String fileName) {
-
-		boolean result = true;
-
-		try {
-			Document doc = createXMLDocument(accountList);
-			saveDocumentToExportFile(fileName, doc);
-
-		} catch (ParserConfigurationException | TransformerException e) {
-			result = false;
-			log.error("Error exporting XML file {}", fileName(fileName), new GBankingException(e.getMessage(), true));
-			log.debug("XML export path: {}", fileName);
-		}
-
-		return result;
+	protected void exportToFile(List<BankAccount> accountList, String fileName)
+			throws ParserConfigurationException, TransformerException, IOException {
+		saveDocumentToExportFile(fileName, createXMLDocument(accountList));
 	}
 
 	private Document createXMLDocument(List<BankAccount> accountList) throws ParserConfigurationException {
@@ -161,13 +147,8 @@ public class FileExportXMLBean extends FileExportBean {
 		}
 	}
 
-	private void saveDocumentToExportFile(String fileName, Document doc) throws TransformerFactoryConfigurationError, TransformerException {
-		Path exportPath;
-		try {
-			exportPath = prepareExportPath(fileName);
-		} catch (Exception e) {
-			throw new TransformerException("Could not create export directory for " + fileName, e);
-		}
+	private void saveDocumentToExportFile(String fileName, Document doc) throws TransformerFactoryConfigurationError, TransformerException, IOException {
+		Path exportPath = prepareExportPath(fileName);
 		TransformerFactory transformerFactory = TransformerFactory.newInstance();
 		transformerFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
 		transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");

@@ -28,6 +28,7 @@ import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.exception.ExportException;
 import de.zft2.gbanking.file.exp.FileExportBean;
 import de.zft2.gbanking.file.exp.FileExportXMLBean;
 
@@ -77,9 +78,7 @@ class FileImportIntegrationTest {
 		dummyAccount.setCurrency("EUR");
 		dummyAccount.setBalance(BigDecimal.valueOf(0.46));
 
-		boolean exportResult = fileExportBean.exportFileFromDatatbase(List.of(dummyAccount), exportFile.getAbsolutePath());
-
-		assertTrue(exportResult, "Export should succeed");
+		fileExportBean.exportFileFromDatatbase(List.of(dummyAccount), exportFile.getAbsolutePath());
 
 		assertTrue(exportFile.exists() && exportFile.length() > 0, "Exported file should exist and not be empty");
 
@@ -118,9 +117,11 @@ class FileImportIntegrationTest {
 	@Test
 	void testExportFile_InvalidPath() throws Exception {
 		Path exportTargetDirectory = Files.createDirectory(database.directory().resolve("export_target_directory"));
-		boolean result = fileExportBean.exportFileFromDatatbase(List.of(), exportTargetDirectory.toString());
-
-		assertFalse(result, "Export should fail for invalid output path");
+		List<BankAccount> accounts = List.of();
+		String fileName = exportTargetDirectory.toString();
+		ExportException exception = assertThrows(ExportException.class,
+				() -> fileExportBean.exportFileFromDatatbase(accounts, fileName));
+		assertNotNull(exception.getCause());
 	}
 
 	// ------------------------------------------------------------------------

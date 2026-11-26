@@ -48,17 +48,16 @@ class FileExportMT940BeanTest extends BaseFileTest {
 		BankAccount account = createAccountWithBooking();
 		Path exportFile = getExportFilePath("exports", "bookings.sta");
 
-		boolean result = new FileExportMT940Bean(null).exportFileFromDatatbase(List.of(account), exportFile.toString());
+		new FileExportMT940Bean(null).exportFileFromDatatbase(List.of(account), exportFile.toString());
 
-		assertTrue(result);
 		assertTrue(Files.isRegularFile(exportFile));
 
 		String mt940 = Files.readString(exportFile, StandardCharsets.ISO_8859_1);
 		assertTrue(mt940.contains(":20:GBANKING" + account.getId()));
 		assertTrue(mt940.contains(":25:" + account.getIban()));
 		assertTrue(mt940.contains(":61:2604110410C123,45NTRF"));
-		assertTrue(mt940.contains("?20MT940 Export Zweck"));
-		assertTrue(mt940.contains("?32MT940 Empfaenger"));
+		assertTrue(mt940.contains("?20MT940 Export Rückzahlung"));
+		assertTrue(mt940.contains("?32MT940 Empfänger"));
 
 		GVRKUms parsed = new GVRKUms();
 		parsed.appendMT940Data("\r\n" + mt940);
@@ -72,7 +71,7 @@ class FileExportMT940BeanTest extends BaseFileTest {
 		account.setNumber("11111111");
 		account = dbController.insertOrUpdate(account);
 
-		Recipient recipient = new Recipient("MT940 Empfaenger", "DE99999999999999999999", "TESTDEFFXXX", "99887766", "50010517", "Testbank",
+		Recipient recipient = new Recipient("MT940 Empfänger", "DE99999999999999999999", "TESTDEFFXXX", "99887766", "50010517", "Testbank",
 				Source.MANUELL);
 		recipient = dbController.insertOrUpdate(recipient);
 
@@ -80,7 +79,7 @@ class FileExportMT940BeanTest extends BaseFileTest {
 		booking.setAccountId(account.getId());
 		booking.setDateBooking(LocalDate.of(2026, Month.APRIL, 10));
 		booking.setDateValue(LocalDate.of(2026, Month.APRIL, 11));
-		booking.setPurpose("MT940 Export Zweck");
+		booking.setPurpose("MT940 Export Rückzahlung");
 		booking.setAmount(new BigDecimal("123.45"));
 		booking.setRecipientId(recipient.getId());
 		booking.setSource(Source.IMPORT);

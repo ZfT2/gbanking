@@ -43,9 +43,8 @@ class FileExportCSVBeanTest extends BaseFileTest {
 		BankAccount account = createAccountWithBooking();
 		Path exportFile = getExportFilePath("exports", "bookings.csv");
 
-		boolean result = new FileExportCSVBean(null).exportFileFromDatatbase(List.of(account), exportFile.toString());
+		new FileExportCSVBean(null).exportFileFromDatatbase(List.of(account), exportFile.toString());
 
-		assertTrue(result);
 		assertTrue(Files.isRegularFile(exportFile));
 
 		String csv = Files.readString(exportFile, StandardCharsets.UTF_8);
@@ -68,10 +67,9 @@ class FileExportCSVBeanTest extends BaseFileTest {
 		account = dbController.insertOrUpdate(account);
 		Path exportFile = tempDir.resolve("empty.csv");
 
-		boolean result = new FileExportCSVBean(null).exportFileFromDatatbase(List.of(account), exportFile.toString());
+		new FileExportCSVBean(null).exportFileFromDatatbase(List.of(account), exportFile.toString());
 
 		List<String> lines = Files.readAllLines(exportFile, StandardCharsets.UTF_8);
-		assertTrue(result);
 		assertEquals(1, lines.size());
 		assertFalse(lines.get(0).isBlank());
 	}

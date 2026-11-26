@@ -55,9 +55,8 @@ public class FileImportTask extends BaseFileTask {
 		setWorkerProgress(0);
 		try {
 			switch (exportType) {
-			case BOOKINGS_XML -> importBookingsXml();
+			case BOOKINGS_XML, BOOKINGS_FP3 -> importBookingsXmlOrFp3();
 			case BOOKINGS_CSV -> importBookingsCsv();
-			case BOOKINGS_FP3 -> importBookingsFp3();
 			case BOOKINGS_MT940 -> importBookingsMt940();
 			default -> throw new GBankingException("Unknown import type: " + exportType);
 			}
@@ -67,10 +66,11 @@ public class FileImportTask extends BaseFileTask {
 		return null;
 	}
 
-	private void importBookingsXml() {
-		FileImportBean fileImportBean = new FileImportBean(this, null, false, bankNameCorrectionHandler);
+	private void importBookingsXmlOrFp3() throws ParserConfigurationException, SAXException, IOException {
+		boolean forceFp3 = exportType == ExportType.BOOKINGS_FP3;
+		FileImportBean fileImportBean = new FileImportBean(this, forceFp3 ? contextAccount : null, forceFp3, bankNameCorrectionHandler);
 		fileImportBean.setDuplicateReviewHandler(new BookingDuplicateReviewDialog(null));
-		fileImportBean.importFile(fileName);
+		fileImportBean.importFileToDatatbase(fileName);
 		importSummaryText = fileImportBean.getImportSummaryText();
 		importStatistics = fileImportBean.getImportStatistics();
 	}
@@ -81,14 +81,6 @@ public class FileImportTask extends BaseFileTask {
 		fileImportBean.importFileToDatabase(fileName);
 		importStatistics = fileImportBean.getImportStatistics();
 		rejectedRows = fileImportBean.getRejectedRows();
-	}
-
-	private void importBookingsFp3() {
-		FileImportBean fileImportBean = new FileImportBean(this, contextAccount, true, bankNameCorrectionHandler);
-		fileImportBean.setDuplicateReviewHandler(new BookingDuplicateReviewDialog(null));
-		fileImportBean.importFile(fileName);
-		importSummaryText = fileImportBean.getImportSummaryText();
-		importStatistics = fileImportBean.getImportStatistics();
 	}
 
 	private void importBookingsMt940() throws IOException {

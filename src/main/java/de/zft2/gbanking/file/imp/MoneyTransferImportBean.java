@@ -1,6 +1,10 @@
 package de.zft2.gbanking.file.imp;
 
+import static de.zft2.gbanking.util.FileNames.fileName;
+
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -9,6 +13,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.BaseMessagesDb;
 import de.zft2.gbanking.concurrent.ProgressReporter;
@@ -30,6 +37,8 @@ import de.zft2.gbanking.service.moneytransfer.MoneyTransferProtocolEvaluator;
 
 public abstract class MoneyTransferImportBean implements BaseMessagesDb {
 
+	private static final Logger log = LogManager.getLogger(MoneyTransferImportBean.class);
+
 	private final ProgressReporter progressReporter;
 	private final MoneyTransferStatus importStatus;
 
@@ -39,6 +48,23 @@ public abstract class MoneyTransferImportBean implements BaseMessagesDb {
 		}
 		this.progressReporter = ProgressReporters.orNone(progressReporter);
 		this.importStatus = importStatus;
+	}
+
+	protected void startImport(Path importFile, String format) {
+		if (!Files.isRegularFile(importFile)) {
+			throw new GBankingException(getText("ERROR_MONEYTRANSFER_IMPORT_FILE_NOT_FOUND", importFile.toString()));
+		}
+		log.info("Starting {} import. file={}", () -> format, () -> fileName(importFile));
+		log.debug("{} import path: {}", format, importFile);
+	}
+
+	protected ImportResult finishImport(Path importFile, String format, String messageKey, ImportResult result) {
+		updateWorker(100, messageKey, Integer.toString(result.importedCount()), Integer.toString(result.skippedDuplicateCount()));
+		if (log.isInfoEnabled()) {
+			log.info("Finished {} import. file={}, imported={}, skippedDuplicates={}", format, fileName(importFile),
+					result.importedCount(), result.skippedDuplicateCount());
+		}
+		return result;
 	}
 
 	protected ImportResult importTransfers(List<ParsedTransfer> transfers, BankAccount contextAccount) {

@@ -1,12 +1,10 @@
 package de.zft2.gbanking.file.imp;
 
-import static de.zft2.gbanking.util.FileNames.fileName;
 import static de.zft2.gbanking.util.TextValues.firstNonBlank;
 import static de.zft2.gbanking.util.TextValues.trimToNull;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -16,8 +14,6 @@ import java.util.List;
 
 import javax.xml.parsers.ParserConfigurationException;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -32,7 +28,7 @@ import de.zft2.gbanking.util.SecureXml;
 
 public class MoneyTransferSepaImportBean extends MoneyTransferImportBean {
 
-	private static final Logger log = LogManager.getLogger(MoneyTransferSepaImportBean.class);
+	private static final String IMPORT_FORMAT = "SEPA PAIN";
 	private static final String PAIN_001_NAMESPACE_MARKER = ":pain.001.";
 	private static final String REQUESTED_EXECUTION_DATE = "ReqdExctnDt";
 	private static final String PAYMENT_TYPE_INFORMATION = "PmtTpInf";
@@ -54,20 +50,9 @@ public class MoneyTransferSepaImportBean extends MoneyTransferImportBean {
 
 	public ImportResult importFile(Path importFile, BankAccount contextAccount)
 			throws IOException, ParserConfigurationException, SAXException {
-		if (!Files.isRegularFile(importFile)) {
-			throw new GBankingException(getText("ERROR_MONEYTRANSFER_IMPORT_FILE_NOT_FOUND", importFile.toString()));
-		}
-
-		log.info("Starting SEPA PAIN import. file={}", () -> fileName(importFile));
-		log.debug("SEPA PAIN import path: {}", importFile);
+		startImport(importFile, IMPORT_FORMAT);
 		ImportResult result = importTransfers(readTransfers(importFile), contextAccount);
-		updateWorker(100, "UI_MONEYTRANSFER_SEPA_IMPORT_PROGRESS_DONE", Integer.toString(result.importedCount()),
-				Integer.toString(result.skippedDuplicateCount()));
-		if (log.isInfoEnabled()) {
-			log.info("Finished SEPA PAIN import. file={}, imported={}, skippedDuplicates={}", fileName(importFile), result.importedCount(),
-					result.skippedDuplicateCount());
-		}
-		return result;
+		return finishImport(importFile, IMPORT_FORMAT, "UI_MONEYTRANSFER_SEPA_IMPORT_PROGRESS_DONE", result);
 	}
 
 	private List<ParsedTransfer> readTransfers(Path importFile) throws ParserConfigurationException, SAXException, IOException {

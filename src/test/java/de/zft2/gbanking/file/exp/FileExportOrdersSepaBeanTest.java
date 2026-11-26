@@ -2,7 +2,9 @@ package de.zft2.gbanking.file.exp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import java.math.BigDecimal;
 import java.nio.file.Path;
@@ -17,6 +19,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 
+import de.zft2.gbanking.concurrent.ProgressReporter;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.BankAccount;
@@ -27,6 +30,7 @@ import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.StandingorderMode;
 import de.zft2.gbanking.exception.ExportException;
+import de.zft2.gbanking.messages.Messages;
 import de.zft2.gbanking.testdata.TestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -47,16 +51,19 @@ class FileExportOrdersSepaBeanTest {
 		insertTransfer(account, OrderType.STANDING_ORDER, LocalDate.now(), "E2E-STANDING", null, "Standing order");
 		Path exportFile = database.directory().resolve("orders.xml");
 
-		boolean exported = new FileExportOrdersSepaBean(null).exportFileFromDatatbase(List.of(account), exportFile.toString());
+		ProgressReporter reporter = mock(ProgressReporter.class);
+		new FileExportOrdersSepaBean(reporter).exportFileFromDatatbase(List.of(account), exportFile.toString());
 
 		Document document = readXml(exportFile);
-		assertTrue(exported);
 		assertEquals(FileExportOrdersSepaBean.NAMESPACE, document.getDocumentElement().getNamespaceURI());
 		assertEquals("1", text(document, "NbOfTxs"));
 		assertEquals(1, elements(document, "CdtTrfTxInf").getLength());
 		assertEquals("E2E-EXPORT", text(document, "EndToEndId"));
 		assertEquals("GDDS", text(document, "Purp"));
 		assertEquals("Invoice 4711", text(document, "Ustrd"));
+		verify(reporter).reportProgress(99);
+		verify(reporter).reportState(Messages.getInstance().getFormattedMessage("UI_MONEYTRANSFER_SEPA_EXPORT_SKIPPED", "1"));
+		verify(reporter, never()).reportState(Messages.getInstance().getMessage("UI_PROGRESS_FINISH"));
 	}
 
 	@Test

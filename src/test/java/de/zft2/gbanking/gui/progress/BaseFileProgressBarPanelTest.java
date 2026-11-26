@@ -9,9 +9,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
+import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.file.BaseFileTask;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
 import de.zft2.gbanking.gui.enu.ExportType;
@@ -22,6 +27,9 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 class BaseFileProgressBarPanelTest {
+
+	@RegisterExtension
+	static final TestDatabaseExtension database = new TestDatabaseExtension();
 
 	@Test
 	void progressPanelShouldKeepPercentageLabelVisibleAndGrowBar() {
@@ -51,9 +59,15 @@ class BaseFileProgressBarPanelTest {
 		assertTrue(panel.keepDialogOpenOnSuccess());
 	}
 
-	@Test
-	void portfolioPerformanceFailureShouldRemainVisibleUntilClosed() throws Exception {
-		PortfolioPerformanceFileProgressBarPanel panel = new PortfolioPerformanceFileProgressBarPanel(null, null, true, null);
+	@ParameterizedTest
+	@ValueSource(strings = { "portfolio", "import", "export" })
+	void fileFailureShouldRemainVisibleUntilClosed(String operation) throws Exception {
+		AtomicBoolean success = new AtomicBoolean();
+		BaseFileProgressBarPanel panel = switch (operation) {
+		case "import" -> new FileImportProgressBarPanel(null, null, () -> success.set(true));
+		case "export" -> new FileExportProgressBarPanel(null, List.of());
+		default -> new PortfolioPerformanceFileProgressBarPanel(null, null, true, null);
+		};
 		CountDownLatch failed = new CountDownLatch(1);
 		JavaFxTestSupport.runFx(() -> {
 			panel.createNewFileImportProgressBarWindow().show();
@@ -74,6 +88,7 @@ class BaseFileProgressBarPanelTest {
 				assertTrue(panel.closeButton.isVisible());
 				assertTrue(panel.closeButton.isManaged());
 				assertNotEquals("100 %", panel.progressLabel.getText());
+				assertFalse(success.get());
 				panel.closeButton.fire();
 			});
 			JavaFxTestSupport.runFx(() -> assertFalse(panel.dialogStage.isShowing()));

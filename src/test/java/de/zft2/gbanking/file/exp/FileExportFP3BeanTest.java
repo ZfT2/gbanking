@@ -40,9 +40,8 @@ class FileExportFP3BeanTest extends BaseFileTest {
 		BankAccount account = createAccountWithBookings();
 		Path exportFile = getExportFilePath("exports", "bookings.fp3");
 
-		boolean result = new FileExportFP3Bean(null).exportFileFromDatatbase(List.of(account), exportFile.toString());
+		new FileExportFP3Bean(null).exportFileFromDatatbase(List.of(account), exportFile.toString());
 
-		assertTrue(result);
 		assertTrue(Files.isRegularFile(exportFile));
 		String fp3 = Files.readString(exportFile, StandardCharsets.UTF_8);
 		assertTrue(fp3.contains("<preparedreport>"));

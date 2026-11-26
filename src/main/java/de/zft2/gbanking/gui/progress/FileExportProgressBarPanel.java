@@ -23,6 +23,11 @@ public class FileExportProgressBarPanel extends BaseFileProgressBarPanel {
 	}
 
 	@Override
+	protected boolean keepDialogOpenOnFailure() {
+		return true;
+	}
+
+	@Override
 	public void startTask(String fileName, ExportType exportType, AccountListPanel accountListPanel) {
 		task = new FileExportTask(fileName, exportType, exportAccountList);
 		super.startTask(accountListPanel);

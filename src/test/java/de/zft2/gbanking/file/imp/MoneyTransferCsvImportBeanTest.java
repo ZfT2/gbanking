@@ -5,6 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -19,7 +22,12 @@ import java.util.Locale;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.function.Executable;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.xml.sax.SAXException;
 
+import de.zft2.gbanking.concurrent.ProgressReporter;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.BankAccount;
@@ -52,12 +60,34 @@ class MoneyTransferCsvImportBeanTest {
 
 	private final DBController dbController = database.controller();
 
+	@ParameterizedTest
+	@CsvSource({ "false,missing", "true,missing", "false,directory", "true,directory", "false,malformed", "true,malformed" })
+	void invalidTransferFilesShouldNotReportCompletion(boolean sepa, String inputKind) throws Exception {
+		Path input = database.directory().resolve(inputKind + (sepa ? "-sepa" : "-csv"));
+		if ("directory".equals(inputKind)) {
+			Files.createDirectory(input);
+		} else if ("malformed".equals(inputKind)) {
+			Files.writeString(input, "<broken>", StandardCharsets.UTF_8);
+		}
+		ProgressReporter reporter = mock(ProgressReporter.class);
+		MoneyTransferCsvImportBean csvImporter = new MoneyTransferCsvImportBean(reporter);
+		MoneyTransferSepaImportBean sepaImporter = new MoneyTransferSepaImportBean(reporter, MoneyTransferStatus.IMPORTED);
+		Executable importAction = sepa ? () -> sepaImporter.importFile(input) : () -> csvImporter.importFile(input);
+		Class<? extends Exception> expected = sepa && "malformed".equals(inputKind) ? SAXException.class : GBankingException.class;
+
+		assertThrows(expected, importAction);
+
+		verify(reporter, never()).reportProgress(100);
+		assertTrue(dbController.getAll(MoneyTransfer.class).isEmpty());
+	}
+
 	@Test
 	void importFile_shouldPersistImportedTransferAndPurposeCodeForMatchingSenderIban() throws Exception {
 		BankAccount account = insertAccount(SENDER_IBAN, "5407324931");
 		Path csvFile = writeCsv(SENDER_IBAN + ";Max Empfänger;DE11100100101234567890;MARKDEF1100;123,45;Rechnung 4711;GDDS");
 
-		MoneyTransferCsvImportBean.ImportResult result = new MoneyTransferCsvImportBean().importFile(csvFile);
+		ProgressReporter reporter = mock(ProgressReporter.class);
+		MoneyTransferCsvImportBean.ImportResult result = new MoneyTransferCsvImportBean(reporter).importFile(csvFile);
 
 		List<MoneyTransfer> transfers = dbController.getAllByParent(MoneyTransfer.class, account.getId());
 		assertEquals(1, result.importedCount());
@@ -71,6 +101,8 @@ class MoneyTransferCsvImportBeanTest {
 		assertEquals(0, new BigDecimal("123.45").compareTo(transfer.getAmount()));
 		assertEquals("Max Empfänger", transfer.getRecipient().getName());
 		assertEquals("DE11100100101234567890", transfer.getRecipient().getIban());
+		verify(reporter).reportProgress(100);
+		verify(reporter).reportState(Messages.getInstance().getFormattedMessage("UI_MONEYTRANSFER_IMPORT_PROGRESS_DONE", new Object[] { "1", "0" }));
 		assertEquals("MARKDEF1100", transfer.getRecipient().getBic());
 	}
 
@@ -183,16 +215,14 @@ class MoneyTransferCsvImportBeanTest {
 		Path exportFile = database.directory().resolve("orders-with-protocol.csv");
 
 		Locale previousLocale = Messages.getLocale();
-		boolean result;
 		try {
 			Messages.setLocale(Locale.ENGLISH);
-			result = new FileExportOrdersCSVBean(null).exportFileFromDatatbase(List.of(account), exportFile.toString());
+			new FileExportOrdersCSVBean(null).exportFileFromDatatbase(List.of(account), exportFile.toString());
 		} finally {
 			Messages.setLocale(previousLocale);
 		}
 
 		String csv = Files.readString(exportFile, StandardCharsets.UTF_8);
-		assertTrue(result);
 		assertTrue(csv.contains(ExportConstants.PROTOCOL_STATUS.toString()));
 		assertTrue(csv.contains(ExportConstants.PROTOCOL_RESULT_STATUS.toString()));
 		assertTrue(csv.contains(ExportConstants.PROTOCOL_SCA_REQUIRED.toString()));

@@ -11,4 +11,9 @@ public class ExportException extends GBankingException {
 		super(message);
 	}
 
+	public ExportException(String message, Exception cause) {
+		super(message, cause);
+		initCause(cause);
+	}
+
 }

@@ -1,12 +1,22 @@
 package de.zft2.gbanking.file.exp;
 
+import static de.zft2.gbanking.util.FileNames.fileName;
+
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.TransformerException;
+
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -16,6 +26,7 @@ import de.zft2.gbanking.concurrent.ProgressReporter;
 import de.zft2.gbanking.concurrent.ProgressReporters;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
+import de.zft2.gbanking.exception.ExportException;
 import de.zft2.gbanking.util.AppPaths;
 
 public abstract class FileExportBean implements BaseMessagesDb {
@@ -183,6 +194,26 @@ public abstract class FileExportBean implements BaseMessagesDb {
 		return exportPath;
 	}
 
+	protected void writeTextExport(String content, String fileName, Charset charset, String format) throws IOException {
+		Path exportPath = prepareExportPath(fileName);
+		Files.writeString(exportPath, content, charset);
+		log.info("Finished {} booking export. file={}", format, exportPath.getFileName());
+		log.debug("{} export path: {}", format, exportPath);
+		updateWorkerState(99, "UI_PROGRESS_FINISH");
+	}
+
+	protected void writeCsvExport(List<Object[]> records, String fileName, CSVFormat format) throws IOException {
+		Path exportPath = prepareExportPath(fileName);
+		try (BufferedWriter writer = Files.newBufferedWriter(exportPath, StandardCharsets.UTF_8);
+				CSVPrinter printer = new CSVPrinter(writer, format)) {
+			for (Object[] record : records) {
+				printer.printRecord(record);
+			}
+			printer.flush();
+		}
+		updateWorkerState(99, "UI_PROGRESS_FINISH");
+	}
+
 	protected List<Booking> getBookings(BankAccount account) {
 		return dbController.getAllByParentFull(Booking.class, account.getId());
 	}
@@ -226,7 +257,24 @@ public abstract class FileExportBean implements BaseMessagesDb {
 		return value != null ? value : BigDecimal.ZERO;
 	}
 
-	public abstract boolean exportFileFromDatatbase(List<BankAccount> accountList, String fileName);
+	/**
+	 * Exports the selected accounts; failures propagate instead of reporting a successful task.
+	 *
+	 * @throws ExportException if the selection is invalid or serialization/writing fails
+	 */
+	public final void exportFileFromDatatbase(List<BankAccount> accountList, String fileName) {
+		if (accountList == null) {
+			throw new ExportException(getText("ERROR_FILE_EXPORT_ACCOUNTS_REQUIRED"));
+		}
+		try {
+			exportToFile(accountList, fileName);
+		} catch (IOException | ParserConfigurationException | TransformerException exception) {
+			throw new ExportException(getText("ERROR_FILE_EXPORT_FAILED", fileName(fileName)), exception);
+		}
+	}
+
+	protected abstract void exportToFile(List<BankAccount> accountList, String fileName)
+			throws IOException, ParserConfigurationException, TransformerException;
 
 	/**
 	 * An account with the bookings that have to be exported for it.

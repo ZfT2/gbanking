@@ -1,13 +1,9 @@
 package de.zft2.gbanking.file.exp;
 
-import java.io.IOException;
 import java.util.List;
-
-import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.xml.sax.SAXException;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.exception.GBankingException;
@@ -27,7 +23,7 @@ public class FileExportTask extends BaseFileTask {
 	}
 
 	@Override
-	public Void call() throws ParserConfigurationException, SAXException, IOException {
+	public Void call() {
 		log.info("Starting file export. type={}, file={}, accounts={}", () -> exportType, this::fileNameOnly,
 				() -> exportAccountList != null ? exportAccountList.size() : 0);
 		log.debug("File export path: {}", fileName);

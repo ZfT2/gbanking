@@ -1,6 +1,7 @@
 package de.zft2.gbanking.file.imp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -25,7 +26,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.xml.sax.SAXException;
 
 import de.zft2.fp3xmlextract.convert.Converter;
 import de.zft2.fp3xmlextract.data.Fp3XmlBankAccount;
@@ -45,6 +48,7 @@ import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.testdata.TestDataFactory;
+import javafx.concurrent.Worker.State;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FileImportXMLBeanTest {
@@ -53,6 +57,22 @@ class FileImportXMLBeanTest {
 	static final TestDatabaseExtension database = new TestDatabaseExtension();
 
 	private final DBController dbController = database.controller();
+
+	@ParameterizedTest
+	@EnumSource(value = ExportType.class, names = { "BOOKINGS_XML", "BOOKINGS_FP3" })
+	void malformedXmlOrFp3ShouldFailTheTask(ExportType type) throws Exception {
+		Path input = database.directory().resolve("malformed.xml");
+		Files.writeString(input, "<broken>");
+		FileImportTask task = new FileImportTask(input.toString(), type, null);
+
+		JavaFxTestSupport.runFx(task);
+
+		JavaFxTestSupport.runFx(() -> {
+			assertEquals(State.FAILED, task.getState());
+			assertInstanceOf(SAXException.class, task.getException());
+			assertTrue(task.getWorkerProgress() < 100);
+		});
+	}
 
 	@ParameterizedTest
 	@ValueSource(booleans = { false, true })

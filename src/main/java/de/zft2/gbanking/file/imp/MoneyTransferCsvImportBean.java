@@ -1,12 +1,10 @@
 package de.zft2.gbanking.file.imp;
 
-import static de.zft2.gbanking.util.FileNames.fileName;
 import static de.zft2.gbanking.util.TextValues.trimToNull;
 
 import java.io.IOException;
 import java.io.StringReader;
 import java.math.BigDecimal;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -21,8 +19,6 @@ import java.util.Optional;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.concurrent.ProgressReporter;
@@ -40,7 +36,7 @@ import de.zft2.gbanking.util.DecimalText;
 
 public class MoneyTransferCsvImportBean extends MoneyTransferImportBean {
 
-	private static final Logger log = LogManager.getLogger(MoneyTransferCsvImportBean.class);
+	private static final String IMPORT_FORMAT = "money transfer CSV";
 
 	private static final String HEADER_SENDER_IBAN = "AUFTRAGGEBER_IBAN";
 	private static final String HEADER_RECIPIENT_NAME = "NAME";
@@ -70,20 +66,9 @@ public class MoneyTransferCsvImportBean extends MoneyTransferImportBean {
 	}
 
 	public ImportResult importFile(Path importFile, BankAccount contextAccount) throws IOException {
-		if (!Files.isRegularFile(importFile)) {
-			throw new GBankingException(getText("ERROR_MONEYTRANSFER_IMPORT_FILE_NOT_FOUND", importFile.toString()));
-		}
-
-		log.info("Starting money transfer CSV import. file={}", () -> fileName(importFile));
-		log.debug("Money transfer CSV import path: {}", importFile);
+		startImport(importFile, IMPORT_FORMAT);
 		ImportResult result = importTransfers(readTransfers(importFile), contextAccount);
-		updateWorker(100, "UI_MONEYTRANSFER_IMPORT_PROGRESS_DONE", Integer.toString(result.importedCount()),
-				Integer.toString(result.skippedDuplicateCount()));
-		if (log.isInfoEnabled()) {
-			log.info("Finished money transfer CSV import. file={}, imported={}, skippedDuplicates={}", fileName(importFile), result.importedCount(),
-					result.skippedDuplicateCount());
-		}
-		return result;
+		return finishImport(importFile, IMPORT_FORMAT, "UI_MONEYTRANSFER_IMPORT_PROGRESS_DONE", result);
 	}
 
 	private List<ParsedTransfer> readTransfers(Path importFile) throws IOException {

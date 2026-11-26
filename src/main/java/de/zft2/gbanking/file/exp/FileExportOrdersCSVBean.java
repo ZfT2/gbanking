@@ -2,10 +2,7 @@ package de.zft2.gbanking.file.exp;
 
 import static de.zft2.gbanking.util.FileNames.fileName;
 
-import java.io.BufferedWriter;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -13,7 +10,6 @@ import java.util.stream.Stream;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVFormat.Builder;
-import org.apache.commons.csv.CSVPrinter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -22,7 +18,6 @@ import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.enu.LocalizedEnumValue;
-import de.zft2.gbanking.exception.ExportException;
 import de.zft2.gbanking.concurrent.ProgressReporter;
 
 public class FileExportOrdersCSVBean extends FileExportBean {
@@ -34,27 +29,13 @@ public class FileExportOrdersCSVBean extends FileExportBean {
 	}
 
 	@Override
-	public boolean exportFileFromDatatbase(List<BankAccount> accountList, String fileName) throws ExportException {
-
-		boolean result = true;
-
-		try {
-			List<Object[]> csvLines = createCSVContent(accountList);
-			saveToExportFile(csvLines, fileName);
-			if (log.isInfoEnabled()) {
-				log.info("Finished money transfer CSV export. file={}, accounts={}, records={}", fileName(fileName), accountList.size(),
-						csvLines.size());
-			}
-
-		} catch (Exception e) {
-			result = false;
-			if (log.isErrorEnabled()) {
-				log.error("Error exporting money transfer CSV file {}", fileName(fileName), e);
-			}
-			log.debug("Money transfer CSV export path: {}", fileName);
+	protected void exportToFile(List<BankAccount> accountList, String fileName) throws IOException {
+		List<Object[]> csvLines = createCSVContent(accountList);
+		writeCsvExport(csvLines, fileName, buildHeader().get());
+		if (log.isInfoEnabled()) {
+			log.info("Finished money transfer CSV export. file={}, accounts={}, records={}", fileName(fileName), accountList.size(),
+					csvLines.size());
 		}
-
-		return result;
 	}
 
 	private List<Object[]> createCSVContent(List<BankAccount> accountList) {
@@ -125,19 +106,6 @@ public class FileExportOrdersCSVBean extends FileExportBean {
 
 	private String getTechnicalName(LocalizedEnumValue value) {
 		return value != null ? value.getGermanName() : null;
-	}
-
-	private void saveToExportFile(List<Object[]> csvLines, String fileName) throws IOException {
-
-		Builder builder = buildHeader();
-		Path exportPath = prepareExportPath(fileName);
-		try (BufferedWriter csvWriter = Files.newBufferedWriter(exportPath);
-			CSVPrinter csvPrinter = new CSVPrinter(csvWriter, builder.get())) {
-			for (Object[] recordArray : csvLines) {
-				csvPrinter.printRecord(recordArray);
-			}
-			csvPrinter.flush();
-		}
 	}
 
 	private static Builder buildHeader() {

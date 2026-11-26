@@ -2,18 +2,23 @@ package de.zft2.gbanking.file.exp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import de.zft2.gbanking.concurrent.ProgressReporter;
 import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.BankAccount;
+import de.zft2.gbanking.exception.ExportException;
 import de.zft2.gbanking.gui.BaseWorker;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
 import de.zft2.gbanking.messages.Messages;
@@ -23,6 +28,20 @@ class FileExportBeanAdditionalTest {
 
 	@RegisterExtension
 	static final TestDatabaseExtension database = TestDatabaseExtension.withoutClearing();
+
+	@Test
+	void csvExportShouldRejectMissingAccountList() {
+		FileExportCSVBean exporter = new FileExportCSVBean(null);
+		assertThrows(ExportException.class, () -> exporter.exportFileFromDatatbase(null, "unused.csv"));
+	}
+
+	@ParameterizedTest
+	@ValueSource(ints = { 0, 2 })
+	void fp3ExportShouldRequireExactlyOneAccount(int count) {
+		FileExportFP3Bean exporter = new FileExportFP3Bean(null);
+		List<BankAccount> accounts = Collections.nCopies(count, new BankAccount());
+		assertThrows(ExportException.class, () -> exporter.exportFileFromDatatbase(accounts, "unused.fp3"));
+	}
 
 	@Test
 	void exportConstants_shouldResolveKnownDescriptionsAndExposeXmlTags() {
@@ -132,8 +151,8 @@ class FileExportBeanAdditionalTest {
 		}
 
 		@Override
-		public boolean exportFileFromDatatbase(List<BankAccount> accountList, String fileName) {
-			return true;
+		protected void exportToFile(List<BankAccount> accountList, String fileName) {
+			// This fixture only exercises progress reporting.
 		}
 	}
 

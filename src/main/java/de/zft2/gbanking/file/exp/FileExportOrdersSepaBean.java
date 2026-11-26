@@ -55,25 +55,18 @@ public class FileExportOrdersSepaBean extends FileExportBean {
 	}
 
 	@Override
-	public boolean exportFileFromDatatbase(List<BankAccount> accountList, String fileName) {
-		try {
-			ExportData exportData = collectExportData(accountList);
-			if (exportData.groups().isEmpty()) {
-				throw new ExportException(getText("ERROR_MONEYTRANSFER_SEPA_EXPORT_EMPTY"));
-			}
-			writeDocument(createDocument(exportData.groups()), prepareExportPath(fileName));
-			String finalMessage = exportData.skippedCount() > 0 ? "UI_MONEYTRANSFER_SEPA_EXPORT_SKIPPED" : "UI_PROGRESS_FINISH";
-			updateWorkerState(99, finalMessage, exportData.skippedCount());
-			if (log.isInfoEnabled()) {
-				log.info("Finished SEPA PAIN export. file={}, records={}, skippedUnsupported={}", fileName(fileName),
-						exportData.exportedCount(), exportData.skippedCount());
-			}
-			return true;
-		} catch (ExportException exception) {
-			throw exception;
-		} catch (Exception exception) {
-			log.error("Error exporting SEPA PAIN file {}", fileName(fileName), exception);
-			throw new ExportException(getText("ERROR_MONEYTRANSFER_SEPA_EXPORT_FAILED", exception.getMessage()));
+	protected void exportToFile(List<BankAccount> accountList, String fileName)
+			throws IOException, ParserConfigurationException, TransformerException {
+		ExportData exportData = collectExportData(accountList);
+		if (exportData.groups().isEmpty()) {
+			throw new ExportException(getText("ERROR_MONEYTRANSFER_SEPA_EXPORT_EMPTY"));
+		}
+		writeDocument(createDocument(exportData.groups()), prepareExportPath(fileName));
+		String finalMessage = exportData.skippedCount() > 0 ? "UI_MONEYTRANSFER_SEPA_EXPORT_SKIPPED" : "UI_PROGRESS_FINISH";
+		updateWorkerState(99, finalMessage, exportData.skippedCount());
+		if (log.isInfoEnabled()) {
+			log.info("Finished SEPA PAIN export. file={}, records={}, skippedUnsupported={}", fileName(fileName),
+					exportData.exportedCount(), exportData.skippedCount());
 		}
 	}
 

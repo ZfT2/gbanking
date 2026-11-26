@@ -62,6 +62,11 @@ public class FileImportProgressBarPanel extends BaseFileProgressBarPanel {
 	}
 
 	@Override
+	protected boolean keepDialogOpenOnFailure() {
+		return true;
+	}
+
+	@Override
 	public void startTask(String fileName, ExportType exportType, AccountListPanel accountListPanel) {
 		task = new FileImportTask(fileName, exportType, contextAccount, csvDefinitionName,
 				new ImportedBankNameValidationDialog(dialogStage));

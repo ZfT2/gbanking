@@ -1,33 +1,24 @@
 package de.zft2.gbanking.file.exp;
 
-import static de.zft2.gbanking.util.FileNames.fileName;
 import static de.zft2.gbanking.util.TextValues.firstNonBlank;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.BookingAdditionalDetails;
 import de.zft2.gbanking.db.dao.Recipient;
-import de.zft2.gbanking.exception.ExportException;
 import de.zft2.gbanking.concurrent.ProgressReporter;
 
 public class FileExportMT940Bean extends FileExportBean {
-
-	private static final Logger log = LogManager.getLogger(FileExportMT940Bean.class);
 
 	private static final String NONREF = "NONREF";
 
@@ -42,16 +33,8 @@ public class FileExportMT940Bean extends FileExportBean {
 	}
 
 	@Override
-	public boolean exportFileFromDatatbase(List<BankAccount> accountList, String fileName) throws ExportException {
-		try {
-			String mt940Content = createMT940Content(accountList);
-			saveToExportFile(mt940Content, fileName);
-			return true;
-		} catch (Exception e) {
-			log.error("Error exporting MT940 file {}", fileName(fileName), e);
-			log.debug("MT940 export path: {}", fileName);
-			return false;
-		}
+	protected void exportToFile(List<BankAccount> accountList, String fileName) throws IOException {
+		writeTextExport(createMT940Content(accountList), fileName, StandardCharsets.ISO_8859_1, "MT940");
 	}
 
 	private String createMT940Content(List<BankAccount> accountList) {
@@ -224,11 +207,4 @@ public class FileExportMT940Bean extends FileExportBean {
 		return null;
 	}
 
-	private void saveToExportFile(String mt940Content, String fileName) throws IOException {
-		Path exportPath = prepareExportPath(fileName);
-		Files.writeString(exportPath, mt940Content, StandardCharsets.ISO_8859_1);
-		log.info("Finished MT940 booking export. file={}", exportPath.getFileName());
-		log.debug("MT940 export path: {}", exportPath);
-		updateWorkerState(99, "UI_PROGRESS_FINISH");
-	}
 }

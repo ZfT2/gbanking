@@ -1,6 +1,8 @@
 package de.zft2.gbanking.file.imp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -13,12 +15,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import de.zft2.gbanking.concurrent.ProgressReporter;
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
+import de.zft2.gbanking.messages.Messages;
 import de.zft2.gbanking.testdata.TestDataFactory;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -36,7 +40,8 @@ class MoneyTransferSepaImportBeanTest {
 	void importFile_shouldReadMoneyplexPain00100203ExampleIntoArchive() throws Exception {
 		BankAccount account = insertAccount(MONEY_PLEX_ACCOUNT_IBAN);
 
-		MoneyTransferImportBean.ImportResult result = new MoneyTransferSepaImportBean()
+		ProgressReporter reporter = mock(ProgressReporter.class);
+		MoneyTransferImportBean.ImportResult result = new MoneyTransferSepaImportBean(reporter, MoneyTransferStatus.IMPORTED)
 				.importFile(Path.of("src/test/resources/import/SEPA_MP_Example.xml"));
 
 		List<MoneyTransfer> transfers = dbController.getAllByParent(MoneyTransfer.class, account.getId());
@@ -51,6 +56,8 @@ class MoneyTransferSepaImportBeanTest {
 		assertEquals("Telefonica Germany", transfer.getRecipient().getName());
 		assertEquals(RECIPIENT_IBAN, transfer.getRecipient().getIban());
 		assertEquals("HYVEDEMMXXX", transfer.getRecipient().getBic());
+		verify(reporter).reportProgress(100);
+		verify(reporter).reportState(Messages.getInstance().getFormattedMessage("UI_MONEYTRANSFER_SEPA_IMPORT_PROGRESS_DONE", new Object[] { "1", "0" }));
 	}
 
 	@Test

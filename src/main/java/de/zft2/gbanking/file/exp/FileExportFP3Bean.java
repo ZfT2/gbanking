@@ -1,14 +1,11 @@
 package de.zft2.gbanking.file.exp;
 
-import static de.zft2.gbanking.util.FileNames.fileName;
 import static de.zft2.gbanking.util.TextValues.firstNonBlank;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -18,9 +15,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.Recipient;
@@ -29,7 +23,6 @@ import de.zft2.gbanking.concurrent.ProgressReporter;
 
 public class FileExportFP3Bean extends FileExportBean {
 
-	private static final Logger log = LogManager.getLogger(FileExportFP3Bean.class);
 	private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 	private static final Comparator<Booking> BOOKING_ORDER = Comparator.comparing(FileExportFP3Bean::sortDate).thenComparingInt(Booking::getId);
 
@@ -38,21 +31,11 @@ public class FileExportFP3Bean extends FileExportBean {
 	}
 
 	@Override
-	public boolean exportFileFromDatatbase(List<BankAccount> accountList, String fileName) throws ExportException {
-		if (accountList == null || accountList.size() != 1) {
-			log.error("FP3 export requires exactly one account.");
-			return false;
+	protected void exportToFile(List<BankAccount> accountList, String fileName) throws IOException {
+		if (accountList.size() != 1) {
+			throw new ExportException(getText("ALERT_BOOKINGS_FP3_EXPORT_ACCOUNT_REQUIRED"));
 		}
-
-		try {
-			String fp3Content = createFP3Content(accountList.get(0));
-			saveToExportFile(fp3Content, fileName);
-			return true;
-		} catch (Exception e) {
-			log.error("Error exporting FP3 file {}", fileName(fileName), e);
-			log.debug("FP3 export path: {}", fileName);
-			return false;
-		}
+		writeTextExport(createFP3Content(accountList.get(0)), fileName, StandardCharsets.UTF_8, "FP3");
 	}
 
 	private String createFP3Content(BankAccount account) {
@@ -230,14 +213,6 @@ public class FileExportFP3Bean extends FileExportBean {
 
 	private String formatAmount(BigDecimal value) {
 		return safeAmount(value).setScale(2, RoundingMode.HALF_UP).toPlainString().replace('.', ',');
-	}
-
-	private void saveToExportFile(String fp3Content, String fileName) throws IOException {
-		Path exportPath = prepareExportPath(fileName);
-		Files.writeString(exportPath, fp3Content, StandardCharsets.UTF_8);
-		log.info("Finished FP3 booking export. file={}", exportPath.getFileName());
-		log.debug("FP3 export path: {}", exportPath);
-		updateWorkerState(99, "UI_PROGRESS_FINISH");
 	}
 
 	private static LocalDate sortDate(Booking booking) {
