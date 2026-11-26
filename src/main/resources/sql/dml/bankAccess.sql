@@ -67,73 +67,50 @@ DELETE FROM bankAccessPaypal WHERE bankAccess_id = ?;
 DELETE FROM bankAccessEnablebanking WHERE bankAccess_id = ?;
 ;
 
-[SQL_SELECT_ALL_BANKACCESSES]
-SELECT ba.id, ba.bankName, ba.active, ba.updatedAt, ba.accessType,
+[SQL_SELECT_BANKACCESS_COLUMNS]
+ba.id, ba.bankName, ba.active, ba.updatedAt, ba.accessType,
   bf.country AS fintsCountry, bf.blz AS fintsBlz, bf.hbciURL, bf.port, bf.userId AS fintsUserId,
   bf.customerId, bf.sysId, bf.tanProcedure, bf.hbciVersion,
   bf.bpdVersion, bf.updVersion, bf.hbciFilterType,
   bp.userId AS paypalUserId, bp.apiUsername AS paypalApiUsername, bp.apiSignature AS paypalApiSignature,
   be.psd2ClientConfiguration_id, be.aspspName, be.aspspCountry, be.psuType, be.authMethod,
   be.sessionId, be.validUntil, be.rateLimitUntil
+;
+
+[SQL_SELECT_ALL_BANKACCESSES_BASE]
+SELECT ${SQL_SELECT_BANKACCESS_COLUMNS}
 FROM bankAccess ba
 LEFT JOIN bankAccessFints bf ON bf.bankAccess_id = ba.id
 LEFT JOIN bankAccessPaypal bp ON bp.bankAccess_id = ba.id
 LEFT JOIN bankAccessEnablebanking be ON be.bankAccess_id = ba.id;
 ;
 
+[SQL_SELECT_ALL_BANKACCESSES]
+${SQL_SELECT_ALL_BANKACCESSES_BASE};
+;
+
 [SQL_SELECT_BANKACCESS_BY_ID]
-SELECT ba.id, ba.bankName, ba.active, ba.updatedAt, ba.accessType,
-  bf.country AS fintsCountry, bf.blz AS fintsBlz, bf.hbciURL, bf.port, bf.userId AS fintsUserId,
-  bf.customerId, bf.sysId, bf.tanProcedure, bf.hbciVersion,
-  bf.bpdVersion, bf.updVersion, bf.hbciFilterType,
-  bp.userId AS paypalUserId, bp.apiUsername AS paypalApiUsername, bp.apiSignature AS paypalApiSignature,
-  be.psd2ClientConfiguration_id, be.aspspName, be.aspspCountry, be.psuType, be.authMethod,
-  be.sessionId, be.validUntil, be.rateLimitUntil
+${SQL_SELECT_ALL_BANKACCESSES_BASE} WHERE ba.id = ?;
+;
+
+[SQL_SELECT_BANKACCESS_FINTS_BASE]
+SELECT ${SQL_SELECT_BANKACCESS_COLUMNS}
 FROM bankAccess ba
-LEFT JOIN bankAccessFints bf ON bf.bankAccess_id = ba.id
+JOIN bankAccessFints bf ON bf.bankAccess_id = ba.id
 LEFT JOIN bankAccessPaypal bp ON bp.bankAccess_id = ba.id
-LEFT JOIN bankAccessEnablebanking be ON be.bankAccess_id = ba.id
-WHERE ba.id = ?;
+LEFT JOIN bankAccessEnablebanking be ON be.bankAccess_id = ba.id;
 ;
 
 [SQL_SELECT_BANKACCESS_BY_BLZ]
-SELECT ba.id, ba.bankName, ba.active, ba.updatedAt, ba.accessType,
-  bf.country AS fintsCountry, bf.blz AS fintsBlz, bf.hbciURL, bf.port, bf.userId AS fintsUserId,
-  bf.customerId, bf.sysId, bf.tanProcedure, bf.hbciVersion,
-  bf.bpdVersion, bf.updVersion, bf.hbciFilterType,
-  bp.userId AS paypalUserId, bp.apiUsername AS paypalApiUsername, bp.apiSignature AS paypalApiSignature,
-  be.psd2ClientConfiguration_id, be.aspspName, be.aspspCountry, be.psuType, be.authMethod,
-  be.sessionId, be.validUntil, be.rateLimitUntil
-FROM bankAccess ba
-JOIN bankAccessFints bf ON bf.bankAccess_id = ba.id
-LEFT JOIN bankAccessPaypal bp ON bp.bankAccess_id = ba.id
-LEFT JOIN bankAccessEnablebanking be ON be.bankAccess_id = ba.id
-WHERE bf.blz = ?;
+${SQL_SELECT_BANKACCESS_FINTS_BASE} WHERE bf.blz = ?;
 ;
 
 [SQL_SELECT_BANKACCESS_BY_BLZ_AND_USER_ID]
-SELECT ba.id, ba.bankName, ba.active, ba.updatedAt, ba.accessType,
-  bf.country AS fintsCountry, bf.blz AS fintsBlz, bf.hbciURL, bf.port, bf.userId AS fintsUserId,
-  bf.customerId, bf.sysId, bf.tanProcedure, bf.hbciVersion,
-  bf.bpdVersion, bf.updVersion, bf.hbciFilterType,
-  bp.userId AS paypalUserId, bp.apiUsername AS paypalApiUsername, bp.apiSignature AS paypalApiSignature,
-  be.psd2ClientConfiguration_id, be.aspspName, be.aspspCountry, be.psuType, be.authMethod,
-  be.sessionId, be.validUntil, be.rateLimitUntil
-FROM bankAccess ba
-JOIN bankAccessFints bf ON bf.bankAccess_id = ba.id
-LEFT JOIN bankAccessPaypal bp ON bp.bankAccess_id = ba.id
-LEFT JOIN bankAccessEnablebanking be ON be.bankAccess_id = ba.id
-WHERE bf.blz = ? AND bf.userId = ?;
+${SQL_SELECT_BANKACCESS_FINTS_BASE} WHERE bf.blz = ? AND bf.userId = ?;
 ;
 
 [SQL_SELECT_BANKACCESS_PAYPAL_BY_USER_ID]
-SELECT ba.id, ba.bankName, ba.active, ba.updatedAt, ba.accessType,
-  bf.country AS fintsCountry, bf.blz AS fintsBlz, bf.hbciURL, bf.port, bf.userId AS fintsUserId,
-  bf.customerId, bf.sysId, bf.tanProcedure, bf.hbciVersion,
-  bf.bpdVersion, bf.updVersion, bf.hbciFilterType,
-  bp.userId AS paypalUserId, bp.apiUsername AS paypalApiUsername, bp.apiSignature AS paypalApiSignature,
-  be.psd2ClientConfiguration_id, be.aspspName, be.aspspCountry, be.psuType, be.authMethod,
-  be.sessionId, be.validUntil, be.rateLimitUntil
+SELECT ${SQL_SELECT_BANKACCESS_COLUMNS}
 FROM bankAccess ba
 LEFT JOIN bankAccessFints bf ON bf.bankAccess_id = ba.id
 JOIN bankAccessPaypal bp ON bp.bankAccess_id = ba.id
