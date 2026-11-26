@@ -5,6 +5,7 @@ import java.util.function.Consumer;
 
 import de.zft2.gbanking.gui.panel.AbstractFilterableTablePanel;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.StockPortfolioAdministrationService;
 import de.zft2.gbanking.service.stock.StockPortfolioAdministrationService.PortfolioDetails;
 import javafx.collections.FXCollections;
@@ -15,10 +16,9 @@ public class StockPortfolioManagementListPanel extends AbstractFilterableTablePa
 	private final StockPortfolioAdministrationService service;
 	private final Consumer<PortfolioDetails> selectionHandler;
 
-	public StockPortfolioManagementListPanel(StockPortfolioAdministrationService service,
-			Consumer<PortfolioDetails> selectionHandler) {
+	public StockPortfolioManagementListPanel(Consumer<PortfolioDetails> selectionHandler) {
 		super(FXCollections.observableArrayList());
-		this.service = service;
+		this.service = ServiceRegistry.getService(StockPortfolioAdministrationService.class);
 		this.selectionHandler = selectionHandler;
 		setColumns(createColumns());
 		configureTableLayout("stockPortfolios.ALL_STOCK_PORTFOLIOS");

@@ -20,6 +20,7 @@ import de.zft2.gbanking.gui.util.DetailFormEditMode;
 import de.zft2.gbanking.gui.util.FormFields;
 import de.zft2.gbanking.gui.util.FormGridHelper;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.StockSecurityAdministrationService;
 import de.zft2.gbanking.service.stock.StockSecurityAdministrationService.SecurityDetails;
 import de.zft2.gbanking.service.stock.StockSecurityAdministrationService.SecuritySaveRequest;
@@ -82,14 +83,13 @@ public class StockSecurityDetailPanel extends AbstractReadonlyDetailPanel {
 	private boolean creatingNewSecurity;
 	private final DetailFormEditMode editModeController;
 
-	public StockSecurityDetailPanel(StockSecurityAdministrationService service, Consumer<Integer> afterSave) {
-		this(service, afterSave, null);
+	public StockSecurityDetailPanel(Consumer<Integer> afterSave) {
+		this(afterSave, null);
 	}
 
-	public StockSecurityDetailPanel(StockSecurityAdministrationService service, Consumer<Integer> afterSave,
-			Runnable afterCancel) {
+	public StockSecurityDetailPanel(Consumer<Integer> afterSave, Runnable afterCancel) {
 		super("UI_PANEL_STOCK_SECURITY_DETAILS");
-		this.service = service;
+		this.service = ServiceRegistry.getService(StockSecurityAdministrationService.class);
 		this.afterSave = afterSave;
 		this.afterCancel = afterCancel;
 		FormGridHelper.setEqualGrowColumns(formGrid, 3);

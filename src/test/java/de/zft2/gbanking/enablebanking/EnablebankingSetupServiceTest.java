@@ -1,5 +1,6 @@
 package de.zft2.gbanking.enablebanking;
 
+import static de.zft2.gbanking.service.ServiceStubbingUtil.createWithServices;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -70,7 +71,8 @@ class EnablebankingSetupServiceTest {
 	private final EnablebankingApiClient client = mock(EnablebankingApiClient.class);
 	private final BankAccessService bankAccessService = mock(BankAccessService.class);
 	private final EnablebankingAccountTransactionService retrievalService = mock(EnablebankingAccountTransactionService.class);
-	private final EnablebankingSetupService service = new EnablebankingSetupService(authorizationService);
+	private final EnablebankingSetupService service =
+			createWithServices(() -> new EnablebankingSetupService(), authorizationService);
 
 	@BeforeEach
 	void registerServices() {
@@ -80,8 +82,7 @@ class EnablebankingSetupServiceTest {
 
 	@AfterEach
 	void removeServices() {
-		ServiceRegistry.removeService(BankAccessService.class);
-		ServiceRegistry.removeService(EnablebankingAccountTransactionService.class);
+		ServiceRegistry.resetServices();
 	}
 
 	@Test

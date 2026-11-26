@@ -4,8 +4,6 @@ import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.gui.panel.layout.DetailListPane;
 import de.zft2.gbanking.gui.panel.stock.StockPortfolioManagementDetailPanel;
 import de.zft2.gbanking.gui.panel.stock.StockPortfolioManagementListPanel;
-import de.zft2.gbanking.service.ServiceRegistry;
-import de.zft2.gbanking.service.stock.StockPortfolioAdministrationService;
 import de.zft2.gbanking.service.stock.StockPortfolioAdministrationService.PortfolioDetails;
 
 public class AllStockPortfoliosOverviewPanel extends OverviewBasePanel {
@@ -14,13 +12,9 @@ public class AllStockPortfoliosOverviewPanel extends OverviewBasePanel {
 	private final StockPortfolioManagementListPanel listPanel;
 
 	public AllStockPortfoliosOverviewPanel() {
-		this(ServiceRegistry.getService(StockPortfolioAdministrationService.class));
-	}
-
-	AllStockPortfoliosOverviewPanel(StockPortfolioAdministrationService service) {
 		setPageContext(PageContext.ALL_STOCK_PORTFOLIOS);
-		detailPanel = new StockPortfolioManagementDetailPanel(service, this::reloadAndSelect);
-		listPanel = new StockPortfolioManagementListPanel(service, detailPanel::updatePanel);
+		detailPanel = new StockPortfolioManagementDetailPanel(this::reloadAndSelect);
+		listPanel = new StockPortfolioManagementListPanel(detailPanel::updatePanel);
 		setOverviewContent("UI_PANEL_ALL_STOCK_PORTFOLIOS", new DetailListPane(detailPanel, listPanel));
 	}
 

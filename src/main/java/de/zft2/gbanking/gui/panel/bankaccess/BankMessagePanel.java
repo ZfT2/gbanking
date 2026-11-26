@@ -41,12 +41,8 @@ public class BankMessagePanel extends DetailListPane implements BaseMessagesBean
 	private BankAccess currentBankAccess;
 
 	public BankMessagePanel() {
-		this(ServiceRegistry.getService(BankMessageService.class), ServiceRegistry.getService(BankingCapabilityService.class));
-	}
-
-	BankMessagePanel(BankMessageService bankMessageService, BankingCapabilityService bankingCapabilityService) {
-		this.bankMessageService = bankMessageService;
-		this.bankingCapabilityService = bankingCapabilityService;
+		this.bankMessageService = ServiceRegistry.getService(BankMessageService.class);
+		this.bankingCapabilityService = ServiceRegistry.getService(BankingCapabilityService.class);
 		detailPanel = new BankMessageDetailPanel(() -> retrieveMessages());
 		listPanel = new BankMessageListPanel(message -> handleMessageSelection(message));
 		createPanel();

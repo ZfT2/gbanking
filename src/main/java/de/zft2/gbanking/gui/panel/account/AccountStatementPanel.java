@@ -41,12 +41,8 @@ public class AccountStatementPanel extends DetailListPane implements BaseMessage
 	private BankAccount currentAccount;
 
 	public AccountStatementPanel() {
-		this(ServiceRegistry.getService(AccountStatementService.class), ServiceRegistry.getService(BankingCapabilityService.class));
-	}
-
-	AccountStatementPanel(AccountStatementService accountStatementService, BankingCapabilityService bankingCapabilityService) {
-		this.accountStatementService = accountStatementService;
-		this.bankingCapabilityService = bankingCapabilityService;
+		this.accountStatementService = ServiceRegistry.getService(AccountStatementService.class);
+		this.bankingCapabilityService = ServiceRegistry.getService(BankingCapabilityService.class);
 		detailPanel = new AccountStatementDetailPanel(() -> retrieveStatements(), () -> acknowledgeStatements());
 		listPanel = new AccountStatementListPanel(statement -> handleStatementSelection(statement), statement -> openStatement(statement));
 		setDetailAndList(detailPanel, listPanel);

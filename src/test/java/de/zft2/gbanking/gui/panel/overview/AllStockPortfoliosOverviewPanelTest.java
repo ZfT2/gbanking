@@ -1,5 +1,6 @@
 package de.zft2.gbanking.gui.panel.overview;
 
+import static de.zft2.gbanking.service.ServiceStubbingUtil.createWithServices;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.mockito.Mockito.mock;
@@ -17,6 +18,7 @@ import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.gui.panel.layout.DetailListPane;
 import de.zft2.gbanking.gui.panel.stock.StockPortfolioManagementDetailPanel;
 import de.zft2.gbanking.gui.panel.stock.StockPortfolioManagementListPanel;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.StockPortfolioAdministrationService;
 import de.zft2.gbanking.service.stock.StockPortfolioAdministrationService.PortfolioDetails;
 import javafx.scene.control.TableView;
@@ -25,6 +27,7 @@ class AllStockPortfoliosOverviewPanelTest {
 
 	@AfterEach
 	void closeDatabase() {
+		ServiceRegistry.resetServices();
 		GuiContext.setOnlyOnlineAccountsVisible(false);
 		DBControllerTestUtil.closeAndNullifyConnection();
 	}
@@ -36,7 +39,7 @@ class AllStockPortfoliosOverviewPanelTest {
 		GuiContext.setOnlyOnlineAccountsVisible(true);
 
 		JavaFxTestSupport.runFx(() -> {
-			AllStockPortfoliosOverviewPanel panel = new AllStockPortfoliosOverviewPanel(service);
+			AllStockPortfoliosOverviewPanel panel = createWithServices(() -> new AllStockPortfoliosOverviewPanel(), service);
 			panel.refreshOnShow();
 
 			assertEquals(PageContext.ALL_STOCK_PORTFOLIOS, panel.getPageContext());

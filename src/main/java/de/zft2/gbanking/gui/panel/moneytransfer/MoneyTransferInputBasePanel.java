@@ -99,15 +99,10 @@ public abstract class MoneyTransferInputBasePanel extends AbstractTitledFormPane
 	protected final BankingCapabilityService bankingCapabilityService;
 
 	protected MoneyTransferInputBasePanel(MoneyTransferDetailListTabPanel parentPanel) {
-		this(parentPanel, ServiceRegistry.getService(MoneyTransferService.class), ServiceRegistry.getService(BankingCapabilityService.class));
-	}
-
-	protected MoneyTransferInputBasePanel(MoneyTransferDetailListTabPanel parentPanel, MoneyTransferService moneyTransferService,
-			BankingCapabilityService bankingCapabilityService) {
 		super("UI_LABEL_SENDER_ACCOUNT");
 		this.parentPanel = parentPanel;
-		this.moneyTransferService = moneyTransferService;
-		this.bankingCapabilityService = bankingCapabilityService;
+		this.moneyTransferService = ServiceRegistry.getService(MoneyTransferService.class);
+		this.bankingCapabilityService = ServiceRegistry.getService(BankingCapabilityService.class);
 		configureAccountBalanceLabel();
 		createBasePanel();
 	}

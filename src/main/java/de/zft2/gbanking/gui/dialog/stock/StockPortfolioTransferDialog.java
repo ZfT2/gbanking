@@ -11,6 +11,7 @@ import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.util.DateFormatUtils;
 import de.zft2.gbanking.gui.util.FormGridHelper;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
 import de.zft2.gbanking.service.stock.StockPortfolioTransferService;
 import de.zft2.gbanking.service.stock.StockPortfolioTransferService.TransferPlan;
@@ -46,10 +47,10 @@ public final class StockPortfolioTransferDialog extends AbstractStockDialog {
 	private final TextField exchangeRateField = new TextField();
 
 	public StockPortfolioTransferDialog(Window owner, PortfolioSummary source, List<PortfolioSummary> targets,
-			StockPortfolioTransferService service, Runnable savedHandler) {
+			Runnable savedHandler) {
 		super(owner, "UI_STOCK_PORTFOLIO_TRANSFER_DIALOG_TITLE");
 		this.source = source;
-		this.service = service;
+		this.service = ServiceRegistry.getService(StockPortfolioTransferService.class);
 		this.savedHandler = savedHandler;
 		targetField = new ComboBox<>(FXCollections.observableArrayList(targets));
 		initialize();

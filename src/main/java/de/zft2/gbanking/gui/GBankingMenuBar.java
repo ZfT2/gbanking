@@ -32,14 +32,10 @@ final class GBankingMenuBar extends MenuBar implements BaseGui {
 	private final BankingCapabilityService bankingCapabilityService;
 
 	GBankingMenuBar(GBankingGui gui) {
-		this(gui, ServiceRegistry.getService(GBankingService.class), ServiceRegistry.getService(BankingCapabilityService.class));
-	}
-
-	GBankingMenuBar(GBankingGui gui, GBankingService gBankingService, BankingCapabilityService bankingCapabilityService) {
 		this.stage = gui.getStage();
 		this.gui = gui;
-		this.gBankingService = gBankingService;
-		this.bankingCapabilityService = bankingCapabilityService;
+		this.gBankingService = ServiceRegistry.getService(GBankingService.class);
+		this.bankingCapabilityService = ServiceRegistry.getService(BankingCapabilityService.class);
 		createMenuBar();
 	}
 

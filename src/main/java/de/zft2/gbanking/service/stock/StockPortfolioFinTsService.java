@@ -557,7 +557,7 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 
 	private StockSecurityPriceSource getOrCreatePriceSource(StockDataSource source, StockSecurity security,
 			String marketIdentifierCode) {
-		return StockSources.getOrCreatePriceSource(dbController, security.getId(), source.getId(), null,
+		return StockSources.getOrCreatePriceSource(security.getId(), source.getId(), null,
 				marketIdentifierCode, source.getDefaultPriority());
 	}
 
@@ -601,7 +601,7 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 	}
 
 	private StockDataSource getOrCreateFinTsSource() {
-		return StockSources.getOrCreateDataSource(dbController, FINTS_SOURCE_CODE, "FinTS", StockDataSourceType.FINTS,
+		return StockSources.getOrCreateDataSource(FINTS_SOURCE_CODE, "FinTS", StockDataSourceType.FINTS,
 				100);
 	}
 

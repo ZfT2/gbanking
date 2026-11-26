@@ -274,7 +274,7 @@ class AccountStatementServiceTest {
 		BankAccountStatement acknowledgedStatement = createStoredStatement(account, true);
 		acknowledgedStatement.setNumber(42);
 		storeWithFile(acknowledgedStatement);
-		new SettingsStore(dbController).save(new SettingDefinition(AccountStatementSettings.SETTING_REDOWNLOAD_ACKNOWLEDGED, "false",
+		new SettingsStore().save(new SettingDefinition(AccountStatementSettings.SETTING_REDOWNLOAD_ACKNOWLEDGED, "false",
 				DataType.BOOLEAN, true, true, "test"), "true");
 		HBCIJob<GVRKontoauszug> statementJob = statementJob();
 		doReturn(statementJob).when(hbciSupport).newHbciJob(handler, PDF_JOB);

@@ -10,6 +10,7 @@ import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.util.DateFormatUtils;
 import de.zft2.gbanking.gui.util.FormControlUtils;
 import de.zft2.gbanking.gui.util.FormGridHelper;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.StockPortfolioService;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PositionSummary;
@@ -27,9 +28,10 @@ import javafx.stage.Window;
 
 public final class StockSecurityExchangeDialog extends AbstractStockDialog {
 
-	public StockSecurityExchangeDialog(Window owner, StockPortfolioService service, PortfolioSummary portfolio,
-			PositionSummary position, boolean linkImported, Runnable savedHandler) {
+	public StockSecurityExchangeDialog(Window owner, PortfolioSummary portfolio, PositionSummary position,
+			boolean linkImported, Runnable savedHandler) {
 		super(owner, "UI_STOCK_EXCHANGE_TITLE");
+		StockPortfolioService service = ServiceRegistry.getService(StockPortfolioService.class);
 		List<SecuritySummary> securities = service.getTransactionSecurities();
 		Function<SecuritySummary, String> securityLabel = security -> security.name() + " | "
 				+ Objects.toString(security.isin(), "") + " | " + Objects.toString(security.wkn(), "");

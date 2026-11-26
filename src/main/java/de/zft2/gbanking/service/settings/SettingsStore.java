@@ -11,14 +11,10 @@ import de.zft2.gbanking.db.dao.Setting;
 
 public final class SettingsStore {
 
-	private final DBController dbController;
-
-	public SettingsStore(DBController dbController) {
-		this.dbController = Objects.requireNonNull(dbController, "dbController");
-	}
+	private final DBController dbController = DBController.getInstance(".");
 
 	public static SettingsStore current() {
-		return new SettingsStore(DBController.getInstance("."));
+		return new SettingsStore();
 	}
 
 	public List<Setting> getAll() {

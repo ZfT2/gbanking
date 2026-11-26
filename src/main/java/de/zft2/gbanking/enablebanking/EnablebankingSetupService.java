@@ -34,15 +34,8 @@ import de.zft2.gbanking.util.IbanStructure;
 
 public class EnablebankingSetupService extends AbstractDbService {
 
-	private final EnablebankingAuthorizationService authorizationService;
-
-	public EnablebankingSetupService() {
-		this(new EnablebankingAuthorizationService());
-	}
-
-	EnablebankingSetupService(EnablebankingAuthorizationService authorizationService) {
-		this.authorizationService = authorizationService;
-	}
+	private final EnablebankingAuthorizationService authorizationService =
+			ServiceRegistry.getService(EnablebankingAuthorizationService.class);
 
 	public Psd2ClientConfiguration getPersonalConfiguration() {
 		return dbController.getAll(Psd2ClientConfiguration.class).stream()

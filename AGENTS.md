@@ -29,7 +29,8 @@
 - Commit your changes with CRLF line endings so they match the Git configuration and prevent phantom diffs. 
 - Avoid the :: notation whenever reasonably possible, unless it significantly reduces the number of lines of code (LOC).
 - Avoid @SuppressWarnings("unchecked"). Write clean code without warnings.
-- After every change, review the modified code again and check it for potential optimization, especially regarding LOC. But not at any cost—the code should remain readable and understandable.
+- Avoid providing Services (e.g. DbExecutor, DBController, GBankingService etc.) as constructor- or method parameters.
+- After every change, review the modified code again and check it for potential optimization, especially regarding LOC. But not at any cost — the code should remain readable and understandable.
 
 - Show a short LOC statistics at the end of every task: totally added LOC: LOC for logic, LOC for tests, LOC for documentation. Totally removed LOC over all changed files.
 

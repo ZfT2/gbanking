@@ -18,6 +18,7 @@ import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.util.FormControlUtils;
 import de.zft2.gbanking.gui.util.FormGridHelper;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.StockCorporateActionService;
 import de.zft2.gbanking.service.stock.StockCorporateActionService.ActionResult;
 import de.zft2.gbanking.service.stock.StockCorporateActionService.OperationRequest;
@@ -65,21 +66,16 @@ public final class StockCorporateActionDialog extends AbstractStockDialog {
 	private final Label totals = new Label();
 
 	public StockCorporateActionDialog(Window owner, PortfolioSummary portfolio, Runnable saved) {
-		this(owner, new StockCorporateActionService(), new StockPortfolioService(), portfolio, saved);
-	}
-
-	StockCorporateActionDialog(Window owner, StockCorporateActionService service, StockPortfolioService portfolios,
-			PortfolioSummary portfolio, Runnable saved) {
 		super(owner, "UI_STOCK_CORPORATE_TITLE");
-		this.service = service;
-		this.portfolios = portfolios;
+		this.service = ServiceRegistry.getService(StockCorporateActionService.class);
+		this.portfolios = ServiceRegistry.getService(StockPortfolioService.class);
 		this.portfolio = portfolio;
 		this.saved = saved;
-		action = selection(service.getActions(), StockCorporateAction::getName);
+		action = selection(this.service.getActions(), StockCorporateAction::getName);
 		Function<TransactionSummary, String> transactionLabel = row -> "#" + row.transactionId() + " | " + row.date()
 				+ " | " + row.securityName() + " | " + Objects.toString(row.isin(), "") + " | " + row.quantity();
-		original = selection(portfolios.getTransactions(portfolio.portfolioId()), transactionLabel);
-		related = selection(portfolios.getTransactions(portfolio.portfolioId()), transactionLabel);
+		original = selection(this.portfolios.getTransactions(portfolio.portfolioId()), transactionLabel);
+		related = selection(this.portfolios.getTransactions(portfolio.portfolioId()), transactionLabel);
 		TabPane tabs = new TabPane(tab("UI_STOCK_CORPORATE_OPERATIONS", operationForm()),
 				tab("UI_STOCK_CORPORATE_DEFINITION", definitionForm()), historyTab());
 		configureResults();
@@ -91,7 +87,7 @@ public final class StockCorporateActionDialog extends AbstractStockDialog {
 					if (selected == null) { throw new GBankingException(getText("UI_STOCK_CORPORATE_SELECT_RESULT")); }
 					if (!DialogWindowSupport.showConfirmation(dialog(), Alert.AlertType.CONFIRMATION, getText("UI_STOCK_CORPORATE_REMOVE"),
 							null, getText("UI_STOCK_CORPORATE_REMOVE_CONFIRM"), ButtonType.OK, ButtonType.CANCEL)) { return; }
-					service.unlink(selected.associationId());
+					this.service.unlink(selected.associationId());
 					refresh();
 				})), createCloseButton("UI_BUTTON_CLOSE")), 1100, 850);
 		action.valueProperty().addListener((observable, old, selected) -> {

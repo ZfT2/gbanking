@@ -52,13 +52,9 @@ public class RecipientDetailPanel extends AbstractTitledFormPanel {
 	private Recipient selectedRecipient;
 
 	public RecipientDetailPanel(RecipientOverviewPanel parentPanel) {
-		this(parentPanel, ServiceRegistry.getService(RecipientService.class));
-	}
-
-	RecipientDetailPanel(RecipientOverviewPanel parentPanel, RecipientService recipientService) {
 		super("UI_PANEL_RECIPIENT_DETAILS");
 		this.parentPanel = parentPanel;
-		this.recipientService = recipientService;
+		this.recipientService = ServiceRegistry.getService(RecipientService.class);
 		createInnerRecipientDetailPanel();
 	}
 

@@ -171,7 +171,7 @@ final class FileTransferCoordinator implements BaseGui {
 		PortfolioPerformanceImportService service = ServiceRegistry.getService(PortfolioPerformanceImportService.class);
 		XmlImportPreview preview = service.previewXml(file);
 		boolean importAdditionalAccounts = shouldImportAdditionalAccounts(preview);
-		return new PortfolioPerformanceImportMappingDialog(service)
+		return new PortfolioPerformanceImportMappingDialog()
 				.show(owner, preview, selectedPortfolio, importAdditionalAccounts).orElse(null);
 	}
 

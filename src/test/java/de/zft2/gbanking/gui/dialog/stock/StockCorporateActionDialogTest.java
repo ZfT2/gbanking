@@ -1,5 +1,6 @@
 package de.zft2.gbanking.gui.dialog.stock;
 
+import static de.zft2.gbanking.service.ServiceStubbingUtil.createWithServices;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -10,6 +11,7 @@ import java.time.LocalDate;
 import java.time.Month;
 import java.util.List;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.BaseMessages;
@@ -18,6 +20,7 @@ import de.zft2.gbanking.db.dao.enu.StockCorporateActionOperation;
 import de.zft2.gbanking.db.dao.enu.StockCorporateActionType;
 import de.zft2.gbanking.db.dao.stock.StockCorporateAction;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.StockCorporateActionService;
 import de.zft2.gbanking.service.stock.StockCorporateActionService.OperationRequest;
 import de.zft2.gbanking.service.stock.StockPortfolioService;
@@ -30,6 +33,12 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 
 class StockCorporateActionDialogTest {
+
+	@AfterEach
+	void clearDependencyServices() {
+		ServiceRegistry.resetServices();
+	}
+
 	@Test
 	@SuppressWarnings("unchecked")
 	void subscriptionShouldUseTheSelectedActionAndOnlyOfferMatchingOperations() {
@@ -50,7 +59,8 @@ class StockCorporateActionDialogTest {
 				2, "Verrechnung", "Bank", "DE123", Currency.EUR, BigDecimal.ZERO);
 
 		JavaFxTestSupport.runFx(() -> {
-			StockCorporateActionDialog dialog = new StockCorporateActionDialog(null, service, portfolios, portfolio, () -> {});
+			StockCorporateActionDialog dialog = createWithServices(
+					() -> new StockCorporateActionDialog(null, portfolio, () -> {}), service, portfolios);
 			TabPane tabs = (TabPane) dialog.dialog().getScene().getRoot().lookup(".tab-pane");
 			GridPane form = (GridPane) ((ScrollPane) tabs.getTabs().get(0).getContent()).getContent();
 			ComboBox<StockCorporateAction> selected = (ComboBox<StockCorporateAction>) form.lookupAll(".combo-box").stream()

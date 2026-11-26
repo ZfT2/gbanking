@@ -1,5 +1,6 @@
 package de.zft2.gbanking.gui.panel.overview;
 
+import static de.zft2.gbanking.service.ServiceStubbingUtil.createWithServices;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -38,6 +39,7 @@ import de.zft2.gbanking.gui.JavaFxTestSupport;
 import de.zft2.gbanking.gui.enu.PageContext;
 import de.zft2.gbanking.gui.panel.stock.StockSecurityDetailPanel;
 import de.zft2.gbanking.service.BankingCapabilityService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.StockPortfolioService;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PositionHistory;
@@ -97,7 +99,8 @@ class StockPortfolioOverviewPanelTest {
 		second.setBalance(new BigDecimal("1235.50"));
 		when(service.getAccountTransactions(portfolio.settlementAccountId())).thenReturn(List.of(first, second));
 		JavaFxTestSupport.runFx(() -> {
-			StockPortfolioOverviewPanel panel = new StockPortfolioOverviewPanel(service, mock(BankingCapabilityService.class));
+			StockPortfolioOverviewPanel panel = createWithServices(() -> new StockPortfolioOverviewPanel(), service,
+					mock(BankingCapabilityService.class));
 			panel.refreshOnShow();
 			TabPane tabs = (TabPane) ((VBox) ((SplitPane) panel.getChildren().get(1)).getItems().get(1)).getChildren().get(0);
 			SplitPane overview = (SplitPane) tabContent(tabs, 0).getChildren().get(1);
@@ -156,6 +159,7 @@ class StockPortfolioOverviewPanelTest {
 
 	@AfterEach
 	void closeDatabase() {
+		ServiceRegistry.resetServices();
 		GuiContext.setOnlyOnlineAccountsVisible(false);
 		DBControllerTestUtil.closeAndNullifyConnection();
 	}
@@ -178,7 +182,8 @@ class StockPortfolioOverviewPanelTest {
 		when(securities.save(any())).thenReturn(security);
 		AtomicReference<Throwable> failure = new AtomicReference<>();
 		JavaFxTestSupport.runFx(() -> {
-			StockPortfolioOverviewPanel panel = new StockPortfolioOverviewPanel(service, mock(BankingCapabilityService.class), securities);
+			StockPortfolioOverviewPanel panel = createWithServices(() -> new StockPortfolioOverviewPanel(), service,
+					mock(BankingCapabilityService.class), securities);
 			panel.refreshOnShow();
 			VBox right = (VBox) ((SplitPane) panel.getChildren().get(1)).getItems().get(1);
 			TabPane tabs = (TabPane) right.getChildren().get(0);
@@ -236,7 +241,8 @@ class StockPortfolioOverviewPanelTest {
 		when(service.getPositionHistory(1, 2, false)).thenReturn(new PositionHistory(List.of("Neu AG"), List.of(newTrade)));
 
 		JavaFxTestSupport.runFx(() -> {
-			StockPortfolioOverviewPanel panel = new StockPortfolioOverviewPanel(service, mock(BankingCapabilityService.class));
+			StockPortfolioOverviewPanel panel = createWithServices(() -> new StockPortfolioOverviewPanel(), service,
+					mock(BankingCapabilityService.class));
 			panel.refreshOnShow();
 			SplitPane main = (SplitPane) panel.getChildren().get(1);
 			VBox right = (VBox) main.getItems().get(1);
@@ -294,7 +300,8 @@ class StockPortfolioOverviewPanelTest {
 		booking.setAccountName("Früheres Verrechnungskonto");
 		when(service.getSettlementBookings(2)).thenReturn(Map.of(7, List.of(booking)));
 		JavaFxTestSupport.runFx(() -> {
-			StockPortfolioOverviewPanel panel = new StockPortfolioOverviewPanel(service, mock(BankingCapabilityService.class));
+			StockPortfolioOverviewPanel panel = createWithServices(() -> new StockPortfolioOverviewPanel(), service,
+					mock(BankingCapabilityService.class));
 			panel.refreshOnShow();
 			assertEquals(first, panel.getSelectedPortfolio());
 			assertTrue(panel.selectTransaction(2, 7));
@@ -441,7 +448,8 @@ class StockPortfolioOverviewPanelTest {
 		when(service.getAccountTransactions(portfolio.settlementAccountId())).thenReturn(List.of());
 		BankAccount account = portfolioAccount(10, false);
 		when(service.getPortfolioAccount(portfolio)).thenReturn(account);
-		StockPortfolioOverviewPanel panel = new StockPortfolioOverviewPanel(service, capabilityService);
+		StockPortfolioOverviewPanel panel = createWithServices(() -> new StockPortfolioOverviewPanel(), service,
+				capabilityService);
 		panel.refreshOnShow();
 		new javafx.scene.Scene(panel, 1280, 900);
 		panel.resize(1280, 900);
@@ -479,7 +487,8 @@ class StockPortfolioOverviewPanelTest {
 		GuiContext.setOnlyOnlineAccountsVisible(true);
 
 		JavaFxTestSupport.runFx(() -> {
-			StockPortfolioOverviewPanel panel = new StockPortfolioOverviewPanel(service, capabilityService);
+			StockPortfolioOverviewPanel panel = createWithServices(() -> new StockPortfolioOverviewPanel(), service,
+					capabilityService);
 			panel.refreshOnShow();
 			TreeTableView<?> tree = navigationTree(panel);
 			assertEquals(1, tree.getRoot().getChildren().size());

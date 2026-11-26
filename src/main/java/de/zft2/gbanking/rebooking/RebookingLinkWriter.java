@@ -5,7 +5,6 @@ import static de.zft2.gbanking.util.TextValues.hasText;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.Objects;
 
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.BankAccount;
@@ -21,11 +20,7 @@ import de.zft2.gbanking.db.dao.enu.Source;
  */
 public final class RebookingLinkWriter {
 
-	private final DBController dbController;
-
-	public RebookingLinkWriter(DBController dbController) {
-		this.dbController = Objects.requireNonNull(dbController, "dbController");
-	}
+	private final DBController dbController = DBController.getInstance(".");
 
 	/**
 	 * Creates the counter booking of the given booking on the counterpart account and links both bookings

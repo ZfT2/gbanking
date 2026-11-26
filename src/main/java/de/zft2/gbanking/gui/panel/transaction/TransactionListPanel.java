@@ -112,13 +112,9 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	private BigDecimal amountToFilterValue;
 
 	public TransactionListPanel(TransactionsOverviewBasePanel parent) {
-		this(parent, ServiceRegistry.getService(BookingService.class));
-	}
-
-	TransactionListPanel(TransactionsOverviewBasePanel parent, BookingService bookingService) {
 		super(FXCollections.observableArrayList());
 		this.parentPanel = parent;
-		this.bookingService = bookingService;
+		this.bookingService = ServiceRegistry.getService(BookingService.class);
 		createInnerTransactionsPanel();
 	}
 

@@ -1,5 +1,6 @@
 package de.zft2.gbanking.file.imp;
 
+import static de.zft2.gbanking.service.ServiceStubbingUtil.createWithDatabase;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -36,7 +37,8 @@ class ImportedBookingReferenceWriterTest {
 		Booking readableBooking = booking(2, recipient("Readable Recipient", "de123", "Loud Bank"));
 		Booking differentBooking = booking(3, recipient("Different Recipient", "DE123", "Loud Bank"));
 
-		new ImportedBookingReferenceWriter(dbController).writeRecipients(List.of(upperCaseBooking, readableBooking, differentBooking));
+		createWithDatabase(() -> new ImportedBookingReferenceWriter(),
+				dbController).writeRecipients(List.of(upperCaseBooking, readableBooking, differentBooking));
 
 		ArgumentCaptor<Recipient> recipientCaptor = ArgumentCaptor.forClass(Recipient.class);
 		verify(dbController, times(2)).resolveRecipientForImportedBooking(recipientCaptor.capture());
@@ -63,7 +65,8 @@ class ImportedBookingReferenceWriterTest {
 		Booking correctedBooking = booking(1, recipient("Corrected Recipient", "DE123", "Wrong Bank"));
 		Booking unchangedBooking = booking(2, recipient("Unchanged Recipient", "DE456", "Other Wrong Bank"));
 
-		new ImportedBookingReferenceWriter(dbController).writeRecipients(List.of(correctedBooking, unchangedBooking), Map.of(1, "Correct Bank"));
+		createWithDatabase(() -> new ImportedBookingReferenceWriter(),
+				dbController).writeRecipients(List.of(correctedBooking, unchangedBooking), Map.of(1, "Correct Bank"));
 
 		ArgumentCaptor<Recipient> recipientCaptor = ArgumentCaptor.forClass(Recipient.class);
 		verify(dbController, times(2)).resolveRecipientForImportedBooking(recipientCaptor.capture());
@@ -76,7 +79,7 @@ class ImportedBookingReferenceWriterTest {
 		DBController dbController = mock(DBController.class);
 		Booking booking = booking(1, recipient("Recipient", "DE123", "Bank"));
 
-		ImportedBookingReferenceWriter writer = new ImportedBookingReferenceWriter(dbController);
+		ImportedBookingReferenceWriter writer = createWithDatabase(() -> new ImportedBookingReferenceWriter(), dbController);
 		List<Booking> bookings = List.of(booking);
 
 		assertThrows(NullPointerException.class, () -> writer.writeRecipients(bookings));

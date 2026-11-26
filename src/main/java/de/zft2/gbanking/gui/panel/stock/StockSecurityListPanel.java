@@ -8,6 +8,7 @@ import java.util.function.Consumer;
 import de.zft2.gbanking.gui.GuiContext;
 import de.zft2.gbanking.gui.panel.AbstractFilterableTablePanel;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.StockSecurityAdministrationService;
 import de.zft2.gbanking.service.stock.StockSecurityAdministrationService.SecurityDetails;
 import de.zft2.gbanking.service.stock.StockSecurityAdministrationService.SecurityUsage;
@@ -42,11 +43,10 @@ public class StockSecurityListPanel extends AbstractFilterableTablePanel<Securit
 		public String toString() { return label; }
 	}
 
-	public StockSecurityListPanel(StockSecurityAdministrationService service, StockPortfolioService portfolioService,
-			Consumer<SecurityDetails> selectionHandler) {
+	public StockSecurityListPanel(Consumer<SecurityDetails> selectionHandler) {
 		super(FXCollections.observableArrayList());
-		this.service = service;
-		this.portfolioService = portfolioService;
+		this.service = ServiceRegistry.getService(StockSecurityAdministrationService.class);
+		this.portfolioService = ServiceRegistry.getService(StockPortfolioService.class);
 		this.selectionHandler = selectionHandler;
 		setMinWidth(LIST_MIN_WIDTH);
 		setPrefWidth(LIST_PREF_WIDTH);

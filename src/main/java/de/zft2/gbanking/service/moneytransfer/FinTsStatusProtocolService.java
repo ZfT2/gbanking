@@ -29,7 +29,7 @@ class FinTsStatusProtocolService extends AbstractDbService {
 	static final String JOB_NAME = "Status";
 	private static final Logger log = LogManager.getLogger(FinTsStatusProtocolService.class);
 
-	private final MoneyTransferProtocolWriter protocolWriter = new MoneyTransferProtocolWriter(dbController, log, "FinTS status");
+	private final MoneyTransferProtocolWriter protocolWriter = new MoneyTransferProtocolWriter(log, "FinTS status");
 
 	MoneyTransferStatusResolution retrieveStatus(HBCIHandler handler, GBankingHBCICallback callback, MoneyTransfer moneyTransfer,
 			String hbciJobId) {

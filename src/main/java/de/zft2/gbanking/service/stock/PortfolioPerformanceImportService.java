@@ -1161,7 +1161,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 		private final List<StockSecurity> securities = new ArrayList<>(dbController.getAll(StockSecurity.class));
 		private final Map<StockIdentifierType, Set<String>> identifierValues = new EnumMap<>(StockIdentifierType.class);
 		private final Map<Integer, Set<String>> fingerprintsByPortfolio = new HashMap<>();
-		private final ImportedBookingPersistence bookingPersistence = new ImportedBookingPersistence(dbController);
+		private final ImportedBookingPersistence bookingPersistence = new ImportedBookingPersistence();
 		private final List<Booking> proposedBookings = new ArrayList<>();
 		private final List<Runnable> pendingTransactions = new ArrayList<>();
 		private PortfolioPerformancePriceImporter priceImporter;
@@ -1229,7 +1229,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 
 		private PortfolioPerformancePriceImporter priceImporter() {
 			if (priceImporter == null) {
-				priceImporter = new PortfolioPerformancePriceImporter(dbController);
+				priceImporter = new PortfolioPerformancePriceImporter();
 			}
 			return priceImporter;
 		}

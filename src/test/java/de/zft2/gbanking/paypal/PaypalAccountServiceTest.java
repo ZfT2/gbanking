@@ -1,5 +1,6 @@
 package de.zft2.gbanking.paypal;
 
+import static de.zft2.gbanking.service.ServiceStubbingUtil.createWithDatabase;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -22,7 +23,7 @@ class PaypalAccountServiceTest {
 
 	private final PaypalSoapClient client = mock(PaypalSoapClient.class);
 	private final DBController database = mock(DBController.class);
-	private final PaypalAccountService service = new PaypalAccountService(client, database);
+	private final PaypalAccountService service = createWithDatabase(() -> new PaypalAccountService(client), database);
 
 	@Test
 	void initialize_shouldCreateOneAccountUsingThePrimaryBalance() throws InterruptedException {

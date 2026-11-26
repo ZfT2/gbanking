@@ -67,15 +67,9 @@ public class OpenActionsOverviewPanel extends OverviewBasePanel implements Accou
 	private final AccountStatementService accountStatementService;
 
 	public OpenActionsOverviewPanel() {
-		this(ServiceRegistry.getService(BankingCapabilityService.class), ServiceRegistry.getService(MoneyTransferService.class),
-				ServiceRegistry.getService(AccountStatementService.class));
-	}
-
-	OpenActionsOverviewPanel(BankingCapabilityService bankingCapabilityService, MoneyTransferService moneyTransferService,
-			AccountStatementService accountStatementService) {
-		this.bankingCapabilityService = bankingCapabilityService;
-		this.moneyTransferService = moneyTransferService;
-		this.accountStatementService = accountStatementService;
+		this.bankingCapabilityService = ServiceRegistry.getService(BankingCapabilityService.class);
+		this.moneyTransferService = ServiceRegistry.getService(MoneyTransferService.class);
+		this.accountStatementService = ServiceRegistry.getService(AccountStatementService.class);
 		initializePanel();
 	}
 

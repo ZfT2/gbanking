@@ -86,7 +86,7 @@ public class BankAccessService extends AbstractDbService {
 	public HBCIPassport initBankConnection(BankAccess bankAccess, GBankingHBCICallback hbciCallback) {
 		LoggingSettings.applyHbciLogLevel();
 		Properties props = HbciProperties.createBaseProperties();
-		String productKey = new SettingsStore(dbController).getString("productKey", null);
+		String productKey = new SettingsStore().getString("productKey", null);
 		if (productKey != null) {
 			props.setProperty(HbciProperties.PRODUCT_KEY_PARAM, productKey);
 		} else {

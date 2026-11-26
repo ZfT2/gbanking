@@ -18,7 +18,7 @@ import de.zft2.gbanking.db.dao.enu.Source;
 
 class ImportedBankNameValidatorTest {
 
-	private final ImportedBankNameValidator validator = new ImportedBankNameValidator(null);
+	private final ImportedBankNameValidator validator = new ImportedBankNameValidator();
 
 	@Test
 	void validate_shouldAcceptEquivalentDkbNamesAndReportDeutscheBank() {

@@ -1,5 +1,6 @@
 package de.zft2.gbanking.gui.dialog.stock;
 
+import static de.zft2.gbanking.service.ServiceStubbingUtil.createWithServices;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -13,12 +14,14 @@ import java.time.LocalDate;
 import java.time.Month;
 import java.util.List;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.StockQuantityType;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.StockPortfolioService;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PositionSummary;
@@ -28,6 +31,11 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 
 class StockSecurityExchangeDialogTest {
+
+	@AfterEach
+	void clearDependencyServices() {
+		ServiceRegistry.resetServices();
+	}
 
 	@Test
 	void manualDialogShouldDistinguishIdentifiersAndSaveOneReplacement() {
@@ -42,7 +50,8 @@ class StockSecurityExchangeDialogTest {
 		Runnable saved = mock(Runnable.class);
 
 		JavaFxTestSupport.runFx(() -> {
-			StockSecurityExchangeDialog dialog = new StockSecurityExchangeDialog(null, service, portfolio, position, false, saved);
+			StockSecurityExchangeDialog dialog = createWithServices(
+					() -> new StockSecurityExchangeDialog(null, portfolio, position, false, saved), service);
 			@SuppressWarnings("unchecked")
 			ComboBox<SecuritySummary> target = (ComboBox<SecuritySummary>) dialog.dialog().getScene().getRoot()
 					.lookupAll(".combo-box").stream().filter(ComboBox.class::isInstance)

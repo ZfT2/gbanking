@@ -48,7 +48,7 @@ final class RebookingService extends AbstractDbService {
 	private static final Logger log = LogManager.getLogger(RebookingService.class);
 	private static final int SEARCH_WINDOW_DAYS = 6;
 
-	private final RebookingLinkWriter rebookingLinkWriter = new RebookingLinkWriter(dbController);
+	private final RebookingLinkWriter rebookingLinkWriter = new RebookingLinkWriter();
 
 	int adjustRebookings(BankAccount checkedAccount) {
 		if (checkedAccount == null || checkedAccount.getId() <= 0) {

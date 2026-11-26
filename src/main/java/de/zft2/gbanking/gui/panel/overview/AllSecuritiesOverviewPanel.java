@@ -13,7 +13,6 @@ import de.zft2.gbanking.gui.util.TableColumnFactory;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.StockPortfolioService;
 import de.zft2.gbanking.service.stock.StockPortfolioService.SecurityHolding;
-import de.zft2.gbanking.service.stock.StockSecurityAdministrationService;
 import de.zft2.gbanking.service.stock.StockSecurityAdministrationService.SecurityDetails;
 import javafx.collections.FXCollections;
 import javafx.scene.control.Alert;
@@ -29,28 +28,23 @@ public class AllSecuritiesOverviewPanel extends OverviewBasePanel {
 
 	private static final double MASTER_DIVIDER = 0.32;
 
+	private final StockPortfolioService portfolioService = ServiceRegistry.getService(StockPortfolioService.class);
 	private final StockSecurityDetailPanel detailPanel;
 	private final StockSecurityPricePanel pricePanel;
 	private final StockSecurityListPanel listPanel;
 
 	public AllSecuritiesOverviewPanel() {
-		this(ServiceRegistry.getService(StockSecurityAdministrationService.class),
-				ServiceRegistry.getService(StockPortfolioService.class));
-	}
-
-	AllSecuritiesOverviewPanel(StockSecurityAdministrationService securityService,
-			StockPortfolioService portfolioService) {
 		setPageContext(PageContext.ALL_SECURITIES);
-		detailPanel = new StockSecurityDetailPanel(securityService, this::reloadAndSelect);
+		detailPanel = new StockSecurityDetailPanel(this::reloadAndSelect);
 		detailPanel.setHoldingsHandler(security -> {
 			try {
-				showHoldings(portfolioService, security);
+				showHoldings(security);
 			} catch (RuntimeException exception) {
 				DialogWindowSupport.showAlert(getOwnerWindow(), Alert.AlertType.WARNING, exception.getMessage());
 			}
 		});
-		pricePanel = new StockSecurityPricePanel(portfolioService);
-		listPanel = new StockSecurityListPanel(securityService, portfolioService, this::showSecurity);
+		pricePanel = new StockSecurityPricePanel();
+		listPanel = new StockSecurityListPanel(this::showSecurity);
 
 		VBox content = new VBox(detailPanel, pricePanel);
 		VBox.setVgrow(pricePanel, Priority.ALWAYS);
@@ -76,9 +70,9 @@ public class AllSecuritiesOverviewPanel extends OverviewBasePanel {
 		pricePanel.updatePanel(security);
 	}
 
-	private void showHoldings(StockPortfolioService service, SecurityDetails security) {
+	private void showHoldings(SecurityDetails security) {
 		TableView<SecurityHolding> table = new TableView<>(FXCollections.observableArrayList(
-				service.getSecurityHoldings(security.securityId())));
+				portfolioService.getSecurityHoldings(security.securityId())));
 		var quantityFormat = StockPortfolioOverviewPanel.createQuantityFormat();
 		table.getColumns().setAll(List.of(
 				TableColumnFactory.createTextColumn(getText("UI_STOCK_FIELD_PORTFOLIO"), row -> row.portfolio().displayName(), 180),

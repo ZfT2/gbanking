@@ -7,6 +7,7 @@ import de.zft2.gbanking.gui.dialog.stock.SecurityPriceDialog;
 import de.zft2.gbanking.gui.panel.BasePanel;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.StockPortfolioService;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PriceSummary;
 import de.zft2.gbanking.service.stock.StockSecurityAdministrationService.SecurityDetails;
@@ -24,8 +25,8 @@ public class StockSecurityPricePanel extends BasePanel {
 	private final Button managePricesButton = new Button(getText("UI_STOCK_SECURITY_MANAGE_PRICES"));
 	private SecurityDetails security;
 
-	public StockSecurityPricePanel(StockPortfolioService service) {
-		this.service = service;
+	public StockSecurityPricePanel() {
+		this.service = ServiceRegistry.getService(StockPortfolioService.class);
 		setSpacing(8);
 		setPadding(new Insets(8, 0, 0, 0));
 		setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);

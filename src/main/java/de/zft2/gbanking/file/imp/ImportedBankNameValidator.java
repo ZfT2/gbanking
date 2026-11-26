@@ -46,16 +46,11 @@ final class ImportedBankNameValidator {
 			.thenComparing(Candidate::activeInstitute, Comparator.reverseOrder()).thenComparing(Candidate::occurrences, Comparator.reverseOrder())
 			.thenComparing(Candidate::name, String.CASE_INSENSITIVE_ORDER);
 
-	private final DBController dbController;
-
-	ImportedBankNameValidator(DBController dbController) {
-		this.dbController = dbController;
-	}
-
 	List<ImportedBankNameFinding> validate(Collection<Booking> importedBookings) {
 		if (importedBookings == null || importedBookings.isEmpty()) {
 			return List.of();
 		}
+		DBController dbController = DBController.getInstance(".");
 		Set<Integer> importedIds = importedBookings.stream().map(Booking::getId).collect(Collectors.toSet());
 		List<Booking> existingBookings = dbController.getAllFull(Booking.class).stream()
 				.filter(booking -> !importedIds.contains(booking.getId())).toList();

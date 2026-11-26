@@ -221,7 +221,7 @@ public class StockQuoteRetrievalService extends AbstractDbService {
 	private StockDataSource getOrCreateSource(QuoteSource quoteSource) {
 		StockDataSource source = findSource(quoteSource);
 		if (source == null) {
-			return StockSources.createDataSource(dbController, quoteSource.sourceCode(), quoteSource.toString(),
+			return StockSources.createDataSource(quoteSource.sourceCode(), quoteSource.toString(),
 					StockDataSourceType.MARKET_DATA, MARKET_DATA_PRIORITY);
 		}
 		if (quoteSource.provider() != QuoteProvider.GENERIC && !quoteSource.toString().equals(source.getSourceName())) {
@@ -260,7 +260,7 @@ public class StockQuoteRetrievalService extends AbstractDbService {
 		if (selected != null) {
 			return selected;
 		}
-		return StockSources.createPriceSource(dbController, securityId, source.getId(), symbol, null, MARKET_DATA_PRIORITY);
+		return StockSources.createPriceSource(securityId, source.getId(), symbol, null, MARKET_DATA_PRIORITY);
 	}
 
 	private Identifiers identifiers(int securityId) {

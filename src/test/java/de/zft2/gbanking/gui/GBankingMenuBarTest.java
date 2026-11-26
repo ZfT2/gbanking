@@ -1,16 +1,20 @@
 package de.zft2.gbanking.gui;
 
+import static de.zft2.gbanking.service.ServiceStubbingUtil.createWithServices;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 import java.util.List;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.gui.enu.AccountGrouping;
 import de.zft2.gbanking.service.BankingCapabilityService;
+import de.zft2.gbanking.service.GBankingService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import javafx.event.Event;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
@@ -18,12 +22,21 @@ import javafx.scene.control.RadioMenuItem;
 
 class GBankingMenuBarTest implements BaseMessages {
 
+	private final GBankingGui gui = mock(GBankingGui.class);
+	private final GBankingService bankingService = mock(GBankingService.class);
+	private final BankingCapabilityService capabilities = mock(BankingCapabilityService.class);
+
+	@AfterEach
+	void clearDependencyServices() {
+		ServiceRegistry.resetServices();
+	}
+
 	@Test
 	void groupingMenuShouldUseTheSharedViewSetting() {
 		JavaFxTestSupport.runFx(() -> {
 			AccountGrouping previous = GuiLayoutState.accountGroupingProperty().get();
 			try {
-				GBankingMenuBar bar = new GBankingMenuBar(mock(GBankingGui.class), null, mock(BankingCapabilityService.class));
+				GBankingMenuBar bar = createWithServices(() -> new GBankingMenuBar(gui), bankingService, capabilities);
 				Menu menu = findMenu(findMenu(bar.getMenus(), "UI_MENU_VIEW").getItems(), "UI_MENU_VIEW_ACCOUNT_GROUPING");
 				RadioMenuItem type = (RadioMenuItem) menu.getItems().get(1);
 				type.fire();
@@ -40,8 +53,7 @@ class GBankingMenuBarTest implements BaseMessages {
 	@Test
 	void editMenuShouldGroupAdministrationViewsAndEmphasizeAccounts() {
 		JavaFxTestSupport.runFx(() -> {
-			GBankingMenuBar menuBar = new GBankingMenuBar(mock(GBankingGui.class), null,
-					mock(BankingCapabilityService.class));
+			GBankingMenuBar menuBar = createWithServices(() -> new GBankingMenuBar(gui), bankingService, capabilities);
 			Menu editMenu = findMenu(menuBar.getMenus(), "UI_MENU_EDIT");
 			Menu administrationMenu = findMenu(editMenu.getItems(), "UI_MENU_EDIT_ADMINISTRATION");
 
@@ -62,8 +74,7 @@ class GBankingMenuBarTest implements BaseMessages {
 	@Test
 	void fileMenuShouldGroupStockCsvImportAndPortfolioPerformanceExports() {
 		JavaFxTestSupport.runFx(() -> {
-			GBankingMenuBar menuBar = new GBankingMenuBar(mock(GBankingGui.class), null,
-					mock(BankingCapabilityService.class));
+			GBankingMenuBar menuBar = createWithServices(() -> new GBankingMenuBar(gui), bankingService, capabilities);
 			Menu fileMenu = findMenu(menuBar.getMenus(), "UI_MENU_FILE");
 			Menu importMenu = findMenu(fileMenu.getItems(), "UI_MENU_FILE_IMPORT");
 			Menu importStockMenu = findMenu(importMenu.getItems(), "UI_MENU_FILE_STOCK_PORTFOLIOS");

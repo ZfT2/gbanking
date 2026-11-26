@@ -1,5 +1,6 @@
 package de.zft2.gbanking.gui.panel.overview;
 
+import static de.zft2.gbanking.service.ServiceStubbingUtil.createWithServices;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -35,6 +36,7 @@ import de.zft2.gbanking.gui.panel.stock.StockSecurityDetailPanel;
 import de.zft2.gbanking.gui.panel.stock.StockSecurityListPanel;
 import de.zft2.gbanking.gui.panel.stock.StockSecurityPricePanel;
 import de.zft2.gbanking.messages.Messages;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.StockPortfolioService;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
 import de.zft2.gbanking.service.stock.StockPortfolioService.SecurityHolding;
@@ -76,7 +78,7 @@ class AllSecuritiesOverviewPanelTest {
 				StockSecurityState.ACTIVE, "", "", "", "", null, null);
 		when(service.save(any())).thenReturn(saved);
 		JavaFxTestSupport.runFx(() -> {
-			StockSecurityDetailPanel panel = new StockSecurityDetailPanel(service, null);
+			StockSecurityDetailPanel panel = createWithServices(() -> new StockSecurityDetailPanel(null), service);
 			Stage stage = new Stage();
 			stage.setScene(new javafx.scene.Scene(panel, 1200, 650));
 			try {
@@ -147,7 +149,8 @@ class AllSecuritiesOverviewPanelTest {
 		GuiContext.setOnlySecuritiesWithHoldingsVisible(false);
 		JavaFxTestSupport.runFx(() -> {
 			AtomicReference<SecurityDetails> selected = new AtomicReference<>();
-			StockSecurityListPanel list = new StockSecurityListPanel(service, portfolios, selected::set);
+			StockSecurityListPanel list = createWithServices(() -> new StockSecurityListPanel(selected::set), service,
+					portfolios);
 			list.reload(null);
 			javafx.scene.Scene scene = new javafx.scene.Scene(list, 520, 600);
 			scene.getStylesheets().add(getClass().getResource("/css/gbanking-table.css").toExternalForm());
@@ -213,6 +216,7 @@ class AllSecuritiesOverviewPanelTest {
 
 	@AfterEach
 	void closeDatabase() {
+		ServiceRegistry.resetServices();
 		GuiContext.setOnlySecuritiesWithHoldingsVisible(false);
 		GuiContext.setStockPortfolioNavigationHandler(null);
 		DBControllerTestUtil.closeAndNullifyConnection();
@@ -237,7 +241,8 @@ class AllSecuritiesOverviewPanelTest {
 		AtomicReference<Throwable> failure = new AtomicReference<>();
 		GuiContext.setStockPortfolioNavigationHandler(id -> navigated.set(id));
 		JavaFxTestSupport.runFx(() -> {
-			AllSecuritiesOverviewPanel panel = new AllSecuritiesOverviewPanel(securities, portfolios);
+			AllSecuritiesOverviewPanel panel = createWithServices(() -> new AllSecuritiesOverviewPanel(), securities,
+					portfolios);
 			panel.refreshOnShow();
 			MasterContentPane content = (MasterContentPane) panel.getChildren().get(1);
 			StockSecurityListPanel list = (StockSecurityListPanel) content.getItems().get(0);
@@ -293,7 +298,8 @@ class AllSecuritiesOverviewPanelTest {
 		when(securityService.getSecurities(false)).thenReturn(List.of());
 
 		JavaFxTestSupport.runFx(() -> {
-			AllSecuritiesOverviewPanel panel = new AllSecuritiesOverviewPanel(securityService, portfolioService);
+			AllSecuritiesOverviewPanel panel = createWithServices(() -> new AllSecuritiesOverviewPanel(), securityService,
+					portfolioService);
 			panel.refreshOnShow();
 
 			assertEquals(PageContext.ALL_SECURITIES, panel.getPageContext());

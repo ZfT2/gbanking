@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
-import de.zft2.gbanking.db.DbExecutor;
+import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.StockNumericValueType;
 import de.zft2.gbanking.db.dao.enu.StockPriceType;
@@ -22,20 +22,19 @@ import de.zft2.gbanking.service.stock.PortfolioPerformanceData.Price;
 
 final class PortfolioPerformancePriceImporter {
 
-	private final DbExecutor dbExecutor;
+	private final DBController dbController = DBController.getInstance(".");
 	private final Map<PriceSourceKey, StockSecurityPriceSource> priceSources = new HashMap<>();
 	private final Map<PriceDateKey, StockSecurityPrice> latestPriceByDate = new HashMap<>();
 	private final Map<PriceValueKey, StockSecurityPrice> pricesByValue = new HashMap<>();
 
-	PortfolioPerformancePriceImporter(DbExecutor dbExecutor) {
-		this.dbExecutor = dbExecutor;
+	PortfolioPerformancePriceImporter() {
 		Map<Integer, StockSecurityPriceSource> sourcesById = new HashMap<>();
-		for (StockSecurityPriceSource priceSource : dbExecutor.getAll(StockSecurityPriceSource.class)) {
+		for (StockSecurityPriceSource priceSource : dbController.getAll(StockSecurityPriceSource.class)) {
 			priceSources.put(new PriceSourceKey(priceSource.getSecurityId(), priceSource.getSourceId(),
 					priceSource.getProviderSymbol()), priceSource);
 			sourcesById.put(priceSource.getId(), priceSource);
 		}
-		for (StockSecurityPrice price : dbExecutor.getAll(StockSecurityPrice.class)) {
+		for (StockSecurityPrice price : dbController.getAll(StockSecurityPrice.class)) {
 			if (!sourcesById.containsKey(price.getPriceSourceId()) || price.getPriceType() != StockPriceType.CLOSE) {
 				continue;
 			}
@@ -72,7 +71,7 @@ final class PortfolioPerformancePriceImporter {
 		if (previous != null) {
 			price.setSupersedesPriceId(previous.getId());
 		}
-		price = dbExecutor.insertOrUpdate(price);
+		price = dbController.insertOrUpdate(price);
 		pricesByValue.put(valueKey, price);
 		latestPriceByDate.put(dateKey, price);
 		return true;
@@ -80,8 +79,9 @@ final class PortfolioPerformancePriceImporter {
 
 	private StockSecurityPriceSource getOrCreatePriceSource(StockSecurity security, StockDataSource source) {
 		PriceSourceKey key = new PriceSourceKey(security.getId(), source.getId(), null);
-		return priceSources.computeIfAbsent(key, ignored -> StockSources.createPriceSource(dbExecutor,
-				security.getId(), source.getId(), null, null, source.getDefaultPriority()));
+		return priceSources.computeIfAbsent(key,
+				ignored -> StockSources.createPriceSource(security.getId(), source.getId(), null, null,
+						source.getDefaultPriority()));
 	}
 
 	private static long scaledPrice(Price price) {

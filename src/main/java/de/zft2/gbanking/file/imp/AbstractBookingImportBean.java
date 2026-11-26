@@ -50,7 +50,7 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 	private final ImportedBankNameCorrectionHandler bankNameCorrectionHandler;
 	private final ImportedBookingReferenceWriter bookingReferenceWriter;
 	private final ImportStatisticsCollector importStatistics = new ImportStatisticsCollector();
-	private final ImportedBookingPersistence bookingPersistence = new ImportedBookingPersistence(dbController);
+	private final ImportedBookingPersistence bookingPersistence = new ImportedBookingPersistence();
 	private final Map<String, BankAccount> accountsByIban = new HashMap<>();
 	private final Map<String, BankAccount> accountsByNumber = new HashMap<>();
 	private final Map<String, BankAccount> accountsByName = new HashMap<>();
@@ -75,7 +75,7 @@ abstract class AbstractBookingImportBean implements BaseMessagesDb {
 		this.progressReporter = ProgressReporters.orNone(progressReporter);
 		this.contextAccount = contextAccount;
 		this.bankNameCorrectionHandler = bankNameCorrectionHandler;
-		this.bookingReferenceWriter = new ImportedBookingReferenceWriter(dbController);
+		this.bookingReferenceWriter = new ImportedBookingReferenceWriter();
 	}
 
 	protected Path prepareImportFile(String importFile, String messageKey) {

@@ -1,5 +1,6 @@
 package de.zft2.gbanking.paypal;
 
+import static de.zft2.gbanking.service.ServiceStubbingUtil.createWithServices;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -24,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -40,11 +42,17 @@ import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.BankAccessType;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.account.AccountTransactionRetrievalResult;
 import de.zft2.gbanking.service.account.AccountTransactionService;
 import de.zft2.gbanking.testdata.TestDataFactory;
 
 class PaypalAccountTransactionServiceTest implements BaseMessages {
+
+	@AfterEach
+	void clearDependencyServices() {
+		ServiceRegistry.resetServices();
+	}
 
 	private static final String API_USER = "api-user";
 	private static final String SIGNATURE = "signature";
@@ -57,7 +65,8 @@ class PaypalAccountTransactionServiceTest implements BaseMessages {
 	private final DBController dbController = database.controller();
 	private final PaypalSoapClient client = mock(PaypalSoapClient.class);
 	private final AccountTransactionService accountTransactionService = mock(AccountTransactionService.class);
-	private final PaypalAccountTransactionService service = new PaypalAccountTransactionService(client, accountTransactionService);
+	private final PaypalAccountTransactionService service =
+			createWithServices(() -> new PaypalAccountTransactionService(client), accountTransactionService);
 	private final char[] password = "secret".toCharArray();
 
 	@Test

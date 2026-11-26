@@ -6,7 +6,7 @@ import java.util.function.Function;
 
 import org.apache.logging.log4j.Logger;
 
-import de.zft2.gbanking.db.DbExecutor;
+import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.MoneyTransfer;
 import de.zft2.gbanking.db.dao.MoneyTransferProtocol;
 import de.zft2.gbanking.logging.HbciLogMessageSanitizer;
@@ -22,19 +22,17 @@ import de.zft2.gbanking.logging.HbciLogMessageSanitizer;
  */
 public final class MoneyTransferProtocolWriter {
 
-	private final DbExecutor dbController;
+	private final DBController dbController = DBController.getInstance(".");
 	private final Logger log;
 	private final String label;
 
 	/**
 	 * Creates a writer for the protocols of a service.
 	 *
-	 * @param dbController the executor used to write the protocols
 	 * @param log         the logger of the service
 	 * @param label       the description of the protocol used for the log messages
 	 */
-	public MoneyTransferProtocolWriter(DbExecutor dbController, Logger log, String label) {
-		this.dbController = dbController;
+	public MoneyTransferProtocolWriter(Logger log, String label) {
 		this.log = log;
 		this.label = label;
 	}

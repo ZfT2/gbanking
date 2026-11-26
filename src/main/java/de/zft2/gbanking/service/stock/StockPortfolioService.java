@@ -1421,13 +1421,13 @@ public class StockPortfolioService extends AbstractDbService {
 	}
 
 	private StockDataSource getOrCreateManualSource() {
-		return StockSources.getOrCreateDataSource(dbController, MANUAL_SOURCE_CODE, "Manuelle Eingabe",
+		return StockSources.getOrCreateDataSource(MANUAL_SOURCE_CODE, "Manuelle Eingabe",
 				StockDataSourceType.MANUAL, 0);
 	}
 
 	private StockSecurityPriceSource getOrCreateManualPriceSource(int securityId) {
 		StockDataSource source = getOrCreateManualSource();
-		return StockSources.getOrCreatePriceSource(dbController, securityId, source.getId(), null, null, 0);
+		return StockSources.getOrCreatePriceSource(securityId, source.getId(), null, null, 0);
 	}
 
 	StockTransaction createPendingTransaction(int portfolioId, StockTransactionType type,
@@ -1691,7 +1691,7 @@ public class StockPortfolioService extends AbstractDbService {
 	}
 
 	private StockDataSource getOrCreateReconciliationSource() {
-		return StockSources.getOrCreateDataSource(dbController, RECONCILIATION_SOURCE_CODE, "Bestandsabgleich",
+		return StockSources.getOrCreateDataSource(RECONCILIATION_SOURCE_CODE, "Bestandsabgleich",
 				StockDataSourceType.MANUAL, 100);
 	}
 

@@ -1,5 +1,6 @@
 package de.zft2.gbanking.gui.panel.transaction;
 
+import static de.zft2.gbanking.service.ServiceStubbingUtil.createWithServices;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -19,6 +20,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -36,6 +38,7 @@ import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.panel.overview.AccountsTransactionsOverviewPanel;
 import de.zft2.gbanking.gui.panel.overview.AllTransactionsOverviewPanel;
 import de.zft2.gbanking.service.BankingCapabilityService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.account.AccountTransactionService;
 import de.zft2.gbanking.service.booking.BookingCategoryService;
 import de.zft2.gbanking.service.booking.BookingService;
@@ -57,6 +60,11 @@ import javafx.scene.layout.Region;
  * Tests the transaction count of the transaction list panel.
  */
 class TransactionListPanelTest {
+
+	@AfterEach
+	void clearDependencyServices() {
+		ServiceRegistry.resetServices();
+	}
 
 	private static final double NARROW_WINDOW_WIDTH = 700;
 	private static final double SCENE_HEIGHT = 500;
@@ -139,8 +147,9 @@ class TransactionListPanelTest {
 			String message = BaseMessages.getTextStatic("ALERT_BOOKING_DELETE_CORPORATE_ACTION");
 			when(bookings.deleteBookingsInBlock(booking, deleteFromDate)).thenThrow(new GBankingException(message));
 			when(splits.deleteBookingWithSplits(booking)).thenThrow(new GBankingException(message));
-			TransactionListPanelContextMenu menu = new TransactionListPanelContextMenu(panel, mock(BankingCapabilityService.class),
-					bookings, mock(BookingCategoryService.class), splits, mock(AccountTransactionService.class));
+			TransactionListPanelContextMenu menu = createWithServices(() -> new TransactionListPanelContextMenu(panel),
+					mock(BankingCapabilityService.class), bookings, mock(BookingCategoryService.class), splits,
+					mock(AccountTransactionService.class));
 			try (var dialogs = mockStatic(DialogWindowSupport.class)) {
 				dialogs.when(() -> DialogWindowSupport.showConfirmation(any(), eq(Alert.AlertType.CONFIRMATION),
 						anyString(), anyString(), anyString(), eq(ButtonType.OK), eq(ButtonType.CANCEL))).thenReturn(true);

@@ -32,8 +32,6 @@ import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.gui.util.FormStyleUtils.FieldWidth;
 import de.zft2.gbanking.gui.util.FxNodeSupport;
 import de.zft2.gbanking.mapper.BookingCurrencyMapper;
-import de.zft2.gbanking.service.booking.BookingSplitService;
-import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.util.TypeConverter;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -136,12 +134,8 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 	private TitledPane currencyDetailsPane;
 
 	public TransactionDetailPanel(TransactionsOverviewBasePanel parentPanel) {
-		this(parentPanel, ServiceRegistry.getService(BookingSplitService.class));
-	}
-
-	TransactionDetailPanel(TransactionsOverviewBasePanel parentPanel, BookingSplitService bookingSplitService) {
 		this.parentPanel = parentPanel;
-		this.splitBookingEditor = new SplitBookingEditor(bookingSplitService, this::reloadParentData, createCategoryConverter());
+		this.splitBookingEditor = new SplitBookingEditor(this::reloadParentData, createCategoryConverter());
 		createUI();
 		loadComboValues();
 		enableFields(false);

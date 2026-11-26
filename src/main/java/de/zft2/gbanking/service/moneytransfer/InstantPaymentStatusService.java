@@ -39,7 +39,7 @@ class InstantPaymentStatusService extends AbstractDbService {
 	private static final int MAX_REQUESTS = 3;
 	private static final Logger log = LogManager.getLogger(InstantPaymentStatusService.class);
 
-	private final MoneyTransferProtocolWriter protocolWriter = new MoneyTransferProtocolWriter(dbController, log,
+	private final MoneyTransferProtocolWriter protocolWriter = new MoneyTransferProtocolWriter(log,
 			"instant payment status");
 
 	void retrieveStatusIfNecessary(HBCIHandler handler, GBankingHBCICallback callback, MoneyTransfer moneyTransfer, Konto senderAccount,

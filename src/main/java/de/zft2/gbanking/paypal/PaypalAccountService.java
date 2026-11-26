@@ -19,15 +19,14 @@ import de.zft2.gbanking.service.Service;
 public class PaypalAccountService implements Service, BaseMessages {
 
 	private final PaypalSoapClient client;
-	private final DBController database;
+	private final DBController database = DBController.getInstance(".");
 
 	public PaypalAccountService() {
-		this(new PaypalSoapClient(), DBController.getInstance("."));
+		this(new PaypalSoapClient());
 	}
 
-	PaypalAccountService(PaypalSoapClient client, DBController database) {
+	PaypalAccountService(PaypalSoapClient client) {
 		this.client = client;
-		this.database = database;
 	}
 
 	public boolean initialize(BankAccess bankAccess) throws InterruptedException {

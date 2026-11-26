@@ -22,11 +22,7 @@ public class BankAccessOverviewPanel extends OverviewBasePanel {
 	private BankAccess currentBankAccess;
 
 	public BankAccessOverviewPanel() {
-		this(ServiceRegistry.getService(BankingCapabilityService.class));
-	}
-
-	BankAccessOverviewPanel(BankingCapabilityService bankingCapabilityService) {
-		this.bankingCapabilityService = bankingCapabilityService;
+		this.bankingCapabilityService = ServiceRegistry.getService(BankingCapabilityService.class);
 		bankAccessDetailPanel = new BankAccessDetailPanel(this);
 		bankAccessListPanel = new BankAccessListPanel(this);
 		bankMessagePanel = new BankMessagePanel();

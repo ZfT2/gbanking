@@ -22,11 +22,7 @@ import de.zft2.gbanking.db.dao.Recipient;
 
 final class ImportedBookingReferenceWriter {
 
-	private final DBController dbController;
-
-	ImportedBookingReferenceWriter(DBController dbController) {
-		this.dbController = dbController;
-	}
+	private final DBController dbController = DBController.getInstance(".");
 
 	void writeRecipients(Collection<Booking> bookings) {
 		writeRecipients(bookings, Map.of());
@@ -35,7 +31,7 @@ final class ImportedBookingReferenceWriter {
 	void writeRecipients(Collection<Booking> bookings, ImportedBankNameCorrectionHandler correctionHandler) {
 		Map<Integer, String> corrections = Map.of();
 		if (correctionHandler != null) {
-			List<ImportedBankNameFinding> findings = new ImportedBankNameValidator(dbController).validate(bookings);
+			List<ImportedBankNameFinding> findings = new ImportedBankNameValidator().validate(bookings);
 			if (!findings.isEmpty()) {
 				corrections = correctionHandler.selectCorrections(findings);
 			}

@@ -1,5 +1,6 @@
 package de.zft2.gbanking.enablebanking;
 
+import static de.zft2.gbanking.service.ServiceStubbingUtil.createWithServices;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -39,6 +40,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -63,12 +65,18 @@ import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.dialog.hbci.HbciCallbackMessageDialog;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.account.AccountTransactionRetrievalResult;
 import de.zft2.gbanking.service.account.AccountTransactionService;
 import de.zft2.gbanking.service.account.PendingBookingSnapshot;
 import de.zft2.gbanking.testdata.TestDataFactory;
 
 class EnablebankingAccountTransactionServiceTest implements BaseMessages {
+
+	@AfterEach
+	void clearDependencyServices() {
+		ServiceRegistry.resetServices();
+	}
 
 	@RegisterExtension
 	static final TestDatabaseExtension database = new TestDatabaseExtension();
@@ -89,9 +97,10 @@ class EnablebankingAccountTransactionServiceTest implements BaseMessages {
 	private final EnablebankingAuthorizationService authorizationService = mock(EnablebankingAuthorizationService.class);
 	private final EnablebankingApiClient client = mock(EnablebankingApiClient.class);
 	private final HbciCallbackMessageDialog dialog = mock(HbciCallbackMessageDialog.class);
-	private final EnablebankingAccountTransactionService service = new EnablebankingAccountTransactionService(
-			accountTransactionService, authorizationService,
-			Clock.fixed(TODAY.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC));
+	private final EnablebankingAccountTransactionService service =
+			createWithServices(() -> new EnablebankingAccountTransactionService(
+					Clock.fixed(TODAY.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC)),
+					accountTransactionService, authorizationService);
 
 	@BeforeEach
 	void stubPersistence() {

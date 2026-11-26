@@ -51,7 +51,7 @@ public class MoneyTransferExecutionService extends AbstractDbService {
 	private final HbciSessionRunner hbciSessionRunner;
 	private final InstantPaymentStatusService instantPaymentStatusService;
 	private final FinTsStatusProtocolService statusProtocolService;
-	private final MoneyTransferProtocolWriter protocolWriter = new MoneyTransferProtocolWriter(dbController, log, "money transfer");
+	private final MoneyTransferProtocolWriter protocolWriter = new MoneyTransferProtocolWriter(log, "money transfer");
 
 	public MoneyTransferExecutionService() {
 		this.hbciSessionRunner = new HbciSessionRunner();

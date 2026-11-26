@@ -62,21 +62,19 @@ public class EnablebankingAccountTransactionService extends AbstractDbService {
 	private static final String CURRENCY_CODE = "currency_code";
 	private static final Logger log = LogManager.getLogger(EnablebankingAccountTransactionService.class);
 
-	private final AccountTransactionService accountTransactionService;
-	private final EnablebankingAuthorizationService authorizationService;
+	private final AccountTransactionService accountTransactionService =
+			ServiceRegistry.getService(AccountTransactionService.class);
+	private final EnablebankingAuthorizationService authorizationService =
+			ServiceRegistry.getService(EnablebankingAuthorizationService.class);
 	private final Clock clock;
 	private final ThreadLocal<Map<Integer, AccountTransactionRetrievalResult>> completedBatchResults =
 			ThreadLocal.withInitial(HashMap::new);
 
 	public EnablebankingAccountTransactionService() {
-		this(ServiceRegistry.getService(AccountTransactionService.class), new EnablebankingAuthorizationService(),
-				Clock.systemUTC());
+		this(Clock.systemUTC());
 	}
 
-	EnablebankingAccountTransactionService(AccountTransactionService accountTransactionService,
-			EnablebankingAuthorizationService authorizationService, Clock clock) {
-		this.accountTransactionService = accountTransactionService;
-		this.authorizationService = authorizationService;
+	EnablebankingAccountTransactionService(Clock clock) {
 		this.clock = clock;
 	}
 

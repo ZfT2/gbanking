@@ -27,17 +27,13 @@ public final class ImportedBookingPersistence {
 
 	private static final Logger log = LogManager.getLogger(ImportedBookingPersistence.class);
 
-	private final DBController dbController;
+	private final DBController dbController = DBController.getInstance(".");
 	private final Map<Integer, Candidates> existingBookingsByAccountId = new HashMap<>();
 	private final Map<Integer, Candidates> processedBookingsByAccountId = new HashMap<>();
 	// Equal bookings can still represent distinct file rows with independent review decisions.
 	private final Set<Booking> excludedBookings = Collections.newSetFromMap(new IdentityHashMap<>());
 	private final Map<Booking, Booking> reviewedStrictMatches = new IdentityHashMap<>();
 	private final Map<Booking, List<Booking>> reviewedPotentialMatches = new IdentityHashMap<>();
-
-	public ImportedBookingPersistence(DBController dbController) {
-		this.dbController = dbController;
-	}
 
 	void reset() {
 		existingBookingsByAccountId.clear();

@@ -134,17 +134,13 @@ public class AnalysisOverviewPanel extends OverviewBasePanel {
 		return panel;
 	}
 
-	protected AnalysisOverviewPanel(PageContext pageContext, String panelTitleKey, String settingAttribute, String settingCommentKey) {
-		this(pageContext, panelTitleKey, settingAttribute, settingCommentKey, ServiceRegistry.getService(BookingService.class));
-	}
-
-	protected AnalysisOverviewPanel(PageContext pageContext, String panelTitleKey, String settingAttribute, String settingCommentKey,
-			BookingService bookingService) {
+	protected AnalysisOverviewPanel(PageContext pageContext, String panelTitleKey, String settingAttribute,
+			String settingCommentKey) {
 		this.pageContext = pageContext;
 		this.panelTitleKey = panelTitleKey;
 		this.settingAttribute = settingAttribute;
 		this.settingCommentKey = settingCommentKey;
-		this.bookingService = bookingService;
+		this.bookingService = ServiceRegistry.getService(BookingService.class);
 	}
 
 	protected final void initializePanel() {
@@ -673,7 +669,7 @@ public class AnalysisOverviewPanel extends OverviewBasePanel {
 
 	private AnalysisConfiguration loadConfiguration() {
 		loadAdditionalConfiguration(Map.of());
-		String settingValue = new SettingsStore(dbController).getString(settingAttribute, null);
+		String settingValue = new SettingsStore().getString(settingAttribute, null);
 		if (settingValue == null || settingValue.isBlank()) {
 			return AnalysisConfiguration.defaultConfiguration();
 		}
@@ -697,7 +693,7 @@ public class AnalysisOverviewPanel extends OverviewBasePanel {
 	private void saveConfiguration() {
 		SettingDefinition definition = new SettingDefinition(settingAttribute, "", DataType.STRING, false, false,
 				getText(settingCommentKey));
-		new SettingsStore(dbController).save(definition, serializeConfiguration(configuration));
+		new SettingsStore().save(definition, serializeConfiguration(configuration));
 	}
 
 	private String serializeConfiguration(AnalysisConfiguration config) {

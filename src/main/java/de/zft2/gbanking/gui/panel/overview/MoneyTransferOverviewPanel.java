@@ -34,11 +34,7 @@ public class MoneyTransferOverviewPanel extends OverviewBasePanel implements Acc
 	private TabPane tabPane;
 
 	public MoneyTransferOverviewPanel() {
-		this(ServiceRegistry.getService(BankingCapabilityService.class));
-	}
-
-	MoneyTransferOverviewPanel(BankingCapabilityService bankingCapabilityService) {
-		this.bankingCapabilityService = bankingCapabilityService;
+		this.bankingCapabilityService = ServiceRegistry.getService(BankingCapabilityService.class);
 		initializePanel();
 	}
 

@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-import de.zft2.gbanking.db.DbExecutor;
+import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.dao.enu.StockDataSourceType;
 import de.zft2.gbanking.db.dao.stock.StockDataSource;
 import de.zft2.gbanking.db.dao.stock.StockSecurityPriceSource;
@@ -37,37 +37,36 @@ public final class StockSources {
 	/**
 	 * Returns the data source with the given code and creates it if it does not exist yet.
 	 *
-	 * @param dbExecutor     the executor used to read and to write the data sources
 	 * @param sourceCode     the code of the data source
 	 * @param sourceName     the display name of the data source
 	 * @param sourceType     the type of the data source
 	 * @param defaultPriority the priority of the data source
 	 * @return the existing or the newly created data source
 	 */
-	public static StockDataSource getOrCreateDataSource(DbExecutor dbExecutor, String sourceCode, String sourceName,
+	public static StockDataSource getOrCreateDataSource(String sourceCode, String sourceName,
 			StockDataSourceType sourceType, int defaultPriority) {
-		return findDataSource(dbExecutor.getAll(StockDataSource.class), sourceCode)
-				.orElseGet(() -> createDataSource(dbExecutor, sourceCode, sourceName, sourceType, defaultPriority));
+		DBController dbController = DBController.getInstance(".");
+		return findDataSource(dbController.getAll(StockDataSource.class), sourceCode)
+				.orElseGet(() -> createDataSource(sourceCode, sourceName, sourceType, defaultPriority));
 	}
 
 	/**
 	 * Creates a new data source.
 	 *
-	 * @param dbExecutor      the executor used to write the data source
 	 * @param sourceCode      the code of the data source
 	 * @param sourceName      the display name of the data source
 	 * @param sourceType      the type of the data source
 	 * @param defaultPriority the priority of the data source
 	 * @return the newly created data source
 	 */
-	public static StockDataSource createDataSource(DbExecutor dbExecutor, String sourceCode, String sourceName,
+	public static StockDataSource createDataSource(String sourceCode, String sourceName,
 			StockDataSourceType sourceType, int defaultPriority) {
 		StockDataSource source = new StockDataSource();
 		source.setSourceCode(sourceCode);
 		source.setSourceName(sourceName);
 		source.setSourceType(sourceType);
 		source.setDefaultPriority(defaultPriority);
-		return dbExecutor.insertOrUpdate(source);
+		return DBController.getInstance(".").insertOrUpdate(source);
 	}
 
 	/**
@@ -92,7 +91,6 @@ public final class StockSources {
 	/**
 	 * Returns the price source of a security and creates it if it does not exist yet.
 	 *
-	 * @param dbExecutor           the executor used to read and to write the price sources
 	 * @param securityId           the id of the security
 	 * @param sourceId             the id of the data source
 	 * @param providerSymbol       the provider symbol of the price source, may be {@code null}
@@ -100,18 +98,18 @@ public final class StockSources {
 	 * @param priority             the priority of the price source
 	 * @return the existing or the newly created price source
 	 */
-	public static StockSecurityPriceSource getOrCreatePriceSource(DbExecutor dbExecutor, int securityId, int sourceId,
+	public static StockSecurityPriceSource getOrCreatePriceSource(int securityId, int sourceId,
 			String providerSymbol, String marketIdentifierCode, int priority) {
-		List<StockSecurityPriceSource> candidates = dbExecutor.getAllByParent(StockSecurityPriceSource.class, securityId);
+		DBController dbController = DBController.getInstance(".");
+		List<StockSecurityPriceSource> candidates = dbController.getAllByParent(StockSecurityPriceSource.class, securityId);
 		return findPriceSource(candidates, sourceId, providerSymbol, marketIdentifierCode)
-				.orElseGet(() -> createPriceSource(dbExecutor, securityId, sourceId, providerSymbol, marketIdentifierCode,
+				.orElseGet(() -> createPriceSource(securityId, sourceId, providerSymbol, marketIdentifierCode,
 						priority));
 	}
 
 	/**
 	 * Creates a new price source for a security.
 	 *
-	 * @param dbExecutor           the executor used to write the price source
 	 * @param securityId           the id of the security
 	 * @param sourceId             the id of the data source
 	 * @param providerSymbol       the provider symbol of the price source, may be {@code null}
@@ -119,7 +117,7 @@ public final class StockSources {
 	 * @param priority             the priority of the price source
 	 * @return the newly created price source
 	 */
-	public static StockSecurityPriceSource createPriceSource(DbExecutor dbExecutor, int securityId, int sourceId,
+	public static StockSecurityPriceSource createPriceSource(int securityId, int sourceId,
 			String providerSymbol, String marketIdentifierCode, int priority) {
 		StockSecurityPriceSource priceSource = new StockSecurityPriceSource();
 		priceSource.setSecurityId(securityId);
@@ -127,7 +125,7 @@ public final class StockSources {
 		priceSource.setProviderSymbol(providerSymbol);
 		priceSource.setMarketIdentifierCode(marketIdentifierCode);
 		priceSource.setPriority(priority);
-		return dbExecutor.insertOrUpdate(priceSource);
+		return DBController.getInstance(".").insertOrUpdate(priceSource);
 	}
 
 	/**

@@ -37,15 +37,15 @@ public class PaypalAccountTransactionService extends AbstractDbService {
 	private static final int MAX_HISTORY_YEARS = 3;
 
 	private final PaypalSoapClient client;
-	private final AccountTransactionService accountTransactionService;
+	private final AccountTransactionService accountTransactionService =
+			ServiceRegistry.getService(AccountTransactionService.class);
 
 	public PaypalAccountTransactionService() {
-		this(new PaypalSoapClient(), ServiceRegistry.getService(AccountTransactionService.class));
+		this(new PaypalSoapClient());
 	}
 
-	PaypalAccountTransactionService(PaypalSoapClient client, AccountTransactionService accountTransactionService) {
+	PaypalAccountTransactionService(PaypalSoapClient client) {
 		this.client = client;
-		this.accountTransactionService = accountTransactionService;
 	}
 
 	public AccountTransactionRetrievalResult retrieve(BankAccount bankAccount, char[] apiPassword) {

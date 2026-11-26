@@ -15,15 +15,8 @@ public class EnablebankingAuthorizationService implements Service {
 	private static final Duration AUTHORIZATION_TIMEOUT = Duration.ofMinutes(10);
 	private static final SecureRandom RANDOM = new SecureRandom();
 
-	private final EnablebankingCallbackMaterialService callbackMaterialService;
-
-	public EnablebankingAuthorizationService() {
-		this(new EnablebankingCallbackMaterialService());
-	}
-
-	EnablebankingAuthorizationService(EnablebankingCallbackMaterialService callbackMaterialService) {
-		this.callbackMaterialService = callbackMaterialService;
-	}
+	private final EnablebankingCallbackMaterialService callbackMaterialService =
+			new EnablebankingCallbackMaterialService();
 
 	public EnablebankingSession authorize(Psd2ClientConfiguration configuration, EnablebankingAspsp aspsp,
 			String psuType, String authMethod) {

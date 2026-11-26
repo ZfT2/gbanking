@@ -49,7 +49,6 @@ import de.zft2.gbanking.service.stock.StockPortfolioService.PositionSummary;
 import de.zft2.gbanking.service.stock.StockPortfolioService.SecuritySummary;
 import de.zft2.gbanking.service.stock.StockPortfolioService.TransactionPrefill;
 import de.zft2.gbanking.service.stock.StockPortfolioService.TransactionSummary;
-import de.zft2.gbanking.service.stock.StockPortfolioTransferService;
 import de.zft2.gbanking.service.stock.StockSecurityAdministrationService;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -146,19 +145,9 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	private PortfolioSummary selectedPortfolio;
 
 	public StockPortfolioOverviewPanel() {
-		this(ServiceRegistry.getService(StockPortfolioService.class),
-				ServiceRegistry.getService(BankingCapabilityService.class));
-	}
-
-	StockPortfolioOverviewPanel(StockPortfolioService service, BankingCapabilityService capabilityService) {
-		this(service, capabilityService, ServiceRegistry.getService(StockSecurityAdministrationService.class));
-	}
-
-	StockPortfolioOverviewPanel(StockPortfolioService service, BankingCapabilityService capabilityService,
-			StockSecurityAdministrationService securityService) {
-		this.service = service;
-		this.capabilityService = capabilityService;
-		this.securityService = securityService;
+		this.service = ServiceRegistry.getService(StockPortfolioService.class);
+		this.capabilityService = ServiceRegistry.getService(BankingCapabilityService.class);
+		this.securityService = ServiceRegistry.getService(StockSecurityAdministrationService.class);
 		setPageContext(PageContext.STOCK_PORTFOLIOS);
 		configureNavigation();
 		configurePositionTable();
@@ -576,7 +565,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	private void openSecurityExchange(PositionSummary position, boolean linkImported) {
 		if (selectedPortfolio != null) {
 			try {
-				new StockSecurityExchangeDialog(getOwnerWindow(), service, selectedPortfolio, position, linkImported,
+				new StockSecurityExchangeDialog(getOwnerWindow(), selectedPortfolio, position, linkImported,
 						this::refreshSelectedPortfolio).show();
 			} catch (RuntimeException exception) {
 				DialogWindowSupport.showAlert(getOwnerWindow(), Alert.AlertType.WARNING, exception.getMessage());
@@ -942,7 +931,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 					.filter(item -> item.securityId() == position.securityId()).findFirst()
 					.orElseThrow(() -> new GBankingException("Das Wertpapier wurde nicht gefunden"));
 			var dialog = DialogWindowSupport.createModalStage(getOwnerWindow(), "UI_PANEL_STOCK_SECURITY_DETAILS");
-			StockSecurityDetailPanel editor = new StockSecurityDetailPanel(securityService, id -> {
+			StockSecurityDetailPanel editor = new StockSecurityDetailPanel(id -> {
 				refreshSelectedPortfolio();
 				dialog.close();
 			}, () -> dialog.close());
@@ -1085,7 +1074,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 			return;
 		}
 		new StockPositionTransferDialog(getOwnerWindow(), selectedPortfolio, transaction, targets,
-				ServiceRegistry.getService(StockPortfolioTransferService.class), this::refreshSelectedPortfolio).show();
+				this::refreshSelectedPortfolio).show();
 	}
 
 	private void openPortfolioTransfer(PortfolioSummary portfolio) {
@@ -1094,9 +1083,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 			showNoTransferTarget();
 			return;
 		}
-		new StockPortfolioTransferDialog(getOwnerWindow(), portfolio, targets,
-				ServiceRegistry.getService(StockPortfolioTransferService.class),
-				this::refreshSelectedPortfolio).show();
+		new StockPortfolioTransferDialog(getOwnerWindow(), portfolio, targets, this::refreshSelectedPortfolio).show();
 	}
 
 	private void openSettlementAccountEditor() {

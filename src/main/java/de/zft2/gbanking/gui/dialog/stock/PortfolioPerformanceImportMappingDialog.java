@@ -15,6 +15,7 @@ import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService.XmlAccount;
 import de.zft2.gbanking.service.stock.PortfolioPerformanceImportService.XmlImportAssignments;
@@ -38,11 +39,8 @@ import javafx.stage.Window;
 
 public final class PortfolioPerformanceImportMappingDialog implements BaseMessages {
 
-	private final PortfolioPerformanceImportService service;
-
-	public PortfolioPerformanceImportMappingDialog(PortfolioPerformanceImportService service) {
-		this.service = service;
-	}
+	private final PortfolioPerformanceImportService service =
+			ServiceRegistry.getService(PortfolioPerformanceImportService.class);
 
 	public Optional<XmlImportAssignments> show(Window owner, XmlImportPreview preview, PortfolioSummary selectedPortfolio,
 			boolean includeAdditionalAccounts) {

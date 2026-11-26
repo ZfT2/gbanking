@@ -42,7 +42,7 @@ public class StockSettlementLinkService extends AbstractDbService {
 
 	private static final int SEARCH_WINDOW_DAYS = 6;
 
-	private final RebookingLinkWriter linkWriter = new RebookingLinkWriter(dbController);
+	private final RebookingLinkWriter linkWriter = new RebookingLinkWriter();
 
 	public List<StockSettlementAssignment> detectAssignments(LocalDate from, LocalDate to,
 			Collection<BankAccount> anchorAccounts, Set<Integer> reservedBookingIds) {

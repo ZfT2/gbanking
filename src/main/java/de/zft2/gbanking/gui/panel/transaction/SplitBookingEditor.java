@@ -24,6 +24,7 @@ import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.gui.util.FxNodeSupport;
 import de.zft2.gbanking.gui.util.FxTableUtils;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.booking.BookingSplitService;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -74,8 +75,8 @@ final class SplitBookingEditor extends VBox implements BaseMessagesDb {
 	private Booking parentBooking;
 	private boolean dirty;
 
-	SplitBookingEditor(BookingSplitService bookingSplitService, Runnable reloadParentData, StringConverter<Category> categoryConverter) {
-		this.bookingSplitService = Objects.requireNonNull(bookingSplitService);
+	SplitBookingEditor(Runnable reloadParentData, StringConverter<Category> categoryConverter) {
+		this.bookingSplitService = ServiceRegistry.getService(BookingSplitService.class);
 		this.reloadParentData = Objects.requireNonNull(reloadParentData);
 		this.categoryConverter = Objects.requireNonNull(categoryConverter);
 		createUi();

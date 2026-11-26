@@ -16,6 +16,7 @@ import de.zft2.gbanking.gui.util.DetailFormEditMode;
 import de.zft2.gbanking.gui.util.FormFields;
 import de.zft2.gbanking.gui.util.FormGridHelper;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.StockPortfolioAdministrationService;
 import de.zft2.gbanking.service.stock.StockPortfolioAdministrationService.PortfolioDetails;
 import de.zft2.gbanking.service.stock.StockPortfolioAdministrationService.PortfolioSaveRequest;
@@ -67,9 +68,9 @@ public class StockPortfolioManagementDetailPanel extends AbstractReadonlyDetailP
 	private boolean creatingNewPortfolio;
 	private final DetailFormEditMode editModeController;
 
-	public StockPortfolioManagementDetailPanel(StockPortfolioAdministrationService service, Consumer<Integer> afterSave) {
+	public StockPortfolioManagementDetailPanel(Consumer<Integer> afterSave) {
 		super("UI_PANEL_STOCK_PORTFOLIO_DETAILS");
-		this.service = service;
+		this.service = ServiceRegistry.getService(StockPortfolioAdministrationService.class);
 		this.afterSave = afterSave;
 		FormGridHelper.setEqualGrowColumns(formGrid, 3);
 		createFields();

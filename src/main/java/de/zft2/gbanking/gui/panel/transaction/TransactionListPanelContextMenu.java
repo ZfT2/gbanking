@@ -70,19 +70,11 @@ class TransactionListPanelContextMenu extends ContextMenu implements BaseMessage
 	MenuItem newCategoryRuleItem = new MenuItem(getText("UI_MENU_BOOKING_TEMPLATE_NEW_CATEGORY_RULE"));
 
 	TransactionListPanelContextMenu(TransactionListPanel parentPanelTransactionList) {
-		this(parentPanelTransactionList, ServiceRegistry.getService(BankingCapabilityService.class), ServiceRegistry.getService(BookingService.class),
-				ServiceRegistry.getService(BookingCategoryService.class), ServiceRegistry.getService(BookingSplitService.class),
-				ServiceRegistry.getService(AccountTransactionService.class));
-	}
-
-	TransactionListPanelContextMenu(TransactionListPanel parentPanelTransactionList, BankingCapabilityService bankingCapabilityService,
-			BookingService bookingService, BookingCategoryService bookingCategoryService, BookingSplitService bookingSplitService,
-			AccountTransactionService accountTransactionService) {
-		this.bankingCapabilityService = bankingCapabilityService;
-		this.bookingService = bookingService;
-		this.bookingCategoryService = bookingCategoryService;
-		this.bookingSplitService = bookingSplitService;
-		this.accountTransactionService = accountTransactionService;
+		this.bankingCapabilityService = ServiceRegistry.getService(BankingCapabilityService.class);
+		this.bookingService = ServiceRegistry.getService(BookingService.class);
+		this.bookingCategoryService = ServiceRegistry.getService(BookingCategoryService.class);
+		this.bookingSplitService = ServiceRegistry.getService(BookingSplitService.class);
+		this.accountTransactionService = ServiceRegistry.getService(AccountTransactionService.class);
 		this.panelTransactionList = parentPanelTransactionList;
 		this.parentPanel = parentPanelTransactionList.parentPanel;
 		this.masterData = parentPanelTransactionList.getMasterData();

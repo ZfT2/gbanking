@@ -1,5 +1,6 @@
 package de.zft2.gbanking.gui.panel.moneytransfer;
 
+import static de.zft2.gbanking.service.ServiceStubbingUtil.createWithServices;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -12,6 +13,7 @@ import static org.mockito.Mockito.when;
 import java.math.BigDecimal;
 import java.util.List;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.db.dao.BankAccount;
@@ -25,10 +27,16 @@ import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
 import de.zft2.gbanking.gui.dto.MoneyTransferForm;
 import de.zft2.gbanking.service.BankingCapabilityService;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.moneytransfer.BankOrderOperation;
 import de.zft2.gbanking.service.moneytransfer.MoneyTransferService;
 
 class MoneyTransferInputBasePanelTest {
+
+	@AfterEach
+	void clearDependencyServices() {
+		ServiceRegistry.resetServices();
+	}
 
 	@Test
 	void saveTransfer_shouldRemoveSpacesFromFieldOnlyAfterSuccessfulSave() {
@@ -45,7 +53,7 @@ class MoneyTransferInputBasePanelTest {
 			saved.setRecipient(recipient);
 			when(service.saveMoneyTransferToDB(any(MoneyTransferForm.class), isNull()))
 					.thenThrow(new IllegalStateException("Saving failed")).thenReturn(saved);
-			MoneyTransferInputBasePanel panel = new MoneyTransferInputBasePanel(parent, service, capabilities) {
+			MoneyTransferInputBasePanel panel = createWithServices(() -> new MoneyTransferInputBasePanel(parent) {
 				@Override
 				protected void addSpecificFields() {
 					// No additional fields are needed for this test form.
@@ -55,7 +63,7 @@ class MoneyTransferInputBasePanelTest {
 				public OrderType getOrderType() {
 					return OrderType.REALTIME_TRANSFER;
 				}
-			};
+			}, service, capabilities);
 			String formattedIban = "de89 3704\u00A00044 0532 0130 00";
 			panel.tfRecipientName.setText("Test Recipient");
 			panel.tfIBAN.setText(formattedIban);

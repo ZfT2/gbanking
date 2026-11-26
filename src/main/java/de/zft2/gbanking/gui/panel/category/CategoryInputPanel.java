@@ -46,13 +46,9 @@ public class CategoryInputPanel extends AbstractTitledFormPanel {
 	private Category selectedCategory;
 
 	public CategoryInputPanel(CategoryOverviewPanel parent) {
-		this(parent, ServiceRegistry.getService(CategoryService.class));
-	}
-
-	CategoryInputPanel(CategoryOverviewPanel parent, CategoryService categoryService) {
 		super("UI_PANEL_CATEGORIES");
 		this.parentPanel = parent;
-		this.categoryService = categoryService;
+		this.categoryService = ServiceRegistry.getService(CategoryService.class);
 		createCategoryInputPanel();
 	}
 

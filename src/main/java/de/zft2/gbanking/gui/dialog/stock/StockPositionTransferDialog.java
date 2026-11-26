@@ -8,6 +8,7 @@ import java.util.List;
 import de.zft2.gbanking.gui.util.FormGridHelper;
 import de.zft2.gbanking.gui.util.DateFormatUtils;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PositionSummary;
 import de.zft2.gbanking.service.stock.StockPortfolioService.TransactionSummary;
@@ -24,8 +25,7 @@ import javafx.stage.Window;
 
 public final class StockPositionTransferDialog extends AbstractStockDialog {
 
-	private record DeliveryConversion(PortfolioSummary portfolio, TransactionSummary transaction,
-			StockPortfolioTransferService service) {
+	private record DeliveryConversion(PortfolioSummary portfolio, TransactionSummary transaction) {
 	}
 
 	private final PositionSummary position;
@@ -51,17 +51,17 @@ public final class StockPositionTransferDialog extends AbstractStockDialog {
 		this.savedHandler = savedHandler;
 		deliveryPortfolio = conversion != null ? conversion.portfolio() : null;
 		delivery = conversion != null ? conversion.transaction() : null;
-		conversionService = conversion != null ? conversion.service() : null;
+		conversionService = conversion != null ? ServiceRegistry.getService(StockPortfolioTransferService.class) : null;
 		targetField = new ComboBox<>(FXCollections.observableArrayList(targets));
 		initialize();
 	}
 
 	public StockPositionTransferDialog(Window owner, PortfolioSummary portfolio, TransactionSummary transaction,
-			List<PortfolioSummary> targets, StockPortfolioTransferService service, Runnable savedHandler) {
+			List<PortfolioSummary> targets, Runnable savedHandler) {
 		this(owner, new PositionSummary(portfolio.portfolioId(), transaction.securityId(), transaction.securityName(),
 				transaction.isin(), transaction.wkn(), null, transaction.quantity().abs(), transaction.unitPrice(),
 				null, null, null, transaction.currency(), null), targets, null, savedHandler,
-				new DeliveryConversion(portfolio, transaction, service));
+				new DeliveryConversion(portfolio, transaction));
 		quantityField.setEditable(false);
 		quantityField.setDisable(true);
 		dateField.setValue(transaction.date());

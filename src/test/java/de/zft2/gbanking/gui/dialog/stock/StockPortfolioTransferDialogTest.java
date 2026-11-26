@@ -1,5 +1,6 @@
 package de.zft2.gbanking.gui.dialog.stock;
 
+import static de.zft2.gbanking.service.ServiceStubbingUtil.createWithServices;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -16,6 +17,7 @@ import java.time.Month;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -25,6 +27,7 @@ import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.StockQuantityType;
 import de.zft2.gbanking.db.dao.enu.StockTransactionType;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
+import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PositionSummary;
 import de.zft2.gbanking.service.stock.StockPortfolioService.TransactionSummary;
@@ -46,6 +49,11 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 
 class StockPortfolioTransferDialogTest {
+
+	@AfterEach
+	void clearDependencyServices() {
+		ServiceRegistry.resetServices();
+	}
 
 	@ParameterizedTest
 	@CsvSource({ "430, 0, 430, true", "430, 430, 0, true", "430, 430, 430, true",
@@ -76,7 +84,8 @@ class StockPortfolioTransferDialogTest {
 		Runnable saved = mock(Runnable.class);
 		AtomicReference<Throwable> failure = new AtomicReference<>();
 		JavaFxTestSupport.runFx(() -> {
-			StockPositionTransferDialog dialog = new StockPositionTransferDialog(null, source, transaction, List.of(target), service, saved);
+			StockPositionTransferDialog dialog = createWithServices(
+					() -> new StockPositionTransferDialog(null, source, transaction, List.of(target), saved), service);
 			Parent root = dialog.dialog().getScene().getRoot();
 			assertFalse(((TextField) root.lookup(".text-field")).isEditable());
 			assertTrue(root.lookup(".text-field").isDisabled());
@@ -138,7 +147,8 @@ class StockPortfolioTransferDialogTest {
 		AtomicReference<Throwable> failure = new AtomicReference<>();
 
 		JavaFxTestSupport.runFx(() -> {
-			StockPortfolioTransferDialog dialog = new StockPortfolioTransferDialog(null, source, List.of(target), service, saved);
+			StockPortfolioTransferDialog dialog = createWithServices(
+					() -> new StockPortfolioTransferDialog(null, source, List.of(target), saved), service);
 			DatePicker date = (DatePicker) dialog.dialog().getScene().getRoot().lookup(".date-picker");
 			assertNull(date.getValue());
 			date.setValue(requested);

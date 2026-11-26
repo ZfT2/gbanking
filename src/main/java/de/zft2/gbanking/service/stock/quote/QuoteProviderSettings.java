@@ -57,7 +57,7 @@ public final class QuoteProviderSettings {
 				if (!savedIds.add(feed.id())) {
 					throw new GBankingException("Ein Kursfeed darf nur einmal gespeichert werden.");
 				}
-				saveGenericFeed(db, stored.remove(feed.id()), feed, index);
+				saveGenericFeed(stored.remove(feed.id()), feed, index);
 			}
 			for (StockQuoteFeed removed : stored.values()) {
 				db.delete(removed, null);
@@ -71,10 +71,11 @@ public final class QuoteProviderSettings {
 				.orElseThrow(() -> new GBankingException("Der generische Kursfeed wurde nicht gefunden"));
 	}
 
-	private static void saveGenericFeed(DBController db, StockQuoteFeed stored, GenericQuoteFeed feed, int sortOrder) {
+	private static void saveGenericFeed(StockQuoteFeed stored, GenericQuoteFeed feed, int sortOrder) {
+		DBController db = DBController.getInstance(".");
 		StockDataSource source;
 		if (stored == null) {
-			source = StockSources.createDataSource(db, feed.sourceCode(), feed.name(),
+			source = StockSources.createDataSource(feed.sourceCode(), feed.name(),
 					StockDataSourceType.MARKET_DATA, MARKET_DATA_PRIORITY);
 			stored = new StockQuoteFeed();
 			stored.setSourceId(source.getId());

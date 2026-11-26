@@ -38,7 +38,7 @@ public class ImportPropertiesSynchronizationService extends AbstractDbService {
 			new PatternFile("bookings.properties", PATTERN_PREFIX + "bookings."));
 
 	private final Path propertiesDirectory = AppPaths.getImportPropertiesDirectory();
-	private final SettingsStore settingsStore = new SettingsStore(dbController);
+	private final SettingsStore settingsStore = new SettingsStore();
 
 	public void initializeAndSynchronize() {
 		synchronized (SYNCHRONIZATION_LOCK) {

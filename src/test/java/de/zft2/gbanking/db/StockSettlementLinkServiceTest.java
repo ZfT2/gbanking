@@ -230,7 +230,7 @@ class StockSettlementLinkServiceTest extends DBControllerIntegrationBaseTest {
 		BankAccount account = db.getById(BankAccount.class, portfolio.settlementAccountId());
 		Booking incoming = createDeliveredBooking(account, TRANSACTION_DATE, AMOUNT, Source.IMPORT);
 		incoming.setPurpose("Different bank reference");
-		ImportedBookingPersistence persistence = new ImportedBookingPersistence(db);
+		ImportedBookingPersistence persistence = new ImportedBookingPersistence();
 		persistence.review(List.of(incoming), matches -> {
 			assertEquals(1, matches.size());
 			return accept ? Set.of(incoming) : Set.of();
