@@ -963,15 +963,15 @@ public class StockPortfolioService extends AbstractDbService {
 			if (booking.getSource() != Source.MANUELL_NEW) {
 				// Keep bank bookings; remove only their depot links.
 				linkService.releaseDepotLink(booking);
-				continue;
+			} else {
+				linkService.deleteDepotCounterpart(booking);
+				BankAccount account = dbController.getById(BankAccount.class, booking.getAccountId());
+				if (account != null && account.getBalance() != null && booking.getAmount() != null) {
+					account.setBalance(account.getBalance().subtract(booking.getAmount()));
+					dbController.insertOrUpdate(account);
+				}
+				dbController.delete(booking, StatementType.DELETE);
 			}
-			linkService.deleteDepotCounterpart(booking);
-			BankAccount account = dbController.getById(BankAccount.class, booking.getAccountId());
-			if (account != null && account.getBalance() != null && booking.getAmount() != null) {
-				account.setBalance(account.getBalance().subtract(booking.getAmount()));
-				dbController.insertOrUpdate(account);
-			}
-			dbController.delete(booking, StatementType.DELETE);
 		}
 	}
 

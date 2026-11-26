@@ -141,7 +141,7 @@ public class TenantBackupManager {
 			Files.deleteIfExists(tempFile);
 			encryptionManager.writeEncryptedContent(tempFile, session, outputStream -> {
 				try (ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream)) {
-					addFile(zipOutputStream, tenantPaths.databaseFile(), TenantPaths.DATABASE_DIRECTORY_NAME + "/" + DB_FILE_NAME);
+					addEntry(zipOutputStream, tenantPaths.databaseFile(), TenantPaths.DATABASE_DIRECTORY_NAME + "/" + DB_FILE_NAME);
 					addDirectoryTree(zipOutputStream, tenantPaths.accountStatementsDirectory(), tenantPaths.tenantDirectory());
 				}
 			});
@@ -171,26 +171,21 @@ public class TenantBackupManager {
 
 				String entryName = archiveRoot.relativize(path).toString().replace('\\', '/');
 				if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
-					addDirectory(zipOutputStream, path, entryName + "/");
+					addEntry(zipOutputStream, path, entryName + "/");
 				} else if (Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
-					addFile(zipOutputStream, path, entryName);
+					addEntry(zipOutputStream, path, entryName);
 				}
 			}
 		}
 	}
 
-	private void addDirectory(ZipOutputStream zipOutputStream, Path directory, String entryName) throws IOException {
-		ZipEntry entry = new ZipEntry(entryName);
-		entry.setTime(Files.getLastModifiedTime(directory, LinkOption.NOFOLLOW_LINKS).toMillis());
-		zipOutputStream.putNextEntry(entry);
-		zipOutputStream.closeEntry();
-	}
-
-	private void addFile(ZipOutputStream zipOutputStream, Path sourceFile, String entryName) throws IOException {
+	private void addEntry(ZipOutputStream zipOutputStream, Path sourceFile, String entryName) throws IOException {
 		ZipEntry entry = new ZipEntry(entryName);
 		entry.setTime(Files.getLastModifiedTime(sourceFile, LinkOption.NOFOLLOW_LINKS).toMillis());
 		zipOutputStream.putNextEntry(entry);
-		Files.copy(sourceFile, zipOutputStream);
+		if (!entry.isDirectory()) {
+			Files.copy(sourceFile, zipOutputStream);
+		}
 		zipOutputStream.closeEntry();
 	}
 

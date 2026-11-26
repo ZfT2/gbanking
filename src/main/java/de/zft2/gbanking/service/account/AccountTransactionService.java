@@ -324,23 +324,13 @@ public class AccountTransactionService extends AbstractDbService {
 				skippedDuplicates++;
 				log.info("Skipped {} booking of account id {} because the securities transaction {} already covers it.",
 						providerName, bankAccount.getId(), coveringStockBooking.getId());
-				processedIncomingBookings.add(newBooking);
-				continue;
-			}
-
-			if (bookingDuplicateChecker.isDuplicate(newBooking, duplicateCheckBookings, processedIncomingBookings)) {
+			} else if (bookingDuplicateChecker.isDuplicate(newBooking, duplicateCheckBookings, processedIncomingBookings)) {
 				skippedDuplicates++;
 				logDebug(bankAccount, newBooking);
-				processedIncomingBookings.add(newBooking);
-				continue;
+			} else {
+				resolveBookingRecipient(newBooking, resolvedRecipients);
+				newBookingsList.add(newBooking);
 			}
-
-			if (newBooking.getRecipient() != null) {
-				newBooking.setRecipient(resolvedRecipients.computeIfAbsent(recipientValues(newBooking.getRecipient()),
-						values -> dbController.resolveRecipient(newBooking.getRecipient())));
-			}
-
-			newBookingsList.add(newBooking);
 			processedIncomingBookings.add(newBooking);
 		}
 
@@ -368,6 +358,13 @@ public class AccountTransactionService extends AbstractDbService {
 		dbController.updateBookingsWithRecipients(recipientBookingMap);
 		linkNewOnlineCounterBookings(newBookingsList, source);
 		return newBookingsList.size();
+	}
+
+	private void resolveBookingRecipient(Booking booking, Map<List<Object>, Recipient> resolvedRecipients) {
+		if (booking.getRecipient() != null) {
+			booking.setRecipient(resolvedRecipients.computeIfAbsent(recipientValues(booking.getRecipient()),
+					values -> dbController.resolveRecipient(booking.getRecipient())));
+		}
 	}
 
 	private void logDebug(BankAccount bankAccount, Booking newBooking) {

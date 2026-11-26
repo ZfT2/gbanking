@@ -111,28 +111,35 @@ public class StockSettlementLinkService extends AbstractDbService {
 				.collect(Collectors.groupingBy(transaction -> transaction.getPortfolioId()));
 		Map<Integer, Map<BigDecimal, List<Booking>>> bookingsByAccount = new HashMap<>();
 		List<StockSettlementAssignment> candidates = new ArrayList<>();
-		for (StockPortfolio portfolio : dbController.getAll(StockPortfolio.class)) {
-			if (!transactionsByPortfolio.containsKey(portfolio.getId())) {
-				continue;
-			}
-			StockPortfolioSettlementAccount relation = dbController.getById(StockPortfolioSettlementAccount.class,
-					portfolio.getCurrentSettlementRelationId());
-			if (relation == null || relation.getPortfolioId() != portfolio.getId()) {
-				continue;
-			}
-			BankAccount account = dbController.getById(BankAccount.class, relation.getAccountId());
-			BankAccount depot = dbController.getById(BankAccount.class, portfolio.getAccountId());
-			if (account == null || depot == null || account.getBaseCurrency() == null) {
-				continue;
-			}
-			Map<BigDecimal, List<Booking>> bookings = bookingsByAccount.computeIfAbsent(account.getId(),
-					id -> dbController.getAllByParentFull(Booking.class, id).stream()
-							.filter(booking -> booking.getAmount() != null)
-							.collect(Collectors.groupingBy(booking -> booking.getAmount().stripTrailingZeros())));
-			for (StockTransaction transaction : transactionsByPortfolio.getOrDefault(portfolio.getId(), List.of())) {
-				candidates.addAll(findAssignmentCandidates(transaction, legsByTransaction.getOrDefault(transaction.getId(), List.of()),
-						account, depot, bookings, usedBookingIds));
-			}
+		for (StockPortfolio portfolio : dbController.getAll(StockPortfolio.class).stream()
+				.filter(item -> transactionsByPortfolio.containsKey(item.getId())).toList()) {
+			candidates.addAll(findPortfolioAssignmentCandidates(portfolio, transactionsByPortfolio.get(portfolio.getId()),
+					legsByTransaction, usedBookingIds, bookingsByAccount));
+		}
+		return candidates;
+	}
+
+	private List<StockSettlementAssignment> findPortfolioAssignmentCandidates(StockPortfolio portfolio,
+			List<StockTransaction> transactions, Map<Integer, List<StockTransactionCashLeg>> legsByTransaction,
+			Set<Integer> usedBookingIds, Map<Integer, Map<BigDecimal, List<Booking>>> bookingsByAccount) {
+		StockPortfolioSettlementAccount relation = dbController.getById(StockPortfolioSettlementAccount.class,
+				portfolio.getCurrentSettlementRelationId());
+		if (relation == null || relation.getPortfolioId() != portfolio.getId()) {
+			return List.of();
+		}
+		BankAccount account = dbController.getById(BankAccount.class, relation.getAccountId());
+		BankAccount depot = dbController.getById(BankAccount.class, portfolio.getAccountId());
+		if (account == null || depot == null || account.getBaseCurrency() == null) {
+			return List.of();
+		}
+		Map<BigDecimal, List<Booking>> bookings = bookingsByAccount.computeIfAbsent(account.getId(),
+				id -> dbController.getAllByParentFull(Booking.class, id).stream()
+						.filter(booking -> booking.getAmount() != null)
+						.collect(Collectors.groupingBy(booking -> booking.getAmount().stripTrailingZeros())));
+		List<StockSettlementAssignment> candidates = new ArrayList<>();
+		for (StockTransaction transaction : transactions) {
+			candidates.addAll(findAssignmentCandidates(transaction, legsByTransaction.getOrDefault(transaction.getId(), List.of()),
+					account, depot, bookings, usedBookingIds));
 		}
 		return candidates;
 	}

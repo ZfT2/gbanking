@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.Month;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -44,11 +45,11 @@ class AccountDetailPanelTest {
 			assertTrue(date.isEditable());
 			date.setText("15.06.2026");
 			click(panel, "UI_BUTTON_SAVE");
-			assertEquals(LocalDate.of(2026, 6, 15), db.getById(BankAccount.class, account.getId()).getClosedAt());
+			assertEquals(LocalDate.of(2026, Month.JUNE, 15), db.getById(BankAccount.class, account.getId()).getClosedAt());
 			click(panel, "UI_BUTTON_EDIT");
 			date.setText("16.06.2026");
 			click(panel, "UI_BUTTON_SAVE");
-			assertEquals(LocalDate.of(2026, 6, 16), db.getById(BankAccount.class, account.getId()).getClosedAt());
+			assertEquals(LocalDate.of(2026, Month.JUNE, 16), db.getById(BankAccount.class, account.getId()).getClosedAt());
 			click(panel, "UI_BUTTON_EDIT");
 			date.clear();
 			click(panel, "UI_BUTTON_CANCEL");

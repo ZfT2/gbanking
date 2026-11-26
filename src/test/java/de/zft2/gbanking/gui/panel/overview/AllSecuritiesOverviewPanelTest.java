@@ -11,6 +11,7 @@ import static org.mockito.ArgumentMatchers.any;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -142,7 +143,7 @@ class AllSecuritiesOverviewPanelTest {
 		when(service.getSecurityUsage()).thenReturn(new StockSecurityAdministrationService.SecurityUsage(
 				Set.of(1, 2), Map.of(10, Set.of(2))));
 		when(portfolios.getPortfolios()).thenReturn(List.of(new PortfolioSummary(10, "Depot A", "Bank", "",
-				LocalDate.of(2026, 1, 1), 11, "", "", "", Currency.EUR, BigDecimal.ZERO)));
+				LocalDate.of(2026, Month.JANUARY, 1), 11, "", "", "", Currency.EUR, BigDecimal.ZERO)));
 		GuiContext.setOnlySecuritiesWithHoldingsVisible(false);
 		JavaFxTestSupport.runFx(() -> {
 			AtomicReference<SecurityDetails> selected = new AtomicReference<>();
@@ -225,7 +226,7 @@ class AllSecuritiesOverviewPanelTest {
 		StockPortfolioService portfolios = mock(StockPortfolioService.class);
 		SecurityDetails security = new SecurityDetails(5, "Aktie", "", "", null, null, StockQuantityType.UNITS,
 				null, Currency.EUR, null, null, null, "", "", "", "", null, null);
-		PortfolioSummary portfolio = new PortfolioSummary(2, "Depot B", "Bank", "", LocalDate.of(2026, 1, 1),
+		PortfolioSummary portfolio = new PortfolioSummary(2, "Depot B", "Bank", "", LocalDate.of(2026, Month.JANUARY, 1),
 				3, "Konto", "", "", Currency.EUR, BigDecimal.ZERO);
 		SecurityHolding holding = new SecurityHolding(portfolio, StockQuantityType.UNITS, new BigDecimal("0.123456789"));
 		when(securities.getSecurities(false)).thenReturn(List.of(security));

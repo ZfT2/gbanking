@@ -24,6 +24,7 @@ import javafx.geometry.Pos;
 
 public class StockSecurityListPanel extends AbstractFilterableTablePanel<SecurityDetails> {
 
+	private static final String HOLDINGS = "HOLDINGS";
 	private static final double LIST_MIN_WIDTH = 400;
 	private static final double LIST_PREF_WIDTH = 480;
 	private static final double LIST_MAX_WIDTH = 600;
@@ -105,11 +106,11 @@ public class StockSecurityListPanel extends AbstractFilterableTablePanel<Securit
 			SecurityFilter selected = filter.getValue();
 			boolean currentHoldingsOnly = GuiContext.isOnlySecuritiesWithHoldingsVisible();
 			if (selected == null || currentHoldingsOnly != holdingsOnly) {
-				selected = choice(selected == null || currentHoldingsOnly ? "HOLDINGS" : "ALL");
+				selected = choice(selected == null || currentHoldingsOnly ? HOLDINGS : "ALL");
 			}
 			holdingsOnly = currentHoldingsOnly;
 			usage = service.getSecurityUsage();
-			filter.getItems().setAll(List.of(choice("ALL"), choice("REFERENCED"), choice("HOLDINGS")));
+			filter.getItems().setAll(List.of(choice("ALL"), choice("REFERENCED"), choice(HOLDINGS)));
 			for (var portfolio : portfolioService.getPortfolios()) {
 				filter.getItems().add(new SecurityFilter("PORTFOLIO", portfolio.portfolioId(),
 						getText("UI_STOCK_SECURITY_FILTER_PORTFOLIO", portfolio.displayName())));
@@ -150,7 +151,7 @@ public class StockSecurityListPanel extends AbstractFilterableTablePanel<Securit
 			case "REFERENCED" -> usage.referenced().contains(securityId);
 			case "UNREFERENCED" -> !usage.referenced().contains(securityId);
 			case "PORTFOLIO" -> usage.holdingsByPortfolio().getOrDefault(selected.portfolioId(), Set.of()).contains(securityId);
-			case "HOLDINGS" -> usage.holdingsByPortfolio().values().stream().anyMatch(ids -> ids.contains(securityId));
+			case HOLDINGS -> usage.holdingsByPortfolio().values().stream().anyMatch(ids -> ids.contains(securityId));
 			default -> throw new IllegalStateException("Unknown security filter: " + selected.key());
 		};
 	}

@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.List;
 import java.time.LocalDate;
+import java.time.Month;
 import java.time.ZoneId;
 
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,7 @@ class EnablebankingSetupDialogTest {
 			open.setId(1);
 			BankAccount closed = account(AccountType.SAVINGS_ACCOUNT);
 			closed.setId(2);
-			closed.setClosedAt(LocalDate.of(2025, 6, 15));
+			closed.setClosedAt(LocalDate.of(2025, Month.JUNE, 15));
 			MissingBankAccountsPane pane = new MissingBankAccountsPane(List.of(open, closed));
 			assertEquals(LocalDate.now(ZoneId.systemDefault()), pane.getClosureDates().get(open.getId()));
 			assertEquals(closed.getClosedAt(), pane.getClosureDates().get(closed.getId()));
@@ -42,13 +43,13 @@ class EnablebankingSetupDialogTest {
 			editor.setText("31.02.2026");
 			assertThrows(GBankingException.class, pane::getClosureDates);
 			editor.setText("14.06.2026");
-			assertEquals(LocalDate.of(2026, 6, 14), pane.getClosureDates().get(open.getId()));
+			assertEquals(LocalDate.of(2026, Month.JUNE, 14), pane.getClosureDates().get(open.getId()));
 			editor.clear();
 			closureEditor(table, 1).clear();
 			assertNull(pane.getClosureDates().get(open.getId()));
 			assertNull(pane.getClosureDates().get(closed.getId()));
 			assertNull(open.getClosedAt());
-			assertEquals(LocalDate.of(2025, 6, 15), closed.getClosedAt());
+			assertEquals(LocalDate.of(2025, Month.JUNE, 15), closed.getClosedAt());
 		});
 	}
 

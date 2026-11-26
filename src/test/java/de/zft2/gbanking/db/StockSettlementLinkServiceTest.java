@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.Set;
 
@@ -46,8 +47,8 @@ import de.zft2.gbanking.testdata.TestDataFactory;
 
 class StockSettlementLinkServiceTest extends DBControllerIntegrationBaseTest {
 
-	private static final LocalDate TRANSACTION_DATE = LocalDate.of(2026, 10, 19);
-	private static final LocalDate BOOKING_DATE = LocalDate.of(2026, 10, 20);
+	private static final LocalDate TRANSACTION_DATE = LocalDate.of(2026, Month.OCTOBER, 19);
+	private static final LocalDate BOOKING_DATE = LocalDate.of(2026, Month.OCTOBER, 20);
 	private static final BigDecimal AMOUNT = new BigDecimal("-72.00");
 
 	@ParameterizedTest
@@ -276,7 +277,7 @@ class StockSettlementLinkServiceTest extends DBControllerIntegrationBaseTest {
 		portfolio.setId(100);
 		portfolio.setAccountId(depotAccount.getId());
 		portfolio.setCurrentSettlementRelationId(200);
-		portfolio.setOpenedAt(LocalDate.of(2026, 1, 1));
+		portfolio.setOpenedAt(LocalDate.of(2026, Month.JANUARY, 1));
 		StockPortfolioSettlementAccount relation = new StockPortfolioSettlementAccount();
 		relation.setId(200);
 		relation.setPortfolioId(portfolio.getId());

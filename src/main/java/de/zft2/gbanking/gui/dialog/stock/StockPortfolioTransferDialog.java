@@ -33,6 +33,9 @@ import javafx.stage.Window;
 
 public final class StockPortfolioTransferDialog extends AbstractStockDialog {
 
+	private static final String UI_STOCK_ACTION_TRANSFER = "UI_STOCK_ACTION_TRANSFER";
+	private static final String UI_STOCK_PORTFOLIO_TRANSFER_CONFIRM_TITLE = "UI_STOCK_PORTFOLIO_TRANSFER_CONFIRM_TITLE";
+
 	private enum DateChoice { ORIGINAL, ENTERED, CANCEL }
 
 	private final PortfolioSummary source;
@@ -65,7 +68,7 @@ public final class StockPortfolioTransferDialog extends AbstractStockDialog {
 		FormGridHelper.addFieldAbove(form, getText("UI_STOCK_PORTFOLIO_TRANSFER_OPTIONAL_DATE"), dateField, 1, 0);
 		FormGridHelper.addFieldAbove(form, getText("UI_STOCK_FIELD_TRANSFER_EXCHANGE_RATE"), exchangeRateField, 2, 0);
 
-		Button transferButton = createActionButton("UI_STOCK_ACTION_TRANSFER", () -> transfer());
+		Button transferButton = createActionButton(UI_STOCK_ACTION_TRANSFER, () -> transfer());
 		transferButton.setDisable(targetField.getItems().isEmpty());
 		Label explanation = new Label(getText("UI_STOCK_PORTFOLIO_TRANSFER_HELP"));
 		explanation.setWrapText(true);
@@ -97,12 +100,12 @@ public final class StockPortfolioTransferDialog extends AbstractStockDialog {
 			}
 			LocalDate overrideDate = choice == DateChoice.ENTERED ? requestedDate : null;
 			boolean confirmed = DialogWindowSupport.showConfirmation(dialog(), Alert.AlertType.WARNING,
-					getText("UI_STOCK_PORTFOLIO_TRANSFER_CONFIRM_TITLE"),
+					getText(UI_STOCK_PORTFOLIO_TRANSFER_CONFIRM_TITLE),
 					getText("UI_STOCK_PORTFOLIO_TRANSFER_CONFIRM_HEADER"),
 					getText("UI_STOCK_PORTFOLIO_TRANSFER_REUSE_TEXT", source.displayName(), target.displayName(),
 							plan.outgoingIds().size() + plan.incomingIds().size(),
 							overrideDate != null ? DateFormatUtils.formatLong(overrideDate) : formatDates(plan)),
-					new ButtonType(getText("UI_STOCK_ACTION_TRANSFER")), ButtonType.CANCEL);
+					new ButtonType(getText(UI_STOCK_ACTION_TRANSFER)), ButtonType.CANCEL);
 			if (!confirmed) {
 				return false;
 			}
@@ -119,7 +122,7 @@ public final class StockPortfolioTransferDialog extends AbstractStockDialog {
 		ButtonType original = new ButtonType(getText("UI_STOCK_PORTFOLIO_TRANSFER_USE_ORIGINAL"), ButtonBar.ButtonData.OK_DONE);
 		ButtonType entered = new ButtonType(getText("UI_STOCK_PORTFOLIO_TRANSFER_USE_ENTERED"), ButtonBar.ButtonData.OTHER);
 		var choice = DialogWindowSupport.showChoice(dialog(), Alert.AlertType.CONFIRMATION,
-				getText("UI_STOCK_PORTFOLIO_TRANSFER_CONFIRM_TITLE"), getText("UI_STOCK_PORTFOLIO_TRANSFER_DATE_CONFLICT"),
+				getText(UI_STOCK_PORTFOLIO_TRANSFER_CONFIRM_TITLE), getText("UI_STOCK_PORTFOLIO_TRANSFER_DATE_CONFLICT"),
 				getText("UI_STOCK_PORTFOLIO_TRANSFER_DATE_CHOICE", formatDates(plan), DateFormatUtils.formatLong(requestedDate)),
 				original, entered, ButtonType.CANCEL);
 		if (choice.isEmpty() || choice.get().equals(ButtonType.CANCEL)) {
@@ -144,9 +147,9 @@ public final class StockPortfolioTransferDialog extends AbstractStockDialog {
 		Label confirmation = new Label(getText("UI_STOCK_PORTFOLIO_TRANSFER_CONFIRM_TEXT", source.displayName(), target.displayName()));
 		confirmation.setWrapText(true);
 		if (!DialogWindowSupport.showConfirmation(dialog(), Alert.AlertType.WARNING,
-				getText("UI_STOCK_PORTFOLIO_TRANSFER_CONFIRM_TITLE"), getText("UI_STOCK_PORTFOLIO_TRANSFER_CONFIRM_HEADER"),
+				getText(UI_STOCK_PORTFOLIO_TRANSFER_CONFIRM_TITLE), getText("UI_STOCK_PORTFOLIO_TRANSFER_CONFIRM_HEADER"),
 				new VBox(12, hint, differences, identityHint, new Label(getText("UI_STOCK_PORTFOLIO_TRANSFER_CUTOFF")), cutoff, confirmation),
-				new ButtonType(getText("UI_STOCK_ACTION_TRANSFER")), ButtonType.CANCEL)) {
+				new ButtonType(getText(UI_STOCK_ACTION_TRANSFER)), ButtonType.CANCEL)) {
 			return false;
 		}
 		if (cutoff.getValue() == null) {

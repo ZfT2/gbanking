@@ -37,6 +37,7 @@ class TenantBackupManagerTest {
 			Files.writeString(tenantPaths.databaseFile(), "db-content");
 			Path statementDirectory = tenantPaths.accountStatementsDirectory().resolve("2026");
 			Files.createDirectories(statementDirectory);
+			Files.createDirectory(statementDirectory.resolve("empty"));
 			Files.writeString(statementDirectory.resolve("statement.pdf"), "pdf-content");
 
 			serviceAt("2026-05-12T10:15:00Z").backupTenantDatabase(session);
@@ -46,7 +47,8 @@ class TenantBackupManagerTest {
 			assertEquals("db-content", readEntry(openBackup, "db/gbanking.db"));
 			assertEquals("pdf-content", readEntry(openBackup, "accountStatements/2026/statement.pdf"));
 			assertEquals(Set.of("db/gbanking.db", "accountStatements/", "accountStatements/2026/",
-					"accountStatements/2026/statement.pdf"), entryNames(openBackup));
+					"accountStatements/2026/statement.pdf", "accountStatements/2026/empty/"), entryNames(openBackup));
+			assertEquals("", readEntry(openBackup, "accountStatements/2026/empty/"));
 			assertEquals("db-content", readEntry(
 					tenantPaths.backupDirectory().resolve("gbanking.db.weekly.20260512_1215.gbbackup"), "db/gbanking.db"));
 			assertEquals("db-content", readEntry(

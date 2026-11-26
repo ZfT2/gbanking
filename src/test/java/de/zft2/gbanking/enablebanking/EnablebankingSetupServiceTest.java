@@ -21,6 +21,7 @@ import static org.mockito.Mockito.withSettings;
 
 import java.time.OffsetDateTime;
 import java.time.LocalDate;
+import java.time.Month;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
@@ -371,7 +372,7 @@ class EnablebankingSetupServiceTest {
 	void mapAccountDetails_shouldKeepTheCorrectedAccountType() {
 		BankAccount existing = new BankAccount();
 		existing.setAccountType(AccountType.SAVINGS_ACCOUNT);
-		existing.setClosedAt(LocalDate.of(2025, 6, 15));
+		existing.setClosedAt(LocalDate.of(2025, Month.JUNE, 15));
 		existing.setAccountState(AccountState.INACTIVE);
 		EnablebankingRemoteAccount remote = remote("DE44500105175407324931", "BICADEFFXXX", "87654321",
 				"4711", "CACC", "EUR", "Max Mustermann");

@@ -23,11 +23,11 @@ import de.zft2.gbanking.gui.GuiLayoutState;
 import de.zft2.gbanking.gui.component.GBankingTableView;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import de.zft2.gbanking.gui.dialog.stock.SecurityPriceDialog;
+import de.zft2.gbanking.gui.dialog.stock.StockCorporateActionDialog;
 import de.zft2.gbanking.gui.dialog.stock.StockIncomeDialog;
 import de.zft2.gbanking.gui.dialog.stock.StockPortfolioTransferDialog;
 import de.zft2.gbanking.gui.dialog.stock.StockPositionTransferDialog;
 import de.zft2.gbanking.gui.dialog.stock.StockSecurityExchangeDialog;
-import de.zft2.gbanking.gui.dialog.stock.StockCorporateActionDialog;
 import de.zft2.gbanking.gui.dialog.stock.StockSettlementAccountDialog;
 import de.zft2.gbanking.gui.dialog.stock.StockTradeDialog;
 import de.zft2.gbanking.gui.dialog.stock.StockTransactionDialog;
@@ -54,7 +54,6 @@ import de.zft2.gbanking.service.stock.StockSecurityAdministrationService;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -89,6 +88,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	private static final String FORM_SECTION_TITLE = "gbanking-form-section-title";
 	private static final String UI_STOCK_EXCHANGE_UNLINK = "UI_STOCK_EXCHANGE_UNLINK";
 	private static final String UI_STOCK_FIELD_CURRENCY = "UI_STOCK_FIELD_CURRENCY";
+	private static final String UI_BUTTON_DELETE = "UI_BUTTON_DELETE";
 
 	private static final String MUTED_TRANSACTION_STYLE = "booking-prenotification";
 	private static final double MASTER_DIVIDER = 0.22;
@@ -350,7 +350,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	private void configureSecurityButtons() {
 		securityNewButton.setText(getText("UI_BUTTON_NEW"));
 		securityEditButton.setText(getText("UI_BUTTON_EDIT"));
-		securityDeleteButton.setText(getText("UI_BUTTON_DELETE"));
+		securityDeleteButton.setText(getText(UI_BUTTON_DELETE));
 		securityNewButton.setOnAction(event -> openSecurityEditor(null));
 		securityEditButton.setOnAction(event -> openSecurityEditor(positionTable.getSelectionModel().getSelectedItem()));
 		securityDeleteButton.setOnAction(event -> deleteSelectedSecurity());
@@ -362,7 +362,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	private void configureTransactionButtons() {
 		transactionNewButton.setText(getText("UI_BUTTON_NEW"));
 		transactionEditButton.setText(getText("UI_BUTTON_EDIT"));
-		transactionDeleteButton.setText(getText("UI_BUTTON_DELETE"));
+		transactionDeleteButton.setText(getText(UI_BUTTON_DELETE));
 		transactionNewButton.setOnAction(event -> openNewTransaction());
 		transactionEditButton.setOnAction(event -> openSelectedTransaction());
 		transactionDeleteButton.setOnAction(event -> deleteSelectedTransaction());
@@ -957,7 +957,7 @@ public class StockPortfolioOverviewPanel extends OverviewBasePanel {
 	private void deleteSelectedSecurity() {
 		PositionSummary selected = positionTable.getSelectionModel().getSelectedItem();
 		if (selected == null || !DialogWindowSupport.showConfirmation(getOwnerWindow(), Alert.AlertType.CONFIRMATION,
-				getText("UI_BUTTON_DELETE"), getText("UI_PANEL_STOCK_SECURITY_DETAILS"),
+				getText(UI_BUTTON_DELETE), getText("UI_PANEL_STOCK_SECURITY_DETAILS"),
 				getText("UI_STOCK_SECURITY_DELETE_CONFIRM", selected.securityName()), ButtonType.OK, ButtonType.CANCEL)) {
 			return;
 		}

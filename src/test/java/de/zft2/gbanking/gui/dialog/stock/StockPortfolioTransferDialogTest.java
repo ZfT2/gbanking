@@ -12,6 +12,7 @@ import static org.mockito.ArgumentMatchers.any;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -61,7 +62,7 @@ class StockPortfolioTransferDialogTest {
 	@ValueSource(strings = { "existing", "existing-in", "create", "cancel" })
 	void deliveryConversionShouldLockQuantityAndDateAndRequireConfirmation(String scenario) {
 		PortfolioSummary source = portfolio(1), target = portfolio(2);
-		LocalDate date = LocalDate.of(2026, 9, 16);
+		LocalDate date = LocalDate.of(2026, Month.SEPTEMBER, 16);
 		boolean outgoing = !scenario.equals("existing-in");
 		boolean existing = scenario.startsWith("existing");
 		TransactionSummary transaction = new TransactionSummary(10,
@@ -119,7 +120,7 @@ class StockPortfolioTransferDialogTest {
 	@ParameterizedTest
 	@ValueSource(strings = { "empty", "original", "entered", "manual", "cancel" })
 	void transferShouldPreferOriginalDatesAndRequestAManualCutoffOnlyWhenNeeded(String scenario) {
-		LocalDate original = LocalDate.of(2026, 9, 15);
+		LocalDate original = LocalDate.of(2026, Month.SEPTEMBER, 15);
 		LocalDate entered = original.plusDays(5);
 		PortfolioSummary source = portfolio(1);
 		PortfolioSummary target = portfolio(2);
@@ -219,7 +220,7 @@ class StockPortfolioTransferDialogTest {
 	}
 
 	private static PortfolioSummary portfolio(int id) {
-		return new PortfolioSummary(id, "Depot " + id, "Bank", "", LocalDate.of(2026, 1, 1),
+		return new PortfolioSummary(id, "Depot " + id, "Bank", "", LocalDate.of(2026, Month.JANUARY, 1),
 				id + 10, "Konto", "Bank", "", Currency.EUR, BigDecimal.ZERO);
 	}
 }

@@ -84,16 +84,16 @@ class StockPortfolioOverviewPanelTest {
 						new BigDecimal("1234.50"), null, null, null, null, Currency.EUR, null)));
 		when(service.getTransactions(1)).thenReturn(List.of(
 				new TransactionSummary(1, StockTransactionType.BUY, 1, "Äpfel", "DE0000000001", "WKN-A",
-						LocalDate.of(2026, 1, 2), BigDecimal.ONE, null, null, Currency.EUR, 0, false, null),
+						LocalDate.of(2026, Month.JANUARY, 2), BigDecimal.ONE, null, null, Currency.EUR, 0, false, null),
 				new TransactionSummary(2, StockTransactionType.SELL, 2, "Beta", "DE0000000002", "WKN-B",
-						LocalDate.of(2026, 3, 4), new BigDecimal("1234.50"), null, null, Currency.EUR, 0, false, null)));
+						LocalDate.of(2026, Month.MARCH, 4), new BigDecimal("1234.50"), null, null, Currency.EUR, 0, false, null)));
 		Booking first = new Booking(), second = new Booking();
 		first.setPurpose("Äpfel");
 		first.setAmount(BigDecimal.ONE);
-		first.setDateBooking(LocalDate.of(2026, 1, 2));
+		first.setDateBooking(LocalDate.of(2026, Month.JANUARY, 2));
 		second.setPurpose("Beta");
 		second.setAmount(new BigDecimal("1234.50"));
-		second.setDateBooking(LocalDate.of(2026, 3, 4));
+		second.setDateBooking(LocalDate.of(2026, Month.MARCH, 4));
 		second.setBalance(new BigDecimal("1235.50"));
 		when(service.getAccountTransactions(portfolio.settlementAccountId())).thenReturn(List.of(first, second));
 		JavaFxTestSupport.runFx(() -> {
@@ -251,7 +251,7 @@ class StockPortfolioOverviewPanelTest {
 					.filter(item -> item.getText().equals(BaseMessages.getTextStatic("UI_STOCK_CONVERT_TO_TRANSFER")))
 					.findFirst().orElseThrow().isDisable());
 			TransactionSummary delivery = new TransactionSummary(3, StockTransactionType.DELIVERY_IN, 2, "Neu AG", null, null,
-					LocalDate.of(2026, 2, 1), BigDecimal.TEN, null, null, Currency.EUR, 0, true, null);
+					LocalDate.of(2026, Month.FEBRUARY, 1), BigDecimal.TEN, null, null, Currency.EUR, 0, true, null);
 			transactionRow.setItem(delivery);
 			assertFalse(transactionRow.getContextMenu().getItems().stream()
 					.filter(item -> item.getText().equals(BaseMessages.getTextStatic("UI_STOCK_CONVERT_TO_TRANSFER")))
@@ -334,30 +334,10 @@ class StockPortfolioOverviewPanelTest {
 	}
 
 	@Test
-	@SuppressWarnings("unchecked")
 	void shouldProvidePortfolioAndSettlementAccountLayout() {
-		StockPortfolioService service = mock(StockPortfolioService.class);
-		BankingCapabilityService capabilityService = mock(BankingCapabilityService.class);
-		PortfolioSummary portfolio = new PortfolioSummary(1, "Depot A", "Bank A", "DE123",
-				LocalDate.of(2026, Month.JANUARY, 1), 2, "Girokonto", "Bank A", "DE456", Currency.EUR,
-				new BigDecimal("100.00"));
-		when(service.getPortfolios()).thenReturn(List.of(portfolio));
-		when(service.getPositions(portfolio.portfolioId())).thenReturn(List.of());
-		when(service.getTransactions(portfolio.portfolioId())).thenReturn(List.of());
-		when(service.getAccountTransactions(portfolio.settlementAccountId())).thenReturn(List.of());
-		BankAccount portfolioAccount = new BankAccount();
-		portfolioAccount.setId(10);
-		portfolioAccount.setAccountType(AccountType.DEPOT);
-		when(service.getPortfolioAccount(portfolio)).thenReturn(portfolioAccount);
-
 		JavaFxTestSupport.runFx(() -> {
-			StockPortfolioOverviewPanel panel = new StockPortfolioOverviewPanel(service, capabilityService);
-			panel.refreshOnShow();
-			new javafx.scene.Scene(panel, 1280, 900);
-			panel.resize(1280, 900);
-			panel.applyCss();
-			panel.layout();
-
+			PortfolioLayout layout = createPortfolioLayout();
+			StockPortfolioOverviewPanel panel = layout.panel();
 			assertEquals(PageContext.STOCK_PORTFOLIOS, panel.getPageContext());
 			SplitPane mainPane = (SplitPane) panel.getChildren().get(1);
 			VBox navigation = (VBox) mainPane.getItems().get(0);
@@ -379,7 +359,6 @@ class StockPortfolioOverviewPanelTest {
 			assertEquals(1, tree.getRoot().getChildren().size());
 			assertEquals(1, tree.getRoot().getChildren().get(0).getChildren().size());
 			TableView<?> positions = (TableView<?>) positionSection.getChildren().get(1);
-			double overviewHeight = positions.getHeight();
 			assertEquals(10, positions.getColumns().size());
 			assertFalse(positions.isEditable());
 			assertFalse(positions.getColumns().get(4).isEditable());
@@ -393,13 +372,9 @@ class StockPortfolioOverviewPanelTest {
 			assertEquals(190, transactions.getColumns().get(1).getPrefWidth());
 			assertEquals(BaseMessages.getTextStatic("UI_STOCK_COLUMN_PRICE"),
 					transactions.getColumns().get(6).getText());
-			var selectionColumn = (javafx.scene.control.TreeTableColumn<Object, Boolean>) (javafx.scene.control.TreeTableColumn<?, ?>)
-					tree.getColumns().get(0);
-			var portfolioItem = (javafx.scene.control.TreeItem<Object>) (javafx.scene.control.TreeItem<?>)
-					tree.getRoot().getChildren().get(0);
-			BooleanProperty selected = (BooleanProperty) selectionColumn.getCellObservableValue(portfolioItem);
+			BooleanProperty selected = (BooleanProperty) tree.getColumns().get(0).getCellObservableValue(0);
 			selected.set(true);
-			assertEquals(List.of(portfolioAccount), panel.getCheckedAccounts());
+			assertEquals(List.of(layout.account()), panel.getCheckedAccounts());
 			GridPane settlementDetails = (GridPane) tabContent(tabs, 3).getChildren().get(0);
 			Button editButton = settlementDetails.lookupAll(".button").stream()
 					.filter(Button.class::isInstance)
@@ -414,6 +389,21 @@ class StockPortfolioOverviewPanelTest {
 					.stream().map(key -> BaseMessages.getTextStatic(key)).toList(), tabButtons(tabs, 1).stream().map(button -> button.getText()).toList());
 			assertEquals(List.of("UI_BUTTON_NEW", "UI_BUTTON_EDIT", "UI_BUTTON_DELETE", "UI_STOCK_CORPORATE_TITLE")
 					.stream().map(key -> BaseMessages.getTextStatic(key)).toList(), tabButtons(tabs, 2).stream().map(button -> button.getText()).toList());
+		});
+	}
+
+	@Test
+	void shouldMoveSharedTablesBetweenTabsAndKeepSelectionOnRefresh() {
+		JavaFxTestSupport.runFx(() -> {
+			StockPortfolioOverviewPanel panel = createPortfolioLayout().panel();
+			SplitPane mainPane = (SplitPane) panel.getChildren().get(1);
+			TabPane tabs = (TabPane) ((VBox) mainPane.getItems().get(1)).getChildren().get(0);
+			SplitPane portfolioTables = (SplitPane) tabContent(tabs, 0).getChildren().get(1);
+			VBox positionSection = tableSection(portfolioTables, 0);
+			VBox transactionSection = tableSection(portfolioTables, 1);
+			TableView<?> positions = (TableView<?>) positionSection.getChildren().get(1);
+			TableView<?> transactions = (TableView<?>) transactionSection.getChildren().get(1);
+			double overviewHeight = positions.getHeight();
 			tabs.getSelectionModel().select(1);
 			panel.applyCss();
 			panel.layout();
@@ -434,6 +424,30 @@ class StockPortfolioOverviewPanelTest {
 			assertEquals(positionSection, tableSection(portfolioTables, 0));
 			assertEquals(transactionSection, tableSection(portfolioTables, 1));
 		});
+	}
+
+	private record PortfolioLayout(StockPortfolioOverviewPanel panel, BankAccount account) {
+	}
+
+	private static PortfolioLayout createPortfolioLayout() {
+		StockPortfolioService service = mock(StockPortfolioService.class);
+		BankingCapabilityService capabilityService = mock(BankingCapabilityService.class);
+		PortfolioSummary portfolio = new PortfolioSummary(1, "Depot A", "Bank A", "DE123",
+				LocalDate.of(2026, Month.JANUARY, 1), 2, "Girokonto", "Bank A", "DE456", Currency.EUR,
+				new BigDecimal("100.00"));
+		when(service.getPortfolios()).thenReturn(List.of(portfolio));
+		when(service.getPositions(portfolio.portfolioId())).thenReturn(List.of());
+		when(service.getTransactions(portfolio.portfolioId())).thenReturn(List.of());
+		when(service.getAccountTransactions(portfolio.settlementAccountId())).thenReturn(List.of());
+		BankAccount account = portfolioAccount(10, false);
+		when(service.getPortfolioAccount(portfolio)).thenReturn(account);
+		StockPortfolioOverviewPanel panel = new StockPortfolioOverviewPanel(service, capabilityService);
+		panel.refreshOnShow();
+		new javafx.scene.Scene(panel, 1280, 900);
+		panel.resize(1280, 900);
+		panel.applyCss();
+		panel.layout();
+		return new PortfolioLayout(panel, account);
 	}
 
 	private static VBox tableSection(SplitPane tables, int index) {

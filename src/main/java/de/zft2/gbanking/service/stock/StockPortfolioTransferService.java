@@ -3,6 +3,7 @@ package de.zft2.gbanking.service.stock;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -213,7 +214,7 @@ public class StockPortfolioTransferService extends AbstractDbService {
 		if (!outgoing.isEmpty()) {
 			return outgoing.get(outgoing.size() - 1).date();
 		}
-		return incoming.isEmpty() ? LocalDate.now() : incoming.get(0).date();
+		return incoming.isEmpty() ? LocalDate.now(ZoneId.systemDefault()) : incoming.get(0).date();
 	}
 
 	private static Map<PositionKey, Long> deliveryQuantities(List<DeliveryDay> days) {
@@ -254,14 +255,7 @@ public class StockPortfolioTransferService extends AbstractDbService {
 			LocalDate date = overrideDate != null ? overrideDate : plan.dates().get(0);
 			convertDeliveries(plan.outgoingIds(), StockTransactionType.TRANSFER_OUT, overrideDate);
 			convertDeliveries(plan.incomingIds(), StockTransactionType.TRANSFER_IN, overrideDate);
-			for (PositionSummary position : plan.positions()) {
-				if (plan.outgoingIds().isEmpty()) {
-					portfolios.persistTransferSide(source, position, position.quantity(), date, true);
-				}
-				if (plan.incomingIds().isEmpty()) {
-					portfolios.persistTransferSide(target, position, position.quantity(), date, false);
-				}
-			}
+			completeTransferSides(source, target, plan, date);
 			LocalDate cutoff = date.isAfter(plan.cutoff()) ? date : plan.cutoff();
 			requireNonNegativeHistory(source.portfolioId(), plan.positions(), cutoff);
 			requireNonNegativeHistory(target.portfolioId(), plan.positions(), cutoff);
@@ -272,6 +266,17 @@ public class StockPortfolioTransferService extends AbstractDbService {
 			}
 			return null;
 		});
+	}
+
+	private void completeTransferSides(PortfolioSummary source, PortfolioSummary target, TransferPlan plan, LocalDate date) {
+		for (PositionSummary position : plan.positions()) {
+			if (plan.outgoingIds().isEmpty()) {
+				portfolios.persistTransferSide(source, position, position.quantity(), date, true);
+			}
+			if (plan.incomingIds().isEmpty()) {
+				portfolios.persistTransferSide(target, position, position.quantity(), date, false);
+			}
+		}
 	}
 
 	private boolean settlementBalanceAlreadyTransferred(BankAccount source, BankAccount target) {

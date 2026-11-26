@@ -1,6 +1,7 @@
 package de.zft2.gbanking.db;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -162,7 +163,7 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 			assertEquals(1, tool.persistDetectedRebookingLinks(summary));
 			assertEquals(existing.getId(), db.getAll(StockTransactionCashLeg.class).get(0).getBookingId());
 		} else if (scenario == 3) {
-			assertTrue(leg.getBookingId() != existing.getId());
+			assertNotEquals(existing.getId(), leg.getBookingId());
 			assertNull(reloaded.getCrossBookingId());
 			assertNotNull(db.getById(Booking.class, leg.getBookingId()).getCrossBookingId());
 		} else {
