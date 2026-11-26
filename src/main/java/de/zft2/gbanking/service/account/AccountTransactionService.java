@@ -21,6 +21,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.function.Supplier;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -209,26 +210,9 @@ public class AccountTransactionService extends AbstractDbService {
 		Optional<BigDecimal> accountBalance = readSaldo(saldoJob, bankAccount.getBaseCurrency());
 		List<UmsLine> bookedUms = readBookedUms(umsatzJob);
 		Optional<List<UmsLine>> prenotificationResult = readPrenotifications(umsatzJob, vormerkpostenJob);
-		return persistRetrievedAccountData(bankAccount, accountBalance, bookedUms, prenotificationResult);
-	}
-
-	private AccountTransactionRetrievalResult persistRetrievedAccountData(BankAccount bankAccount, Optional<BigDecimal> accountBalance,
-			List<UmsLine> bookedUms, Optional<List<UmsLine>> prenotificationResult) {
-		return dbController.executeInTransaction(() -> {
-			refreshBankAccount(bankAccount);
-			updatePreviousNewBookings(bankAccount);
-			accountBalance.ifPresent(saldo -> updateAccountBalance(bankAccount, saldo));
-
-			int newBookingCount = saveHbciBookingsForAccount(bankAccount, bookedUms);
-			int pendingBookingCount = updatePrenotifications(bankAccount, prenotificationResult);
-			accountBalance.ifPresent(saldo -> reconcileAccountBalance(bankAccount, saldo));
-
-			AccountTransactionRetrievalResult result = AccountTransactionRetrievalResult.success(newBookingCount, pendingBookingCount);
-			persistRetrievalStatus(bankAccount, result);
-			log.info("Processed HBCI account transaction result for account id {}, new={}, prenotified={}, success=true", bankAccount.getId(),
-					newBookingCount, pendingBookingCount);
-			return result;
-		});
+		return persistAccountData(bankAccount, accountBalance,
+				() -> mapHbciBookings(bankAccount, bookedUms, Source.ONLINE_NEW),
+				() -> mapHbciPrenotifications(bankAccount, prenotificationResult), "HBCI");
 	}
 
 	public AccountTransactionRetrievalResult persistExternalAccountData(BankAccount bankAccount, BigDecimal accountBalance,
@@ -238,29 +222,34 @@ public class AccountTransactionService extends AbstractDbService {
 
 	public AccountTransactionRetrievalResult persistExternalAccountData(BankAccount bankAccount, Optional<BigDecimal> accountBalance,
 			List<Booking> bookings, Optional<PendingBookingSnapshot> pendingBookings, String providerName) {
+		return persistAccountData(bankAccount, accountBalance, () -> bookings, () -> pendingBookings, providerName);
+	}
+
+	private AccountTransactionRetrievalResult persistAccountData(BankAccount bankAccount, Optional<BigDecimal> accountBalance,
+			Supplier<List<Booking>> bookings, Supplier<Optional<PendingBookingSnapshot>> pendingBookings, String providerName) {
 		return dbController.executeInTransaction(() -> {
 			refreshBankAccount(bankAccount);
 			updatePreviousNewBookings(bankAccount);
 			accountBalance.ifPresent(balance -> updateAccountBalance(bankAccount, balance));
-			int newBookingCount = saveOnlineBookingsForAccount(bankAccount, bookings, Source.ONLINE_NEW, providerName);
-			int pendingBookingCount = updatePendingBookings(bankAccount, pendingBookings, providerName);
+			int newBookingCount = saveOnlineBookingsForAccount(bankAccount, bookings.get(), Source.ONLINE_NEW, providerName);
+			int pendingBookingCount = updatePendingBookings(bankAccount, pendingBookings.get(), providerName);
 			accountBalance.ifPresent(balance -> reconcileAccountBalance(bankAccount, balance));
 
 			AccountTransactionRetrievalResult result = AccountTransactionRetrievalResult.success(newBookingCount, pendingBookingCount);
 			persistRetrievalStatus(bankAccount, result);
+			log.info("Processed {} account transaction result for account id {}, new={}, prenotified={}, success=true", providerName,
+					bankAccount.getId(), newBookingCount, pendingBookingCount);
 			return result;
 		});
 	}
 
-	private int updatePrenotifications(BankAccount bankAccount, Optional<List<UmsLine>> prenotificationResult) {
+	private Optional<PendingBookingSnapshot> mapHbciPrenotifications(BankAccount bankAccount,
+			Optional<List<UmsLine>> prenotificationResult) {
 		if (prenotificationResult.isEmpty()) {
 			log.warn("Keeping existing prenotifications for account id {} because the HBCI prenotification refresh was incomplete.", bankAccount.getId());
-			return (int) getAccountBookings(bankAccount.getId()).stream().filter(booking -> booking.isPrenotification()).count();
 		}
-
-		List<Booking> bookings = mapHbciBookings(bankAccount, prenotificationResult.get(), Source.ONLINE_PRENO_NEW);
-		return updatePendingBookings(bankAccount,
-				Optional.of(new PendingBookingSnapshot(bookings, null)), "HBCI");
+		return prenotificationResult.map(bookings -> new PendingBookingSnapshot(
+				mapHbciBookings(bankAccount, bookings, Source.ONLINE_PRENO_NEW), null));
 	}
 
 	private int updatePendingBookings(BankAccount bankAccount, Optional<PendingBookingSnapshot> snapshot, String providerName) {

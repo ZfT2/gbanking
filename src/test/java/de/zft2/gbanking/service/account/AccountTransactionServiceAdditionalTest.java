@@ -36,6 +36,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.kapott.hbci.GV.HBCIJob;
 import org.kapott.hbci.GV_Result.GVRKUms;
 import org.kapott.hbci.GV_Result.GVRKUms.UmsLine;
@@ -449,8 +451,9 @@ class AccountTransactionServiceAdditionalTest {
 		}
 	}
 
-	@Test
-	void retrieveAccountTransactions_shouldKeepExistingPrenotificationsWhenLowlevelResultFails() {
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void retrieveAccountTransactions_shouldReplacePrenotificationsOnlyForCompleteResults(boolean complete) {
 		BankAccount bankAccount = TestDataFactory.createSampleAccount(null);
 		bankAccount.setIban("DE44500105175407324931");
 		bankAccount.setNumber("987654321");
@@ -490,17 +493,22 @@ class AccountTransactionServiceAdditionalTest {
 		when(umsatzResult.getFlatData()).thenReturn(List.of());
 		when(umsatzResult.getFlatDataUnbooked()).thenReturn(List.of());
 		when(vormerkpostenJob.getJobResult()).thenReturn(vormerkpostenResult);
-		when(vormerkpostenResult.isOK()).thenReturn(false);
+		when(vormerkpostenResult.isOK()).thenReturn(complete);
 
 		try (MockedConstruction<GBankingHBCICallback> callbacks = mockConstruction(GBankingHBCICallback.class)) {
-			boolean result = service.retrieveAccountTransactions(bankAccount, pin);
+			AccountTransactionRetrievalResult result = service.retrieveAccountTransactionsWithResult(bankAccount, pin);
 
 			List<Booking> bookings = dbController.getAllByParentFull(Booking.class, bankAccount.getId());
-			assertTrue(result);
-			assertEquals(1, bookings.size());
-			assertEquals(existingPrenotification.getId(), bookings.get(0).getId());
-			assertEquals(Source.ONLINE_PRENO, bookings.get(0).getSource());
-			assertEquals(new BigDecimal("99.99"), bookings.get(0).getAmount());
+			assertTrue(result.successful());
+			assertEquals(complete ? 0 : 1, result.pendingBookingCount());
+			assertEquals(result.pendingBookingCount(),
+					dbController.getBankAccountRetrievalStatus(bankAccount.getId()).pendingBookingCount());
+			assertEquals(complete ? 0 : 1, bookings.size());
+			if (!complete) {
+				assertEquals(existingPrenotification.getId(), bookings.get(0).getId());
+				assertEquals(Source.ONLINE_PRENO, bookings.get(0).getSource());
+				assertEquals(new BigDecimal("99.99"), bookings.get(0).getAmount());
+			}
 			verify(callbacks.constructed().get(0)).finishStatusDialog();
 		}
 	}
