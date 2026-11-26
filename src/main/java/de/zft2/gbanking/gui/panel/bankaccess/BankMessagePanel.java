@@ -2,7 +2,6 @@ package de.zft2.gbanking.gui.panel.bankaccess;
 
 import static de.zft2.gbanking.util.TextValues.appendParagraph;
 
-import java.util.Arrays;
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
@@ -20,12 +19,12 @@ import de.zft2.gbanking.gui.util.FormStyleUtils;
 import de.zft2.gbanking.service.bankaccess.BankMessageRetrievalResult;
 import de.zft2.gbanking.service.bankaccess.BankMessageService;
 import de.zft2.gbanking.service.BankingCapabilityService;
+import de.zft2.gbanking.service.HbciSessionRunner;
 import de.zft2.gbanking.service.ServiceRegistry;
 import javafx.concurrent.Task;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TitledPane;
-import javafx.stage.Stage;
 import javafx.stage.Window;
 
 public class BankMessagePanel extends DetailListPane implements BaseMessagesBean {
@@ -104,7 +103,7 @@ public class BankMessagePanel extends DetailListPane implements BaseMessagesBean
 			return;
 		}
 
-		char[] pin = requestPin();
+		char[] pin = new PinAskDialog(getOwnerWindow()).requestPin(currentBankAccess.getFints().getBlz(), currentBankAccess.getBankName());
 		if (pin == null || pin.length == 0) {
 			return;
 		}
@@ -112,30 +111,19 @@ public class BankMessagePanel extends DetailListPane implements BaseMessagesBean
 		startRetrievalTask(currentBankAccess, pin);
 	}
 
-	private char[] requestPin() {
-		PinAskDialog pinWindow = new PinAskDialog(getOwnerWindow());
-		pinWindow.setBankInfo(currentBankAccess.getFints().getBlz(), currentBankAccess.getBankName());
-		Stage pinDialog = pinWindow.createNewPinAskDialog();
-		pinDialog.showAndWait();
-		return pinWindow.getPin();
-	}
-
 	private void startRetrievalTask(BankAccess bankAccess, char[] pin) {
 		detailPanel.setRetrievalRunning(true);
 		Task<BankMessageRetrievalResult> task = BackgroundActionCoordinator
 				.newTask(() -> bankMessageService.retrieveBankMessagesWithResult(bankAccess, pin));
 		task.setOnSucceeded(event -> handleRetrievalSuccess(task.getValue()));
-		task.setOnFailed(event -> handleRetrievalFailure(task.getException(), pin));
-		task.setOnCancelled(event -> {
-			Arrays.fill(pin, '\0');
+		task.setOnFailed(event -> handleRetrievalFailure(task.getException()));
+		BackgroundActionCoordinator.getInstance().startWithCompletion(task, "gbanking-hbci-bank-messages", () -> {
+			HbciSessionRunner.clearSecret(pin);
 			detailPanel.setRetrievalRunning(false);
 		});
-
-		BackgroundActionCoordinator.getInstance().start(task, "gbanking-hbci-bank-messages");
 	}
 
 	private void handleRetrievalSuccess(BankMessageRetrievalResult result) {
-		detailPanel.setRetrievalRunning(false);
 		reloadMessages();
 		if (result == null || result.wrongPin()) {
 			DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_BANK_MESSAGES_WRONG_PIN"));
@@ -149,9 +137,7 @@ public class BankMessagePanel extends DetailListPane implements BaseMessagesBean
 				getText("UI_INFO_BANK_MESSAGES_RETRIEVED", Integer.toString(result.messages().size())));
 	}
 
-	private void handleRetrievalFailure(Throwable exception, char[] pin) {
-		Arrays.fill(pin, '\0');
-		detailPanel.setRetrievalRunning(false);
+	private void handleRetrievalFailure(Throwable exception) {
 		log.error("Error retrieving bank messages", exception);
 		DialogWindowSupport.showAlert(getOwnerWindow(), AlertType.WARNING, getText("ALERT_BANK_MESSAGES_RETRIEVAL_FAILED"));
 	}

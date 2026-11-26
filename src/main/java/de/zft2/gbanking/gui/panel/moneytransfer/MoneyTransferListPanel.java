@@ -6,7 +6,6 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -36,6 +35,7 @@ import de.zft2.gbanking.gui.util.DateFormatUtils;
 import de.zft2.gbanking.gui.util.FileChooserSupport;
 import de.zft2.gbanking.gui.util.FxTableUtils;
 import de.zft2.gbanking.gui.util.TableColumnFactory;
+import de.zft2.gbanking.service.HbciSessionRunner;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.moneytransfer.MoneyTransferService;
 import de.zft2.gbanking.util.StandingOrderSchedule;
@@ -51,7 +51,6 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.skin.TableColumnHeader;
-import javafx.stage.Stage;
 
 public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTransfer> {
 
@@ -293,19 +292,11 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 			return;
 		}
 
-		char[] pin = requestPin(selectedAccount);
+		char[] pin = new PinAskDialog(getTableWindow()).requestPin(selectedAccount.getBlz(), selectedAccount.getBankName());
 		if (pin == null || pin.length == 0) {
 			return;
 		}
 		startInstantPaymentStatusTask(selectedTransfers, selectedAccount, pin);
-	}
-
-	private char[] requestPin(BankAccount account) {
-		PinAskDialog pinWindow = new PinAskDialog(getTableWindow());
-		pinWindow.setBankInfo(account.getBlz(), account.getBankName());
-		Stage pinDialog = pinWindow.createNewPinAskDialog();
-		pinDialog.showAndWait();
-		return pinWindow.getPin();
 	}
 
 	private void startInstantPaymentStatusTask(List<MoneyTransfer> selectedTransfers, BankAccount account, char[] pin) {
@@ -313,14 +304,11 @@ public class MoneyTransferListPanel extends AbstractFilterableTablePanel<MoneyTr
 				() -> ServiceRegistry.getService(MoneyTransferService.class).retrieveInstantPaymentStatuses(selectedTransfers, account, pin));
 		task.setOnSucceeded(event -> handleInstantPaymentStatusResult(task.getValue(), selectedTransfers.size()));
 		task.setOnFailed(event -> {
-			Arrays.fill(pin, '\0');
 			log.error("Instant payment status retrieval failed", task.getException());
 			showWarning(getText("ALERT_MONEYTRANSFER_INSTANT_STATUS_RETRIEVAL_FAILED"));
 		});
-		task.setOnCancelled(event -> Arrays.fill(pin, '\0'));
-		if (!BackgroundActionCoordinator.getInstance().start(task, "gbanking-hbci-instant-payment-status")) {
-			Arrays.fill(pin, '\0');
-		}
+		BackgroundActionCoordinator.getInstance().startWithCompletion(task, "gbanking-hbci-instant-payment-status",
+				() -> HbciSessionRunner.clearSecret(pin));
 	}
 
 	private void handleInstantPaymentStatusResult(int successfulRequests, int requestedTransfers) {

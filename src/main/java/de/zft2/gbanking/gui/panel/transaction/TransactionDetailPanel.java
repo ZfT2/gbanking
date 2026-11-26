@@ -54,7 +54,6 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.ToggleButton;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -76,8 +75,6 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 	private static final double DETAIL_FIELD_WIDTH = 200.0;
 	private static final double UPDATED_AT_FIELD_WIDTH = 100.0;
 	private static final double ADDITIONAL_NOTE_TOGGLE_WIDTH = 32.0;
-	private static final String EXPAND_SYMBOL = "\u25bc";
-	private static final String COLLAPSE_SYMBOL = "\u25b2";
 
 	private enum EditContext {
 		NEW, EDIT, READONLY
@@ -270,19 +267,9 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 	}
 
 	private ToggleButton createAdditionalNoteToggle(Node additionalNotePane) {
-		ToggleButton toggle = new ToggleButton(EXPAND_SYMBOL);
-		Tooltip tooltip = new Tooltip(getText("UI_BOOKING_NOTE_SHOW"));
-		toggle.setTooltip(tooltip);
-		toggle.setAccessibleText(tooltip.getText());
+		ToggleButton toggle = FxNodeSupport.createDisclosureToggle(additionalNotePane,
+				getText("UI_BOOKING_NOTE_SHOW"), getText("UI_BOOKING_NOTE_HIDE"));
 		applyPreferredWidth(toggle, ADDITIONAL_NOTE_TOGGLE_WIDTH);
-		toggle.selectedProperty().addListener((obs, wasExpanded, isExpanded) -> {
-			boolean expanded = Boolean.TRUE.equals(isExpanded);
-			FxNodeSupport.setVisibleManaged(additionalNotePane, expanded);
-			toggle.setText(expanded ? COLLAPSE_SYMBOL : EXPAND_SYMBOL);
-			String tooltipText = getText(expanded ? "UI_BOOKING_NOTE_HIDE" : "UI_BOOKING_NOTE_SHOW");
-			tooltip.setText(tooltipText);
-			toggle.setAccessibleText(tooltipText);
-		});
 		return toggle;
 	}
 

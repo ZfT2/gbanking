@@ -11,7 +11,6 @@ import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.gui.panel.action.PinAskDialog;
 import de.zft2.gbanking.service.BankingCapabilityService;
 import de.zft2.gbanking.service.ServiceRegistry;
-import javafx.stage.Stage;
 
 final class PinRequestCoordinator {
 
@@ -20,7 +19,7 @@ final class PinRequestCoordinator {
 
 	PinRequestCoordinator(PinAskDialog pinDialog) {
 		Objects.requireNonNull(pinDialog, "pinDialog");
-		pinRequester = account -> requestPin(pinDialog, account);
+		pinRequester = account -> pinDialog.requestPin(account.getBlz(), account.getBankName());
 		credentialRequired = ServiceRegistry.getService(BankingCapabilityService.class)::requiresInteractiveCredential;
 	}
 
@@ -71,13 +70,6 @@ final class PinRequestCoordinator {
 				clearPins(pinsByKey);
 			}
 		}
-	}
-
-	private static char[] requestPin(PinAskDialog pinDialog, BankAccount account) {
-		pinDialog.setBankInfo(account.getBlz(), account.getBankName());
-		Stage dialog = pinDialog.createNewPinAskDialog();
-		dialog.showAndWait();
-		return pinDialog.getPin();
 	}
 
 	static char[] copyPin(char[] pin) {

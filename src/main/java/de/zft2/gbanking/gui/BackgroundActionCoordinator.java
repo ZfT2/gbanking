@@ -20,6 +20,7 @@ import de.zft2.gbanking.concurrent.CancellationSupport;
 import de.zft2.gbanking.db.DbRuntimeContext;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
+import javafx.concurrent.WorkerStateEvent;
 
 public final class BackgroundActionCoordinator {
 
@@ -93,6 +94,34 @@ public final class BackgroundActionCoordinator {
 	public boolean start(Task<?> task, String actionName, ActionScope scope) {
 		Objects.requireNonNull(task, "task");
 		return startOperation(task, () -> task.cancel(true), actionName, scope);
+	}
+
+	/** Call on the FX thread; completion runs once before terminal handlers or on start failure. */
+	public boolean startWithCompletion(Task<?> task, String actionName, Runnable onFinished) {
+		Objects.requireNonNull(task, "task");
+		Objects.requireNonNull(onFinished, "onFinished");
+		AtomicBoolean finished = new AtomicBoolean();
+		Runnable finishOnce = () -> {
+			if (finished.compareAndSet(false, true)) {
+				onFinished.run();
+			}
+		};
+		task.addEventFilter(WorkerStateEvent.ANY, event -> {
+			if (event.getEventType() == WorkerStateEvent.WORKER_STATE_SUCCEEDED
+					|| event.getEventType() == WorkerStateEvent.WORKER_STATE_FAILED
+					|| event.getEventType() == WorkerStateEvent.WORKER_STATE_CANCELLED) {
+				finishOnce.run();
+			}
+		});
+		boolean started = false;
+		try {
+			started = start(task, actionName);
+			return started;
+		} finally {
+			if (!started) {
+				finishOnce.run();
+			}
+		}
 	}
 
 	boolean startOperation(Runnable operation, Runnable cancellationAction, String actionName, ActionScope scope) {

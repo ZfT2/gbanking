@@ -22,6 +22,12 @@ public class PinAskDialog implements BaseMessages {
 		this.parentWindow = parentWindow;
 	}
 
+	public char[] requestPin(String bankCode, String bankName) {
+		setBankInfo(bankCode, bankName);
+		createNewPinAskDialog().showAndWait();
+		return getPin();
+	}
+
 	public Stage createNewPinAskDialog() {
 		pin = null;
 		boolean paypal = PaypalSupport.isPaypalChoice(bankCode);

@@ -85,8 +85,6 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	private static final double FILTER_CHOICE_WIDTH = 170;
 	private static final double FILTER_TOGGLE_WIDTH = 32;
 	private static final double FILTER_TEXT_MIN_WIDTH = 120;
-	private static final String FILTER_EXPAND_SYMBOL = "\u25bc";
-	private static final String FILTER_COLLAPSE_SYMBOL = "\u25b2";
 
 	final TransactionsOverviewBasePanel parentPanel;
 	private final BookingService bookingService;
@@ -218,19 +216,9 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	}
 
 	private ToggleButton createDetailFilterToggle(FlowPane advancedFilters) {
-		ToggleButton toggle = new ToggleButton(FILTER_EXPAND_SYMBOL);
-		Tooltip tooltip = new Tooltip(getText("UI_FILTER_DETAILS_SHOW"));
-		toggle.setTooltip(tooltip);
-		toggle.setAccessibleText(tooltip.getText());
+		ToggleButton toggle = FxNodeSupport.createDisclosureToggle(advancedFilters,
+				getText("UI_FILTER_DETAILS_SHOW"), getText("UI_FILTER_DETAILS_HIDE"));
 		configureFilterWidth(toggle, FILTER_TOGGLE_WIDTH);
-		toggle.selectedProperty().addListener((obs, wasExpanded, isExpanded) -> {
-			boolean expanded = Boolean.TRUE.equals(isExpanded);
-			FxNodeSupport.setVisibleManaged(advancedFilters, expanded);
-			toggle.setText(expanded ? FILTER_COLLAPSE_SYMBOL : FILTER_EXPAND_SYMBOL);
-			String tooltipText = getText(expanded ? "UI_FILTER_DETAILS_HIDE" : "UI_FILTER_DETAILS_SHOW");
-			tooltip.setText(tooltipText);
-			toggle.setAccessibleText(tooltipText);
-		});
 		return toggle;
 	}
 

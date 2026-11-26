@@ -4,7 +4,6 @@ import java.awt.Desktop;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -23,10 +22,10 @@ import de.zft2.gbanking.service.account.AccountStatementAcknowledgementResult;
 import de.zft2.gbanking.service.account.AccountStatementRetrievalResult;
 import de.zft2.gbanking.service.account.AccountStatementService;
 import de.zft2.gbanking.service.BankingCapabilityService;
+import de.zft2.gbanking.service.HbciSessionRunner;
 import de.zft2.gbanking.service.ServiceRegistry;
 import javafx.concurrent.Task;
 import javafx.scene.control.Alert.AlertType;
-import javafx.stage.Stage;
 import javafx.stage.Window;
 
 public class AccountStatementPanel extends DetailListPane implements BaseMessagesBean {
@@ -113,7 +112,7 @@ public class AccountStatementPanel extends DetailListPane implements BaseMessage
 			showAlert(AlertType.WARNING, getText("ALERT_ACCOUNT_STATEMENTS_UNSUPPORTED", currentAccount.getAccountName()));
 			return;
 		}
-		char[] pin = requestPin();
+		char[] pin = new PinAskDialog(getOwnerWindow()).requestPin(currentAccount.getBlz(), currentAccount.getBankName());
 		if (pin == null || pin.length == 0) {
 			return;
 		}
@@ -122,30 +121,17 @@ public class AccountStatementPanel extends DetailListPane implements BaseMessage
 		detailPanel.setRetrievalRunning(true);
 		Task<T> task = BackgroundActionCoordinator.newTask(() -> work.apply(account, pin));
 		task.setOnSucceeded(event -> {
-			detailPanel.setRetrievalRunning(false);
 			reloadStatements();
 			onSuccess.accept(task.getValue());
 		});
 		task.setOnFailed(event -> {
-			finishWithClearedPin(pin);
 			log.error("Account statement action {} failed", actionName, task.getException());
 			showAlert(AlertType.WARNING, getText(failureKey));
 		});
-		task.setOnCancelled(event -> finishWithClearedPin(pin));
-		BackgroundActionCoordinator.getInstance().start(task, actionName);
-	}
-
-	private void finishWithClearedPin(char[] pin) {
-		Arrays.fill(pin, '\0');
-		detailPanel.setRetrievalRunning(false);
-	}
-
-	private char[] requestPin() {
-		PinAskDialog pinWindow = new PinAskDialog(getOwnerWindow());
-		pinWindow.setBankInfo(currentAccount.getBlz(), currentAccount.getBankName());
-		Stage pinDialog = pinWindow.createNewPinAskDialog();
-		pinDialog.showAndWait();
-		return pinWindow.getPin();
+		BackgroundActionCoordinator.getInstance().startWithCompletion(task, actionName, () -> {
+			HbciSessionRunner.clearSecret(pin);
+			detailPanel.setRetrievalRunning(false);
+		});
 	}
 
 	private void handleRetrievalSuccess(AccountStatementRetrievalResult result) {

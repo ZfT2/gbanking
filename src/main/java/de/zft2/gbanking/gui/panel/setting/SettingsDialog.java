@@ -510,8 +510,8 @@ public class SettingsDialog implements BaseMessages {
 		return switch (dataType) {
 		case STRING -> createStringField(setting);
 		case CHAR -> createCharField(setting);
-		case INT -> createIntegerField(setting);
-		case FLOAT, DOUBLE, BIGDECIMAL -> createDecimalField(setting);
+		case INT -> createNumberField(setting, "-?\\d*");
+		case FLOAT, DOUBLE, BIGDECIMAL -> createNumberField(setting, "-?\\d*([\\.,]\\d*)?");
 		case CALENDAR -> createDateField(setting);
 		case ENUM -> createStringField(setting);
 		case BOOLEAN -> createBooleanField(setting);
@@ -572,23 +572,12 @@ public class SettingsDialog implements BaseMessages {
 		return field;
 	}
 
-	private TextField createIntegerField(Setting setting) {
+	private TextField createNumberField(Setting setting, String inputPattern) {
 		TextField field = new TextField(setting.getValue() != null ? setting.getValue() : "");
 		field.setDisable(!setting.isEditable());
 		field.setMaxWidth(180);
 
-		field.setTextFormatter(new TextFormatter<>(change -> change.getControlNewText().matches("-?\\d*") ? change : null));
-
-		valueSupplierMap.put(setting, field::getText);
-		return field;
-	}
-
-	private TextField createDecimalField(Setting setting) {
-		TextField field = new TextField(setting.getValue() != null ? setting.getValue() : "");
-		field.setDisable(!setting.isEditable());
-		field.setMaxWidth(180);
-
-		field.setTextFormatter(new TextFormatter<>(change -> change.getControlNewText().matches("-?\\d*([\\.,]\\d*)?") ? change : null));
+		field.setTextFormatter(new TextFormatter<>(change -> change.getControlNewText().matches(inputPattern) ? change : null));
 
 		valueSupplierMap.put(setting, field::getText);
 		return field;
