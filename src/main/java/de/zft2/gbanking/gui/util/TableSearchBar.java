@@ -15,7 +15,6 @@ import javafx.animation.PauseTransition;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
-import javafx.collections.transformation.SortedList;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -23,22 +22,20 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.util.Duration;
 
 public final class TableSearchBar<T> extends HBox implements BaseMessagesBean {
 
 	private final ObservableList<T> rows = FXCollections.observableArrayList();
-	private final FilteredList<T> filtered = new FilteredList<>(rows);
+	private final FilteredList<T> filtered;
 	private final TextField search = new TextField();
-	private final PauseTransition delay = new PauseTransition(Duration.millis(250));
+	private final PauseTransition delay;
 	private final Function<T, String> searchableText;
 
 	public TableSearchBar(TableView<T> table, Function<T, String> searchableText) {
 		super(10);
 		this.searchableText = searchableText;
-		SortedList<T> sorted = new SortedList<>(filtered);
-		sorted.comparatorProperty().bind(table.comparatorProperty());
-		table.setItems(sorted);
+		filtered = FxTableUtils.createFilteredTableItems(table, rows, null).filtered();
+		delay = FxTableUtils.createFilterDelay(search, () -> applyFilter());
 		Button reset = new Button(getText("UI_BUTTON_RESET_FILTER"));
 		reset.setOnAction(event -> clear());
 		getChildren().addAll(new Label(getText("UI_LABEL_SEARCH")), search, reset);
@@ -46,9 +43,7 @@ public final class TableSearchBar<T> extends HBox implements BaseMessagesBean {
 		HBox.setHgrow(search, Priority.ALWAYS);
 		search.setMaxWidth(Double.MAX_VALUE);
 		KeyboardShortcutDispatcher.registerFilter(this, search, table);
-		search.textProperty().addListener((observable, previous, value) -> delay.playFromStart());
 		search.setOnAction(event -> applyFilter());
-		delay.setOnFinished(event -> applyFilter());
 	}
 
 	public void setRows(Collection<T> values) {
@@ -83,7 +78,12 @@ public final class TableSearchBar<T> extends HBox implements BaseMessagesBean {
 			}
 			if (value instanceof BigDecimal amount) {
 				String plain = amount.toPlainString();
-				return plain + " " + plain.replace('.', ',') + " " + FxTableUtils.createGermanDecimalFormat().format(amount);
+				String formatted = FxTableUtils.formatGermanAmount(amount);
+				// Preserve DecimalFormat's sign for negative amounts rounded to zero.
+				if (amount.signum() < 0 && "0,00".equals(formatted)) {
+					formatted = "-" + formatted;
+				}
+				return plain + " " + plain.replace('.', ',') + " " + formatted;
 			}
 			return value.toString();
 		}).collect(Collectors.joining(" "));

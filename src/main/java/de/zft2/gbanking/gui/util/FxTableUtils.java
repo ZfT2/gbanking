@@ -1,6 +1,7 @@
 package de.zft2.gbanking.gui.util;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.time.LocalDate;
@@ -10,10 +11,13 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import javafx.animation.PauseTransition;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
@@ -21,6 +25,8 @@ import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.layout.HBox;
@@ -28,6 +34,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.util.Callback;
+import javafx.util.Duration;
 
 public final class FxTableUtils {
 
@@ -40,6 +47,24 @@ public final class FxTableUtils {
 	private static final double CELL_HORIZONTAL_INSETS = 20;
 
 	private FxTableUtils() {
+	}
+
+	public record FilteredTableItems<T>(FilteredList<T> filtered, SortedList<T> sorted) {
+	}
+
+	public static <T> FilteredTableItems<T> createFilteredTableItems(TableView<T> table, ObservableList<T> rows, Predicate<T> predicate) {
+		FilteredList<T> filtered = new FilteredList<>(rows, predicate);
+		SortedList<T> sorted = new SortedList<>(filtered);
+		sorted.comparatorProperty().bind(table.comparatorProperty());
+		table.setItems(sorted);
+		return new FilteredTableItems<>(filtered, sorted);
+	}
+
+	public static PauseTransition createFilterDelay(TextField search, Runnable applyFilter) {
+		PauseTransition delay = new PauseTransition(Duration.millis(250));
+		delay.setOnFinished(event -> applyFilter.run());
+		search.textProperty().addListener((observable, previous, value) -> delay.playFromStart());
+		return delay;
 	}
 
 	public static <S, T> void setFixedWidth(TableColumn<S, T> column, double width) {
@@ -246,6 +271,20 @@ public final class FxTableUtils {
 		DecimalFormatSymbols symbols = new DecimalFormatSymbols(Locale.GERMAN);
 		symbols.setGroupingSeparator('.');
 		return new DecimalFormat("#,##0.00;#,##0.00", symbols);
+	}
+
+	public static String formatGermanAmount(BigDecimal amount) {
+		if (amount == null) {
+			return "";
+		}
+		// Formatted manually: runs per row while filtering, DecimalFormat is costly to create and not thread-safe.
+		String plain = amount.setScale(2, RoundingMode.HALF_EVEN).toPlainString();
+		StringBuilder formatted = new StringBuilder(plain.replace('.', ','));
+		int firstDigit = plain.startsWith("-") ? 1 : 0;
+		for (int groupStart = plain.length() - 6; groupStart > firstDigit; groupStart -= 3) {
+			formatted.insert(groupStart, '.');
+		}
+		return formatted.toString();
 	}
 
 	public static <S> TableColumn<S, Boolean> createSelectionColumn(

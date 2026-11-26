@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.gui.JavaFxTestSupport;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -23,6 +24,36 @@ import javafx.scene.layout.HBox;
 import javafx.scene.text.Text;
 
 class FxTableUtilsTest {
+
+	@Test
+	void filteredTableItemsShouldKeepFilteringAndSortingOnSourceChanges() {
+		JavaFxTestSupport.runFx(() -> {
+			ObservableList<String> rows = FXCollections.observableArrayList("alpha", "hidden", "gamma");
+			TableView<String> table = new TableView<>();
+			TableColumn<String, String> column = new TableColumn<>("name");
+			column.setCellValueFactory(value -> new ReadOnlyStringWrapper(value.getValue()));
+			table.getColumns().add(column);
+			FxTableUtils.FilteredTableItems<String> items = FxTableUtils.createFilteredTableItems(table, rows, row -> !"hidden".equals(row));
+			column.setSortType(TableColumn.SortType.DESCENDING);
+			table.getSortOrder().add(column);
+			assertEquals(java.util.List.of("gamma", "alpha"), table.getItems());
+			rows.add("beta");
+			assertEquals(java.util.List.of("gamma", "beta", "alpha"), table.getItems());
+			items.filtered().setPredicate(row -> row.startsWith("b"));
+			assertEquals(java.util.List.of("beta"), table.getItems());
+		});
+	}
+
+	@Test
+	void germanAmountFormattingShouldUseGermanSeparators() {
+		assertEquals("1.234,56", FxTableUtils.formatGermanAmount(new BigDecimal("1234.56")));
+		assertEquals("-1.234.567,89", FxTableUtils.formatGermanAmount(new BigDecimal("-1234567.891")));
+		assertEquals("-123,40", FxTableUtils.formatGermanAmount(new BigDecimal("-123.4")));
+		assertEquals("1.000,00", FxTableUtils.formatGermanAmount(new BigDecimal("999.995")));
+		assertEquals("0,12", FxTableUtils.formatGermanAmount(new BigDecimal("0.125")));
+		assertEquals("0,00", FxTableUtils.formatGermanAmount(new BigDecimal("-0.001")));
+		assertEquals("", FxTableUtils.formatGermanAmount(null));
+	}
 
 	@Test
 	void widthHelpersShouldApplyExpectedWidths() {

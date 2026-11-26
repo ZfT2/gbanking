@@ -258,7 +258,7 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 	private void formatAmountFilter(TextField field) {
 		BigDecimal amount = parseFilterAmount(field.getText());
 		if (amount != null) {
-			field.setText(TransactionFilter.formatGermanAmount(amount));
+			field.setText(FxTableUtils.formatGermanAmount(amount));
 		}
 	}
 

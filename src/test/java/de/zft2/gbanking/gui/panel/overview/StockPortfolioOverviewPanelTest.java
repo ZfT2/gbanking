@@ -130,12 +130,14 @@ class StockPortfolioOverviewPanelTest {
 			assertEquals(List.of(all.get(0)), List.copyOf(table.getItems()));
 			panel.refreshOnShow();
 			assertEquals(1, table.getItems().size());
+			search.setText("nonexistent");
 			tabs.getSelectionModel().select(0);
 			assertFalse(searchRow.isVisible());
 			assertFalse(searchRow.isManaged());
 			assertEquals(2, table.getItems().size());
 			tabs.getSelectionModel().select(tabIndex);
-			assertEquals(1, table.getItems().size());
+			assertTrue(table.getItems().isEmpty());
+			search.setText("beta");
 			((Button) searchRow.getChildren().get(2)).fire();
 			assertTrue(search.getText().isEmpty());
 			assertEquals(all, List.copyOf(table.getItems()));

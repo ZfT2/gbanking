@@ -1,7 +1,6 @@
 package de.zft2.gbanking.gui.panel.transaction;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
@@ -12,6 +11,7 @@ import de.zft2.gbanking.db.dao.BookingForeignCurrencyDetails;
 import de.zft2.gbanking.db.dao.BookingNoteDetails;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.gui.util.DateFormatUtils;
+import de.zft2.gbanking.gui.util.FxTableUtils;
 import de.zft2.gbanking.util.Ranges;
 
 final class TransactionFilter {
@@ -34,20 +34,6 @@ final class TransactionFilter {
 				&& matchesDateRange(booking, effectiveCriteria)
 				&& matchesAmountRange(booking, effectiveCriteria) && matchesCategory(booking, effectiveCriteria.categoryId())
 				&& matchesBookingState(booking, effectiveCriteria.bookingState());
-	}
-
-	static String formatGermanAmount(BigDecimal amount) {
-		if (amount == null) {
-			return "";
-		}
-		// Formatted manually: runs per booking while filtering, DecimalFormat is costly to create and not thread-safe.
-		String plain = amount.setScale(2, RoundingMode.HALF_EVEN).toPlainString();
-		StringBuilder formatted = new StringBuilder(plain.replace('.', ','));
-		int firstDigit = plain.startsWith("-") ? 1 : 0;
-		for (int groupStart = plain.length() - 6; groupStart > firstDigit; groupStart -= 3) {
-			formatted.insert(groupStart, '.');
-		}
-		return formatted.toString();
 	}
 
 	private static boolean matchesTextSearch(Booking booking, String filter) {
@@ -88,7 +74,8 @@ final class TransactionFilter {
 		}
 		String plain = amount.toPlainString();
 		String normalizedPlain = amount.stripTrailingZeros().toPlainString();
-		return containsAny(filter, plain, normalizedPlain, plain.replace('.', ','), normalizedPlain.replace('.', ','), formatGermanAmount(amount));
+		return containsAny(filter, plain, normalizedPlain, plain.replace('.', ','), normalizedPlain.replace('.', ','),
+				FxTableUtils.formatGermanAmount(amount));
 	}
 
 	private static boolean matchesDateSearch(LocalDate date, String filter) {

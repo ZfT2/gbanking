@@ -30,11 +30,8 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.stage.Window;
-import javafx.util.Duration;
 
 public abstract class AbstractFilterableTablePanel<T> extends BorderPane implements BaseMessagesBean {
-
-	private static final Duration FILTER_DELAY = Duration.millis(250);
 
 	protected final GBankingTableView<T> tableView = new GBankingTableView<>();
 	protected final TextField filterText = new TextField();
@@ -43,20 +40,16 @@ public abstract class AbstractFilterableTablePanel<T> extends BorderPane impleme
 	protected final ObservableList<T> masterData;
 	protected final FilteredList<T> filteredData;
 	protected final SortedList<T> sortedData;
-	private final PauseTransition filterDelay = new PauseTransition(FILTER_DELAY);
+	private final PauseTransition filterDelay;
 	private boolean restoringSelection;
 
 	protected AbstractFilterableTablePanel(ObservableList<T> masterData) {
 		this.masterData = masterData;
-		this.filteredData = new FilteredList<>(masterData, item -> true);
+		FxTableUtils.FilteredTableItems<T> items = FxTableUtils.createFilteredTableItems(tableView, masterData, item -> true);
+		filteredData = items.filtered();
+		sortedData = items.sorted();
 		KeyboardShortcutDispatcher.registerFilter(this, filterText, tableView);
-
-		sortedData = new SortedList<>(filteredData);
-		sortedData.comparatorProperty().bind(tableView.comparatorProperty());
-		tableView.setItems(sortedData);
-
-		filterDelay.setOnFinished(event -> applyFilter());
-		filterText.textProperty().addListener((obs, oldVal, newVal) -> scheduleFilter());
+		filterDelay = FxTableUtils.createFilterDelay(filterText, () -> applyFilter());
 
 		filterText.setMaxWidth(Double.MAX_VALUE);
 		HBox filterBox = new HBox(10, new Label(getText("UI_LABEL_SEARCH")), filterText);
