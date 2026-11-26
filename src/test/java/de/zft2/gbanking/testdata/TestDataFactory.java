@@ -2,6 +2,7 @@ package de.zft2.gbanking.testdata;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.Month;
 import java.time.ZoneId;
 import java.util.Arrays;
@@ -24,8 +25,11 @@ import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.StockIdentifierType;
+import de.zft2.gbanking.db.dao.enu.StockPriceType;
+import de.zft2.gbanking.db.dao.enu.StockQuotationType;
 import de.zft2.gbanking.db.dao.enu.TanProcedure;
 import de.zft2.gbanking.db.dao.stock.StockSecurityIdentifier;
+import de.zft2.gbanking.db.dao.stock.StockSecurityPrice;
 
 public final class TestDataFactory {
 
@@ -46,6 +50,17 @@ public final class TestDataFactory {
 		identifier.setValidFrom(validFrom);
 		identifier.setValidTo(validTo);
 		return identifier;
+	}
+
+	public static StockSecurityPrice createSecurityPrice(int priceSourceId, LocalDateTime quotedAt, long priceE8) {
+		StockSecurityPrice price = new StockSecurityPrice();
+		price.setPriceSourceId(priceSourceId);
+		price.setQuotedAt(quotedAt);
+		price.setPriceE8(priceE8);
+		price.setQuoteCurrency(Currency.EUR);
+		price.setQuotationType(StockQuotationType.ABSOLUTE);
+		price.setPriceType(StockPriceType.CLOSE);
+		return price;
 	}
 
 	public static BankAccess createSampleBankAccess(String blz) {

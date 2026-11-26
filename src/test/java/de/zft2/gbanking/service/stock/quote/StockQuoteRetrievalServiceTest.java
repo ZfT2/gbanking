@@ -1,6 +1,7 @@
 package de.zft2.gbanking.service.stock.quote;
 
 import static de.zft2.gbanking.testdata.TestDataFactory.createSecurityIdentifier;
+import static de.zft2.gbanking.testdata.TestDataFactory.createSecurityPrice;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -13,6 +14,7 @@ import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.time.ZoneId;
 import java.util.List;
 
@@ -108,6 +110,25 @@ class StockQuoteRetrievalServiceTest {
 		StockDataSource dataSource = db.getAll(StockDataSource.class).get(0);
 		assertEquals(StockDataSourceType.MARKET_DATA, dataSource.getSourceType());
 		assertEquals("TEST.DE", db.getAll(StockSecurityPriceSource.class).get(0).getProviderSymbol());
+	}
+
+	@Test
+	void currentPricesShouldChooseTheHighestIdWithinTheProviderDay() {
+		StockSecurity security = createSecurity();
+		MarketDataClient client = mock(MarketDataClient.class);
+		LocalDate date = LocalDate.of(2024, Month.JANUARY, 15);
+		when(client.fetch(any(), any(), any()))
+				.thenReturn(List.of(new MarketQuote(date, BigDecimal.TEN)))
+				.thenReturn(List.of(new MarketQuote(date, new BigDecimal("12"))));
+		StockQuoteRetrievalService service = new StockQuoteRetrievalService(client);
+		QuoteSource source = QuoteSource.of(QuoteProvider.ALPHA_VANTAGE);
+		service.retrieve(security.getId(), source, "TEST");
+		int priceSourceId = db.getAll(StockSecurityPriceSource.class).get(0).getId();
+		db.insertOrUpdate(createSecurityPrice(priceSourceId, date.atTime(18, 0), 1_100_000_000L));
+		db.insertOrUpdate(createSecurityPrice(priceSourceId, date.atTime(8, 0), 1_200_000_000L));
+		new StockPortfolioService().savePrice(security.getId(), null, date, new BigDecimal("13"), Currency.EUR);
+
+		assertEquals(new RetrievalResult(1, 0, 0, 1), service.retrieve(security.getId(), source, "TEST"));
 	}
 
 	@Test

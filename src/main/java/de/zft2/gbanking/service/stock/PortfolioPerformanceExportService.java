@@ -223,17 +223,15 @@ public class PortfolioPerformanceExportService extends AbstractDbService {
 				.filter(source -> securityIds.contains(source.getSecurityId()))
 				.collect(Collectors.toMap(StockSecurityPriceSource::getId, StockSecurityPriceSource::getSecurityId));
 		List<StockSecurityPrice> prices = dbController.getAll(StockSecurityPrice.class);
-		Set<Integer> supersededIds = prices.stream().map(StockSecurityPrice::getSupersedesPriceId)
-				.filter(Objects::nonNull).collect(Collectors.toSet());
 		Map<LocalDate, Map<Integer, StockSecurityPrice>> result = new TreeMap<>();
-		for (StockSecurityPrice price : prices) {
+		StockPriceHistory.effectivePrices(prices).forEach(price -> {
 			Integer securityId = priceSourceToSecurity.get(price.getPriceSourceId());
-			if (securityId == null || price.isDeleted() || supersededIds.contains(price.getId())) {
-				continue;
+			if (securityId != null) {
+				Map<Integer, StockSecurityPrice> daily = result.computeIfAbsent(price.getQuotedAt().toLocalDate(),
+						ignored -> new HashMap<>());
+				daily.merge(securityId, price, StockPriceHistory.HIGHEST_ID);
 			}
-			Map<Integer, StockSecurityPrice> daily = result.computeIfAbsent(price.getQuotedAt().toLocalDate(), ignored -> new HashMap<>());
-			daily.merge(securityId, price, (left, right) -> left.getId() > right.getId() ? left : right);
-		}
+		});
 		return result;
 	}
 

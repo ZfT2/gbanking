@@ -1,6 +1,7 @@
 package de.zft2.gbanking.db;
 
 import static de.zft2.gbanking.testdata.TestDataFactory.createSecurityIdentifier;
+import static de.zft2.gbanking.testdata.TestDataFactory.createSecurityPrice;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -43,6 +44,8 @@ import de.zft2.gbanking.db.dao.stock.StockPortfolio;
 import de.zft2.gbanking.db.dao.stock.StockPortfolioSettlementAccount;
 import de.zft2.gbanking.db.dao.stock.StockSecurity;
 import de.zft2.gbanking.db.dao.stock.StockSecurityExchangeLink;
+import de.zft2.gbanking.db.dao.stock.StockSecurityPrice;
+import de.zft2.gbanking.db.dao.stock.StockSecurityPriceSource;
 import de.zft2.gbanking.db.dao.stock.StockTransaction;
 import de.zft2.gbanking.db.dao.stock.StockTransactionCashLeg;
 import de.zft2.gbanking.db.dao.stock.StockTransactionSecurityLeg;
@@ -371,6 +374,53 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 	}
 
 	@Test
+	void priceExportShouldChooseTheHighestDailyIdEvenFromADisabledLowerPrioritySource() throws Exception {
+		PortfolioSummary portfolio = createPortfolio();
+		StockSecurity security = importPriceTestSecurity(portfolio);
+		LocalDate date = LocalDate.of(2026, Month.MARCH, 2);
+		StockSecurityPrice manual = new StockPortfolioService().savePrice(security.getId(), null, date,
+				BigDecimal.TEN, Currency.EUR);
+		db.insertOrUpdate(createSecurityPrice(manual.getPriceSourceId(), date.atTime(18, 0), 1_100_000_000L));
+		StockSecurityPriceSource source = new StockSecurityPriceSource();
+		source.setSecurityId(security.getId());
+		source.setSourceId(3);
+		source.setPriority(100);
+		source.setEnabled(false);
+		source = db.insertOrUpdate(source);
+		db.insertOrUpdate(createSecurityPrice(source.getId(), date.atTime(8, 0), 1_200_000_000L));
+		Path output = files.resolve("daily-prices.csv");
+
+		new PortfolioPerformanceExportService().exportFile(output, ExportType.STOCK_PP_PRICES_CSV, portfolio);
+
+		assertEquals(List.of("2026-03-02;12"), Files.readAllLines(output).stream().skip(1).toList());
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void priceImportShouldRetainHistoricalValuesAndAdvanceTheFullHistoryCache(boolean deleted) throws Exception {
+		PortfolioSummary portfolio = createPortfolio();
+		importPriceTestSecurity(portfolio);
+		PortfolioPerformanceImportService importer = new PortfolioPerformanceImportService();
+		String header = "Datum;DE0000000001\n";
+		Path first = write("first-prices.csv", header + "2026-03-02;10\n2026-03-02;11\n2026-03-02;10\n");
+		assertEquals(2, importer.importFile(first, ExportType.STOCK_PP_PRICES_CSV, portfolio).prices());
+		StockSecurityPrice previous = db.getAll(StockSecurityPrice.class).get(1);
+		if (deleted) {
+			StockSecurityPrice tombstone = createSecurityPrice(previous.getPriceSourceId(),
+					previous.getQuotedAt(), previous.getPriceE8());
+			tombstone.setDeleted(true);
+			tombstone.setSupersedesPriceId(previous.getId());
+			previous = db.insertOrUpdate(tombstone);
+		}
+		Path second = write("second-prices.csv", header + "2026-03-02;10\n2026-03-02;11\n2026-03-02;12\n");
+
+		assertEquals(1, importer.importFile(second, ExportType.STOCK_PP_PRICES_CSV, portfolio).prices());
+
+		List<StockSecurityPrice> history = db.getAll(StockSecurityPrice.class);
+		assertEquals(previous.getId(), history.get(history.size() - 1).getSupersedesPriceId());
+	}
+
+	@Test
 	void stockCsvImportShouldUseConfiguredColumnMappings() throws Exception {
 		PortfolioSummary portfolio = createPortfolio();
 		createSource();
@@ -592,6 +642,14 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 		assertEquals(accountType, db.getById(BankAccount.class, portfolio.settlementAccountId()).getAccountType());
 		assertEquals(0, new BigDecimal("125.00").compareTo(
 				db.getById(BankAccount.class, portfolio.settlementAccountId()).getBalance()));
+	}
+
+	private StockSecurity importPriceTestSecurity(PortfolioSummary portfolio) throws Exception {
+		createSource();
+		Path input = write("price-security.csv", transactionHeader()
+				+ "2026-01-02T12:00;Kauf;100,00;EUR;;;;;;1;DE0000000001;;;Aktie;\n");
+		new PortfolioPerformanceImportService().importFile(input, ExportType.STOCK_PP_TRANSACTIONS_CSV, portfolio);
+		return db.getAll(StockSecurity.class).get(0);
 	}
 
 	private List<BankAccount> accountsOfType(AccountType type) {

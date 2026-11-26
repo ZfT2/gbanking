@@ -34,12 +34,13 @@ final class PortfolioPerformancePriceImporter {
 					priceSource.getProviderSymbol()), priceSource);
 			sourcesById.put(priceSource.getId(), priceSource);
 		}
+		// Deduplication intentionally includes superseded prices and tombstones.
 		for (StockSecurityPrice price : dbController.getAll(StockSecurityPrice.class)) {
 			if (!sourcesById.containsKey(price.getPriceSourceId()) || price.getPriceType() != StockPriceType.CLOSE) {
 				continue;
 			}
 			PriceDateKey dateKey = new PriceDateKey(price.getPriceSourceId(), price.getQuotedAt());
-			latestPriceByDate.merge(dateKey, price, (left, right) -> left.getId() > right.getId() ? left : right);
+			latestPriceByDate.merge(dateKey, price, StockPriceHistory.HIGHEST_ID);
 			pricesByValue.put(new PriceValueKey(price.getPriceSourceId(), price.getQuotedAt(), price.getPriceE8()), price);
 		}
 	}

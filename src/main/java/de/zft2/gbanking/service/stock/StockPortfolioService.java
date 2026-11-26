@@ -520,9 +520,7 @@ public class StockPortfolioService extends AbstractDbService {
 				.collect(Collectors.toMap(StockSecurityPriceSource::getId, Function.identity()));
 		List<StockSecurityPrice> prices = priceSources.stream()
 				.flatMap(source -> dbController.getAllByParent(StockSecurityPrice.class, source.getId()).stream()).toList();
-		Set<Integer> supersededIds = prices.stream().map(StockSecurityPrice::getSupersedesPriceId)
-				.filter(id -> id != null).collect(Collectors.toSet());
-		return prices.stream().filter(price -> !price.isDeleted() && !supersededIds.contains(price.getId()))
+		return StockPriceHistory.effectivePrices(prices)
 				.map(price -> createPriceSummary(price, priceSourcesById, sources))
 				.sorted(Comparator.comparing(PriceSummary::date).reversed()
 						.thenComparing(PriceSummary::priceId, Comparator.reverseOrder()))
@@ -1361,12 +1359,10 @@ public class StockPortfolioService extends AbstractDbService {
 				.collect(Collectors.toMap(source -> source.getId(), Function.identity()));
 		List<StockSecurityPrice> prices = dbController.getAll(StockSecurityPrice.class).stream()
 				.filter(price -> sources.containsKey(price.getPriceSourceId())).toList();
-		Set<Integer> supersededIds = prices.stream().map(price -> price.getSupersedesPriceId())
-				.filter(id -> id != null).collect(Collectors.toSet());
 		Comparator<StockSecurityPrice> latestFirst = Comparator.comparing(StockSecurityPrice::getQuotedAt)
 				.thenComparingInt(price -> -sources.get(price.getPriceSourceId()).getPriority())
 				.thenComparingInt(StockSecurityPrice::getId);
-		return prices.stream().filter(price -> !price.isDeleted() && !supersededIds.contains(price.getId()))
+		return StockPriceHistory.effectivePrices(prices)
 				.collect(Collectors.toMap(price -> sources.get(price.getPriceSourceId()).getSecurityId(),
 						Function.identity(), BinaryOperator.maxBy(latestFirst)));
 	}

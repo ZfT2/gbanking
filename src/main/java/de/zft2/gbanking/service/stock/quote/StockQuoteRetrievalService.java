@@ -12,7 +12,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -34,6 +33,7 @@ import de.zft2.gbanking.service.stock.StockIdentifierLookup;
 import de.zft2.gbanking.service.stock.StockIdentifierLookup.Identifiers;
 import de.zft2.gbanking.service.stock.StockIdentifierLookup.Selection;
 import de.zft2.gbanking.service.stock.StockNumericValues;
+import de.zft2.gbanking.service.stock.StockPriceHistory;
 import de.zft2.gbanking.service.stock.StockSources;
 import de.zft2.gbanking.service.stock.quote.MarketDataClient.MarketQuote;
 import de.zft2.gbanking.service.stock.quote.MarketDataClient.QuoteRequest;
@@ -129,10 +129,7 @@ public class StockQuoteRetrievalService extends AbstractDbService {
 
 	private int deleteActivePrices(StockSecurityPriceSource priceSource) {
 		List<StockSecurityPrice> prices = dbController.getAllByParent(StockSecurityPrice.class, priceSource.getId());
-		Set<Integer> supersededIds = prices.stream().map(StockSecurityPrice::getSupersedesPriceId)
-				.filter(Objects::nonNull).collect(Collectors.toSet());
-		List<StockSecurityPrice> activePrices = prices.stream()
-				.filter(price -> !price.isDeleted() && !supersededIds.contains(price.getId())).toList();
+		List<StockSecurityPrice> activePrices = StockPriceHistory.effectivePrices(prices).toList();
 		for (StockSecurityPrice price : activePrices) {
 			dbController.insertOrUpdate(deletion(price));
 		}
@@ -213,11 +210,9 @@ public class StockQuoteRetrievalService extends AbstractDbService {
 
 	private Map<LocalDate, StockSecurityPrice> currentPrices(int priceSourceId) {
 		List<StockSecurityPrice> prices = dbController.getAllByParent(StockSecurityPrice.class, priceSourceId);
-		Set<Integer> supersededIds = prices.stream().map(StockSecurityPrice::getSupersedesPriceId)
-				.filter(Objects::nonNull).collect(Collectors.toSet());
-		return prices.stream().filter(price -> !price.isDeleted() && !supersededIds.contains(price.getId()))
+		return StockPriceHistory.effectivePrices(prices)
 				.collect(Collectors.toMap(price -> price.getQuotedAt().toLocalDate(), Function.identity(),
-						(first, second) -> first.getId() > second.getId() ? first : second));
+						StockPriceHistory.HIGHEST_ID));
 	}
 
 	private StockDataSource getOrCreateSource(QuoteSource quoteSource) {

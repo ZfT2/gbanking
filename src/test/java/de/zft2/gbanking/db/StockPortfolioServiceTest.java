@@ -21,6 +21,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.kapott.hbci.GV_Result.GVRWPDepotList.Entry;
 import org.kapott.hbci.GV_Result.GVRWPDepotList.Entry.Gattung;
@@ -35,7 +36,6 @@ import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.StockDataSourceType;
 import de.zft2.gbanking.db.dao.enu.StockIdentifierType;
 import de.zft2.gbanking.db.dao.enu.StockQuantityType;
-import de.zft2.gbanking.db.dao.enu.StockPriceType;
 import de.zft2.gbanking.db.dao.enu.StockQuotationType;
 import de.zft2.gbanking.db.dao.enu.StockSecurityType;
 import de.zft2.gbanking.db.dao.enu.StockTransactionEditField;
@@ -788,8 +788,9 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 		assertTrue(error.getMessage().startsWith("Der Wertpapierkurs wurde nicht gefunden oder bereits ersetzt"));
 	}
 
-	@Test
-	void positionShouldUseNewestPriceBeforeSourcePriority() {
+	@ParameterizedTest
+	@CsvSource({ "false, 100, 11", "true, 100, 10", "true, 0, 11" })
+	void positionShouldChoosePriceByTimestampThenPriorityThenId(boolean sameTime, int priority, String expected) {
 		PortfolioSummary portfolio = createPortfolio(100, 200, "Depot A", "Verrechnung A", new BigDecimal("1000.00"));
 		StockSecurity security = createSecurity("Kurswahl AG");
 		StockPortfolioService service = new StockPortfolioService();
@@ -797,13 +798,18 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 				TRADE_DATE, SETTLEMENT_DATE, BigDecimal.ONE, BigDecimal.ONE, Currency.EUR, BigDecimal.ONE, null, null, null));
 		service.savePrice(security.getId(), null, TRADE_DATE, new BigDecimal("10.00"), Currency.EUR);
 
-		createImportedPrice(security, SETTLEMENT_DATE, 1_100_000_000L);
+		StockSecurityPrice imported = createImportedPrice(security, sameTime ? TRADE_DATE : SETTLEMENT_DATE,
+				1_100_000_000L);
+		StockSecurityPriceSource source = db.getById(StockSecurityPriceSource.class, imported.getPriceSourceId());
+		source.setPriority(priority);
+		db.insertOrUpdate(source);
 
-		assertEquals(new BigDecimal("11"), service.getPositions(portfolio.portfolioId()).get(0).unitPrice());
+		assertEquals(0, new BigDecimal(expected).compareTo(service.getPositions(portfolio.portfolioId()).get(0).unitPrice()));
 	}
 
-	@Test
-	void manualCorrectionShouldSupersedePriceFromAnotherSource() {
+	@ParameterizedTest
+	@ValueSource(booleans = { true, false })
+	void manualCorrectionShouldSupersedePriceWithinTheSelectedSourceScope(boolean correctionEnabled) {
 		PortfolioSummary portfolio = createPortfolio(100, 200, "Depot A", "Verrechnung A", new BigDecimal("1000.00"));
 		StockSecurity security = createSecurity("Kurskorrektur AG");
 		StockPortfolioService service = new StockPortfolioService();
@@ -818,9 +824,13 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 				replacementPrice, Currency.EUR));
 		StockSecurityPrice correction = service.savePrice(security.getId(), importedPrice.getId(), TRADE_DATE,
 				new BigDecimal("12.00"), Currency.EUR, true);
+		StockSecurityPriceSource source = db.getById(StockSecurityPriceSource.class, correction.getPriceSourceId());
+		source.setEnabled(correctionEnabled);
+		db.insertOrUpdate(source);
 
 		assertEquals(correction.getId(), service.getPrices(security.getId()).get(0).priceId());
-		assertEquals(new BigDecimal("12"), service.getPositions(portfolio.portfolioId()).get(0).unitPrice());
+		assertEquals(new BigDecimal(correctionEnabled ? "12" : "11"),
+				service.getPositions(portfolio.portfolioId()).get(0).unitPrice());
 	}
 
 	@Test
@@ -1092,14 +1102,7 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 		priceSource.setSourceId(source.getId());
 		priceSource.setPriority(100);
 		priceSource = db.insertOrUpdate(priceSource);
-		StockSecurityPrice price = new StockSecurityPrice();
-		price.setPriceSourceId(priceSource.getId());
-		price.setQuotedAt(date.atStartOfDay());
-		price.setPriceE8(priceE8);
-		price.setQuoteCurrency(Currency.EUR);
-		price.setQuotationType(StockQuotationType.ABSOLUTE);
-		price.setPriceType(StockPriceType.CLOSE);
-		return db.insertOrUpdate(price);
+		return db.insertOrUpdate(TestDataFactory.createSecurityPrice(priceSource.getId(), date.atStartOfDay(), priceE8));
 	}
 
 	private PositionSummary position(PortfolioSummary portfolio, StockSecurity security) {
