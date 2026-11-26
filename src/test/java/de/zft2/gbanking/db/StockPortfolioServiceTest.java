@@ -992,11 +992,12 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 		assertEquals(0, existing.getAmount().compareTo(db.getById(Booking.class, existing.getId()).getAmount()));
 	}
 
-	@Test
-	void settlementAccountChangeShouldKeepAssignmentHistory() {
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void settlementAccountChangeShouldKeepAssignmentHistory(boolean sameStart) {
 		PortfolioSummary portfolio = createPortfolio(100, 200, "Depot A", "Verrechnung A", new BigDecimal("1000.00"));
 		BankAccount targetAccount = createAccount("Verrechnung B", AccountType.CURRENT_ACCOUNT, new BigDecimal("500.00"));
-		LocalDate validFrom = LocalDate.of(2026, Month.SEPTEMBER, 15);
+		LocalDate validFrom = sameStart ? portfolio.openedAt() : LocalDate.of(2026, Month.SEPTEMBER, 15);
 		StockPortfolioService service = new StockPortfolioService();
 
 		service.changeSettlementAccount(portfolio, targetAccount, validFrom);
@@ -1005,7 +1006,9 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 		StockPortfolioSettlementAccount previous = db.getById(StockPortfolioSettlementAccount.class, 200);
 		StockPortfolioSettlementAccount current = db.getById(StockPortfolioSettlementAccount.class,
 				storedPortfolio.getCurrentSettlementRelationId());
-		assertEquals(validFrom, previous.getValidTo());
+		assertEquals(sameStart ? null : validFrom, previous.getValidTo());
+		assertEquals(sameStart ? 1 : 2,
+				db.getAllByParent(StockPortfolioSettlementAccount.class, portfolio.portfolioId()).size());
 		assertEquals(targetAccount.getId(), current.getAccountId());
 		assertEquals(validFrom, current.getValidFrom());
 		assertEquals(targetAccount.getId(), service.getPortfolios().get(0).settlementAccountId());

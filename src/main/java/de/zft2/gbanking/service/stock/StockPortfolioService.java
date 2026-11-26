@@ -87,6 +87,8 @@ public class StockPortfolioService extends AbstractDbService {
 	static final String SQL_SELECT_SECURITY_LEGS_BY_PORTFOLIO = "SQL_SELECT_STOCK_SECURITY_LEGS_BY_PORTFOLIO";
 	private static final String SQL_SELECT_SUPERSEDING_PRICE = "SQL_SELECT_STOCK_SECURITY_PRICE_SUPERSEDING";
 
+	private final StockPortfolioWriter portfolioWriter = new StockPortfolioWriter();
+
 	public List<PortfolioSummary> getPortfolios() {
 		Map<Integer, BankAccount> accounts = dbController.getAll(BankAccount.class).stream()
 				.collect(Collectors.toMap(BankAccount::getId, Function.identity()));
@@ -134,27 +136,8 @@ public class StockPortfolioService extends AbstractDbService {
 			return;
 		}
 
-		dbController.executeInTransaction(() -> {
-			if (validFrom.equals(currentRelation.getValidFrom())) {
-				currentRelation.setAccountId(storedTarget.getId());
-				dbController.insertOrUpdate(currentRelation);
-				return null;
-			}
-
-			storedPortfolio.setCurrentSettlementRelationId(0);
-			dbController.insertOrUpdate(storedPortfolio);
-			currentRelation.setValidTo(validFrom);
-			dbController.insertOrUpdate(currentRelation);
-
-			StockPortfolioSettlementAccount newRelation = new StockPortfolioSettlementAccount();
-			newRelation.setPortfolioId(storedPortfolio.getId());
-			newRelation.setAccountId(storedTarget.getId());
-			newRelation.setValidFrom(validFrom);
-			dbController.insertOrUpdate(newRelation);
-			storedPortfolio.setCurrentSettlementRelationId(newRelation.getId());
-			dbController.insertOrUpdate(storedPortfolio);
-			return null;
-		});
+		dbController.executeInTransaction(() -> portfolioWriter.changeSettlementAccount(storedPortfolio,
+				currentRelation, storedTarget.getId(), validFrom));
 	}
 
 	public List<SecurityHolding> getSecurityHoldings(int securityId) {

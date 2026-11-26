@@ -57,7 +57,6 @@ import de.zft2.gbanking.db.dao.stock.StockImportBatch;
 import de.zft2.gbanking.db.dao.stock.StockImportRecord;
 import de.zft2.gbanking.db.dao.stock.StockPortfolio;
 import de.zft2.gbanking.db.dao.stock.StockPortfolioPosition;
-import de.zft2.gbanking.db.dao.stock.StockPortfolioSettlementAccount;
 import de.zft2.gbanking.db.dao.stock.StockPortfolioStatement;
 import de.zft2.gbanking.db.dao.stock.StockPortfolioStatementPosition;
 import de.zft2.gbanking.db.dao.stock.StockPortfolioStatementSubBalance;
@@ -92,6 +91,7 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 	private static final Set<String> SECURITY_QUANTITY_UNITS = Set.of("STK", "STCK");
 
 	private final StockPortfolioService portfolioService = ServiceRegistry.getService(StockPortfolioService.class);
+	private final StockPortfolioWriter portfolioWriter = new StockPortfolioWriter();
 	private final GBankingLoggingHandler logHandler = new GBankingLoggingHandler();
 	private final HbciSessionRunner hbciSessionRunner = new HbciSessionRunner();
 
@@ -291,22 +291,8 @@ public class StockPortfolioFinTsService extends AbstractDbService {
 
 	private int createPortfolio(BankAccount depotAccount, BankAccount settlementAccount) {
 		LocalDate today = LocalDate.now(ZoneId.systemDefault());
-		StockPortfolio portfolio = new StockPortfolio();
-		portfolio.setAccountId(depotAccount.getId());
-		portfolio.setCurrentSettlementRelationId(0);
-		portfolio.setOpenedAt(today);
-		portfolio.setClosedAt(depotAccount.getClosedAt());
-		dbController.insertOrUpdate(portfolio);
-
-		StockPortfolioSettlementAccount relation = new StockPortfolioSettlementAccount();
-		relation.setPortfolioId(portfolio.getId());
-		relation.setAccountId(settlementAccount.getId());
-		relation.setValidFrom(today);
-		dbController.insertOrUpdate(relation);
-
-		portfolio.setCurrentSettlementRelationId(relation.getId());
-		dbController.insertOrUpdate(portfolio);
-		return portfolio.getId();
+		return portfolioWriter.createPortfolio(depotAccount.getId(), settlementAccount.getId(),
+				today, depotAccount.getClosedAt(), today).getId();
 	}
 
 	private StockImportBatch createImportBatch(StockDataSource source, String fingerprint) {

@@ -52,7 +52,6 @@ import de.zft2.gbanking.db.dao.stock.StockDataSource;
 import de.zft2.gbanking.db.dao.stock.StockImportBatch;
 import de.zft2.gbanking.db.dao.stock.StockImportRecord;
 import de.zft2.gbanking.db.dao.stock.StockPortfolio;
-import de.zft2.gbanking.db.dao.stock.StockPortfolioSettlementAccount;
 import de.zft2.gbanking.db.dao.stock.StockSecurity;
 import de.zft2.gbanking.db.dao.stock.StockSecurityIdentifier;
 import de.zft2.gbanking.db.dao.stock.StockTransaction;
@@ -92,6 +91,7 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 	private static final int PRICE_SCALE = StockNumericValueType.PRICE.getScaleDigits();
 	private static final XmlImportAssignments NO_ASSIGNMENTS = new XmlImportAssignments(Map.of(), Map.of());
 	private final CsvImportAnalyzer csvImportAnalyzer;
+	private final StockPortfolioWriter portfolioWriter = new StockPortfolioWriter();
 
 	public PortfolioPerformanceImportService() {
 		this(new CsvImportAnalyzer());
@@ -410,20 +410,8 @@ public class PortfolioPerformanceImportService extends AbstractDbService {
 			}
 			return existing;
 		}
-		portfolio = new StockPortfolio();
-		portfolio.setAccountId(depotAccount.getId());
-		portfolio.setCurrentSettlementRelationId(0);
-		portfolio.setOpenedAt(openedAt);
-		portfolio.setClosedAt(depotAccount.getClosedAt());
-		portfolio = dbController.insertOrUpdate(portfolio);
-
-		StockPortfolioSettlementAccount relation = new StockPortfolioSettlementAccount();
-		relation.setPortfolioId(portfolio.getId());
-		relation.setAccountId(settlementAccount.getId());
-		relation.setValidFrom(openedAt);
-		relation = dbController.insertOrUpdate(relation);
-		portfolio.setCurrentSettlementRelationId(relation.getId());
-		dbController.insertOrUpdate(portfolio);
+		portfolio = portfolioWriter.createPortfolio(depotAccount.getId(), settlementAccount.getId(),
+				openedAt, depotAccount.getClosedAt(), openedAt);
 		counters.portfolios++;
 		return requirePortfolioSummary(portfolio.getId());
 	}

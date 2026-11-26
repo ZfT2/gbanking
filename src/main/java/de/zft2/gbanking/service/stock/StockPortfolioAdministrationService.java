@@ -22,6 +22,8 @@ import de.zft2.gbanking.service.AbstractDbService;
 
 public class StockPortfolioAdministrationService extends AbstractDbService {
 
+	private final StockPortfolioWriter portfolioWriter = new StockPortfolioWriter();
+
 	public List<PortfolioDetails> getPortfolios() {
 		Map<Integer, BankAccount> accounts = dbController.getAll(BankAccount.class).stream()
 				.collect(Collectors.toMap(BankAccount::getId, Function.identity()));
@@ -60,22 +62,8 @@ public class StockPortfolioAdministrationService extends AbstractDbService {
 		account.setOfflineAccount(true);
 		dbController.insertOrUpdate(account);
 
-		StockPortfolio portfolio = new StockPortfolio();
-		portfolio.setAccountId(account.getId());
-		portfolio.setCurrentSettlementRelationId(0);
-		portfolio.setOpenedAt(request.openedAt());
-		portfolio.setClosedAt(request.closedAt());
-		dbController.insertOrUpdate(portfolio);
-
-		StockPortfolioSettlementAccount relation = new StockPortfolioSettlementAccount();
-		relation.setPortfolioId(portfolio.getId());
-		relation.setAccountId(request.settlementAccountId());
-		relation.setValidFrom(request.settlementValidFrom());
-		dbController.insertOrUpdate(relation);
-
-		portfolio.setCurrentSettlementRelationId(relation.getId());
-		dbController.insertOrUpdate(portfolio);
-		return portfolio.getId();
+		return portfolioWriter.createPortfolio(account.getId(), request.settlementAccountId(),
+				request.openedAt(), request.closedAt(), request.settlementValidFrom()).getId();
 	}
 
 	private int updatePortfolio(PortfolioSaveRequest request) {
@@ -101,24 +89,8 @@ public class StockPortfolioAdministrationService extends AbstractDbService {
 		if (validFrom.isBefore(currentRelation.getValidFrom())) {
 			throw new GBankingException("Der Gültigkeitsbeginn darf nicht vor der aktuellen Zuordnung liegen");
 		}
-		if (validFrom.equals(currentRelation.getValidFrom())) {
-			currentRelation.setAccountId(request.settlementAccountId());
-			dbController.insertOrUpdate(currentRelation);
-			return;
-		}
-
-		portfolio.setCurrentSettlementRelationId(0);
-		dbController.insertOrUpdate(portfolio);
-		currentRelation.setValidTo(validFrom);
-		dbController.insertOrUpdate(currentRelation);
-
-		StockPortfolioSettlementAccount newRelation = new StockPortfolioSettlementAccount();
-		newRelation.setPortfolioId(portfolio.getId());
-		newRelation.setAccountId(request.settlementAccountId());
-		newRelation.setValidFrom(validFrom);
-		dbController.insertOrUpdate(newRelation);
-		portfolio.setCurrentSettlementRelationId(newRelation.getId());
-		dbController.insertOrUpdate(portfolio);
+		portfolioWriter.changeSettlementAccount(portfolio, currentRelation,
+				request.settlementAccountId(), validFrom);
 	}
 
 	private static void applyAccountValues(BankAccount account, PortfolioSaveRequest request) {
