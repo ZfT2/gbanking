@@ -27,7 +27,6 @@ import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.StockCashLegRole;
-import de.zft2.gbanking.db.dao.enu.StockIdentifierType;
 import de.zft2.gbanking.db.dao.enu.StockNumericValueType;
 import de.zft2.gbanking.db.dao.enu.StockSecurityLegRole;
 import de.zft2.gbanking.db.dao.enu.StockTransactionStatus;
@@ -45,6 +44,8 @@ import de.zft2.gbanking.db.dao.stock.StockTransactionSecurityLeg;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.enu.ExportType;
 import de.zft2.gbanking.service.AbstractDbService;
+import de.zft2.gbanking.service.stock.StockIdentifierLookup.Identifiers;
+import de.zft2.gbanking.service.stock.StockIdentifierLookup.Selection;
 import de.zft2.gbanking.service.stock.StockPortfolioService.PortfolioSummary;
 
 public class PortfolioPerformanceExportService extends AbstractDbService {
@@ -119,7 +120,7 @@ public class PortfolioPerformanceExportService extends AbstractDbService {
 	private static void printPortfolioTransaction(CSVPrinter printer, ExportContext context, StockTransaction transaction,
 			StockTransactionSecurityLeg leg, StockTransactionType type, CashSummary cash) throws IOException {
 		StockSecurity security = context.securities().get(leg.getSecurityId());
-		SecurityIdentifiers identifiers = context.identifiers().getOrDefault(leg.getSecurityId(), SecurityIdentifiers.EMPTY);
+		Identifiers identifiers = context.identifiers().get(leg.getSecurityId(), "");
 		Currency currency = cash.currency() != null ? cash.currency() : leg.getPriceCurrency();
 		if (currency == null && security != null) { currency = security.getDefaultQuoteCurrency(); }
 		BigDecimal value = cash.netAmount();
@@ -144,9 +145,8 @@ public class PortfolioPerformanceExportService extends AbstractDbService {
 				StockTransaction transaction = transactionsByBooking.get(booking.getId());
 				StockTransactionSecurityLeg securityLeg = transaction != null ? context.securityLeg(transaction.getId()) : null;
 				StockSecurity security = securityLeg != null ? context.securities().get(securityLeg.getSecurityId()) : null;
-				SecurityIdentifiers identifiers = securityLeg != null
-						? context.identifiers().getOrDefault(securityLeg.getSecurityId(), SecurityIdentifiers.EMPTY)
-						: SecurityIdentifiers.EMPTY;
+				Identifiers identifiers = securityLeg != null
+						? context.identifiers().get(securityLeg.getSecurityId(), "") : Identifiers.EMPTY;
 				CashSummary cash = transaction != null ? context.cash(transaction.getId()) : CashSummary.EMPTY;
 				String type = transaction != null ? typeName(transaction.getTransactionType()) : bookingTypeName(booking);
 				printer.printRecord(PortfolioPerformanceCsvSupport.formatDateTime(booking.getDate().atStartOfDay()), type,
@@ -165,7 +165,7 @@ public class PortfolioPerformanceExportService extends AbstractDbService {
 		ExportContext context = context(portfolio);
 		try (CSVPrinter printer = PortfolioPerformanceCsvSupport.printer(file, SECURITY_HEADERS)) {
 			for (StockSecurity security : context.usedSecurities()) {
-				SecurityIdentifiers identifiers = context.identifiers().getOrDefault(security.getId(), SecurityIdentifiers.EMPTY);
+				Identifiers identifiers = context.identifiers().get(security.getId(), "");
 				printer.printRecord(identifiers.isin(), identifiers.wkn(), identifiers.ticker(), security.getName(),
 						currencyCode(security.getDefaultQuoteCurrency()), "", "", "", nullToEmpty(security.getIssuer()), "", "");
 			}
@@ -199,7 +199,8 @@ public class PortfolioPerformanceExportService extends AbstractDbService {
 				.sorted(Comparator.comparing(StockTransaction::getTradeAt).thenComparingInt(StockTransaction::getId)).toList();
 		Map<Integer, StockSecurity> securities = dbController.getAll(StockSecurity.class).stream()
 				.collect(Collectors.toMap(StockSecurity::getId, Function.identity()));
-		Map<Integer, SecurityIdentifiers> identifiers = identifiers();
+		StockIdentifierLookup identifiers = StockIdentifierLookup.openEnded(
+				dbController.getAll(StockSecurityIdentifier.class), Selection.LAST_IN_ORDER);
 		// Load all legs of the portfolio at once, but keep only those of settled transactions
 		Set<Integer> transactionIds = transactions.stream().map(transaction -> transaction.getId()).collect(Collectors.toSet());
 		Map<Integer, List<StockTransactionSecurityLeg>> securityLegs = dbController.getAllByParent(
@@ -214,25 +215,6 @@ public class PortfolioPerformanceExportService extends AbstractDbService {
 				.collect(Collectors.toMap(StockTransactionMetadata::getTransactionId,
 						metadata -> nullToEmpty(metadata.getNote()), (left, right) -> left));
 		return new ExportContext(transactions, securities, identifiers, securityLegs, cashLegs, notes);
-	}
-
-	private Map<Integer, SecurityIdentifiers> identifiers() {
-		Map<Integer, SecurityIdentifiersBuilder> builders = new HashMap<>();
-		for (StockSecurityIdentifier identifier : dbController.getAll(StockSecurityIdentifier.class)) {
-			if (identifier.getValidTo() != null) {
-				continue;
-			}
-			SecurityIdentifiersBuilder builder = builders.computeIfAbsent(identifier.getSecurityId(), ignored -> new SecurityIdentifiersBuilder());
-			if (identifier.getIdentifierType() == StockIdentifierType.ISIN) {
-				builder.isin = identifier.getIdentifierValue();
-			} else if (identifier.getIdentifierType() == StockIdentifierType.WKN) {
-				builder.wkn = identifier.getIdentifierValue();
-			} else if (identifier.getIdentifierType() == StockIdentifierType.TICKER) {
-				builder.ticker = identifier.getIdentifierValue();
-			}
-		}
-		return builders.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey,
-				entry -> entry.getValue().build()));
 	}
 
 	private Map<LocalDate, Map<Integer, StockSecurityPrice>> pricesByDate(List<StockSecurity> securities) {
@@ -256,11 +238,11 @@ public class PortfolioPerformanceExportService extends AbstractDbService {
 	}
 
 	private static Map<Integer, String> uniquePriceHeaders(List<StockSecurity> securities,
-			Map<Integer, SecurityIdentifiers> identifiers) {
+			StockIdentifierLookup identifiers) {
 		Map<Integer, String> result = new LinkedHashMap<>();
 		Set<String> used = new LinkedHashSet<>();
 		for (StockSecurity security : securities) {
-			SecurityIdentifiers values = identifiers.getOrDefault(security.getId(), SecurityIdentifiers.EMPTY);
+			Identifiers values = identifiers.get(security.getId(), "");
 			String base = firstWithTextOrDefault("Wertpapier", values.isin(), stripTickerSuffix(values.ticker()), values.wkn(),
 					security.getName());
 			String unique = base;
@@ -331,26 +313,12 @@ public class PortfolioPerformanceExportService extends AbstractDbService {
 		}
 	}
 
-	private record SecurityIdentifiers(String isin, String wkn, String ticker) {
-		private static final SecurityIdentifiers EMPTY = new SecurityIdentifiers("", "", "");
-	}
-
-	private static final class SecurityIdentifiersBuilder {
-		private String isin = "";
-		private String wkn = "";
-		private String ticker = "";
-
-		private SecurityIdentifiers build() {
-			return new SecurityIdentifiers(isin, wkn, ticker);
-		}
-	}
-
 	private record CashSummary(BigDecimal netAmount, BigDecimal fees, BigDecimal taxes, Currency currency) {
 		private static final CashSummary EMPTY = new CashSummary(null, null, null, null);
 	}
 
 	private record ExportContext(List<StockTransaction> transactions, Map<Integer, StockSecurity> securities,
-			Map<Integer, SecurityIdentifiers> identifiers, Map<Integer, List<StockTransactionSecurityLeg>> securityLegs,
+			StockIdentifierLookup identifiers, Map<Integer, List<StockTransactionSecurityLeg>> securityLegs,
 			Map<Integer, List<StockTransactionCashLeg>> cashLegs, Map<Integer, String> notes) {
 
 		private StockTransactionSecurityLeg securityLeg(int transactionId) {

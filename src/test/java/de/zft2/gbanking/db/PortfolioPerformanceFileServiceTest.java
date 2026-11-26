@@ -1,5 +1,6 @@
 package de.zft2.gbanking.db;
 
+import static de.zft2.gbanking.testdata.TestDataFactory.createSecurityIdentifier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -14,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.Month;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,6 +35,7 @@ import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.StockDataSourceType;
+import de.zft2.gbanking.db.dao.enu.StockIdentifierType;
 import de.zft2.gbanking.db.dao.enu.StockSecurityType;
 import de.zft2.gbanking.db.dao.enu.StockTransactionStatus;
 import de.zft2.gbanking.db.dao.stock.StockDataSource;
@@ -60,6 +63,27 @@ class PortfolioPerformanceFileServiceTest extends DBControllerIntegrationBaseTes
 
 	@TempDir
 	Path files;
+
+	@Test
+	void identifierSelectionShouldExportTheLastOpenEndedValueIncludingFutureStarts() throws Exception {
+		PortfolioSummary portfolio = createPortfolio();
+		createSource();
+		Path input = write("identifier-input.csv", transactionHeader()
+				+ "2026-01-02T12:00;Kauf;100,00;EUR;;;;;;1;DE0000000001;;;Aktie;\n");
+		new PortfolioPerformanceImportService().importFile(input, ExportType.STOCK_PP_TRANSACTIONS_CSV, portfolio);
+		int securityId = db.getAll(StockSecurity.class).get(0).getId();
+		LocalDate today = LocalDate.now(ZoneId.systemDefault());
+		db.insertOrUpdate(createSecurityIdentifier(securityId, StockIdentifierType.ISIN, "DE0000000002", today.plusDays(1), null));
+		db.insertOrUpdate(createSecurityIdentifier(securityId, StockIdentifierType.ISIN, "DE0000000003",
+				today.minusDays(2), today.minusDays(1)));
+		db.insertOrUpdate(createSecurityIdentifier(securityId, StockIdentifierType.ISIN, "DE0000000004",
+				today.minusDays(1), today.plusDays(1)));
+		Path output = files.resolve("identifier-output.csv");
+
+		new PortfolioPerformanceExportService().exportFile(output, ExportType.STOCK_PP_SECURITIES_CSV, portfolio);
+
+		assertTrue(Files.readString(output).contains("DE0000000002;;;Aktie;EUR"));
+	}
 
 	@ParameterizedTest
 	@ValueSource(booleans = { false, true })

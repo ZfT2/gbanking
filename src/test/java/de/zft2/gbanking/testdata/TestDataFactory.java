@@ -23,7 +23,9 @@ import de.zft2.gbanking.db.dao.enu.HbciEncodingFilterType;
 import de.zft2.gbanking.db.dao.enu.MoneyTransferStatus;
 import de.zft2.gbanking.db.dao.enu.OrderType;
 import de.zft2.gbanking.db.dao.enu.Source;
+import de.zft2.gbanking.db.dao.enu.StockIdentifierType;
 import de.zft2.gbanking.db.dao.enu.TanProcedure;
+import de.zft2.gbanking.db.dao.stock.StockSecurityIdentifier;
 
 public final class TestDataFactory {
 
@@ -33,6 +35,17 @@ public final class TestDataFactory {
 	private static final Random RANDOM = new Random();
 
 	private TestDataFactory() {
+	}
+
+	public static StockSecurityIdentifier createSecurityIdentifier(int securityId, StockIdentifierType type,
+			String value, LocalDate validFrom, LocalDate validTo) {
+		StockSecurityIdentifier identifier = new StockSecurityIdentifier();
+		identifier.setSecurityId(securityId);
+		identifier.setIdentifierType(type);
+		identifier.setIdentifierValue(value);
+		identifier.setValidFrom(validFrom);
+		identifier.setValidTo(validTo);
+		return identifier;
 	}
 
 	public static BankAccess createSampleBankAccess(String blz) {

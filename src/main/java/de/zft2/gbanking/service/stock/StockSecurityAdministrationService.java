@@ -7,12 +7,10 @@ import java.time.ZoneId;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
-import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import de.zft2.gbanking.db.dao.enu.Currency;
@@ -34,6 +32,8 @@ import de.zft2.gbanking.db.dao.stock.StockTransactionSecurityLeg;
 import de.zft2.gbanking.db.dao.stock.StockTransaction;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.service.AbstractDbService;
+import de.zft2.gbanking.service.stock.StockIdentifierLookup.Identifiers;
+import de.zft2.gbanking.service.stock.StockIdentifierLookup.Selection;
 
 public class StockSecurityAdministrationService extends AbstractDbService {
 
@@ -63,11 +63,12 @@ public class StockSecurityAdministrationService extends AbstractDbService {
 	}
 
 	public List<SecurityDetails> getSecurities(boolean onlyWithHoldings) {
-		Map<Integer, IdentifierValues> identifiers = identifiersBySecurity();
+		StockIdentifierLookup identifiers = StockIdentifierLookup.startedAndOpenEnded(
+				dbController.getAll(StockSecurityIdentifier.class), LocalDate.now(ZoneId.systemDefault()), Selection.LOWEST_ID);
 		Set<Integer> securitiesWithHoldings = onlyWithHoldings ? securitiesWithHoldings() : Set.of();
 		return dbController.getAll(StockSecurity.class).stream()
 				.filter(security -> !onlyWithHoldings || securitiesWithHoldings.contains(security.getId()))
-				.map(security -> toDetails(security, identifiers.getOrDefault(security.getId(), IdentifierValues.EMPTY)))
+				.map(security -> toDetails(security, identifiers.get(security.getId(), "")))
 				.sorted(Comparator.comparing(SecurityDetails::name, String.CASE_INSENSITIVE_ORDER))
 				.toList();
 	}
@@ -208,35 +209,7 @@ public class StockSecurityAdministrationService extends AbstractDbService {
 		}
 	}
 
-	private Map<Integer, IdentifierValues> identifiersBySecurity() {
-		LocalDate today = LocalDate.now(ZoneId.systemDefault());
-		Map<Integer, EnumMap<StockIdentifierType, StockSecurityIdentifier>> identifiers = dbController
-				.getAll(StockSecurityIdentifier.class).stream()
-				.filter(identifier -> identifier.getValidTo() == null)
-				.filter(identifier -> identifier.getValidFrom() == null || !identifier.getValidFrom().isAfter(today))
-				.sorted(Comparator.comparingInt(StockSecurityIdentifier::getId))
-				.collect(Collectors.groupingBy(StockSecurityIdentifier::getSecurityId,
-						Collectors.toMap(StockSecurityIdentifier::getIdentifierType, Function.identity(),
-								(first, ignored) -> first, () -> new EnumMap<>(StockIdentifierType.class))));
-		return identifiers.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey,
-				entry -> toIdentifierValues(entry.getValue())));
-	}
-
-	private static IdentifierValues toIdentifierValues(Map<StockIdentifierType, StockSecurityIdentifier> identifiers) {
-		StockSecurityIdentifier ticker = identifiers.get(StockIdentifierType.TICKER);
-		return new IdentifierValues(identifierValue(identifiers, StockIdentifierType.ISIN),
-				identifierValue(identifiers, StockIdentifierType.WKN),
-				ticker != null ? value(ticker.getIdentifierValue()) : "",
-				ticker != null ? value(ticker.getMarketIdentifierCode()) : "");
-	}
-
-	private static String identifierValue(Map<StockIdentifierType, StockSecurityIdentifier> identifiers,
-			StockIdentifierType type) {
-		StockSecurityIdentifier identifier = identifiers.get(type);
-		return identifier != null ? value(identifier.getIdentifierValue()) : "";
-	}
-
-	private static SecurityDetails toDetails(StockSecurity security, IdentifierValues identifiers) {
+	private static SecurityDetails toDetails(StockSecurity security, Identifiers identifiers) {
 		return new SecurityDetails(security.getId(), value(security.getName()), value(security.getIssuer()),
 				value(security.getDomicileCountry()), security.getMaturityDate(), security.getSecurityType(),
 				security.getDefaultQuantityType(), security.getNominalCurrency(), security.getDefaultQuoteCurrency(),
@@ -266,9 +239,5 @@ public class StockSecurityAdministrationService extends AbstractDbService {
 			Currency nominalCurrency, Currency quoteCurrency, StockQuotationType quotationType,
 			StockPriceBasis priceBasis, StockSecurityState securityState, String isin, String wkn,
 			String ticker, String marketIdentifierCode) {
-	}
-
-	private record IdentifierValues(String isin, String wkn, String ticker, String marketIdentifierCode) {
-		private static final IdentifierValues EMPTY = new IdentifierValues("", "", "", "");
 	}
 }

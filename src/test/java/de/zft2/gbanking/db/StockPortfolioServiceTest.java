@@ -1,5 +1,6 @@
 package de.zft2.gbanking.db;
 
+import static de.zft2.gbanking.testdata.TestDataFactory.createSecurityIdentifier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -32,6 +33,7 @@ import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.StockDataSourceType;
+import de.zft2.gbanking.db.dao.enu.StockIdentifierType;
 import de.zft2.gbanking.db.dao.enu.StockQuantityType;
 import de.zft2.gbanking.db.dao.enu.StockPriceType;
 import de.zft2.gbanking.db.dao.enu.StockQuotationType;
@@ -71,6 +73,24 @@ class StockPortfolioServiceTest extends DBControllerIntegrationBaseTest {
 
 	@TempDir
 	Path files;
+
+	@Test
+	void identifierSelectionShouldKeepTheFirstValuesWithoutDateFiltering() {
+		int securityId = createSecurity("Identified").getId();
+		createSecurity("Missing");
+		LocalDate today = LocalDate.now(ZoneId.systemDefault());
+		db.insertOrUpdate(createSecurityIdentifier(securityId, StockIdentifierType.ISIN, "DE0000000001",
+				today.minusDays(2), today.minusDays(1)));
+		db.insertOrUpdate(createSecurityIdentifier(securityId, StockIdentifierType.ISIN, "DE0000000002", null, null));
+		db.insertOrUpdate(createSecurityIdentifier(securityId, StockIdentifierType.WKN, "ABC123", today.plusDays(1), null));
+
+		var securities = new StockPortfolioService().getTransactionSecurities();
+
+		assertEquals("DE0000000001", securities.get(0).isin());
+		assertEquals("ABC123", securities.get(0).wkn());
+		assertNull(securities.get(1).isin());
+		assertNull(securities.get(1).wkn());
+	}
 
 	@Test
 	void securityDeletionShouldRejectHoldingsAndHistoricalReferences() throws Exception {

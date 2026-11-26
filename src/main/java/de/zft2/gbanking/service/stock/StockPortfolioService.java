@@ -34,7 +34,6 @@ import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.enu.StockCashLegRole;
 import de.zft2.gbanking.db.dao.enu.StockDataSourceType;
-import de.zft2.gbanking.db.dao.enu.StockIdentifierType;
 import de.zft2.gbanking.db.dao.enu.StockNumericValueType;
 import de.zft2.gbanking.db.dao.enu.StockPriceBasis;
 import de.zft2.gbanking.db.dao.enu.StockPriceType;
@@ -70,6 +69,8 @@ import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.service.AbstractDbService;
 import de.zft2.gbanking.service.ServiceRegistry;
 import de.zft2.gbanking.service.booking.BookingRunningBalanceCalculator;
+import de.zft2.gbanking.service.stock.StockIdentifierLookup.Identifiers;
+import de.zft2.gbanking.service.stock.StockIdentifierLookup.Selection;
 
 public class StockPortfolioService extends AbstractDbService {
 
@@ -153,7 +154,7 @@ public class StockPortfolioService extends AbstractDbService {
 
 	public List<PositionSummary> getPositions(int portfolioId) {
 		Map<Integer, StockSecurity> securities = securitiesById();
-		Map<Integer, SecurityIdentifiers> identifiers = identifiersBySecurity();
+		StockIdentifierLookup identifiers = identifiersBySecurity();
 		Map<Integer, StockSecurityPrice> prices = latestPricesBySecurity();
 		Map<PositionKey, AcquisitionPriceValue> finTsPrices = latestFinTsAcquisitionPrices(portfolioId);
 		Map<PositionKey, AcquisitionPriceState> calculatedPrices = acquisitionPricesByPosition(portfolioId);
@@ -172,7 +173,7 @@ public class StockPortfolioService extends AbstractDbService {
 		finTsPrices.keySet().removeIf(key -> economicSecurities.contains(key.securityId()));
 		return dbController.getAllByParent(StockPortfolioPosition.class, portfolioId).stream()
 				.map(position -> createPositionSummary(position, securities.get(position.getSecurityId()),
-						identifiers.getOrDefault(position.getSecurityId(), SecurityIdentifiers.EMPTY),
+						identifiers.get(position.getSecurityId(), null),
 						prices.get(position.getSecurityId()), finTsPrices, calculatedPrices))
 				.filter(position -> position.quantity().signum() != 0)
 				.sorted(Comparator.comparing(PositionSummary::securityName, String.CASE_INSENSITIVE_ORDER))
@@ -181,7 +182,7 @@ public class StockPortfolioService extends AbstractDbService {
 
 	public List<TransactionSummary> getTransactions(int portfolioId) {
 		Map<Integer, StockSecurity> securities = securitiesById();
-		Map<Integer, SecurityIdentifiers> identifiers = identifiersBySecurity();
+		StockIdentifierLookup identifiers = identifiersBySecurity();
 		Map<Integer, StockDataSourceType> sourceTypes = dbController.getAll(StockDataSource.class).stream()
 				.collect(Collectors.toMap(StockDataSource::getId, StockDataSource::getSourceType));
 		List<TransactionSummary> result = new ArrayList<>();
@@ -194,7 +195,7 @@ public class StockPortfolioService extends AbstractDbService {
 			for (StockTransactionSecurityLeg leg : settled.legs(transaction)) {
 				StockSecurity security = securities.get(leg.getSecurityId());
 				if (security != null) {
-					SecurityIdentifiers securityIdentifiers = identifiers.getOrDefault(security.getId(), SecurityIdentifiers.EMPTY);
+					Identifiers securityIdentifiers = identifiers.get(security.getId(), null);
 					result.add(createTransactionSummary(transaction, leg, security, securityIdentifiers,
 							sourceTypes.get(transaction.getSourceId()), operations.get(transaction.getId())));
 				}
@@ -206,12 +207,13 @@ public class StockPortfolioService extends AbstractDbService {
 	}
 
 	public List<SecuritySummary> getTransactionSecurities() {
-		Map<Integer, SecurityIdentifiers> identifiers = identifiersBySecurity();
+		StockIdentifierLookup identifiers = identifiersBySecurity();
 		return dbController.getAll(StockSecurity.class).stream()
-				.map(security -> new SecuritySummary(security.getId(), security.getName(),
-						security.getDefaultQuantityType(), security.getDefaultQuoteCurrency(),
-						identifiers.getOrDefault(security.getId(), SecurityIdentifiers.EMPTY).isin(),
-						identifiers.getOrDefault(security.getId(), SecurityIdentifiers.EMPTY).wkn()))
+				.map(security -> {
+					Identifiers values = identifiers.get(security.getId(), null);
+					return new SecuritySummary(security.getId(), security.getName(),
+							security.getDefaultQuantityType(), security.getDefaultQuoteCurrency(), values.isin(), values.wkn());
+				})
 				.sorted(Comparator.comparing(SecuritySummary::name, String.CASE_INSENSITIVE_ORDER))
 				.toList();
 	}
@@ -1010,7 +1012,7 @@ public class StockPortfolioService extends AbstractDbService {
 	}
 
 	private PositionSummary createPositionSummary(StockPortfolioPosition position, StockSecurity security,
-			SecurityIdentifiers identifiers, StockSecurityPrice price,
+			Identifiers identifiers, StockSecurityPrice price,
 			Map<PositionKey, AcquisitionPriceValue> finTsPrices,
 			Map<PositionKey, AcquisitionPriceState> calculatedPrices) {
 		if (security == null) {
@@ -1330,7 +1332,7 @@ public class StockPortfolioService extends AbstractDbService {
 	}
 
 	private TransactionSummary createTransactionSummary(StockTransaction transaction, StockTransactionSecurityLeg leg,
-			StockSecurity security, SecurityIdentifiers identifiers, StockDataSourceType sourceType, StockCorporateActionOperation operation) {
+			StockSecurity security, Identifiers identifiers, StockDataSourceType sourceType, StockCorporateActionOperation operation) {
 		BigDecimal quantity = fromScaled(leg.getQuantityE9(), QUANTITY_SCALE);
 		if (transaction.getTransactionType() != StockTransactionType.CORPORATE_ACTION) {
 			quantity = quantity.abs();
@@ -1349,17 +1351,8 @@ public class StockPortfolioService extends AbstractDbService {
 				.collect(Collectors.toMap(StockSecurity::getId, Function.identity()));
 	}
 
-	private Map<Integer, SecurityIdentifiers> identifiersBySecurity() {
-		Map<Integer, SecurityIdentifiers> result = new HashMap<>();
-		for (StockSecurityIdentifier identifier : dbController.getAll(StockSecurityIdentifier.class)) {
-			SecurityIdentifiers current = result.getOrDefault(identifier.getSecurityId(), SecurityIdentifiers.EMPTY);
-			if (identifier.getIdentifierType() == StockIdentifierType.ISIN && current.isin() == null) {
-				result.put(identifier.getSecurityId(), new SecurityIdentifiers(identifier.getIdentifierValue(), current.wkn()));
-			} else if (identifier.getIdentifierType() == StockIdentifierType.WKN && current.wkn() == null) {
-				result.put(identifier.getSecurityId(), new SecurityIdentifiers(current.isin(), identifier.getIdentifierValue()));
-			}
-		}
-		return result;
+	private StockIdentifierLookup identifiersBySecurity() {
+		return StockIdentifierLookup.all(dbController.getAll(StockSecurityIdentifier.class), Selection.FIRST_IN_ORDER);
 	}
 
 	private Map<Integer, StockSecurityPrice> latestPricesBySecurity() {
@@ -2007,11 +2000,6 @@ public class StockPortfolioService extends AbstractDbService {
 
 	public record IncomeRequest(StockTransactionType transactionType, LocalDate date, BigDecimal grossAmount,
 			BigDecimal taxes, Currency currency, BigDecimal exchangeRate) {
-	}
-
-	private record SecurityIdentifiers(String isin, String wkn) {
-
-		private static final SecurityIdentifiers EMPTY = new SecurityIdentifiers(null, null);
 	}
 
 	record CashComponent(StockCashLegRole role, BigDecimal amount, Integer exchangeRateId) {

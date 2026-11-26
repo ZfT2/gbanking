@@ -1,5 +1,6 @@
 package de.zft2.gbanking.service.stock.quote;
 
+import static de.zft2.gbanking.testdata.TestDataFactory.createSecurityIdentifier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -7,22 +8,28 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.mockito.ArgumentCaptor;
 
 import de.zft2.gbanking.db.DBController;
 import de.zft2.gbanking.db.TestDatabaseExtension;
 import de.zft2.gbanking.db.dao.Setting;
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.StockDataSourceType;
+import de.zft2.gbanking.db.dao.enu.StockIdentifierType;
 import de.zft2.gbanking.db.dao.enu.StockQuantityType;
 import de.zft2.gbanking.db.dao.enu.StockQuotationType;
 import de.zft2.gbanking.db.dao.enu.StockSecurityType;
@@ -34,6 +41,7 @@ import de.zft2.gbanking.db.dao.stock.StockSecurityPriceSource;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.service.stock.StockPortfolioService;
 import de.zft2.gbanking.service.stock.quote.MarketDataClient.MarketQuote;
+import de.zft2.gbanking.service.stock.quote.MarketDataClient.QuoteRequest;
 import de.zft2.gbanking.service.stock.quote.StockQuoteRetrievalService.RetrievalResult;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -48,6 +56,32 @@ class StockQuoteRetrievalServiceTest {
 	void initQuoteSettings() {
 		QuoteProviderSettings.ensureSettingsExist();
 		setSetting(QuoteProviderSettings.ALPHA_VANTAGE_API_KEY, "tenant-api-key");
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "1,", "-2,-1", "-2,1" })
+	void identifierSelectionShouldKeepTheFirstStartedOpenEndedTickerAndItsMarket(int fromDays, Integer toDays) {
+		int securityId = createSecurity().getId();
+		LocalDate today = LocalDate.now(ZoneId.systemDefault());
+		db.insertOrUpdate(createSecurityIdentifier(securityId, StockIdentifierType.TICKER, "Excluded",
+				today.plusDays(fromDays), toDays != null ? today.plusDays(toDays) : null));
+		var first = createSecurityIdentifier(securityId, StockIdentifierType.TICKER, "First", today, null);
+		first.setMarketIdentifierCode("XETR");
+		db.insertOrUpdate(first);
+		var last = createSecurityIdentifier(securityId, StockIdentifierType.TICKER, "Last", null, null);
+		last.setMarketIdentifierCode("XNYS");
+		db.insertOrUpdate(last);
+		MarketDataClient client = mock(MarketDataClient.class);
+		when(client.fetch(any(), any(), any())).thenReturn(List.of(new MarketQuote(today.minusDays(1), BigDecimal.TEN)));
+		StockQuoteRetrievalService service = new StockQuoteRetrievalService(client);
+		QuoteSource source = QuoteSource.of(QuoteProvider.ALPHA_VANTAGE);
+
+		assertEquals("First", service.getSuggestedSymbol(securityId, source));
+		service.retrieve(securityId, source, "Requested");
+
+		ArgumentCaptor<QuoteRequest> request = ArgumentCaptor.forClass(QuoteRequest.class);
+		verify(client).fetch(eq(source), request.capture(), any());
+		assertEquals(new QuoteRequest("Requested", "", "", "XETR"), request.getValue());
 	}
 
 	@Test

@@ -18,7 +18,6 @@ import java.util.stream.Collectors;
 
 import de.zft2.gbanking.db.dao.enu.Currency;
 import de.zft2.gbanking.db.dao.enu.StockDataSourceType;
-import de.zft2.gbanking.db.dao.enu.StockIdentifierType;
 import de.zft2.gbanking.db.dao.enu.StockNumericValueType;
 import de.zft2.gbanking.db.dao.enu.StockPriceBasis;
 import de.zft2.gbanking.db.dao.enu.StockPriceType;
@@ -31,6 +30,9 @@ import de.zft2.gbanking.db.dao.stock.StockSecurityPrice;
 import de.zft2.gbanking.db.dao.stock.StockSecurityPriceSource;
 import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.service.AbstractDbService;
+import de.zft2.gbanking.service.stock.StockIdentifierLookup;
+import de.zft2.gbanking.service.stock.StockIdentifierLookup.Identifiers;
+import de.zft2.gbanking.service.stock.StockIdentifierLookup.Selection;
 import de.zft2.gbanking.service.stock.StockNumericValues;
 import de.zft2.gbanking.service.stock.StockSources;
 import de.zft2.gbanking.service.stock.quote.MarketDataClient.MarketQuote;
@@ -264,28 +266,9 @@ public class StockQuoteRetrievalService extends AbstractDbService {
 	}
 
 	private Identifiers identifiers(int securityId) {
-		Map<StockIdentifierType, StockSecurityIdentifier> identifiers = dbController
-				.getAllByParent(StockSecurityIdentifier.class, securityId).stream()
-				.filter(identifier -> identifier.getValidTo() == null)
-				.filter(identifier -> identifier.getValidFrom() == null
-						|| !identifier.getValidFrom().isAfter(LocalDate.now(ZoneId.systemDefault())))
-				.collect(Collectors.toMap(StockSecurityIdentifier::getIdentifierType, Function.identity(),
-						(first, ignored) -> first));
-		StockSecurityIdentifier ticker = identifiers.get(StockIdentifierType.TICKER);
-		return new Identifiers(identifierValue(identifiers, StockIdentifierType.ISIN),
-				identifierValue(identifiers, StockIdentifierType.WKN),
-				ticker != null ? value(ticker.getIdentifierValue()) : "",
-				ticker != null ? value(ticker.getMarketIdentifierCode()) : "");
-	}
-
-	private static String identifierValue(Map<StockIdentifierType, StockSecurityIdentifier> identifiers,
-			StockIdentifierType type) {
-		StockSecurityIdentifier identifier = identifiers.get(type);
-		return identifier != null ? value(identifier.getIdentifierValue()) : "";
-	}
-
-	private static String value(String value) {
-		return value != null ? value : "";
+		return StockIdentifierLookup.startedAndOpenEnded(
+				dbController.getAllByParent(StockSecurityIdentifier.class, securityId),
+				LocalDate.now(ZoneId.systemDefault()), Selection.FIRST_IN_ORDER).get(securityId, "");
 	}
 
 	private static void validateConfiguration(QuoteSource source, Configuration configuration) {
@@ -318,8 +301,5 @@ public class StockQuoteRetrievalService extends AbstractDbService {
 	}
 
 	public record FeedDeletionResult(int deletedPrices) {
-	}
-
-	private record Identifiers(String isin, String wkn, String ticker, String marketIdentifierCode) {
 	}
 }
