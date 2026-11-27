@@ -12,6 +12,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import de.zft2.fp3xmlextract.data.Fp3XmlBooking;
 
@@ -46,23 +48,27 @@ class Fp3BookingDateReaderTest {
 		assertEquals(LocalDate.of(2021, Month.JULY, 25), bookings.get(1).getDateValue());
 	}
 
-	@Test
-	void applyDates_shouldReadTwoDigitYear() throws Exception {
+	@ParameterizedTest
+	@CsvSource({ "00, 00, 2000", "24, 24, 2024", "89, 89, 2089", "90, 90, 1990", "99, 99, 1999",
+			"99, '', 1999", "1999, 1999, 1999", "2099, 2099, 2099" })
+	void applyDates_shouldUseHistoricalYearBoundary(String year, String valueYear, int expectedYear) throws Exception {
 		Path fp3File = writeFp3File("""
 				<?xml version="1.0" encoding="utf-8"?>
 				<preparedreport>
 					<b2>
 						<m21 u="Zinsen" />
-						<m27 u="25.07.24" />
+						<m27 u="25.07.%s&#10;24.07.%s" />
 					</b2>
 				</preparedreport>
-				""");
+				""".formatted(year, valueYear));
 
 		List<Fp3XmlBooking> bookings = List.of(booking("Zinsen"));
 
 		Fp3BookingDateReader.applyDates(fp3File, bookings);
 
-		assertEquals(LocalDate.of(2024, Month.JULY, 25), bookings.get(0).getDateBooking());
+		assertEquals(LocalDate.of(expectedYear, Month.JULY, 25), bookings.get(0).getDateBooking());
+		assertEquals(LocalDate.of(expectedYear, Month.JULY, 24), bookings.get(0).getDateValue());
+		assertEquals(LocalDate.of(expectedYear, Month.JULY, 24), bookings.get(0).getDate());
 	}
 
 	@Test

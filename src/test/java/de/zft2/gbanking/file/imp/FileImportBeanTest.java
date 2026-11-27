@@ -12,7 +12,11 @@ import java.io.File;
 import java.math.BigDecimal;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -24,6 +28,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 
 import de.zft2.core.util.CoreBookingUtil;
@@ -371,6 +376,36 @@ class FileImportBeanTest extends CoreBookingUtil {
 		List<BankAccount> dbAccountList = dbController.getAllFull(BankAccount.class);
 		assertEquals(1, dbAccountList.size());
 		assertEquals(2, dbAccountList.get(0).getBookings().size());
+	}
+
+	@Test
+	void importFileShouldPreserveHistoricalBookingAndValueDates(@TempDir Path tempDir) throws Exception {
+		Path importFile = tempDir.resolve("historical.xml");
+		Files.writeString(importFile, """
+				<KONTEN><KONTO>
+					<BEZEICHNUNG>Historisches Konto</BEZEICHNUNG>
+					<KONTOART>Sparbuch</KONTOART>
+					<KONTONR>1234</KONTONR>
+					<WAEHRUNG>EUR</WAEHRUNG>
+					<KONTOBUCH><BUCHUNG>
+						<DATUM>20.05.99</DATUM>
+						<VALUTA>19.05.99</VALUTA>
+						<EMPFAENGER/>
+						<ZWECK>Historische Buchung</ZWECK>
+						<BETRAG>1,00</BETRAG>
+						<WAEHRUNG>EUR</WAEHRUNG>
+						<QUELLE>0</QUELLE>
+					</BUCHUNG></KONTOBUCH>
+				</KONTO></KONTEN>
+				""", StandardCharsets.UTF_8);
+
+		fileImportBean.importFileToDatatbase(importFile.toString());
+
+		List<Booking> bookings = dbController.getAll(Booking.class);
+		assertEquals(1, bookings.size());
+		assertEquals(LocalDate.of(1999, 5, 20), bookings.get(0).getDateBooking());
+		assertEquals(LocalDate.of(1999, 5, 19), bookings.get(0).getDateValue());
+		assertEquals(LocalDate.of(1999, 5, 19), bookings.get(0).getDate());
 	}
 
 	@Test

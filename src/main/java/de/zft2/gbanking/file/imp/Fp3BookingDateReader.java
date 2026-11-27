@@ -19,6 +19,7 @@ import org.xml.sax.SAXException;
 
 import de.zft2.fp3xmlextract.data.Fp3XmlBooking;
 import de.zft2.gbanking.util.SecureXml;
+import de.zft2.gbanking.util.TypeConverter;
 
 /**
  * Restores the dates of bookings that were converted from an FP3 file.
@@ -31,9 +32,6 @@ import de.zft2.gbanking.util.SecureXml;
 final class Fp3BookingDateReader {
 
 	private static final Logger log = LogManager.getLogger(Fp3BookingDateReader.class);
-
-	/** Base year of two digit years, matches the upstream converter. */
-	private static final int BASE_YEAR = 2000;
 
 	private Fp3BookingDateReader() {
 		// Utility class, not meant to be instantiated.
@@ -138,7 +136,7 @@ final class Fp3BookingDateReader {
 		}
 		try {
 			int year = Integer.parseInt(trimmed);
-			return trimmed.length() == 2 ? BASE_YEAR + year : year;
+			return trimmed.length() == 2 ? TypeConverter.expandTwoDigitYear(year) : year;
 		} catch (NumberFormatException e) {
 			return null;
 		}
