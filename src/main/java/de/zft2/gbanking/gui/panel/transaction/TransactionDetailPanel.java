@@ -19,6 +19,7 @@ import de.zft2.gbanking.db.dao.Category;
 import de.zft2.gbanking.db.dao.enu.AccountState;
 import de.zft2.gbanking.db.dao.enu.BookingType;
 import de.zft2.gbanking.db.dao.enu.Currency;
+import de.zft2.gbanking.db.dao.enu.SepaType;
 import de.zft2.gbanking.db.dao.enu.Source;
 import de.zft2.gbanking.db.dao.Recipient;
 import de.zft2.gbanking.file.BookingCsvFormat;
@@ -48,6 +49,7 @@ import javafx.scene.control.Control;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.OverrunStyle;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
@@ -107,7 +109,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 	private final TextField sepaMandateText = new TextField();
 	private final TextField sepaPersonIdText = new TextField();
 	private final TextField sepaPurposeText = new TextField();
-	private final TextField sepaTypText = new TextField();
+	private final ComboBox<SepaType> sepaTypeCombo = new ComboBox<>();
 
 	private final TextField recipientNameText = new TextField();
 	private final TextField recipientIbanText = new TextField();
@@ -129,6 +131,8 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 	private BankAccount currentAccount;
 	private boolean additionalNoteEditing;
 	private TitledPane currencyDetailsPane;
+	private TitledPane feeDetailsPane;
+	private TitledPane sepaDetailsPane;
 
 	public TransactionDetailPanel(TransactionsOverviewBasePanel parentPanel) {
 		this.parentPanel = parentPanel;
@@ -156,8 +160,22 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 
 	private Node createTabPane() {
 		TabPane tabPane = new TabPane();
+		tabPane.setMinHeight(0);
 		tabPane.setMaxHeight(Region.USE_PREF_SIZE);
-		Tab transactionDetailsTab = new Tab(getText("UI_PANEL_TRANSACTION_DETAILS"), createContentArea());
+		VBox.setVgrow(tabPane, Priority.ALWAYS);
+		HBox form = createContentArea();
+		form.setMinHeight(Region.USE_PREF_SIZE);
+		ScrollPane scroll = new ScrollPane(form);
+		scroll.setFitToWidth(true);
+		scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+		scroll.setMinHeight(0);
+		// Invalidate the tab's preferred size before laying out changed form content.
+		form.needsLayoutProperty().addListener((observable, previous, current) -> {
+			if (current) {
+				tabPane.requestLayout();
+			}
+		});
+		Tab transactionDetailsTab = new Tab(getText("UI_PANEL_TRANSACTION_DETAILS"), scroll);
 		Tab splitBookingsTab = new Tab(getText("UI_PANEL_SPLIT_BOOKINGS"), splitBookingEditor);
 		transactionDetailsTab.setClosable(false);
 		splitBookingsTab.setClosable(false);
@@ -166,7 +184,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		return tabPane;
 	}
 
-	private Node createContentArea() {
+	private HBox createContentArea() {
 		VBox leftColumn = new VBox(8, createMainDetailsPane(), createPurposePane());
 		leftColumn.setMinWidth(0);
 		HBox.setHgrow(leftColumn, Priority.ALWAYS);
@@ -197,15 +215,12 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		applyPreferredWidth(currencyCombo, CURRENCY_FIELD_WIDTH);
 
 		TitledPane detailsPane = titled(getText("UI_PANEL_TRANSACTION_DETAILS"), grid);
-		currencyDetailsPane = titled(getText("UI_PANEL_BOOKING_CURRENCY_DETAILS"), createCurrencyDetailsGrid());
-		currencyDetailsPane.setCollapsible(true);
-		currencyDetailsPane.setExpanded(false);
-		TitledPane sepaPane = titled(getText("UI_PANEL_SEPA_INFO"), createSepaGrid());
-		sepaPane.setCollapsible(true);
-		sepaPane.setExpanded(false);
+		currencyDetailsPane = optionalDetailsPane("UI_PANEL_BOOKING_CURRENCY_DETAILS", createCurrencyDetailsGrid());
+		feeDetailsPane = optionalDetailsPane("UI_PANEL_BOOKING_FEE_DETAILS", createFeeDetailsGrid());
+		sepaDetailsPane = optionalDetailsPane("UI_PANEL_SEPA_INFO", createSepaGrid());
 		applyDefaultFieldWidth(dateBookingPicker, dateValuePicker, bookingTypeCombo, bookingSourceCombo, crossAccountCombo, categoryCombo, updatedAtText);
 
-		VBox content = new VBox(8, detailsPane, additionalNotePane, currencyDetailsPane, sepaPane);
+		VBox content = new VBox(8, detailsPane, additionalNotePane, currencyDetailsPane, feeDetailsPane, sepaDetailsPane);
 		content.setFillWidth(true);
 		return content;
 	}
@@ -216,8 +231,14 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		addFieldAbove(grid, "UI_LABEL_FOREIGN_AMOUNT", foreignAmountText, 0, 0);
 		addFieldAbove(grid, "UI_LABEL_FOREIGN_CURRENCY", foreignCurrencyCombo, 1, 0);
 		addFieldAbove(grid, "UI_LABEL_EXCHANGE_RATE_TO_BASE", exchangeRateText, 2, 0);
-		addFieldAbove(grid, "UI_LABEL_BOOKING_FEE", feeAmountText, 0, 1);
-		addFieldAbove(grid, "UI_LABEL_FEE_CURRENCY", feeCurrencyCombo, 1, 1);
+		return grid;
+	}
+
+	private Node createFeeDetailsGrid() {
+		GridPane grid = new GridPane(10, 8);
+		grid.setPadding(new Insets(6));
+		addFieldAbove(grid, "UI_LABEL_BOOKING_FEE", feeAmountText, 0, 0);
+		addFieldAbove(grid, "UI_LABEL_FEE_CURRENCY", feeCurrencyCombo, 1, 0);
 		return grid;
 	}
 
@@ -232,8 +253,8 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 
 		addFieldAbove(grid, "UI_LABEL_SEPA_PERSON_ID", sepaPersonIdText, 0, 1);
 		addFieldAbove(grid, "UI_LABEL_SEPA_PURPOSE", sepaPurposeText, 1, 1);
-		addFieldAbove(grid, "UI_LABEL_SEPA_TYPE", sepaTypText, 2, 1);
-		applyDefaultFieldWidth(sepaCustomerRefText, sepaCreditorIdText, sepaEndToEndText, sepaMandateText, sepaPersonIdText, sepaPurposeText, sepaTypText);
+		addFieldAbove(grid, "UI_LABEL_SEPA_TYPE", sepaTypeCombo, 2, 1);
+		applyDefaultFieldWidth(sepaCustomerRefText, sepaCreditorIdText, sepaEndToEndText, sepaMandateText, sepaPersonIdText, sepaPurposeText, sepaTypeCombo);
 
 		return grid;
 	}
@@ -328,6 +349,30 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		return pane;
 	}
 
+	private TitledPane optionalDetailsPane(String titleKey, Node content) {
+		TitledPane pane = titled(getText(titleKey), content);
+		pane.setCollapsible(true);
+		pane.setExpanded(false);
+		return pane;
+	}
+
+	private void updateOptionalDetailsVisibility() {
+		boolean editing = context != EditContext.READONLY;
+		BookingForeignCurrencyDetails foreign = displayedBooking != null ? displayedBooking.getForeignCurrencyDetails() : null;
+		BookingFee fee = displayedBooking != null ? displayedBooking.getFee() : null;
+		BookingSepaDetails sepa = displayedBooking != null ? displayedBooking.getSepaDetails() : null;
+		updateOptionalDetailsPane(currencyDetailsPane, editing || foreign != null && !foreign.isEmpty());
+		updateOptionalDetailsPane(feeDetailsPane, editing || fee != null && fee.getAmount() != null && fee.getAmount().signum() != 0);
+		updateOptionalDetailsPane(sepaDetailsPane, editing || sepa != null && !sepa.isEmpty());
+	}
+
+	private void updateOptionalDetailsPane(TitledPane pane, boolean visible) {
+		if (!visible) {
+			pane.setExpanded(false);
+		}
+		FxNodeSupport.setVisibleManaged(pane, visible);
+	}
+
 	private void addFieldAbove(GridPane grid, String labelKey, Control field, int col, int rowGroup) {
 		addFieldAbove(grid, labelKey, field, col, rowGroup, 1);
 	}
@@ -385,6 +430,9 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		currencyCombo.setItems(FXCollections.observableArrayList(Currency.values()));
 		foreignCurrencyCombo.setItems(FXCollections.observableArrayList(Currency.values()));
 		feeCurrencyCombo.setItems(FXCollections.observableArrayList(Currency.values()));
+		sepaTypeCombo.getItems().add(null);
+		sepaTypeCombo.getItems().addAll(SepaType.values());
+		sepaTypeCombo.setConverter(FormControlUtils.displayConverter(value -> value.getDisplayName()));
 		refreshSourceChoices(false);
 		refreshReferenceChoices();
 	}
@@ -432,7 +480,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 
 		FormStyleUtils.setEditable(editable, dateBookingPicker, dateValuePicker, purposeText, amountText, foreignAmountText,
 				foreignCurrencyCombo, feeAmountText, feeCurrencyCombo, bookingTypeCombo, crossAccountCombo,
-				categoryCombo, sepaCustomerRefText, sepaCreditorIdText, sepaEndToEndText, sepaMandateText, sepaPersonIdText, sepaPurposeText, sepaTypText,
+				categoryCombo, sepaCustomerRefText, sepaCreditorIdText, sepaEndToEndText, sepaMandateText, sepaPersonIdText, sepaPurposeText, sepaTypeCombo,
 				recipientNameText, recipientIbanText, recipientAccountNumberText, recipientBicText, recipientBlzText, recipientBankText);
 		dateBookingPicker.setEditable(editable);
 		dateValuePicker.setEditable(editable);
@@ -448,6 +496,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		FormStyleUtils.setReadOnlyStyle(true, updatedAtText);
 		updateCrossAccountState();
 		updateAdditionalNoteControls();
+		updateOptionalDetailsVisibility();
 	}
 
 	private void handlePrimaryButton() {
@@ -595,6 +644,8 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		LocalDate bookingDate = readDate(dateBookingPicker);
 		LocalDate valueDate = readDate(dateValuePicker);
 		BigDecimal amount = parseAmount(amountText.getText());
+		BigDecimal feeAmount = parseAmount(feeAmountText.getText());
+		String feeCurrencyCode = feeCurrencyCombo.getValue() != null ? feeCurrencyCombo.getValue().name() : null;
 		BookingType bookingType = bookingTypeCombo.getValue();
 		Source source = context == EditContext.NEW ? Source.MANUELL : bookingSourceCombo.getValue();
 		BookingForeignCurrencyDetails foreignDetails = BookingCurrencyMapper.createForeignCurrencyDetails(amount,
@@ -610,9 +661,9 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		displayedBooking.setPurpose(trimToNull(purposeText.getText()));
 		displayedBooking.setAmount(amount);
 		displayedBooking.setForeignCurrencyDetails(foreignDetails);
-		displayedBooking.setFee(BookingCurrencyMapper.createFee(parseAmount(feeAmountText.getText()),
-				feeCurrencyCombo.getValue() != null ? feeCurrencyCombo.getValue().name() : null,
-				account.getBaseCurrency()));
+		displayedBooking.setFee(feeAmount != null
+				? BookingCurrencyMapper.createFee(feeAmount, feeCurrencyCode, account.getBaseCurrency()) : null);
+		displayedBooking.setSepaDetails(readSepaDetails());
 		displayedBooking.setBookingType(bookingType);
 		displayedBooking.setSource(source);
 		int previousCategoryId = getCategoryId(displayedBooking);
@@ -707,7 +758,19 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		sepaMandateText.setText(details.getMandate());
 		sepaPersonIdText.setText(details.getPersonId());
 		sepaPurposeText.setText(details.getPurpose());
-		sepaTypText.setText(details.getType() != null ? details.getType().toString() : null);
+		sepaTypeCombo.setValue(details.getType());
+	}
+
+	private BookingSepaDetails readSepaDetails() {
+		BookingSepaDetails details = new BookingSepaDetails();
+		details.setCustomerRef(trimToNull(sepaCustomerRefText.getText()));
+		details.setCreditorId(trimToNull(sepaCreditorIdText.getText()));
+		details.setEndToEnd(trimToNull(sepaEndToEndText.getText()));
+		details.setMandate(trimToNull(sepaMandateText.getText()));
+		details.setPersonId(trimToNull(sepaPersonIdText.getText()));
+		details.setPurpose(trimToNull(sepaPurposeText.getText()));
+		details.setType(sepaTypeCombo.getValue());
+		return details;
 	}
 
 	private void updateAdditionalNoteFields(BookingNoteDetails details) {
@@ -724,7 +787,6 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		feeAmountText.setText(fee != null ? formatDecimal(fee.getAmount()) : null);
 		Currency defaultCurrency = currentAccount != null ? currentAccount.getBaseCurrency() : Currency.EUR;
 		feeCurrencyCombo.setValue(fee != null ? fee.getCurrency() : defaultCurrency);
-		currencyDetailsPane.setExpanded(foreign != null || fee != null);
 	}
 
 	private void clearSepaFields() {
@@ -734,7 +796,7 @@ public class TransactionDetailPanel extends BorderPane implements BaseMessagesDb
 		sepaMandateText.clear();
 		sepaPersonIdText.clear();
 		sepaPurposeText.clear();
-		sepaTypText.clear();
+		sepaTypeCombo.setValue(null);
 	}
 
 	private void clearFields() {

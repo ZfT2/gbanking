@@ -4,28 +4,65 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.List;
 import java.time.LocalDate;
 import java.time.Month;
 import java.time.ZoneId;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.enu.AccountType;
-import de.zft2.gbanking.gui.JavaFxTestSupport;
 import de.zft2.gbanking.exception.GBankingException;
+import de.zft2.gbanking.gui.JavaFxTestSupport;
+import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
 import javafx.collections.FXCollections;
 import javafx.event.ActionEvent;
+import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
+import javafx.stage.Stage;
 
 class EnablebankingSetupDialogTest {
+
+	@Test
+	void missingAccountHintShouldRemainFullyReadableWhenTheDialogNarrows() {
+		JavaFxTestSupport.runFx(() -> {
+			MissingBankAccountsPane missing = new MissingBankAccountsPane(List.of(account(AccountType.CURRENT_ACCOUNT)));
+			Label hint = (Label) missing.getChildren().get(1);
+			TableView<BankAccount> returned = createTable(account(AccountType.CURRENT_ACCOUNT));
+			VBox root = DialogWindowSupport.createDialogRoot(
+					new Label(BaseMessages.getTextStatic("UI_BANK_ACCESS_DIALOG_ACCOUNTS_LABEL")), returned, missing,
+					DialogWindowSupport.createButtonBar(new Button("OK")));
+			VBox.setVgrow(returned, Priority.ALWAYS);
+			Stage dialog = DialogWindowSupport.createModalStage(null, "UI_BANK_ACCESS_DIALOG_ACCOUNTS_TITLE");
+			dialog.setScene(DialogWindowSupport.createScene(root, 900, 600));
+			root.applyCss();
+			double previousHeight = 0;
+			for (int width : new int[] { 900, 680 }) {
+				root.resize(width, 420);
+				root.layout();
+				Text expected = new Text(hint.getText());
+				expected.setFont(hint.getFont());
+				expected.setWrappingWidth(hint.getWidth() - hint.getInsets().getLeft() - hint.getInsets().getRight());
+				assertTrue(hint.getHeight() >= expected.getLayoutBounds().getHeight());
+				assertTrue(hint.getHeight() > previousHeight);
+				assertEquals(hint.getText(), ((Text) hint.lookup(".text")).getText());
+				assertTrue(missing.getBoundsInParent().getMaxY() <= root.getHeight());
+				previousHeight = hint.getHeight();
+			}
+		});
+	}
 
 	@Test
 	void missingAccountDatesShouldBeEditableClearableAndIsolatedUntilConfirmation() {

@@ -8,6 +8,7 @@ import java.util.Optional;
 
 import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.gui.util.FormStyleUtils;
+import javafx.collections.ListChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -18,8 +19,12 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TabPane;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
@@ -33,6 +38,11 @@ public final class DialogWindowSupport implements BaseMessages {
 			"/logo/GBankingIcon32.png", "/logo/GBankingIcon48.png", "/logo/GBankingIcon64.png", "/logo/GBankingIcon128.png",
 			"/logo/GBankingIcon256.png", "/logo/GBankingIcon.png");
 	private static List<Image> applicationIcons;
+	private static final ListChangeListener<Node> DIALOG_CONTENT_LISTENER = change -> {
+		while (change.next()) {
+			change.getAddedSubList().forEach(child -> configureTextWrapping(child));
+		}
+	};
 
 	private DialogWindowSupport() {
 	}
@@ -50,6 +60,11 @@ public final class DialogWindowSupport implements BaseMessages {
 		dialog.initModality(Modality.APPLICATION_MODAL);
 		dialog.setTitle(title);
 		applyApplicationIcons(dialog);
+		dialog.sceneProperty().addListener((observable, previous, scene) -> {
+			if (scene != null) {
+				configureTextWrapping(scene.getRoot());
+			}
+		});
 		return dialog;
 	}
 
@@ -181,9 +196,26 @@ public final class DialogWindowSupport implements BaseMessages {
 	}
 
 	private static void initOwner(Dialog<?> dialog, Window parentWindow) {
+		dialog.setOnShowing(event -> configureTextWrapping(dialog.getDialogPane()));
 		Optional<Window> owner = resolveDialogOwner(parentWindow);
 		if (owner.isPresent()) {
 			dialog.initOwner(owner.get());
+		}
+	}
+
+	private static void configureTextWrapping(Node node) {
+		if (node instanceof Label label) {
+			label.setWrapText(true);
+			label.setMinSize(0, Region.USE_PREF_SIZE);
+			label.setMaxWidth(Double.MAX_VALUE);
+		} else if (node instanceof Pane pane) {
+			pane.getChildren().forEach(child -> configureTextWrapping(child));
+			pane.getChildren().removeListener(DIALOG_CONTENT_LISTENER);
+			pane.getChildren().addListener(DIALOG_CONTENT_LISTENER);
+		} else if (node instanceof ScrollPane scroll) {
+			configureTextWrapping(scroll.getContent());
+		} else if (node instanceof TabPane tabs) {
+			tabs.getTabs().forEach(tab -> configureTextWrapping(tab.getContent()));
 		}
 	}
 

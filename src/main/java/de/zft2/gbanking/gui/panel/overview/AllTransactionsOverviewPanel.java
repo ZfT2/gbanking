@@ -23,7 +23,9 @@ public class AllTransactionsOverviewPanel extends TransactionsOverviewBasePanel 
 		transactionDetailPanel = new TransactionDetailPanel(this);
 		transactionListPanel = new TransactionListPanel(this);
 
-		setOverviewContent("UI_PANEL_ALL_TRANSACTIONS", new DetailListPane(transactionDetailPanel, transactionListPanel));
+		DetailListPane content = new DetailListPane(transactionDetailPanel, transactionListPanel);
+		content.setFlexibleDetail(transactionDetailPanel);
+		setOverviewContent("UI_PANEL_ALL_TRANSACTIONS", content);
 	}
 
 	@Override

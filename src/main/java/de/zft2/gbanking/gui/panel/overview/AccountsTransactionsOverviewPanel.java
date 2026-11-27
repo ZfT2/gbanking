@@ -151,6 +151,10 @@ public class AccountsTransactionsOverviewPanel extends TransactionsOverviewBaseP
 	}
 
 	private void showTransactionDetailNode(Node detailNode) {
-		transactionContentPane.setDetail(detailNode);
+		if (detailNode == transactionDetailPanel) {
+			transactionContentPane.setFlexibleDetail(transactionDetailPanel);
+		} else {
+			transactionContentPane.setDetail(detailNode);
+		}
 	}
 }

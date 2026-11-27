@@ -5,17 +5,26 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import de.zft2.gbanking.gui.JavaFxTestSupport;
 import javafx.application.Platform;
+import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextArea;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Rectangle;
@@ -89,6 +98,59 @@ class DialogWindowSupportTest {
 		assertEquals(320.0, scene.getWidth());
 		assertEquals(180.0, scene.getHeight());
 		assertEquals(Priority.ALWAYS, VBox.getVgrow(rectangle));
+	}
+
+	@Test
+	void modalScenesShouldWrapNestedLabelsWithoutChangingOtherControls() {
+		JavaFxTestSupport.runFx(() -> {
+			Stage dialog = DialogWindowSupport.createModalStage(null, "UI_DIALOG_PIN_TITLE");
+			Label hint = new Label("An explanatory message that needs several lines in a narrow dialog. ".repeat(5));
+			TextArea editor = new TextArea(hint.getText());
+			ScrollPane scroll = new ScrollPane(new VBox(hint, editor));
+			scroll.setFitToWidth(true);
+			TabPane tabs = new TabPane(new Tab("Details", scroll));
+			TableView<Object> table = new TableView<>();
+			Label placeholder = new Label("No data");
+			table.setPlaceholder(placeholder);
+			Button ok = new Button("OK");
+			VBox root = DialogWindowSupport.createDialogRoot(tabs, table, ok);
+			dialog.setScene(new Scene(root, 360, 500));
+			root.applyCss();
+			root.layout();
+
+			assertTrue(hint.getHeight() >= hint.prefHeight(hint.getWidth()));
+			assertTrue(hint.getHeight() > 40);
+			assertFalse(editor.isWrapText());
+			assertFalse(placeholder.isWrapText());
+			assertFalse(ok.isWrapText());
+
+			Label addedHint = new Label(hint.getText());
+			((VBox) scroll.getContent()).getChildren().set(0, addedHint);
+			root.applyCss();
+			root.layout();
+			assertTrue(addedHint.getHeight() > 40);
+
+			Label nextStep = new Label(hint.getText());
+			dialog.setScene(new Scene(new VBox(nextStep), 360, 160));
+			assertTrue(nextStep.isWrapText());
+		});
+	}
+
+	@Test
+	void confirmationShouldWrapCustomContentBeforeLayout() {
+		JavaFxTestSupport.runFx(() -> {
+			Label hint = new Label("A long confirmation message that must remain fully readable. ".repeat(5));
+			VBox content = new VBox(hint);
+			content.setPrefWidth(300);
+			AtomicBoolean readable = new AtomicBoolean();
+			Platform.runLater(() -> {
+				readable.set(hint.getHeight() > 40 && hint.getHeight() >= hint.prefHeight(hint.getWidth()));
+				fireDialogButton(ButtonType.OK);
+			});
+			assertTrue(DialogWindowSupport.showConfirmation(null, Alert.AlertType.CONFIRMATION, "Title", null, content,
+					ButtonType.OK, ButtonType.CANCEL));
+			assertTrue(readable.get());
+		});
 	}
 
 	@Test
