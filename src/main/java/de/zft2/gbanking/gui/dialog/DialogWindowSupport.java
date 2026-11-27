@@ -206,7 +206,10 @@ public final class DialogWindowSupport implements BaseMessages {
 	private static void configureTextWrapping(Node node) {
 		if (node instanceof Label label) {
 			label.setWrapText(true);
-			label.setMinSize(0, Region.USE_PREF_SIZE);
+			if (label.getMinWidth() == Region.USE_COMPUTED_SIZE) {
+				label.setMinWidth(0);
+			}
+			label.setMinHeight(Region.USE_PREF_SIZE);
 			label.setMaxWidth(Double.MAX_VALUE);
 		} else if (node instanceof Pane pane) {
 			pane.getChildren().forEach(child -> configureTextWrapping(child));

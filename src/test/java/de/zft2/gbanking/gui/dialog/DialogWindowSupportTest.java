@@ -105,6 +105,8 @@ class DialogWindowSupportTest {
 		JavaFxTestSupport.runFx(() -> {
 			Stage dialog = DialogWindowSupport.createModalStage(null, "UI_DIALOG_PIN_TITLE");
 			Label hint = new Label("An explanatory message that needs several lines in a narrow dialog. ".repeat(5));
+			Label progress = new Label("100 %");
+			progress.setMinWidth(48);
 			TextArea editor = new TextArea(hint.getText());
 			ScrollPane scroll = new ScrollPane(new VBox(hint, editor));
 			scroll.setFitToWidth(true);
@@ -113,13 +115,14 @@ class DialogWindowSupportTest {
 			Label placeholder = new Label("No data");
 			table.setPlaceholder(placeholder);
 			Button ok = new Button("OK");
-			VBox root = DialogWindowSupport.createDialogRoot(tabs, table, ok);
+			VBox root = DialogWindowSupport.createDialogRoot(tabs, table, progress, ok);
 			dialog.setScene(new Scene(root, 360, 500));
 			root.applyCss();
 			root.layout();
 
 			assertTrue(hint.getHeight() >= hint.prefHeight(hint.getWidth()));
 			assertTrue(hint.getHeight() > 40);
+			assertEquals(48, progress.getMinWidth());
 			assertFalse(editor.isWrapText());
 			assertFalse(placeholder.isWrapText());
 			assertFalse(ok.isWrapText());
