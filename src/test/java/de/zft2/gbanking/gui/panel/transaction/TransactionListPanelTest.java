@@ -2,6 +2,8 @@ package de.zft2.gbanking.gui.panel.transaction;
 
 import static de.zft2.gbanking.service.ServiceStubbingUtil.createWithServices;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -18,6 +20,7 @@ import java.time.Month;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.AfterEach;
@@ -25,9 +28,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.db.TestDatabaseExtension;
+import de.zft2.gbanking.db.dao.BankAccount;
 import de.zft2.gbanking.db.dao.Booking;
 import de.zft2.gbanking.db.dao.enu.AccountType;
 import de.zft2.gbanking.db.dao.enu.Source;
@@ -35,6 +40,7 @@ import de.zft2.gbanking.exception.GBankingException;
 import de.zft2.gbanking.gui.GuiContext;
 import de.zft2.gbanking.gui.JavaFxTestSupport;
 import de.zft2.gbanking.gui.dialog.DialogWindowSupport;
+import de.zft2.gbanking.gui.panel.layout.DetailListPane;
 import de.zft2.gbanking.gui.panel.overview.AccountsTransactionsOverviewPanel;
 import de.zft2.gbanking.gui.panel.overview.AllTransactionsOverviewPanel;
 import de.zft2.gbanking.service.BankingCapabilityService;
@@ -51,8 +57,11 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TabPane;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 
@@ -121,6 +130,55 @@ class TransactionListPanelTest {
 			assertEquals("", accountFilter.getText());
 			assertEquals("", filterText(transactions).getText());
 		});
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void clickingSelectedAccountShouldRestoreItsDetailsOnlyWhenChangesCanBeDiscarded(boolean discardAllowed) {
+		var account = database.controller().insertOrUpdate(TestDataFactory.createSampleAccount(null));
+		Booking booking = database.controller().insertOrUpdate(TestDataFactory.createSampleBooking(account.getId()));
+		JavaFxTestSupport.runFx(() -> {
+			AtomicBoolean allowSelection = new AtomicBoolean(true);
+			AccountsTransactionsOverviewPanel overview = new AccountsTransactionsOverviewPanel() {
+				@Override
+				public boolean canChangeAccountSelection() {
+					return allowSelection.get() && super.canChangeAccountSelection();
+				}
+			};
+			layoutInScene(overview, 1200);
+			assertTrue(overview.selectBooking(account, booking.getId()));
+			overview.applyCss();
+			overview.layout();
+			TransactionListPanel transactions = overview.getTransactionListPanel();
+			DetailListPane content = (DetailListPane) transactions.getParent();
+			List<Booking> rows = List.copyOf(transactions.getMasterData());
+			Booking selected = transactions.getSelectedItem();
+			TableRow<?> accountRow = overview.getAccountListPanel().lookupAll(".table-row-cell").stream()
+					.filter(node -> node instanceof TableRow<?> row && row.getItem() instanceof BankAccount item
+							&& item.getId() == account.getId())
+					.map(node -> (TableRow<?>) node).findFirst().orElseThrow();
+			allowSelection.set(discardAllowed);
+			accountRow.fireEvent(accountPress(MouseButton.SECONDARY));
+			assertSame(overview.getTransactionDetailPanel(), content.getTop());
+			accountRow.fireEvent(accountPress(MouseButton.PRIMARY));
+			assertEquals(rows, transactions.getMasterData());
+			assertEquals(account.getId(), overview.getSelectedAccount().getId());
+			if (discardAllowed) {
+				assertSame(overview.getAccountDetailPanel(), content.getTop());
+				assertNull(transactions.getSelectedItem());
+				assertTrue(transactions.selectBookingById(booking.getId()));
+				assertSame(overview.getTransactionDetailPanel(), content.getTop());
+			} else {
+				assertSame(overview.getTransactionDetailPanel(), content.getTop());
+				assertSame(selected, transactions.getSelectedItem());
+			}
+		});
+	}
+
+	private static MouseEvent accountPress(MouseButton button) {
+		return new MouseEvent(MouseEvent.MOUSE_PRESSED, 10, 25, 10, 25, button,
+				1, false, false, false, false, button == MouseButton.PRIMARY, false,
+				button == MouseButton.SECONDARY, false, false, true, null);
 	}
 
 	@Test

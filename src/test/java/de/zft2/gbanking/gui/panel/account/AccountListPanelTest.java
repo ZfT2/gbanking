@@ -4,6 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.HashMap;
 import java.util.List;
@@ -144,7 +148,10 @@ class AccountListPanelTest {
 	@Test
 	void shouldRenderHalfHeightSeparatorsWithoutChangingAccountSelection() {
 		JavaFxTestSupport.runFx(() -> {
-			TestPanel panel = new TestPanel();
+			AccountSelectionTarget target = mock(AccountSelectionTarget.class);
+			when(target.getPageContext()).thenReturn(PageContext.ACCOUNTS_TRANSACTIONS);
+			when(target.canChangeAccountSelection()).thenReturn(true);
+			TestPanel panel = new TestPanel(target);
 			GuiLayoutState.accountGroupingProperty().set(AccountGrouping.TYPE);
 			panel.applyCss();
 			panel.layout();
@@ -161,6 +168,10 @@ class AccountListPanelTest {
 			first.fireEvent(new MouseEvent(MouseEvent.MOUSE_PRESSED, 10, 5, 10, 5, MouseButton.PRIMARY,
 					1, false, false, false, false, true, false, false, false, false, true, null));
 			assertSame(selected, panel.getSelectedAccount());
+			panel.table().getSelectionModel().select(0);
+			first.fireEvent(new MouseEvent(MouseEvent.MOUSE_PRESSED, 10, 5, 10, 5, MouseButton.PRIMARY,
+					1, false, false, false, false, true, false, false, false, false, true, null));
+			verify(target, never()).handleAccountReselection(panel.getSelectedAccount());
 			ComboBox<?> choice = (ComboBox<?>) panel.lookup(GROUPING_CHOICE);
 			assertTrue(choice.localToScene(choice.getBoundsInLocal()).getMaxX() <= 335);
 			Label count = (Label) panel.lookup("#account-count");
@@ -179,7 +190,11 @@ class AccountListPanelTest {
 
 	private static class TestPanel extends AccountListPanel {
 		TestPanel() {
-			super(() -> PageContext.ACCOUNTS_TRANSACTIONS, AccountListScope.ALL, "UI_PANEL_ACCOUNT",
+			this(() -> PageContext.ACCOUNTS_TRANSACTIONS);
+		}
+
+		TestPanel(AccountSelectionTarget target) {
+			super(target, AccountListScope.ALL, "UI_PANEL_ACCOUNT",
 					new AccountTableModel(List.of(namedAccount(3, GAMMA, "ING", AccountType.CURRENT_ACCOUNT, "20000000", null),
 							namedAccount(2, BETA, " dKb ", AccountType.OVERNIGHT_MONEY, FIRST_BLZ, null),
 							namedAccount(1, ALPHA, "DKB", AccountType.CURRENT_ACCOUNT, FIRST_BLZ, null),

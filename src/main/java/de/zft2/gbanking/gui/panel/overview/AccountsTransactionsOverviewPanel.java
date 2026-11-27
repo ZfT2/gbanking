@@ -86,6 +86,15 @@ public class AccountsTransactionsOverviewPanel extends TransactionsOverviewBaseP
 	}
 
 	@Override
+	public void handleAccountReselection(BankAccount account) {
+		if (canChangeAccountSelection()) {
+			transactionListPanel.clearBookingSelection();
+			transactionDetailPanel.clearDisplayedBooking();
+			enableAccountDetailPanel();
+		}
+	}
+
+	@Override
 	public void handleAccountSelection(BankAccount selectedAccount) {
 		log.log(Level.INFO, () -> getText("LOG_ACCOUNT_SELECTED", selectedAccount.getId()));
 		transactionDetailPanel.clearDisplayedBooking();

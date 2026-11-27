@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.Month;
@@ -13,6 +14,8 @@ import java.time.Month;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import de.zft2.gbanking.BaseMessages;
 import de.zft2.gbanking.db.DBControllerTestUtil;
@@ -28,8 +31,53 @@ import javafx.scene.control.TitledPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Text;
 
 class AccountDetailPanelTest {
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void shouldShowColoredOnlineBalanceBeforeUpdatedAtOnly(boolean fullDetails, @TempDir Path directory) {
+		DBController db = DBController.getInstance(directory.toString());
+		int accessId = db.insertOrUpdate(TestDataFactory.createSampleBankAccess("10000000")).getId();
+		BankAccount account = TestDataFactory.createSampleAccount(accessId);
+		JavaFxTestSupport.runFx(() -> {
+			AccountDetailPanel panel = new AccountDetailPanel(fullDetails);
+			HBox statusFields = getStatusFields(panel);
+			HBox balanceField = assertInstanceOf(HBox.class, statusFields.getChildren().get(0));
+			Text balance = assertInstanceOf(Text.class, balanceField.getChildren().get(1));
+			assertFalse(balanceField.isManaged());
+			account.setBalance(new BigDecimal("1234.56"));
+			panel.updatePanelFieldValues(account);
+			assertTrue(balanceField.isVisible());
+			assertTrue(balanceField.isManaged());
+			assertEquals("1.234,56", balance.getText());
+			assertEquals(Color.DARKGREEN, balance.getFill());
+			statusFields.autosize();
+			statusFields.layout();
+			assertTrue(statusFields.getChildren().get(1).getLayoutX() - balanceField.getBoundsInParent().getMaxX() >= 24);
+			account.setBalance(new BigDecimal("-12.34"));
+			panel.updatePanelFieldValues(account);
+			assertEquals("-12,34", balance.getText());
+			assertEquals(Color.RED, balance.getFill());
+			account.setBalance(null);
+			panel.updatePanelFieldValues(account);
+			assertEquals("-,--", balance.getText());
+			assertEquals(Color.BLACK, balance.getFill());
+			account.setBalance(BigDecimal.ZERO);
+			panel.updatePanelFieldValues(account);
+			assertEquals("0,00", balance.getText());
+			assertEquals(Color.BLACK, balance.getFill());
+			account.setBankAccessId(null);
+			panel.updatePanelFieldValues(account);
+			assertFalse(balanceField.isVisible());
+			assertFalse(balanceField.isManaged());
+			panel.updatePanelFieldValues(null);
+			assertEquals("", balance.getText());
+			assertFalse(balanceField.isManaged());
+		});
+	}
 
 	@Test
 	void shouldSaveChangeAndClearClosureDatesOnlyInEditableAccountDetails(@TempDir Path directory) {
@@ -111,21 +159,29 @@ class AccountDetailPanelTest {
 		assertFieldPosition(grid, "UI_LABEL_CURRENCY", 2, firstRow + 2);
 		assertFieldPosition(grid, "UI_LABEL_SEPA_ACCOUNT", 3, firstRow + 2);
 		assertFieldPosition(grid, "UI_LABEL_ACCOUNT_CLOSED_AT", 0, firstRow + 3);
-		assertFieldPosition(grid, "UI_LABEL_BANK_BALANCE", 0, firstRow + 4);
-		assertFieldPosition(grid, "UI_LABEL_ACCOUNT_RETRIEVAL_AT", 1, firstRow + 4);
-		assertFieldPosition(grid, "UI_LABEL_ACCOUNT_RETRIEVAL_RESULT", 2, firstRow + 4);
-		assertFieldPosition(grid, "UI_LABEL_ACCOUNT_RETRIEVAL_COUNTS", 3, firstRow + 4);
+		assertEquals(firstRow + 4, grid.getRowCount());
+		assertFieldPosition(grid, "UI_LABEL_ACCOUNT_RETRIEVAL_AT", 1, firstRow + 3);
+		assertFieldPosition(grid, "UI_LABEL_ACCOUNT_RETRIEVAL_RESULT", 2, firstRow + 3);
+		assertFieldPosition(grid, "UI_LABEL_ACCOUNT_RETRIEVAL_COUNTS", 3, firstRow + 3);
 	}
 
 	private static GridPane getFormGrid(AccountDetailPanel panel) {
 		TitledPane titledPane = assertInstanceOf(TitledPane.class, panel.getChildren().get(0));
-		HBox title = assertInstanceOf(HBox.class, titledPane.getGraphic());
-		HBox updatedAt = assertInstanceOf(HBox.class, title.getChildren().get(1));
+		HBox statusFields = getStatusFields(panel);
+		HBox balance = assertInstanceOf(HBox.class, statusFields.getChildren().get(0));
+		assertEquals(BaseMessages.getTextStatic("UI_LABEL_BANK_BALANCE") + ":", ((Label) balance.getChildren().get(0)).getText());
+		HBox updatedAt = assertInstanceOf(HBox.class, statusFields.getChildren().get(1));
 		Label updatedAtLabel = assertInstanceOf(Label.class, updatedAt.getChildren().get(0));
-		assertEquals(BaseMessages.getTextStatic("UI_LABEL_UPDATED_AT"), updatedAtLabel.getText());
+		assertEquals(BaseMessages.getTextStatic("UI_LABEL_UPDATED_AT") + ":", updatedAtLabel.getText());
 		assertInstanceOf(Label.class, updatedAt.getChildren().get(1));
 		VBox content = assertInstanceOf(VBox.class, titledPane.getContent());
 		return assertInstanceOf(GridPane.class, content.getChildren().get(0));
+	}
+
+	private static HBox getStatusFields(AccountDetailPanel panel) {
+		TitledPane titledPane = (TitledPane) panel.getChildren().get(0);
+		HBox title = (HBox) titledPane.getGraphic();
+		return (HBox) title.getChildren().get(1);
 	}
 
 	private static void assertFieldPosition(GridPane grid, String labelKey, int column, int row) {

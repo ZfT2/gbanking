@@ -35,6 +35,8 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -129,6 +131,11 @@ public class AccountListPanel extends AbstractFilterableTablePanel<BankAccount> 
 	protected void updateRowStyle(TableRow<BankAccount> row, BankAccount account) {
 		if (!(row.getSkin() instanceof AccountGroupRowSkin)) {
 			row.setSkin(new AccountGroupRowSkin(row));
+			row.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+				if (!event.isConsumed() && event.getButton() == MouseButton.PRIMARY && !row.isEmpty() && row.isSelected()) {
+					selectionTarget.handleAccountReselection(row.getItem());
+				}
+			});
 		}
 		((AccountGroupRowSkin) row.getSkin()).updateGroup(grouping.getValue());
 	}

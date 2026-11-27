@@ -14,4 +14,8 @@ public interface AccountSelectionTarget {
 	default void handleAccountSelection(BankAccount account) {
 		// Some account lists use row selection only as a visual focus indicator.
 	}
+
+	default void handleAccountReselection(BankAccount account) {
+		// Only account overviews restore their details when the selected row is clicked again.
+	}
 }

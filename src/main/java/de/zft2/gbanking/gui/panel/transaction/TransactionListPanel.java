@@ -681,6 +681,10 @@ public class TransactionListPanel extends AbstractFilterableTablePanel<Booking> 
 		replaceBookingItems(bookingList);
 	}
 
+	public void clearBookingSelection() {
+		tableView.getSelectionModel().clearSelection();
+	}
+
 	public void updatePanelBorder(String title) {
 		setPanelTitle(title);
 	}

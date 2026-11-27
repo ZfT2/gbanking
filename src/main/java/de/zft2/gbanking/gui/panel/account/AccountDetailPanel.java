@@ -40,6 +40,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
+import javafx.scene.text.Text;
 
 public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 
@@ -63,7 +64,8 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 
 	private final TextField bankAccessText = FormFields.textS();
 	private final TextField currencyText = FormFields.textXs();
-	private final TextField bankBalanceText = FormFields.textXs();
+	private final Text bankBalanceText = FxTableUtils.createAmountText();
+	private final HBox bankBalanceField = new HBox(8);
 
 	private final TextField bicText = FormFields.textS();
 	private final TextField blzText = FormFields.textS();
@@ -93,7 +95,6 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 	private BankAccount currentAccount;
 	private boolean creatingNewAccount;
 	private DetailFormEditMode editModeController;
-	private Node bankBalanceRow;
 	private final DecimalFormat amountFormat = FxTableUtils.createGermanDecimalFormat();
 
 	public AccountDetailPanel(boolean fullDetails) {
@@ -118,9 +119,9 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 		} else {
 			addReadonlyDetailsFields();
 		}
-		addUpdatedAtFieldToTitle();
+		addStatusFieldsToTitle();
 
-		makeReadOnly(accountIbanText, bankNameText, accountTypText, bankAccessText, currencyText, bankBalanceText, bicText, blzText, numberText, subnumberText,
+		makeReadOnly(accountIbanText, bankNameText, accountTypText, bankAccessText, currencyText, bicText, blzText, numberText, subnumberText,
 				ownerNameText, ownerName2Text, createdAtText, closedAtText, retrievalAtText, retrievalResultText, retrievalCountsText);
 		closedAtText.setPromptText("dd.MM.yyyy");
 		setBankBalanceVisible(false);
@@ -156,12 +157,12 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 		addFieldInline("UI_LABEL_OFFLINE_ACCOUNT", isOfflineAccount, 2, 0);
 		addFieldInline("UI_LABEL_CREATED_AT", createdAtText, 3, 0);
 		addAccountFields(accountTypeCombo, 1);
-		addRetrievalStatusFields(5);
+		addRetrievalStatusFields(4);
 	}
 
 	private void addReadonlyDetailsFields() {
 		addAccountFields(accountTypText, 0);
-		addRetrievalStatusFields(4);
+		addRetrievalStatusFields(3);
 	}
 
 	private void addAccountFields(Node accountType, int firstRow) {
@@ -183,23 +184,23 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 	}
 
 	private void addRetrievalStatusFields(int row) {
-		addBankBalanceField(0, row);
 		addFieldInline("UI_LABEL_ACCOUNT_RETRIEVAL_AT", retrievalAtText, 1, row);
 		addFieldInline("UI_LABEL_ACCOUNT_RETRIEVAL_RESULT", retrievalResultText, 2, row);
 		addFieldInline("UI_LABEL_ACCOUNT_RETRIEVAL_COUNTS", retrievalCountsText, 3, row);
 	}
 
-	private void addUpdatedAtFieldToTitle() {
-		Label caption = new Label(getText("UI_LABEL_UPDATED_AT"));
+	private void addStatusFieldsToTitle() {
+		Label balanceCaption = new Label(getText("UI_LABEL_BANK_BALANCE") + ":");
+		balanceCaption.getStyleClass().add("gbanking-form-label");
+		bankBalanceField.getChildren().addAll(balanceCaption, bankBalanceText);
+		bankBalanceField.setAlignment(Pos.CENTER_LEFT);
+		Label caption = new Label(getText("UI_LABEL_UPDATED_AT") + ":");
 		caption.getStyleClass().add("gbanking-form-label");
 		HBox field = new HBox(8, caption, updatedAtLabel);
 		field.setAlignment(Pos.CENTER_LEFT);
-		setTitleRightNode(field);
-	}
-
-	private void addBankBalanceField(int col, int row) {
-		addFieldInline("UI_LABEL_BANK_BALANCE", bankBalanceText, col, row);
-		bankBalanceRow = bankBalanceText.getParent();
+		HBox statusFields = new HBox(24, bankBalanceField, field);
+		statusFields.setAlignment(Pos.CENTER_LEFT);
+		setTitleRightNode(statusFields);
 	}
 
 	public void updatePanelFieldValues(BankAccount bankAccount) {
@@ -227,6 +228,7 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 		bankAccessText.setText(getBankAccessDisplayName(bankAccount.getBankAccessId()));
 		currencyText.setText(bankAccount.getCurrency());
 		bankBalanceText.setText(formatAmount(bankAccount.getBalance()));
+		FxTableUtils.applyAmountTextStyle(bankBalanceText, bankAccount.getBalance());
 		setBankBalanceVisible(isOnlineAccount(bankAccount));
 		bicText.setText(bankAccount.getBic());
 		blzText.setText(bankAccount.getBlz());
@@ -267,9 +269,10 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 
 	private void clearForm() {
 		resetTitle();
-		clearTextFields(accountNameText, accountIbanText, accountTypText, bankNameText, bankAccessText, currencyText, bankBalanceText, bicText, blzText,
+		clearTextFields(accountNameText, accountIbanText, accountTypText, bankNameText, bankAccessText, currencyText, bicText, blzText,
 				numberText, subnumberText, ownerNameText, ownerName2Text, createdAtText, retrievalAtText, retrievalResultText, retrievalCountsText);
 		updatedAtLabel.setText("");
+		bankBalanceText.setText("");
 		retrievalResultText.setTooltip(null);
 		accountTypeCombo.setValue(null);
 		closedAtText.clear();
@@ -538,7 +541,7 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 	}
 
 	private String formatAmount(BigDecimal amount) {
-		return amount != null ? amountFormat.format(amount) : "";
+		return amount != null ? amountFormat.format(amount) : "-,--";
 	}
 
 	private boolean isOnlineAccount(BankAccount bankAccount) {
@@ -547,9 +550,7 @@ public class AccountDetailPanel extends AbstractReadonlyDetailPanel {
 	}
 
 	private void setBankBalanceVisible(boolean visible) {
-		if (bankBalanceRow != null) {
-			FxNodeSupport.setVisibleManaged(bankBalanceRow, visible);
-		}
+		FxNodeSupport.setVisibleManaged(bankBalanceField, visible);
 	}
 
 }
