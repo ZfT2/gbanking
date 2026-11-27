@@ -56,7 +56,7 @@
 
 		<javafx.version>21.0.12</javafx.version>
 		<log4j.version>2.26.1</log4j.version>
-		<sqlitejdbc.version>3.53.4.0</sqlitejdbc.version>
+		<sqlitejdbc.version>3.54.1.0</sqlitejdbc.version>
 		<commonscsv.version>1.14.1</commonscsv.version>
 		<hbci4j.version>4.1.12</hbci4j.version>
 
@@ -67,11 +67,11 @@
 		<mockito.version>5.24.0</mockito.version>
 		<xmlunit.version>2.14.0</xmlunit.version>
 
-		<maven.compiler.plugin.version>3.15.0</maven.compiler.plugin.version>
+		<maven.compiler.plugin.version>3.16.0</maven.compiler.plugin.version>
 		<maven.jar.plugin.version>3.5.1</maven.jar.plugin.version>
 		<maven.assembly.plugin.version>3.8.0</maven.assembly.plugin.version>
 		<maven.resources.plugin.version>3.5.0</maven.resources.plugin.version>
-		<maven.surefire.plugin.version>3.5.6</maven.surefire.plugin.version>
+		<maven.surefire.plugin.version>3.6.1</maven.surefire.plugin.version>
 		<maven.enforcer.plugin.version>3.6.3</maven.enforcer.plugin.version>
 
 		<project.build.outputTimestamp>${maven.build.timestamp}</project.build.outputTimestamp>
